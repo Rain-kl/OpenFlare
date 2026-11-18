@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
@@ -20,7 +22,7 @@ import (
 )
 
 // RegisterWithAccessToken registers an agent on a reserved node token.
-func RegisterWithAccessToken(ctx context.Context, authNode *model.OpenFlareNode, payload NodePayload) (*RegistrationResponse, error) {
+func RegisterWithAccessToken(ctx context.Context, authNode *model.OpenFlareNode, payload protocol.NodePayload) (*protocol.RegisterNodeResponse, error) {
 	_ = ofgeoip.EnsureRuntimeProvider(ctx)
 	payload = normalizeNodePayload(payload)
 	if authNode == nil {
@@ -34,7 +36,7 @@ func RegisterWithAccessToken(ctx context.Context, authNode *model.OpenFlareNode,
 		return nil, err
 	}
 	RefreshAccessTokenCache(ctx, authNode)
-	return &RegistrationResponse{
+	return &protocol.RegisterNodeResponse{
 		NodeID:      authNode.NodeID,
 		AccessToken: authNode.AccessToken,
 		Name:        authNode.Name,
@@ -42,7 +44,7 @@ func RegisterWithAccessToken(ctx context.Context, authNode *model.OpenFlareNode,
 }
 
 // RegisterWithDiscovery registers a new node using the global discovery token.
-func RegisterWithDiscovery(ctx context.Context, payload NodePayload, registrationKey string) (*RegistrationResponse, error) {
+func RegisterWithDiscovery(ctx context.Context, payload protocol.NodePayload, registrationKey string) (*protocol.RegisterNodeResponse, error) {
 	_ = ofgeoip.EnsureRuntimeProvider(ctx)
 	payload = normalizeNodePayload(payload)
 	if err := validateNodePayload(payload); err != nil {
@@ -85,7 +87,7 @@ func RegisterWithDiscovery(ctx context.Context, payload NodePayload, registratio
 		return nil, err
 	}
 	RefreshAccessTokenCache(ctx, record)
-	return &RegistrationResponse{
+	return &protocol.RegisterNodeResponse{
 		NodeID:      record.NodeID,
 		AccessToken: record.AccessToken,
 		Name:        record.Name,
@@ -105,7 +107,7 @@ func newDiscoveryIdentity(registrationKey string) (string, string, error) {
 }
 
 // HeartbeatNode updates runtime state and returns agent settings.
-func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload NodePayload) (*HeartbeatResponse, error) {
+func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload protocol.NodePayload) (*HeartbeatResponse, error) {
 	_ = ofgeoip.EnsureRuntimeProvider(ctx)
 	if authNode == nil {
 		return nil, errors.New(errNodeNotFound)
@@ -183,16 +185,16 @@ func GetActiveConfig(ctx context.Context, siteAuthSupported bool) (*ConfigRespon
 }
 
 // SyncWAFIPGroups returns WAF IP groups whose checksums differ from the agent state.
-func SyncWAFIPGroups(ctx context.Context, input WAFIPGroupSyncInput) (*WAFIPGroupSyncResult, error) {
+func SyncWAFIPGroups(ctx context.Context, input protocol.WAFIPGroupSyncRequest) (*protocol.WAFIPGroupSyncResponse, error) {
 	groups, err := ChangedWAFIPGroupsForAgent(ctx, input.IDs, input.Checksums)
 	if err != nil {
 		return nil, err
 	}
-	return &WAFIPGroupSyncResult{Groups: groups}, nil
+	return &protocol.WAFIPGroupSyncResponse{Groups: groups}, nil
 }
 
 // ReportApplyLog records an agent apply result.
-func ReportApplyLog(ctx context.Context, payload ApplyLogPayload) (*model.OpenFlareApplyLog, error) {
+func ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) (*model.OpenFlareApplyLog, error) {
 	now := time.Now()
 	payload = normalizeApplyLogPayload(payload)
 	if payload.NodeID == "" {

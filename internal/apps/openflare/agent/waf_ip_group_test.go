@@ -14,7 +14,7 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/pkg/protocol"
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -227,7 +227,7 @@ func TestSyncWAFIPGroupsReturnsChangedGroups(t *testing.T) {
 	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
 	seedActiveConfigWithWAFIPGroup(t, ctx, ipGroup.ID)
 
-	result, err := SyncWAFIPGroups(ctx, WAFIPGroupSyncInput{
+	result, err := SyncWAFIPGroups(ctx, protocol.WAFIPGroupSyncRequest{
 		IDs:       []uint{ipGroup.ID},
 		Checksums: map[string]string{},
 	})
@@ -236,7 +236,7 @@ func TestSyncWAFIPGroupsReturnsChangedGroups(t *testing.T) {
 	assert.Equal(t, ipGroup.ID, result.Groups[0].ID)
 	assert.Equal(t, "198.51.100.10", result.Groups[0].IPList[0])
 
-	result, err = SyncWAFIPGroups(ctx, WAFIPGroupSyncInput{
+	result, err = SyncWAFIPGroups(ctx, protocol.WAFIPGroupSyncRequest{
 		IDs: []uint{ipGroup.ID},
 		Checksums: map[string]string{
 			strconv.FormatUint(uint64(ipGroup.ID), 10): result.Groups[0].Checksum,

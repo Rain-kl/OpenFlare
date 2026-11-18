@@ -33,12 +33,12 @@ description: "OpenFlare / Wavelet：当新增或修改日志/分析用途表（�
 | 层级 | 路径 | 职责 |
 | :--- | :--- | :--- |
 | 抽象 | `internal/repository/logstore` | 接口 + `Active`/`BuildForMigration`；apps **只**面向这里或 `repository` 门面 |
-| CH 实现 | `logstore/clickhouse_store.go` 委托 `analytics` | 原生批量 + 现有聚合 SQL |
+| CH 实现 | `logstore/clickhouse_store.go` + `logstore/ch_*.go` | 原生批量（`PrepareBatch` / `Append` / `Send`）+ 聚合 SQL |
 | 主库实现 | `logstore/postgres_store.go` | PG（按月分区）与 SQLite（普通表）共用 GORM |
 | Model | `internal/model/analytics` | 实体与批量 SQL，无 IO |
-| 入队 | `chwriter` / `risk_control` + `batchwriter` | flush 调 logstore `BatchInsert*`；CH 入队经 hooks |
-| 切换 | `of_log_db_switch` | 冻结 → `chwriter.Drain` → 逐表复制 → 翻转 |
-| 约束 | `logstore/imports_test.go` | apps 禁止 import `repository/analytics` |
+| 入队 | `openflare/logwriter` / `risk_control` + `batchwriter` | flush 调 logstore `BatchInsert*`；节点日志 / 可观测经 hooks 入队 |
+| 切换 | `of_log_db_switch` | 冻结 → `logwriter.Drain` → 逐表复制 → 翻转 |
+| 约束 | `logstore/imports_test.go` | apps 禁止 import ClickHouse 驱动或 `db.ChConn` / `db.ChDB` |
 
 `log_database` 只能是「随主库」或 `clickhouse`。`log_database` / `log_db_migration` 受保护。
 
@@ -48,16 +48,16 @@ description: "OpenFlare / Wavelet：当新增或修改日志/分析用途表（�
 2. **三套 DDL**：CH `MergeTree` + `toYYYYMM`；PG `PARTITION BY RANGE(时间列)`（主键含分区键）；SQLite 普通表。不要在主库建 CH 物化视图，聚合实时算。
 3. **挂到已有域或新接口**：能进 `AccessLogStore` / `ObservabilityStore` / `UserAccessLogStore` 就不要再拆包。新域才新增接口并放进 `Store`。
 4. **方法最少集**：`BatchInsert`（含 `ensureWritable`）、业务查询、`ListForMigration`、`MigrationRange`、`DeleteAll`、`DeleteBefore`、`EnsurePartitions`（仅 PG 预建）。
-5. **双实现**：CH 委托 `analyticsrepo`；GORM 共用一套，方言 SQL 放 `dialect_*.go`。零值 id 用 `idgen.NextUint64ID()`。
+5. **双实现**：CH 实现放在 `logstore/ch_*.go`；GORM 共用一套，方言 SQL 放 `dialect_*.go`。零值 id 用 `idgen.NextUint64ID()`。
 6. **`buildStore`**：CH / GORM 两分支都挂上。
 7. **写入**：独立 `batchwriter`；`FlushFunc` → `logstore.Active`。节点日志/可观测走 `SetAccessLogHooks` / `SetObservabilityHooks`，不要让 apps 碰 `ChConn`。
 8. **切换任务**：`clearTarget` + `copy*` 增加该表；源数据不删，失败不翻转。
 9. **清理**：访问类走 `log_retention_days_*`；性能指标走 `metric_retention_days`。不要擅自共用错误的 TTL。
-10. **import-lint**：apps 新增对 `analytics` 或 `infra/persistence`（`batchwriter`/`idgen` 除外）的 import 必须失败。
+10. **import-lint**：apps 新增对 ClickHouse 驱动、`migrator` 或 `infra/persistence`（`batchwriter`/`idgen` 除外）的 import 必须失败。
 
 ## 禁止
 
-- apps 直连 `analyticsrepo` / `db.ChConn` / `db.ChDB` 做日志读写
+- apps 直连 ClickHouse 驱动 / `db.ChConn` / `db.ChDB` 做日志读写
 - 只建 CH、不建主库回落
 - Handler 内逐条 `PrepareBatch`
 - 业务表塞进 logstore
@@ -66,10 +66,10 @@ description: "OpenFlare / Wavelet：当新增或修改日志/分析用途表（�
 ## 验证
 
 ```bash
-go test ./internal/repository/logstore ./internal/repository/analytics
+go test ./internal/repository/logstore
 go test ./internal/apps/openflare/... ./internal/apps/admin/logs ./internal/apps/admin/status
 make swagger
 make code-check
 ```
 
-对照：`of_node_access_logs` 或 `w_user_access_logs` 的 model、三库 goose、`logstore` 双实现、`chwriter`/`risk_control` flush、`LogDBSwitchHandler`。
+对照：`of_node_access_logs` 或 `w_user_access_logs` 的 model、三库 goose、`logstore` 双实现、`logwriter`/`risk_control` flush、`LogDBSwitchHandler`。

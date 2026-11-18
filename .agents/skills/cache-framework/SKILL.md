@@ -195,7 +195,7 @@ func Invalidate(ctx context.Context, id uint64) {
 ## 验证清单
 
 ```bash
-go test ./internal/repository/... ./internal/apps/upload/cache/...
+go test ./internal/repository/... ./internal/apps/upload/...
 make code-check
 ```
 
@@ -212,6 +212,6 @@ make code-check
 - L1 引擎：`pkg/cache/ram/cache.go`
 - DB/Redis 助手：`internal/infra/persistence/redis.go`（`GetJSON`, `SetJSON`, `HGetJSON`, `PrefixedKey`）
 - 金标准：`internal/repository/system_config_cache.go`
-- 上传元数据：`internal/apps/upload/cache/meta_cache.go`
+- 上传元数据：`internal/apps/upload/meta_cache.go`
 - Auth Source：`internal/repository/auth_source_cache.go`
 - 性能文档：`docs/PERFORMANCE.md`

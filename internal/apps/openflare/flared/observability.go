@@ -9,13 +9,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	"go.uber.org/zap"
 )
 
 const flaredRuntimeUnhealthyEventType = "flared_runtime_unhealthy"
 
-func persistFlaredObservability(ctx context.Context, nodeID string, payload HeartbeatPayload, reportedAt time.Time) {
+func persistFlaredObservability(ctx context.Context, nodeID string, payload protocol.FlaredHeartbeatPayload, reportedAt time.Time) {
 	connected := make([]string, 0, len(payload.ConnectedRelays))
 	for _, relay := range payload.ConnectedRelays {
 		connected = append(connected, fmt.Sprintf("%s:%s", relay.RelayNodeID, relay.Status))
@@ -23,9 +25,9 @@ func persistFlaredObservability(ctx context.Context, nodeID string, payload Hear
 	managedTypes := map[string]struct{}{
 		flaredRuntimeUnhealthyEventType: {},
 	}
-	var events []agent.NodeHealthEvent
+	var events []protocol.NodeHealthEvent
 	if payload.TunnelStatus == "unhealthy" {
-		events = append(events, agent.NodeHealthEvent{
+		events = append(events, protocol.NodeHealthEvent{
 			EventType:       flaredRuntimeUnhealthyEventType,
 			Severity:        "critical",
 			Message:         "openflared runtime is not healthy",

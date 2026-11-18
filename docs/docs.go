@@ -41,7 +41,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/cap.challengeRequest"
+                            "$ref": "#/definitions/apps_cap.challengeRequest"
                         }
                     }
                 ],
@@ -51,13 +51,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_cap.ChallengeResponse"
+                                            "$ref": "#/definitions/apps_cap.ChallengeResponse"
                                         }
                                     }
                                 }
@@ -67,7 +67,7 @@ const docTemplate = `{
                     "500": {
                         "description": "内部服务错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -93,7 +93,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cap.redeemRequest"
+                            "$ref": "#/definitions/apps_cap.redeemRequest"
                         }
                     }
                 ],
@@ -103,13 +103,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_cap.RedeemResponse"
+                                            "$ref": "#/definitions/apps_cap.RedeemResponse"
                                         }
                                     }
                                 }
@@ -119,13 +119,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误或核销失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部服务错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -147,7 +147,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -184,7 +184,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -203,19 +203,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -244,7 +244,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth_source.AuthSourceRequest"
+                            "$ref": "#/definitions/apps_admin_auth_source.AuthSourceRequest"
                         }
                     }
                 ],
@@ -254,7 +254,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -270,19 +270,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误或验证失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -321,7 +321,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth_source.AuthSourceRequest"
+                            "$ref": "#/definitions/apps_admin_auth_source.AuthSourceRequest"
                         }
                     }
                 ],
@@ -331,7 +331,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -347,25 +347,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误或验证失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -400,7 +400,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -416,19 +416,19 @@ const docTemplate = `{
                     "400": {
                         "description": "ID 无效或删除失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -467,7 +467,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth_source.ToggleAuthSourceRequest"
+                            "$ref": "#/definitions/apps_admin_auth_source.ToggleAuthSourceRequest"
                         }
                     }
                 ],
@@ -477,7 +477,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -493,19 +493,19 @@ const docTemplate = `{
                     "400": {
                         "description": "验证失败或认证源不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -530,25 +530,25 @@ const docTemplate = `{
                     "200": {
                         "description": "清理成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "服务内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -579,7 +579,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cache.updateCacheConfigRequest"
+                            "$ref": "#/definitions/apps_admin_cache.updateCacheConfigRequest"
                         }
                     }
                 ],
@@ -587,31 +587,31 @@ const docTemplate = `{
                     "200": {
                         "description": "更新成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "服务内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -638,13 +638,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/diskcache.Status"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_infra_diskcache.Status"
                                         }
                                     }
                                 }
@@ -654,19 +654,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -697,19 +697,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "导出失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -736,13 +736,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/status.DatabaseInfoResponse"
+                                            "$ref": "#/definitions/apps_admin_status.DatabaseInfoResponse"
                                         }
                                     }
                                 }
@@ -752,13 +752,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -785,13 +785,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/db_manage.DBOverviewResponse"
+                                            "$ref": "#/definitions/apps_admin_db_manage.DBOverviewResponse"
                                         }
                                     }
                                 }
@@ -801,19 +801,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -844,7 +844,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/db_manage.ExecuteSQLRequest"
+                            "$ref": "#/definitions/apps_admin_db_manage.ExecuteSQLRequest"
                         }
                     }
                 ],
@@ -854,13 +854,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/db_manage.ExecuteSQLResponse"
+                                            "$ref": "#/definitions/apps_admin_db_manage.ExecuteSQLResponse"
                                         }
                                     }
                                 }
@@ -870,25 +870,25 @@ const docTemplate = `{
                     "400": {
                         "description": "SQL 语句错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -915,7 +915,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -934,19 +934,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -989,13 +989,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/logs.logsResponse"
+                                            "$ref": "#/definitions/apps_admin_logs.logsResponse"
                                         }
                                     }
                                 }
@@ -1005,13 +1005,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -1078,13 +1078,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/logs.accessLogsResponse"
+                                            "$ref": "#/definitions/apps_admin_logs.accessLogsResponse"
                                         }
                                     }
                                 }
@@ -1094,19 +1094,19 @@ const docTemplate = `{
                     "400": {
                         "description": "日志存储未启用或参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -1133,13 +1133,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/logs.logsAnalyticsResponse"
+                                            "$ref": "#/definitions/apps_admin_logs.logsAnalyticsResponse"
                                         }
                                     }
                                 }
@@ -1149,19 +1149,19 @@ const docTemplate = `{
                     "400": {
                         "description": "日志存储未启用",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -1198,7 +1198,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1240,7 +1240,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/push.CreateChannelRequest"
+                            "$ref": "#/definitions/apps_admin_push.CreateChannelRequest"
                         }
                     }
                 ],
@@ -1250,7 +1250,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1287,7 +1287,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1295,7 +1295,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/push.Definition"
+                                                "$ref": "#/definitions/apps_admin_push.Definition"
                                             }
                                         }
                                     }
@@ -1331,7 +1331,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/push.TestChannelRequest"
+                            "$ref": "#/definitions/apps_admin_push.TestChannelRequest"
                         }
                     }
                 ],
@@ -1339,7 +1339,7 @@ const docTemplate = `{
                     "200": {
                         "description": "测试触发成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -1378,7 +1378,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/push.UpdateChannelRequest"
+                            "$ref": "#/definitions/apps_admin_push.UpdateChannelRequest"
                         }
                     }
                 ],
@@ -1388,7 +1388,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1431,7 +1431,7 @@ const docTemplate = `{
                     "200": {
                         "description": "删除成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -1458,7 +1458,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1500,7 +1500,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/push.CreateEventRequest"
+                            "$ref": "#/definitions/apps_admin_push.CreateEventRequest"
                         }
                     }
                 ],
@@ -1510,7 +1510,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1547,7 +1547,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1555,7 +1555,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/push.EventMetadata"
+                                                "$ref": "#/definitions/apps_admin_push.EventMetadata"
                                             }
                                         }
                                     }
@@ -1598,7 +1598,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/push.UpdateEventRequest"
+                            "$ref": "#/definitions/apps_admin_push.UpdateEventRequest"
                         }
                     }
                 ],
@@ -1608,7 +1608,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1652,7 +1652,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1698,7 +1698,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1761,13 +1761,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/push.pushHistoriesResponse"
+                                            "$ref": "#/definitions/apps_admin_push.pushHistoriesResponse"
                                         }
                                     }
                                 }
@@ -1802,7 +1802,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/push.TestPushRequest"
+                            "$ref": "#/definitions/apps_admin_push.TestPushRequest"
                         }
                     }
                 ],
@@ -1812,7 +1812,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1849,13 +1849,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/status.SystemStatusResponse"
+                                            "$ref": "#/definitions/apps_admin_status.SystemStatusResponse"
                                         }
                                     }
                                 }
@@ -1865,13 +1865,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -1898,13 +1898,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/status.LogDatabaseStatus"
+                                            "$ref": "#/definitions/apps_admin_status.LogDatabaseStatus"
                                         }
                                     }
                                 }
@@ -1914,19 +1914,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -1961,7 +1961,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -1980,19 +1980,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2021,7 +2021,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/system_config.CreateSystemConfigRequest"
+                            "$ref": "#/definitions/apps_admin_system_config.CreateSystemConfigRequest"
                         }
                     }
                 ],
@@ -2031,7 +2031,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2047,25 +2047,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误或配置键已存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2096,7 +2096,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/system_config.TestSMTPRequest"
+                            "$ref": "#/definitions/apps_admin_system_config.TestSMTPRequest"
                         }
                     }
                 ],
@@ -2106,13 +2106,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/system_config.TestSMTPResponse"
+                                            "$ref": "#/definitions/apps_admin_system_config.TestSMTPResponse"
                                         }
                                     }
                                 }
@@ -2122,7 +2122,7 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2158,7 +2158,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2174,25 +2174,25 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "配置不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2228,7 +2228,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/system_config.UpdateSystemConfigRequest"
+                            "$ref": "#/definitions/apps_admin_system_config.UpdateSystemConfigRequest"
                         }
                     }
                 ],
@@ -2238,7 +2238,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2254,31 +2254,31 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "配置不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2309,7 +2309,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/task.DispatchTaskRequest"
+                            "$ref": "#/definitions/apps_admin_task.DispatchTaskRequest"
                         }
                     }
                 ],
@@ -2319,7 +2319,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2335,25 +2335,25 @@ const docTemplate = `{
                     "400": {
                         "description": "任务类型不存在或参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "任务入队失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2420,7 +2420,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2436,13 +2436,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2478,7 +2478,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2494,25 +2494,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2548,7 +2548,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2564,31 +2564,31 @@ const docTemplate = `{
                     "400": {
                         "description": "任务不支持重试或参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "重试失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2615,7 +2615,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2634,13 +2634,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2669,7 +2669,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/task.CreateScheduleRequest"
+                            "$ref": "#/definitions/apps_admin_task.CreateScheduleRequest"
                         }
                     }
                 ],
@@ -2679,7 +2679,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2695,25 +2695,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Cron 表达式无效、异步任务类型不存在或参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "保存定时任务失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2751,7 +2751,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/task.UpdateScheduleRequest"
+                            "$ref": "#/definitions/apps_admin_task.UpdateScheduleRequest"
                         }
                     }
                 ],
@@ -2761,7 +2761,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2777,31 +2777,31 @@ const docTemplate = `{
                     "400": {
                         "description": "Cron 表达式无效、参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "定时任务不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "修改定时任务失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2835,7 +2835,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2851,31 +2851,31 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "定时任务不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "删除定时任务失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2902,7 +2902,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2910,7 +2910,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/task.TaskMeta"
+                                                "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_infra_task.TaskMeta"
                                             }
                                         }
                                     }
@@ -2921,13 +2921,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -2954,7 +2954,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -2973,19 +2973,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3014,7 +3014,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/template.CreateTemplateRequest"
+                            "$ref": "#/definitions/apps_admin_template.CreateTemplateRequest"
                         }
                     }
                 ],
@@ -3024,7 +3024,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -3040,25 +3040,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误或模板标识符已存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3094,7 +3094,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -3110,25 +3110,25 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "模板不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3164,7 +3164,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/template.UpdateTemplateRequest"
+                            "$ref": "#/definitions/apps_admin_template.UpdateTemplateRequest"
                         }
                     }
                 ],
@@ -3174,7 +3174,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -3190,31 +3190,31 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "模板不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3248,7 +3248,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -3264,31 +3264,31 @@ const docTemplate = `{
                     "400": {
                         "description": "不可删除系统模板",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "模板不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3315,13 +3315,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/updater.Status"
+                                            "$ref": "#/definitions/apps_admin_updater.Status"
                                         }
                                     }
                                 }
@@ -3331,19 +3331,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "查询失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3368,31 +3368,31 @@ const docTemplate = `{
                     "200": {
                         "description": "升级已准备并即将重启",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "当前版本不可升级",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "升级准备失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3458,13 +3458,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/handler.listFilesResponse"
+                                            "$ref": "#/definitions/apps_upload.listFilesResponse"
                                         }
                                     }
                                 }
@@ -3474,13 +3474,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3511,7 +3511,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.batchDownloadRequest"
+                            "$ref": "#/definitions/apps_upload.batchDownloadRequest"
                         }
                     }
                 ],
@@ -3525,13 +3525,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "打包失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3577,19 +3577,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "文件不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "服务内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3616,13 +3616,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/handler.fileStatsResponse"
+                                            "$ref": "#/definitions/apps_upload.fileStatsResponse"
                                         }
                                     }
                                 }
@@ -3632,19 +3632,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3671,7 +3671,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -3690,19 +3690,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3736,25 +3736,25 @@ const docTemplate = `{
                     "200": {
                         "description": "删除成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无权操作",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "文件不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "系统保留类型或存储只读",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3811,13 +3811,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/user.listUsersResponse"
+                                            "$ref": "#/definitions/apps_admin_user.listUsersResponse"
                                         }
                                     }
                                 }
@@ -3827,25 +3827,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3874,7 +3874,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.createUserRequest"
+                            "$ref": "#/definitions/apps_admin_user.createUserRequest"
                         }
                     }
                 ],
@@ -3884,13 +3884,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/user.user"
+                                            "$ref": "#/definitions/apps_admin_user.user"
                                         }
                                     }
                                 }
@@ -3900,25 +3900,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误或用户名已存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -3954,13 +3954,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/user.user"
+                                            "$ref": "#/definitions/apps_admin_user.user"
                                         }
                                     }
                                 }
@@ -3970,31 +3970,31 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "用户不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4030,7 +4030,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.updateUserRequest"
+                            "$ref": "#/definitions/apps_admin_user.updateUserRequest"
                         }
                     }
                 ],
@@ -4040,7 +4040,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -4056,31 +4056,31 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限或尝试修改自身权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "用户不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4114,7 +4114,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -4130,31 +4130,31 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限、尝试删除管理员或当前用户",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "用户不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4192,7 +4192,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.updateUserStatusRequest"
+                            "$ref": "#/definitions/apps_admin_user.updateUserStatusRequest"
                         }
                     }
                 ],
@@ -4202,7 +4202,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -4218,31 +4218,31 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无管理员权限或尝试禁用管理员",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "用户不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4273,7 +4273,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/agent.ApplyLogPayload"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.ApplyLogPayload"
                         }
                     }
                 ],
@@ -4283,7 +4283,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -4299,13 +4299,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4340,13 +4340,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/agent.ConfigResponse"
+                                            "$ref": "#/definitions/apps_openflare_agent.ConfigResponse"
                                         }
                                     }
                                 }
@@ -4356,13 +4356,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4393,7 +4393,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/agent.NodePayload"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodePayload"
                         }
                     }
                 ],
@@ -4403,13 +4403,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/agent.HeartbeatResponse"
+                                            "$ref": "#/definitions/apps_openflare_agent.HeartbeatResponse"
                                         }
                                     }
                                 }
@@ -4419,13 +4419,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4456,7 +4456,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.RegisterNodeRequest"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RegisterNodeRequest"
                         }
                     }
                 ],
@@ -4466,13 +4466,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/agent.RegistrationResponseDocs"
+                                            "$ref": "#/definitions/apps_openflare_agent.RegistrationResponseDocs"
                                         }
                                     }
                                 }
@@ -4482,13 +4482,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4524,13 +4524,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.PagesDeploymentHashResponse"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.PagesDeploymentHashResponse"
                                         }
                                     }
                                 }
@@ -4540,13 +4540,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4586,13 +4586,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4628,13 +4628,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.PagesProjectLatestHashResponse"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.PagesProjectLatestHashResponse"
                                         }
                                     }
                                 }
@@ -4644,13 +4644,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4690,13 +4690,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4727,7 +4727,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/agent.WAFIPGroupSyncInput"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroupSyncRequest"
                         }
                     }
                 ],
@@ -4737,13 +4737,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/agent.WAFIPGroupSyncResult"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroupSyncResponse"
                                         }
                                     }
                                 }
@@ -4753,13 +4753,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4781,7 +4781,7 @@ const docTemplate = `{
                     "401": {
                         "description": "Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4804,7 +4804,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4899,13 +4899,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/observability.AccessLogList"
+                                            "$ref": "#/definitions/apps_openflare_observability.AccessLogList"
                                         }
                                     }
                                 }
@@ -4915,25 +4915,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -4964,7 +4964,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/observability.AccessLogCleanupInput"
+                            "$ref": "#/definitions/apps_openflare_observability.AccessLogCleanupInput"
                         }
                     }
                 ],
@@ -4974,13 +4974,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/observability.AccessLogCleanupResult"
+                                            "$ref": "#/definitions/apps_openflare_observability.AccessLogCleanupResult"
                                         }
                                     }
                                 }
@@ -4990,25 +4990,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5091,13 +5091,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/observability.FoldedAccessLogList"
+                                            "$ref": "#/definitions/apps_openflare_observability.FoldedAccessLogList"
                                         }
                                     }
                                 }
@@ -5107,25 +5107,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5214,13 +5214,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/observability.FoldedAccessLogIPList"
+                                            "$ref": "#/definitions/apps_openflare_observability.FoldedAccessLogIPList"
                                         }
                                     }
                                 }
@@ -5230,25 +5230,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5337,13 +5337,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/observability.AccessLogIPSummaryList"
+                                            "$ref": "#/definitions/apps_openflare_observability.AccessLogIPSummaryList"
                                         }
                                     }
                                 }
@@ -5353,25 +5353,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5424,13 +5424,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/observability.AccessLogIPAnalysisView"
+                                            "$ref": "#/definitions/apps_openflare_observability.AccessLogIPAnalysisView"
                                         }
                                     }
                                 }
@@ -5440,25 +5440,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5517,13 +5517,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/observability.AccessLogIPTrendView"
+                                            "$ref": "#/definitions/apps_openflare_observability.AccessLogIPTrendView"
                                         }
                                     }
                                 }
@@ -5533,25 +5533,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5614,13 +5614,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/observability.AccessLogOverview"
+                                            "$ref": "#/definitions/apps_openflare_observability.AccessLogOverview"
                                         }
                                     }
                                 }
@@ -5630,25 +5630,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5675,7 +5675,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -5691,25 +5691,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5768,13 +5768,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/apply_log.ListResult"
+                                            "$ref": "#/definitions/apps_openflare_apply_log.ListResult"
                                         }
                                     }
                                 }
@@ -5784,19 +5784,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5827,7 +5827,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/apply_log.CleanupInput"
+                            "$ref": "#/definitions/apps_openflare_apply_log.CleanupInput"
                         }
                     }
                 ],
@@ -5837,13 +5837,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/apply_log.CleanupResult"
+                                            "$ref": "#/definitions/apps_openflare_apply_log.CleanupResult"
                                         }
                                     }
                                 }
@@ -5853,19 +5853,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5891,13 +5891,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.ConnectionView"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.ConnectionView"
                                         }
                                     }
                                 }
@@ -5929,7 +5929,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cloudflare.ConnectionInput"
+                            "$ref": "#/definitions/apps_openflare_cloudflare.ConnectionInput"
                         }
                     }
                 ],
@@ -5939,13 +5939,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.ConnectionView"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.ConnectionView"
                                         }
                                     }
                                 }
@@ -5955,7 +5955,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -5979,7 +5979,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6005,13 +6005,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.ConnectionView"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.ConnectionView"
                                         }
                                     }
                                 }
@@ -6021,7 +6021,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6047,7 +6047,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -6055,7 +6055,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/cloudflare.AvailableDomain"
+                                                "$ref": "#/definitions/apps_openflare_cloudflare.AvailableDomain"
                                             }
                                         }
                                     }
@@ -6086,7 +6086,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -6094,7 +6094,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/cloudflare.GroupItem"
+                                                "$ref": "#/definitions/apps_openflare_cloudflare.GroupItem"
                                             }
                                         }
                                     }
@@ -6127,7 +6127,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cloudflare.GroupInput"
+                            "$ref": "#/definitions/apps_openflare_cloudflare.GroupInput"
                         }
                     }
                 ],
@@ -6137,13 +6137,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.GroupItem"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.GroupItem"
                                         }
                                     }
                                 }
@@ -6153,7 +6153,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6188,13 +6188,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.GroupDetail"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.GroupDetail"
                                         }
                                     }
                                 }
@@ -6204,7 +6204,7 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6237,19 +6237,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6284,7 +6284,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -6292,7 +6292,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/cloudflare.MemberItem"
+                                                "$ref": "#/definitions/apps_openflare_cloudflare.MemberItem"
                                             }
                                         }
                                     }
@@ -6332,7 +6332,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cloudflare.MemberCreateInput"
+                            "$ref": "#/definitions/apps_openflare_cloudflare.MemberCreateInput"
                         }
                     }
                 ],
@@ -6342,13 +6342,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.MemberItem"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.MemberItem"
                                         }
                                     }
                                 }
@@ -6358,13 +6358,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6401,7 +6401,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cloudflare.MemberBatchMoveInput"
+                            "$ref": "#/definitions/apps_openflare_cloudflare.MemberBatchMoveInput"
                         }
                     }
                 ],
@@ -6409,19 +6409,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6458,7 +6458,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cloudflare.MemberBatchProxyInput"
+                            "$ref": "#/definitions/apps_openflare_cloudflare.MemberBatchProxyInput"
                         }
                     }
                 ],
@@ -6466,19 +6466,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6515,7 +6515,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cloudflare.MemberBatchRemoveInput"
+                            "$ref": "#/definitions/apps_openflare_cloudflare.MemberBatchRemoveInput"
                         }
                     }
                 ],
@@ -6523,13 +6523,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6573,7 +6573,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cloudflare.MemberMoveInput"
+                            "$ref": "#/definitions/apps_openflare_cloudflare.MemberMoveInput"
                         }
                     }
                 ],
@@ -6583,13 +6583,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.MemberItem"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.MemberItem"
                                         }
                                     }
                                 }
@@ -6599,13 +6599,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6645,7 +6645,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6687,13 +6687,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.SyncReceipt"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.SyncReceipt"
                                         }
                                     }
                                 }
@@ -6741,7 +6741,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cloudflare.MemberUpdateInput"
+                            "$ref": "#/definitions/apps_openflare_cloudflare.MemberUpdateInput"
                         }
                     }
                 ],
@@ -6751,13 +6751,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.MemberItem"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.MemberItem"
                                         }
                                     }
                                 }
@@ -6796,13 +6796,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.SyncReceipt"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.SyncReceipt"
                                         }
                                     }
                                 }
@@ -6812,7 +6812,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6849,7 +6849,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/cloudflare.GroupInput"
+                            "$ref": "#/definitions/apps_openflare_cloudflare.GroupInput"
                         }
                     }
                 ],
@@ -6859,13 +6859,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.GroupItem"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.GroupItem"
                                         }
                                     }
                                 }
@@ -6875,13 +6875,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -6907,13 +6907,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/cloudflare.Overview"
+                                            "$ref": "#/definitions/apps_openflare_cloudflare.Overview"
                                         }
                                     }
                                 }
@@ -6944,7 +6944,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -6963,19 +6963,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7002,7 +7002,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -7018,13 +7018,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限、不存在或无活跃版本",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7055,7 +7055,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/config_version.CleanupInput"
+                            "$ref": "#/definitions/apps_openflare_config_version.CleanupInput"
                         }
                     }
                 ],
@@ -7065,13 +7065,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/config_version.CleanupResult"
+                                            "$ref": "#/definitions/apps_openflare_config_version.CleanupResult"
                                         }
                                     }
                                 }
@@ -7081,19 +7081,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7120,13 +7120,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/config_version.ConfigDiffResult"
+                                            "$ref": "#/definitions/apps_openflare_config_version.ConfigDiffResult"
                                         }
                                     }
                                 }
@@ -7136,19 +7136,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7175,13 +7175,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/config_version.ConfigPreviewResult"
+                                            "$ref": "#/definitions/apps_openflare_config_version.ConfigPreviewResult"
                                         }
                                     }
                                 }
@@ -7191,19 +7191,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7238,7 +7238,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -7254,19 +7254,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7302,7 +7302,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -7318,19 +7318,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或版本不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7366,7 +7366,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -7382,19 +7382,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或版本不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7421,13 +7421,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dashboard.OverviewPayload"
+                                            "$ref": "#/definitions/apps_openflare_dashboard.OverviewPayload"
                                         }
                                     }
                                 }
@@ -7437,25 +7437,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7482,7 +7482,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -7501,25 +7501,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7548,7 +7548,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tls.DNSAccountInput"
+                            "$ref": "#/definitions/apps_openflare_tls.DNSAccountInput"
                         }
                     }
                 ],
@@ -7558,7 +7558,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -7574,25 +7574,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7626,31 +7626,31 @@ const docTemplate = `{
                     "200": {
                         "description": "删除成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7688,7 +7688,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tls.DNSAccountInput"
+                            "$ref": "#/definitions/apps_openflare_tls.DNSAccountInput"
                         }
                     }
                 ],
@@ -7698,7 +7698,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -7714,25 +7714,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7759,7 +7759,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -7767,7 +7767,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/node.View"
+                                                "$ref": "#/definitions/apps_openflare_node.View"
                                             }
                                         }
                                     }
@@ -7778,19 +7778,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7819,7 +7819,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/node.Input"
+                            "$ref": "#/definitions/apps_openflare_node.Input"
                         }
                     }
                 ],
@@ -7829,13 +7829,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.View"
+                                            "$ref": "#/definitions/apps_openflare_node.View"
                                         }
                                     }
                                 }
@@ -7845,19 +7845,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7884,13 +7884,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.BootstrapView"
+                                            "$ref": "#/definitions/apps_openflare_node.BootstrapView"
                                         }
                                     }
                                 }
@@ -7900,13 +7900,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -7933,13 +7933,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.BootstrapView"
+                                            "$ref": "#/definitions/apps_openflare_node.BootstrapView"
                                         }
                                     }
                                 }
@@ -7949,13 +7949,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8014,13 +8014,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.ListResult"
+                                            "$ref": "#/definitions/apps_openflare_node.ListResult"
                                         }
                                     }
                                 }
@@ -8030,25 +8030,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "查询失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8084,13 +8084,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.View"
+                                            "$ref": "#/definitions/apps_openflare_node.View"
                                         }
                                     }
                                 }
@@ -8100,25 +8100,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "查询失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8160,13 +8160,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.AgentReleaseInfo"
+                                            "$ref": "#/definitions/apps_openflare_node.AgentReleaseInfo"
                                         }
                                     }
                                 }
@@ -8176,19 +8176,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或节点不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8225,7 +8225,7 @@ const docTemplate = `{
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/node.AgentUpdateInput"
+                            "$ref": "#/definitions/apps_openflare_node.AgentUpdateInput"
                         }
                     }
                 ],
@@ -8235,13 +8235,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.View"
+                                            "$ref": "#/definitions/apps_openflare_node.View"
                                         }
                                     }
                                 }
@@ -8251,19 +8251,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或节点不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8299,7 +8299,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -8315,19 +8315,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或节点不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8363,13 +8363,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.View"
+                                            "$ref": "#/definitions/apps_openflare_node.View"
                                         }
                                     }
                                 }
@@ -8379,19 +8379,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或节点不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8439,13 +8439,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.ObservabilityView"
+                                            "$ref": "#/definitions/apps_openflare_node.ObservabilityView"
                                         }
                                     }
                                 }
@@ -8455,19 +8455,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或节点不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8503,13 +8503,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.HealthEventCleanupResult"
+                                            "$ref": "#/definitions/apps_openflare_node.HealthEventCleanupResult"
                                         }
                                     }
                                 }
@@ -8519,19 +8519,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或节点不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8567,13 +8567,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.View"
+                                            "$ref": "#/definitions/apps_openflare_node.View"
                                         }
                                     }
                                 }
@@ -8583,19 +8583,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或节点不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8633,7 +8633,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/node.Input"
+                            "$ref": "#/definitions/apps_openflare_node.Input"
                         }
                     }
                 ],
@@ -8643,13 +8643,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/node.View"
+                                            "$ref": "#/definitions/apps_openflare_node.View"
                                         }
                                     }
                                 }
@@ -8659,19 +8659,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或节点不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8698,7 +8698,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -8717,25 +8717,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8766,7 +8766,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/option.geoIPLookupRequest"
+                            "$ref": "#/definitions/apps_openflare_option.geoIPLookupRequest"
                         }
                     }
                 ],
@@ -8776,13 +8776,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/option.geoIPLookupView"
+                                            "$ref": "#/definitions/apps_openflare_option.geoIPLookupView"
                                         }
                                     }
                                 }
@@ -8792,25 +8792,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8849,31 +8849,31 @@ const docTemplate = `{
                     "200": {
                         "description": "更新成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8904,7 +8904,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/option.optionBatchPayload"
+                            "$ref": "#/definitions/apps_openflare_option.optionBatchPayload"
                         }
                     }
                 ],
@@ -8912,31 +8912,31 @@ const docTemplate = `{
                     "200": {
                         "description": "更新成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -8963,7 +8963,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -8971,7 +8971,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/origin.View"
+                                                "$ref": "#/definitions/apps_openflare_origin.View"
                                             }
                                         }
                                     }
@@ -8982,19 +8982,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9023,7 +9023,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/origin.Input"
+                            "$ref": "#/definitions/apps_openflare_origin.Input"
                         }
                     }
                 ],
@@ -9033,13 +9033,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/origin.View"
+                                            "$ref": "#/definitions/apps_openflare_origin.View"
                                         }
                                     }
                                 }
@@ -9049,19 +9049,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9097,13 +9097,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/origin.DetailView"
+                                            "$ref": "#/definitions/apps_openflare_origin.DetailView"
                                         }
                                     }
                                 }
@@ -9113,19 +9113,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或源站不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9161,7 +9161,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -9177,19 +9177,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或源站不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9227,7 +9227,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/origin.Input"
+                            "$ref": "#/definitions/apps_openflare_origin.Input"
                         }
                     }
                 ],
@@ -9237,13 +9237,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/origin.View"
+                                            "$ref": "#/definitions/apps_openflare_origin.View"
                                         }
                                     }
                                 }
@@ -9253,19 +9253,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或源站不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9292,7 +9292,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -9300,7 +9300,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/pages.View"
+                                                "$ref": "#/definitions/apps_openflare_pages.View"
                                             }
                                         }
                                     }
@@ -9311,25 +9311,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9358,7 +9358,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/pages.Input"
+                            "$ref": "#/definitions/apps_openflare_pages.Input"
                         }
                     }
                 ],
@@ -9368,13 +9368,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.View"
+                                            "$ref": "#/definitions/apps_openflare_pages.View"
                                         }
                                     }
                                 }
@@ -9384,25 +9384,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9438,7 +9438,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -9446,7 +9446,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/pages.DeploymentFileView"
+                                                "$ref": "#/definitions/apps_openflare_pages.DeploymentFileView"
                                             }
                                         }
                                     }
@@ -9457,25 +9457,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "部署不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9511,13 +9511,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.View"
+                                            "$ref": "#/definitions/apps_openflare_pages.View"
                                         }
                                     }
                                 }
@@ -9527,25 +9527,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9579,31 +9579,31 @@ const docTemplate = `{
                     "200": {
                         "description": "删除成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9639,7 +9639,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -9647,7 +9647,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/pages.DeploymentView"
+                                                "$ref": "#/definitions/apps_openflare_pages.DeploymentView"
                                             }
                                         }
                                     }
@@ -9658,25 +9658,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9722,13 +9722,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.DeploymentView"
+                                            "$ref": "#/definitions/apps_openflare_pages.DeploymentView"
                                         }
                                     }
                                 }
@@ -9738,25 +9738,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9795,7 +9795,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/pages.UploadFromURLInput"
+                            "$ref": "#/definitions/apps_openflare_pages.UploadFromURLInput"
                         }
                     }
                 ],
@@ -9805,13 +9805,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.DeploymentView"
+                                            "$ref": "#/definitions/apps_openflare_pages.DeploymentView"
                                         }
                                     }
                                 }
@@ -9821,25 +9821,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9882,13 +9882,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.View"
+                                            "$ref": "#/definitions/apps_openflare_pages.View"
                                         }
                                     }
                                 }
@@ -9898,25 +9898,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目或部署不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -9957,31 +9957,31 @@ const docTemplate = `{
                     "200": {
                         "description": "删除成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目或部署不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10017,13 +10017,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.SourceView"
+                                            "$ref": "#/definitions/apps_openflare_pages.SourceView"
                                         }
                                     }
                                 }
@@ -10033,25 +10033,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目或部署源不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10087,13 +10087,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.SourceActionReceipt"
+                                            "$ref": "#/definitions/apps_openflare_pages.SourceActionReceipt"
                                         }
                                     }
                                 }
@@ -10103,31 +10103,31 @@ const docTemplate = `{
                     "400": {
                         "description": "当前来源不支持检查",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "部署源不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "来源任务正在执行",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10163,13 +10163,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.SourceView"
+                                            "$ref": "#/definitions/apps_openflare_pages.SourceView"
                                         }
                                     }
                                 }
@@ -10179,25 +10179,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10234,7 +10234,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/pages.SourceSyncInput"
+                            "$ref": "#/definitions/apps_openflare_pages.SourceSyncInput"
                         }
                     }
                 ],
@@ -10244,13 +10244,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.SourceActionReceipt"
+                                            "$ref": "#/definitions/apps_openflare_pages.SourceActionReceipt"
                                         }
                                     }
                                 }
@@ -10260,31 +10260,31 @@ const docTemplate = `{
                     "400": {
                         "description": "参数或来源类型无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "部署源不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "来源任务正在执行",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10322,7 +10322,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/pages.SourceUpdateInput"
+                            "$ref": "#/definitions/apps_openflare_pages.SourceUpdateInput"
                         }
                     }
                 ],
@@ -10332,13 +10332,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.SourceUpdateResult"
+                                            "$ref": "#/definitions/apps_openflare_pages.SourceUpdateResult"
                                         }
                                     }
                                 }
@@ -10348,25 +10348,25 @@ const docTemplate = `{
                     "400": {
                         "description": "配置无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10404,7 +10404,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/pages.Input"
+                            "$ref": "#/definitions/apps_openflare_pages.Input"
                         }
                     }
                 ],
@@ -10414,13 +10414,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/pages.View"
+                                            "$ref": "#/definitions/apps_openflare_pages.View"
                                         }
                                     }
                                 }
@@ -10430,25 +10430,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "项目不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10474,7 +10474,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -10482,7 +10482,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/pow.Policy"
+                                                "$ref": "#/definitions/apps_openflare_pow.Policy"
                                             }
                                         }
                                     }
@@ -10493,19 +10493,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10542,7 +10542,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/pow.Policy"
+                            "$ref": "#/definitions/apps_openflare_pow.Policy"
                         }
                     }
                 ],
@@ -10550,31 +10550,31 @@ const docTemplate = `{
                     "200": {
                         "description": "保存成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或站点不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10601,7 +10601,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -10609,7 +10609,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/proxy_route.View"
+                                                "$ref": "#/definitions/apps_openflare_proxy_route.View"
                                             }
                                         }
                                     }
@@ -10620,19 +10620,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10661,7 +10661,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/proxy_route.Input"
+                            "$ref": "#/definitions/apps_openflare_proxy_route.Input"
                         }
                     }
                 ],
@@ -10671,13 +10671,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/proxy_route.View"
+                                            "$ref": "#/definitions/apps_openflare_proxy_route.View"
                                         }
                                     }
                                 }
@@ -10687,19 +10687,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10735,13 +10735,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/proxy_route.View"
+                                            "$ref": "#/definitions/apps_openflare_proxy_route.View"
                                         }
                                     }
                                 }
@@ -10751,19 +10751,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或规则不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10799,7 +10799,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -10815,19 +10815,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或规则不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10865,7 +10865,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/proxy_route.Input"
+                            "$ref": "#/definitions/apps_openflare_proxy_route.Input"
                         }
                     }
                 ],
@@ -10875,13 +10875,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/proxy_route.View"
+                                            "$ref": "#/definitions/apps_openflare_proxy_route.View"
                                         }
                                     }
                                 }
@@ -10891,19 +10891,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或规则不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10925,13 +10925,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/option.statusView"
+                                            "$ref": "#/definitions/apps_openflare_option.statusView"
                                         }
                                     }
                                 }
@@ -10941,13 +10941,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -10974,7 +10974,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -10993,25 +10993,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11040,7 +11040,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tls.CertificateInput"
+                            "$ref": "#/definitions/apps_openflare_tls.CertificateInput"
                         }
                     }
                 ],
@@ -11050,7 +11050,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -11066,25 +11066,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11115,7 +11115,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tls.ApplyInput"
+                            "$ref": "#/definitions/apps_openflare_tls.ApplyInput"
                         }
                     }
                 ],
@@ -11125,7 +11125,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -11141,25 +11141,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11217,7 +11217,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -11233,25 +11233,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11287,7 +11287,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -11303,25 +11303,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11357,13 +11357,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/tls.CertificateContent"
+                                            "$ref": "#/definitions/apps_openflare_tls.CertificateContent"
                                         }
                                     }
                                 }
@@ -11373,25 +11373,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11429,7 +11429,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tls.ApplyInput"
+                            "$ref": "#/definitions/apps_openflare_tls.ApplyInput"
                         }
                     }
                 ],
@@ -11439,7 +11439,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -11455,25 +11455,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11507,31 +11507,31 @@ const docTemplate = `{
                     "200": {
                         "description": "删除成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11567,7 +11567,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -11583,25 +11583,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11639,7 +11639,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tls.CertificateInput"
+                            "$ref": "#/definitions/apps_openflare_tls.CertificateInput"
                         }
                     }
                 ],
@@ -11649,7 +11649,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -11665,25 +11665,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11721,7 +11721,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tls.ApplyInput"
+                            "$ref": "#/definitions/apps_openflare_tls.ApplyInput"
                         }
                     }
                 ],
@@ -11731,7 +11731,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -11747,25 +11747,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11795,7 +11795,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -11811,25 +11811,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11856,7 +11856,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -11864,7 +11864,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/waf.IPGroupView"
+                                                "$ref": "#/definitions/apps_openflare_waf.IPGroupView"
                                             }
                                         }
                                     }
@@ -11875,25 +11875,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11922,7 +11922,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/waf.IPGroupInput"
+                            "$ref": "#/definitions/apps_openflare_waf.IPGroupInput"
                         }
                     }
                 ],
@@ -11932,13 +11932,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.IPGroupView"
+                                            "$ref": "#/definitions/apps_openflare_waf.IPGroupView"
                                         }
                                     }
                                 }
@@ -11948,25 +11948,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -11997,7 +11997,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/waf.IPGroupAutoTestInput"
+                            "$ref": "#/definitions/apps_openflare_waf.IPGroupAutoTestInput"
                         }
                     }
                 ],
@@ -12007,13 +12007,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.IPGroupAutoTestResult"
+                                            "$ref": "#/definitions/apps_openflare_waf.IPGroupAutoTestResult"
                                         }
                                     }
                                 }
@@ -12023,25 +12023,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12077,13 +12077,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.IPGroupView"
+                                            "$ref": "#/definitions/apps_openflare_waf.IPGroupView"
                                         }
                                     }
                                 }
@@ -12093,25 +12093,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12145,31 +12145,31 @@ const docTemplate = `{
                     "200": {
                         "description": "删除成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12205,13 +12205,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.IPGroupSyncResult"
+                                            "$ref": "#/definitions/apps_openflare_waf.IPGroupSyncResult"
                                         }
                                     }
                                 }
@@ -12221,25 +12221,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12277,7 +12277,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/waf.IPGroupInput"
+                            "$ref": "#/definitions/apps_openflare_waf.IPGroupInput"
                         }
                     }
                 ],
@@ -12287,13 +12287,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.IPGroupView"
+                                            "$ref": "#/definitions/apps_openflare_waf.IPGroupView"
                                         }
                                     }
                                 }
@@ -12303,25 +12303,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12347,7 +12347,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -12355,7 +12355,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/waf.RuleView"
+                                                "$ref": "#/definitions/apps_openflare_waf.RuleView"
                                             }
                                         }
                                     }
@@ -12366,19 +12366,19 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12406,7 +12406,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/waf.CreateRuleInput"
+                            "$ref": "#/definitions/apps_openflare_waf.CreateRuleInput"
                         }
                     }
                 ],
@@ -12416,13 +12416,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.RuleView"
+                                            "$ref": "#/definitions/apps_openflare_waf.RuleView"
                                         }
                                     }
                                 }
@@ -12432,25 +12432,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12485,13 +12485,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.RuleView"
+                                            "$ref": "#/definitions/apps_openflare_waf.RuleView"
                                         }
                                     }
                                 }
@@ -12501,25 +12501,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12552,31 +12552,31 @@ const docTemplate = `{
                     "200": {
                         "description": "删除成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12613,7 +12613,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/waf.SaveRuleGraphInput"
+                            "$ref": "#/definitions/apps_openflare_waf.SaveRuleGraphInput"
                         }
                     }
                 ],
@@ -12623,13 +12623,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.RuleView"
+                                            "$ref": "#/definitions/apps_openflare_waf.RuleView"
                                         }
                                     }
                                 }
@@ -12639,31 +12639,31 @@ const docTemplate = `{
                     "400": {
                         "description": "参数或规则图错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "修订冲突",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12700,7 +12700,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/waf.UpdateRuleMetaInput"
+                            "$ref": "#/definitions/apps_openflare_waf.UpdateRuleMetaInput"
                         }
                     }
                 ],
@@ -12710,13 +12710,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.RuleView"
+                                            "$ref": "#/definitions/apps_openflare_waf.RuleView"
                                         }
                                     }
                                 }
@@ -12726,25 +12726,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "无权限或不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12780,13 +12780,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.SiteRuleGroupsView"
+                                            "$ref": "#/definitions/apps_openflare_waf.SiteRuleGroupsView"
                                         }
                                     }
                                 }
@@ -12796,25 +12796,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12850,7 +12850,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/waf.IDsRequest"
+                            "$ref": "#/definitions/apps_openflare_waf.IDsRequest"
                         }
                     }
                 ],
@@ -12860,13 +12860,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/waf.SiteRuleGroupsView"
+                                            "$ref": "#/definitions/apps_openflare_waf.SiteRuleGroupsView"
                                         }
                                     }
                                 }
@@ -12876,25 +12876,25 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "记录不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -12920,7 +12920,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -12928,7 +12928,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/zone.ListItem"
+                                                "$ref": "#/definitions/apps_openflare_zone.ListItem"
                                             }
                                         }
                                     }
@@ -12961,7 +12961,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/zone.Input"
+                            "$ref": "#/definitions/apps_openflare_zone.Input"
                         }
                     }
                 ],
@@ -12971,7 +12971,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -12987,13 +12987,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13026,19 +13026,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13076,7 +13076,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/zone.DomainInput"
+                            "$ref": "#/definitions/apps_openflare_zone.DomainInput"
                         }
                     }
                 ],
@@ -13086,7 +13086,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -13102,19 +13102,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13150,13 +13150,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/zone.CleanupUnlinkedDomainsResult"
+                                            "$ref": "#/definitions/apps_openflare_zone.CleanupUnlinkedDomainsResult"
                                         }
                                     }
                                 }
@@ -13166,13 +13166,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13212,19 +13212,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13269,7 +13269,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/zone.DomainInput"
+                            "$ref": "#/definitions/apps_openflare_zone.DomainInput"
                         }
                     }
                 ],
@@ -13279,7 +13279,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -13295,19 +13295,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13342,13 +13342,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/zone.Overview"
+                                            "$ref": "#/definitions/apps_openflare_zone.Overview"
                                         }
                                     }
                                 }
@@ -13358,7 +13358,7 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13400,13 +13400,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/zone.Stats"
+                                            "$ref": "#/definitions/apps_openflare_zone.Stats"
                                         }
                                     }
                                 }
@@ -13416,13 +13416,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13459,7 +13459,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/zone.Input"
+                            "$ref": "#/definitions/apps_openflare_zone.Input"
                         }
                     }
                 ],
@@ -13469,7 +13469,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -13485,19 +13485,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13523,7 +13523,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/oauth.CallbackRequest"
+                            "$ref": "#/definitions/apps_oauth.CallbackRequest"
                         }
                     }
                 ],
@@ -13533,13 +13533,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/oauth.OAuthCallbackResult"
+                                            "$ref": "#/definitions/apps_oauth.OAuthCallbackResult"
                                         }
                                     }
                                 }
@@ -13549,19 +13549,19 @@ const docTemplate = `{
                     "400": {
                         "description": "state 无效、参数错误或认证源错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "绑定场景未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "OAuth 认证失败或内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13588,7 +13588,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -13607,13 +13607,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13650,7 +13650,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -13666,13 +13666,13 @@ const docTemplate = `{
                     "400": {
                         "description": "ID 无效或解除失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13702,13 +13702,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/oauth.OAuthAuthorizeResponse"
+                                            "$ref": "#/definitions/apps_oauth.OAuthAuthorizeResponse"
                                         }
                                     }
                                 }
@@ -13718,13 +13718,13 @@ const docTemplate = `{
                     "400": {
                         "description": "认证源不存在或未配置",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "Redis 异常 or 构造 URL 失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13751,7 +13751,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -13767,7 +13767,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Session 清除失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13789,7 +13789,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -13797,7 +13797,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/oauth.AuthSourceView"
+                                                "$ref": "#/definitions/apps_oauth.AuthSourceView"
                                             }
                                         }
                                     }
@@ -13829,13 +13829,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/oauth.BasicUserInfo"
+                                            "$ref": "#/definitions/apps_oauth.BasicUserInfo"
                                         }
                                     }
                                 }
@@ -13845,7 +13845,7 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13882,13 +13882,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/oauth.OAuthAuthorizeResponse"
+                                            "$ref": "#/definitions/apps_oauth.OAuthAuthorizeResponse"
                                         }
                                     }
                                 }
@@ -13898,13 +13898,13 @@ const docTemplate = `{
                     "400": {
                         "description": "认证源不存在或未启用",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "Redis 异常或构造 URL 失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13935,7 +13935,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/relay.HeartbeatPayload"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayHeartbeatPayload"
                         }
                     }
                 ],
@@ -13945,13 +13945,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/relay.HeartbeatResponse"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayHeartbeatResponse"
                                         }
                                     }
                                 }
@@ -13961,19 +13961,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Agent Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "节点类型不匹配",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -13995,13 +13995,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Agent Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "节点类型不匹配",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14032,7 +14032,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/flared.ApplyLogPayload"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.ApplyLogPayload"
                         }
                     }
                 ],
@@ -14042,7 +14042,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -14058,19 +14058,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Tunnel Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "节点类型不匹配",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14097,13 +14097,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/flared.TunnelConfigResponse"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredTunnelConfigResponse"
                                         }
                                     }
                                 }
@@ -14113,19 +14113,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Tunnel Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "节点类型不匹配",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14156,7 +14156,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/flared.HeartbeatPayload"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredHeartbeatPayload"
                         }
                     }
                 ],
@@ -14166,13 +14166,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/flared.HeartbeatResponse"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredHeartbeatResponse"
                                         }
                                     }
                                 }
@@ -14182,19 +14182,19 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "Tunnel Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "节点类型不匹配",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14216,13 +14216,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Tunnel Token 无效",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "节点类型不匹配",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14273,7 +14273,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -14289,25 +14289,25 @@ const docTemplate = `{
                     "400": {
                         "description": "请求参数错误或文件受限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "系统保留类型或存储只读",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14366,13 +14366,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/handler.listMyFilesResponse"
+                                            "$ref": "#/definitions/apps_upload.listMyFilesResponse"
                                         }
                                     }
                                 }
@@ -14382,7 +14382,7 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14420,7 +14420,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.updateMyFileRequest"
+                            "$ref": "#/definitions/apps_upload.updateMyFileRequest"
                         }
                     }
                 ],
@@ -14430,7 +14430,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -14446,13 +14446,13 @@ const docTemplate = `{
                     "403": {
                         "description": "无权操作",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "文件不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14484,25 +14484,25 @@ const docTemplate = `{
                     "200": {
                         "description": "删除成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
                         "description": "无权操作",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "文件不存在",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "409": {
                         "description": "系统保留类型或存储只读",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14529,13 +14529,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/oauth.BasicUserInfo"
+                                            "$ref": "#/definitions/apps_oauth.BasicUserInfo"
                                         }
                                     }
                                 }
@@ -14545,7 +14545,7 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14572,7 +14572,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -14591,7 +14591,7 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14620,7 +14620,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.createTokenRequest"
+                            "$ref": "#/definitions/apps_user.createTokenRequest"
                         }
                     }
                 ],
@@ -14630,13 +14630,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/user.tokenResponse"
+                                            "$ref": "#/definitions/apps_user.tokenResponse"
                                         }
                                     }
                                 }
@@ -14646,7 +14646,7 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误或超限",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14682,7 +14682,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -14698,7 +14698,7 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14734,13 +14734,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/user.tokenResponse"
+                                            "$ref": "#/definitions/apps_user.tokenResponse"
                                         }
                                     }
                                 }
@@ -14750,7 +14750,7 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14776,7 +14776,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.changePasswordRequest"
+                            "$ref": "#/definitions/apps_user.changePasswordRequest"
                         }
                     }
                 ],
@@ -14786,7 +14786,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -14802,13 +14802,13 @@ const docTemplate = `{
                     "400": {
                         "description": "原密码错误或新密码不符合要求",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "请先登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14834,7 +14834,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.loginRequest"
+                            "$ref": "#/definitions/apps_user.loginRequest"
                         }
                     }
                 ],
@@ -14844,13 +14844,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/oauth.BasicUserInfo"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_oauth.BasicUserInfo"
                                         }
                                     }
                                 }
@@ -14860,13 +14860,13 @@ const docTemplate = `{
                     "400": {
                         "description": "用户名或密码错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "服务内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14893,7 +14893,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
@@ -14909,7 +14909,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Session 清除失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14935,7 +14935,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.updateProfileRequest"
+                            "$ref": "#/definitions/apps_user.updateProfileRequest"
                         }
                     }
                 ],
@@ -14945,13 +14945,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/oauth.BasicUserInfo"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_oauth.BasicUserInfo"
                                         }
                                     }
                                 }
@@ -14961,13 +14961,13 @@ const docTemplate = `{
                     "400": {
                         "description": "邮箱已被占用或参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -14993,7 +14993,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.registerRequest"
+                            "$ref": "#/definitions/apps_user.registerRequest"
                         }
                     }
                 ],
@@ -15003,13 +15003,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/oauth.BasicUserInfo"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_oauth.BasicUserInfo"
                                         }
                                     }
                                 }
@@ -15019,13 +15019,13 @@ const docTemplate = `{
                     "400": {
                         "description": "参数错误、用户名已存在或注册已关闭",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "服务内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -15052,13 +15052,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Any"
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/oauth.BasicUserInfo"
+                                            "$ref": "#/definitions/apps_oauth.BasicUserInfo"
                                         }
                                     }
                                 }
@@ -15068,7 +15068,7 @@ const docTemplate = `{
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -15094,7 +15094,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.sendEmailCodeRequest"
+                            "$ref": "#/definitions/apps_user.sendEmailCodeRequest"
                         }
                     }
                 ],
@@ -15102,13 +15102,13 @@ const docTemplate = `{
                     "200": {
                         "description": "发送成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "400": {
                         "description": "参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -15149,25 +15149,25 @@ const docTemplate = `{
                     "400": {
                         "description": "文件 ID 格式错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
                         "description": "未登录",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "404": {
                         "description": "文件未找到",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "500": {
                         "description": "服务内部错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Any"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     }
                 }
@@ -15195,340 +15195,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "agent.ActiveConfigMeta": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "agent.ApplyLogPayload": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "main_config_checksum": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "node_id": {
-                    "type": "string"
-                },
-                "result": {
-                    "type": "string"
-                },
-                "route_config_checksum": {
-                    "type": "string"
-                },
-                "support_file_count": {
-                    "type": "integer"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "agent.ConfigResponse": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "source_config_json": {
-                    "type": "string"
-                },
-                "support_files": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/agent.SupportFile"
-                    }
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "agent.HeartbeatResponse": {
-            "type": "object",
-            "properties": {
-                "active_config": {
-                    "$ref": "#/definitions/agent.ActiveConfigMeta"
-                },
-                "agent_settings": {
-                    "$ref": "#/definitions/agent.Settings"
-                },
-                "node": {
-                    "$ref": "#/definitions/model.OpenFlareNode"
-                },
-                "waf_ip_groups": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/agent.WAFIPGroup"
-                    }
-                }
-            }
-        },
-        "agent.NodePayload": {
-            "type": "object",
-            "properties": {
-                "access_logs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog"
-                    }
-                },
-                "buffered": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.BufferedObservabilityRecord"
-                    }
-                },
-                "current_version": {
-                    "type": "string"
-                },
-                "edge_health": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth"
-                },
-                "ext_version": {
-                    "type": "string"
-                },
-                "health_events": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeHealthEvent"
-                    }
-                },
-                "host_metrics": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot"
-                },
-                "ip": {
-                    "type": "string"
-                },
-                "last_error": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "node_id": {
-                    "type": "string"
-                },
-                "openresty_message": {
-                    "type": "string"
-                },
-                "openresty_status": {
-                    "type": "string"
-                },
-                "profile": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeSystemProfile"
-                },
-                "schema_version": {
-                    "type": "integer"
-                },
-                "version": {
-                    "type": "string"
-                },
-                "waf_ip_group_checksums": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "agent.RegistrationResponseDocs": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "agent_token": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "node_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "agent.Settings": {
-            "type": "object",
-            "properties": {
-                "auto_update": {
-                    "type": "boolean"
-                },
-                "heartbeat_interval": {
-                    "type": "integer"
-                },
-                "restart_openresty_now": {
-                    "type": "boolean"
-                },
-                "update_channel": {
-                    "type": "string"
-                },
-                "update_now": {
-                    "type": "boolean"
-                },
-                "update_repo": {
-                    "type": "string"
-                },
-                "update_tag": {
-                    "type": "string"
-                },
-                "websocket_upgrade_enabled": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "agent.SupportFile": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
-                }
-            }
-        },
-        "agent.WAFIPGroup": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "ip_list": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "agent.WAFIPGroupSyncInput": {
-            "type": "object",
-            "properties": {
-                "checksums": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
-        "agent.WAFIPGroupSyncResult": {
-            "type": "object",
-            "properties": {
-                "groups": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.WAFIPGroup"
-                    }
-                }
-            }
-        },
-        "analytics.BatchWriterStats": {
-            "type": "object",
-            "properties": {
-                "cap": {
-                    "type": "integer"
-                },
-                "depth": {
-                    "type": "integer"
-                },
-                "drops": {
-                    "type": "integer"
-                },
-                "flush_errors": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "running": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "apply_log.CleanupInput": {
-            "type": "object",
-            "properties": {
-                "delete_all": {
-                    "type": "boolean"
-                },
-                "retention_days": {
-                    "type": "integer"
-                }
-            }
-        },
-        "apply_log.CleanupResult": {
-            "type": "object",
-            "properties": {
-                "cutoff": {
-                    "type": "string"
-                },
-                "delete_all": {
-                    "type": "boolean"
-                },
-                "deleted_count": {
-                    "type": "integer"
-                },
-                "retention_days": {
-                    "type": "integer"
-                }
-            }
-        },
-        "apply_log.ListResult": {
-            "type": "object",
-            "properties": {
-                "current": {
-                    "type": "integer"
-                },
-                "rows": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.OpenFlareApplyLog"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                },
-                "totalPage": {
-                    "type": "integer"
-                }
-            }
-        },
-        "auth_source.AuthSourceRequest": {
+        "apps_admin_auth_source.AuthSourceRequest": {
             "type": "object",
             "properties": {
                 "client_id": {
@@ -15560,7 +15227,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth_source.ToggleAuthSourceRequest": {
+        "apps_admin_auth_source.ToggleAuthSourceRequest": {
             "type": "object",
             "properties": {
                 "is_active": {
@@ -15568,7 +15235,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cache.updateCacheConfigRequest": {
+        "apps_admin_cache.updateCacheConfigRequest": {
             "type": "object",
             "required": [
                 "max_size_mb",
@@ -15588,7 +15255,1045 @@ const docTemplate = `{
                 }
             }
         },
-        "cap.challengeRequest": {
+        "apps_admin_db_manage.DBOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "connections": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "string"
+                },
+                "table_count": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_db_manage.ExecuteSQLRequest": {
+            "type": "object",
+            "required": [
+                "sql"
+            ],
+            "properties": {
+                "sql": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_db_manage.ExecuteSQLResponse": {
+            "type": "object",
+            "properties": {
+                "affected_rows": {
+                    "type": "integer"
+                },
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "execution_time_ms": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "type": {
+                    "description": "\"select\" 或 \"exec\"",
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_logs.accessLogItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "headers": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "latency": {
+                    "type": "integer"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "user_agent": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_logs.accessLogsResponse": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_admin_logs.accessLogItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_admin_logs.browserItem": {
+            "type": "object",
+            "properties": {
+                "browser": {
+                    "type": "string"
+                },
+                "count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_admin_logs.logsAnalyticsResponse": {
+            "type": "object",
+            "properties": {
+                "browsers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_admin_logs.browserItem"
+                    }
+                },
+                "top_users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_admin_logs.topUserItem"
+                    }
+                },
+                "trend": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_admin_logs.trendItem"
+                    }
+                }
+            }
+        },
+        "apps_admin_logs.logsResponse": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "lines": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/logger.LogEntry"
+                    }
+                },
+                "next_cursor": {
+                    "description": "用于加载更早日志的 cursor",
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_admin_logs.topUserItem": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_logs.trendItem": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.CreateChannelRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "type"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "other": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.CreateEventRequest": {
+            "type": "object",
+            "properties": {
+                "channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "event_key": {
+                    "type": "string"
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "task_type": {
+                    "description": "关联的异步任务类型",
+                    "type": "string"
+                },
+                "template": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.Definition": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "short description",
+                    "type": "string"
+                },
+                "fields": {
+                    "description": "form fields",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_admin_push.Field"
+                    }
+                },
+                "name": {
+                    "description": "display name",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "channel type (e.g., custom, lark, email)",
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.EventMetadata": {
+            "type": "object",
+            "properties": {
+                "default_template": {
+                    "$ref": "#/definitions/apps_admin_push.NotificationMessage"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.Field": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "field explanation/help text",
+                    "type": "string"
+                },
+                "key": {
+                    "description": "unique key for the field (e.g. url, token, other)",
+                    "type": "string"
+                },
+                "label": {
+                    "description": "human readable label (e.g. \"Webhook 地址\")",
+                    "type": "string"
+                },
+                "placeholder": {
+                    "description": "input placeholder",
+                    "type": "string"
+                },
+                "required": {
+                    "description": "whether this field is required",
+                    "type": "boolean"
+                },
+                "type": {
+                    "description": "input type: \"text\" | \"password\" | \"textarea\"",
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.NotificationMessage": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "ext": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "level": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.TestChannelRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "other": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.TestPushRequest": {
+            "type": "object",
+            "required": [
+                "config"
+            ],
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/push.Config"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.UpdateChannelRequest": {
+            "type": "object",
+            "required": [
+                "type"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "other": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.UpdateEventRequest": {
+            "type": "object",
+            "required": [
+                "template"
+            ],
+            "properties": {
+                "channels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "template": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_push.pushHistoriesResponse": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.PushHistory"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_admin_status.DatabaseInfoResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_status.LogDatabaseStatus": {
+            "type": "object",
+            "properties": {
+                "active_database": {
+                    "type": "string"
+                },
+                "available_targets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "clickhouse": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_model_analytics.ClickHouseOperationalStats"
+                },
+                "migration": {
+                    "description": "idle | migrating",
+                    "type": "string"
+                },
+                "retention_days": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "apps_admin_status.SystemStatusResponse": {
+            "type": "object",
+            "properties": {
+                "alloc": {
+                    "type": "string"
+                },
+                "buck_hash_sys": {
+                    "type": "string"
+                },
+                "frees": {
+                    "type": "integer"
+                },
+                "gc_sys": {
+                    "type": "string"
+                },
+                "heap_alloc": {
+                    "type": "string"
+                },
+                "heap_idle": {
+                    "type": "string"
+                },
+                "heap_inuse": {
+                    "type": "string"
+                },
+                "heap_objects": {
+                    "type": "integer"
+                },
+                "heap_released": {
+                    "type": "string"
+                },
+                "heap_sys": {
+                    "type": "string"
+                },
+                "last_gc_time": {
+                    "type": "string"
+                },
+                "last_pause": {
+                    "type": "string"
+                },
+                "lookups": {
+                    "type": "integer"
+                },
+                "mallocs": {
+                    "type": "integer"
+                },
+                "mcache_inuse": {
+                    "type": "string"
+                },
+                "mcache_sys": {
+                    "type": "string"
+                },
+                "mspan_inuse": {
+                    "type": "string"
+                },
+                "mspan_sys": {
+                    "type": "string"
+                },
+                "next_gc": {
+                    "type": "string"
+                },
+                "num_gc": {
+                    "type": "integer"
+                },
+                "num_goroutine": {
+                    "type": "integer"
+                },
+                "other_sys": {
+                    "type": "string"
+                },
+                "pause_total_ns": {
+                    "type": "string"
+                },
+                "stack_inuse": {
+                    "type": "string"
+                },
+                "stack_sys": {
+                    "type": "string"
+                },
+                "sys": {
+                    "type": "string"
+                },
+                "total_alloc": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_system_config.CreateSystemConfigRequest": {
+            "type": "object",
+            "required": [
+                "key",
+                "type",
+                "value"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "key": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "system",
+                        "business"
+                    ]
+                },
+                "value": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1
+                    ]
+                }
+            }
+        },
+        "apps_admin_system_config.TestSMTPRequest": {
+            "type": "object",
+            "required": [
+                "smtp_host",
+                "smtp_password",
+                "smtp_port",
+                "smtp_username",
+                "to"
+            ],
+            "properties": {
+                "smtp_host": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "smtp_password": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "smtp_port": {
+                    "type": "integer"
+                },
+                "smtp_username": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_system_config.TestSMTPResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "log": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_admin_system_config.UpdateSystemConfigRequest": {
+            "type": "object",
+            "required": [
+                "value"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "value": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1
+                    ]
+                }
+            }
+        },
+        "apps_admin_task.CreateScheduleRequest": {
+            "type": "object",
+            "required": [
+                "cron",
+                "is_active",
+                "name",
+                "task_type"
+            ],
+            "properties": {
+                "cron": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "string"
+                },
+                "task_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_task.DispatchTaskRequest": {
+            "type": "object",
+            "required": [
+                "task_type"
+            ],
+            "properties": {
+                "end_time": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "task_type": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_admin_task.UpdateScheduleRequest": {
+            "type": "object",
+            "required": [
+                "cron",
+                "is_active",
+                "name",
+                "task_type"
+            ],
+            "properties": {
+                "cron": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "string"
+                },
+                "task_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_template.CreateTemplateRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "key",
+                "name",
+                "type"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "key": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "subject": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "type": {
+                    "type": "string",
+                    "maxLength": 20
+                }
+            }
+        },
+        "apps_admin_template.UpdateTemplateRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "name",
+                "type"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "subject": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "type": {
+                    "type": "string",
+                    "maxLength": 20
+                }
+            }
+        },
+        "apps_admin_updater.Status": {
+            "type": "object",
+            "properties": {
+                "asset_name": {
+                    "type": "string"
+                },
+                "build_time": {
+                    "type": "string"
+                },
+                "can_upgrade": {
+                    "type": "boolean"
+                },
+                "current_version": {
+                    "type": "string"
+                },
+                "latest_version": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "prerelease": {
+                    "type": "boolean"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "release_name": {
+                    "type": "string"
+                },
+                "release_notes": {
+                    "type": "string"
+                },
+                "release_url": {
+                    "type": "string"
+                },
+                "update_available": {
+                    "type": "boolean"
+                },
+                "upstream_repository": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_admin_user.createUserRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "nickname": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 8
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 3
+                }
+            }
+        },
+        "apps_admin_user.listUsersResponse": {
+            "type": "object",
+            "properties": {
+                "total": {
+                    "type": "integer"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_admin_user.user"
+                    }
+                }
+            }
+        },
+        "apps_admin_user.updateUserRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "nickname": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 8
+                }
+            }
+        },
+        "apps_admin_user.updateUserStatusRequest": {
+            "type": "object",
+            "properties": {
+                "is_active": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_admin_user.user": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "last_login_at": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_cap.ChallengeResponse": {
+            "type": "object",
+            "properties": {
+                "challenge": {
+                    "type": "object",
+                    "properties": {
+                        "c": {
+                            "type": "integer"
+                        },
+                        "d": {
+                            "type": "integer"
+                        },
+                        "s": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "expires": {
+                    "description": "ms timestamp",
+                    "type": "integer"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_cap.RedeemResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "expires": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_cap.challengeRequest": {
             "type": "object",
             "properties": {
                 "scope": {
@@ -15596,7 +16301,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cap.redeemRequest": {
+        "apps_cap.redeemRequest": {
             "type": "object",
             "required": [
                 "solutions",
@@ -15617,7 +16322,216 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.AvailableDomain": {
+        "apps_oauth.AuthSourceView": {
+            "type": "object",
+            "properties": {
+                "client_secret_configured": {
+                    "type": "boolean"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "icon_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_oauth.BasicUserInfo": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "need_change_password": {
+                    "type": "boolean"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_oauth.CallbackRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "state"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_oauth.OAuthAuthorizeResponse": {
+            "type": "object",
+            "properties": {
+                "authorize_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_oauth.OAuthCallbackResult": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/apps_oauth.BasicUserInfo"
+                }
+            }
+        },
+        "apps_openflare_agent.ConfigResponse": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "source_config_json": {
+                    "type": "string"
+                },
+                "support_files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.SupportFile"
+                    }
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_agent.HeartbeatResponse": {
+            "type": "object",
+            "properties": {
+                "active_config": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.ActiveConfigMeta"
+                },
+                "agent_settings": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentSettings"
+                },
+                "node": {
+                    "$ref": "#/definitions/model.OpenFlareNode"
+                },
+                "waf_ip_groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroup"
+                    }
+                }
+            }
+        },
+        "apps_openflare_agent.RegistrationResponseDocs": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "agent_token": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_apply_log.CleanupInput": {
+            "type": "object",
+            "properties": {
+                "delete_all": {
+                    "type": "boolean"
+                },
+                "retention_days": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_apply_log.CleanupResult": {
+            "type": "object",
+            "properties": {
+                "cutoff": {
+                    "type": "string"
+                },
+                "delete_all": {
+                    "type": "boolean"
+                },
+                "deleted_count": {
+                    "type": "integer"
+                },
+                "retention_days": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_apply_log.ListResult": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "type": "integer"
+                },
+                "rows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OpenFlareApplyLog"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "totalPage": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_cloudflare.AvailableDomain": {
             "type": "object",
             "properties": {
                 "domain": {
@@ -15634,7 +16548,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.ConnectionInput": {
+        "apps_openflare_cloudflare.ConnectionInput": {
             "type": "object",
             "properties": {
                 "api_token": {
@@ -15648,7 +16562,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.ConnectionView": {
+        "apps_openflare_cloudflare.ConnectionView": {
             "type": "object",
             "properties": {
                 "configured": {
@@ -15671,21 +16585,21 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.GroupDetail": {
+        "apps_openflare_cloudflare.GroupDetail": {
             "type": "object",
             "properties": {
                 "group": {
-                    "$ref": "#/definitions/cloudflare.GroupItem"
+                    "$ref": "#/definitions/apps_openflare_cloudflare.GroupItem"
                 },
                 "members": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/cloudflare.MemberItem"
+                        "$ref": "#/definitions/apps_openflare_cloudflare.MemberItem"
                     }
                 }
             }
         },
-        "cloudflare.GroupInput": {
+        "apps_openflare_cloudflare.GroupInput": {
             "type": "object",
             "properties": {
                 "backup_node_id": {
@@ -15719,14 +16633,14 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.GroupItem": {
+        "apps_openflare_cloudflare.GroupItem": {
             "type": "object",
             "properties": {
                 "active_node": {
-                    "$ref": "#/definitions/cloudflare.NodeOption"
+                    "$ref": "#/definitions/apps_openflare_cloudflare.NodeOption"
                 },
                 "backup_node": {
-                    "$ref": "#/definitions/cloudflare.NodeOption"
+                    "$ref": "#/definitions/apps_openflare_cloudflare.NodeOption"
                 },
                 "created_at": {
                     "type": "string"
@@ -15747,7 +16661,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "primary_node": {
-                    "$ref": "#/definitions/cloudflare.NodeOption"
+                    "$ref": "#/definitions/apps_openflare_cloudflare.NodeOption"
                 },
                 "record_content": {
                     "type": "string"
@@ -15768,7 +16682,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.MemberBatchMoveInput": {
+        "apps_openflare_cloudflare.MemberBatchMoveInput": {
             "type": "object",
             "properties": {
                 "member_ids": {
@@ -15782,7 +16696,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.MemberBatchProxyInput": {
+        "apps_openflare_cloudflare.MemberBatchProxyInput": {
             "type": "object",
             "properties": {
                 "member_ids": {
@@ -15793,7 +16707,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.MemberBatchRemoveInput": {
+        "apps_openflare_cloudflare.MemberBatchRemoveInput": {
             "type": "object",
             "properties": {
                 "member_ids": {
@@ -15804,7 +16718,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.MemberCreateInput": {
+        "apps_openflare_cloudflare.MemberCreateInput": {
             "type": "object",
             "properties": {
                 "proxied": {
@@ -15815,7 +16729,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.MemberItem": {
+        "apps_openflare_cloudflare.MemberItem": {
             "type": "object",
             "properties": {
                 "desired_ip": {
@@ -15850,7 +16764,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.MemberMoveInput": {
+        "apps_openflare_cloudflare.MemberMoveInput": {
             "type": "object",
             "properties": {
                 "target_group_id": {
@@ -15858,7 +16772,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.MemberUpdateInput": {
+        "apps_openflare_cloudflare.MemberUpdateInput": {
             "type": "object",
             "properties": {
                 "proxied": {
@@ -15866,7 +16780,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.NodeOption": {
+        "apps_openflare_cloudflare.NodeOption": {
             "type": "object",
             "properties": {
                 "id": {
@@ -15880,11 +16794,11 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.Overview": {
+        "apps_openflare_cloudflare.Overview": {
             "type": "object",
             "properties": {
                 "connection": {
-                    "$ref": "#/definitions/cloudflare.ConnectionView"
+                    "$ref": "#/definitions/apps_openflare_cloudflare.ConnectionView"
                 },
                 "error_count": {
                     "type": "integer"
@@ -15903,7 +16817,7 @@ const docTemplate = `{
                 }
             }
         },
-        "cloudflare.SyncReceipt": {
+        "apps_openflare_cloudflare.SyncReceipt": {
             "type": "object",
             "properties": {
                 "task_id": {
@@ -15911,7 +16825,7 @@ const docTemplate = `{
                 }
             }
         },
-        "config_version.CleanupInput": {
+        "apps_openflare_config_version.CleanupInput": {
             "type": "object",
             "properties": {
                 "keep_count": {
@@ -15919,7 +16833,7 @@ const docTemplate = `{
                 }
             }
         },
-        "config_version.CleanupResult": {
+        "apps_openflare_config_version.CleanupResult": {
             "type": "object",
             "properties": {
                 "deleted_count": {
@@ -15930,7 +16844,7 @@ const docTemplate = `{
                 }
             }
         },
-        "config_version.ConfigDiffResult": {
+        "apps_openflare_config_version.ConfigDiffResult": {
             "type": "object",
             "properties": {
                 "active_version": {
@@ -15954,7 +16868,7 @@ const docTemplate = `{
                 "changed_option_details": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/config_version.ConfigOptionDiffItem"
+                        "$ref": "#/definitions/apps_openflare_config_version.ConfigOptionDiffItem"
                     }
                 },
                 "changed_option_keys": {
@@ -15998,7 +16912,7 @@ const docTemplate = `{
                 }
             }
         },
-        "config_version.ConfigOptionDiffItem": {
+        "apps_openflare_config_version.ConfigOptionDiffItem": {
             "type": "object",
             "properties": {
                 "current_value": {
@@ -16012,7 +16926,7 @@ const docTemplate = `{
                 }
             }
         },
-        "config_version.ConfigPreviewResult": {
+        "apps_openflare_config_version.ConfigPreviewResult": {
             "type": "object",
             "properties": {
                 "checksum": {
@@ -16036,7 +16950,7 @@ const docTemplate = `{
                 "support_files": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/config_version.SupportFile"
+                        "$ref": "#/definitions/apps_openflare_config_version.SupportFile"
                     }
                 },
                 "website_count": {
@@ -16044,7 +16958,7 @@ const docTemplate = `{
                 }
             }
         },
-        "config_version.SupportFile": {
+        "apps_openflare_config_version.SupportFile": {
             "type": "object",
             "properties": {
                 "content": {
@@ -16055,7 +16969,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dashboard.Capacity": {
+        "apps_openflare_dashboard.Capacity": {
             "type": "object",
             "properties": {
                 "average_cpu_usage_percent": {
@@ -16075,14 +16989,14 @@ const docTemplate = `{
                 }
             }
         },
-        "dashboard.OverviewPayload": {
+        "apps_openflare_dashboard.OverviewPayload": {
             "type": "object",
             "properties": {
                 "capacity": {
-                    "$ref": "#/definitions/dashboard.Capacity"
+                    "$ref": "#/definitions/apps_openflare_dashboard.Capacity"
                 },
                 "distributions": {
-                    "$ref": "#/definitions/dashboard.distributionsPayload"
+                    "$ref": "#/definitions/apps_openflare_dashboard.distributionsPayload"
                 },
                 "generated_at": {},
                 "nodes": {
@@ -16093,17 +17007,17 @@ const docTemplate = `{
                     }
                 },
                 "summary": {
-                    "$ref": "#/definitions/dashboard.Summary"
+                    "$ref": "#/definitions/apps_openflare_dashboard.Summary"
                 },
                 "traffic": {
-                    "$ref": "#/definitions/dashboard.Traffic"
+                    "$ref": "#/definitions/apps_openflare_dashboard.Traffic"
                 },
                 "trends": {
-                    "$ref": "#/definitions/dashboard.trendsPayload"
+                    "$ref": "#/definitions/apps_openflare_dashboard.trendsPayload"
                 }
             }
         },
-        "dashboard.Summary": {
+        "apps_openflare_dashboard.Summary": {
             "type": "object",
             "properties": {
                 "offline_nodes": {
@@ -16123,7 +17037,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dashboard.Traffic": {
+        "apps_openflare_dashboard.Traffic": {
             "type": "object",
             "properties": {
                 "error_count": {
@@ -16146,7 +17060,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dashboard.distributionsPayload": {
+        "apps_openflare_dashboard.distributionsPayload": {
             "type": "object",
             "properties": {
                 "source_countries": {
@@ -16172,7 +17086,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dashboard.trendsPayload": {
+        "apps_openflare_dashboard.trendsPayload": {
             "type": "object",
             "properties": {
                 "capacity_24h": {
@@ -16205,22 +17119,292 @@ const docTemplate = `{
                 }
             }
         },
-        "db_manage.DBOverviewResponse": {
+        "apps_openflare_node.AgentReleaseInfo": {
             "type": "object",
             "properties": {
-                "connections": {
+                "body": {
+                    "type": "string"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "current_version": {
+                    "type": "string"
+                },
+                "has_update": {
+                    "type": "boolean"
+                },
+                "html_url": {
+                    "type": "string"
+                },
+                "prerelease": {
+                    "type": "boolean"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "requested_channel": {
+                    "type": "string"
+                },
+                "requested_tag": {
+                    "type": "string"
+                },
+                "tag_name": {
+                    "type": "string"
+                },
+                "update_requested": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_openflare_node.AgentUpdateInput": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string"
+                },
+                "tag_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_node.BootstrapView": {
+            "type": "object",
+            "properties": {
+                "discovery_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_node.HealthEventCleanupResult": {
+            "type": "object",
+            "properties": {
+                "deleted_count": {
+                    "type": "integer"
+                },
+                "node_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_node.Input": {
+            "type": "object",
+            "properties": {
+                "auto_update_enabled": {
+                    "type": "boolean"
+                },
+                "geo_latitude": {
+                    "type": "number"
+                },
+                "geo_longitude": {
+                    "type": "number"
+                },
+                "geo_manual_override": {
+                    "type": "boolean"
+                },
+                "geo_name": {
+                    "type": "string"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "ip_manual_override": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_type": {
+                    "type": "string"
+                },
+                "relay_agent_access_addr": {
+                    "type": "string"
+                },
+                "relay_bind_port": {
+                    "type": "integer"
+                },
+                "relay_client_access_addr": {
+                    "type": "string"
+                },
+                "relay_client_proxy_url": {
+                    "type": "string"
+                },
+                "relay_vhost_http_port": {
+                    "type": "integer"
+                },
+                "relay_web_server_enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_openflare_node.ListResult": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_node.View"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_node.ObservabilityView": {
+            "type": "object",
+            "properties": {
+                "analytics": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeAnalytics"
+                },
+                "health_events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OpenFlareHealthEvent"
+                    }
+                },
+                "metric_snapshots": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeMetricSnapshotView"
+                    }
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "profile": {
+                    "$ref": "#/definitions/model.OpenFlareNodeSystemProfile"
+                },
+                "relay_dashboard": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.RelayDashboardSnapshot"
+                },
+                "trends": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeTrends"
+                }
+            }
+        },
+        "apps_openflare_node.View": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "auto_update_enabled": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "current_version": {
+                    "type": "string"
+                },
+                "ext_version": {
+                    "type": "string"
+                },
+                "geo_latitude": {
+                    "type": "number"
+                },
+                "geo_longitude": {
+                    "type": "number"
+                },
+                "geo_manual_override": {
+                    "type": "boolean"
+                },
+                "geo_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "ip_manual_override": {
+                    "type": "boolean"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_seen_at": {},
+                "latest_apply_at": {
+                    "type": "string"
+                },
+                "latest_apply_checksum": {
+                    "type": "string"
+                },
+                "latest_apply_message": {
+                    "type": "string"
+                },
+                "latest_apply_result": {
+                    "type": "string"
+                },
+                "latest_main_config_checksum": {
+                    "type": "string"
+                },
+                "latest_route_config_checksum": {
+                    "type": "string"
+                },
+                "latest_support_file_count": {
                     "type": "integer"
                 },
                 "name": {
                     "type": "string"
                 },
-                "size": {
+                "node_id": {
                     "type": "string"
                 },
-                "table_count": {
+                "node_type": {
+                    "type": "string"
+                },
+                "openresty_message": {
+                    "type": "string"
+                },
+                "openresty_status": {
+                    "type": "string"
+                },
+                "relay_agent_access_addr": {
+                    "type": "string"
+                },
+                "relay_bind_port": {
                     "type": "integer"
                 },
-                "type": {
+                "relay_client_access_addr": {
+                    "type": "string"
+                },
+                "relay_client_proxy_url": {
+                    "type": "string"
+                },
+                "relay_status": {
+                    "type": "string"
+                },
+                "relay_vhost_http_port": {
+                    "type": "integer"
+                },
+                "relay_web_server_enabled": {
+                    "type": "boolean"
+                },
+                "restart_openresty_requested": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "update_channel": {
+                    "type": "string"
+                },
+                "update_requested": {
+                    "type": "boolean"
+                },
+                "update_tag": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 },
                 "version": {
@@ -16228,46 +17412,2535 @@ const docTemplate = `{
                 }
             }
         },
-        "db_manage.ExecuteSQLRequest": {
+        "apps_openflare_observability.AccessLogCleanupInput": {
             "type": "object",
-            "required": [
-                "sql"
-            ],
             "properties": {
-                "sql": {
+                "retention_days": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogCleanupResult": {
+            "type": "object",
+            "properties": {
+                "cutoff": {
+                    "type": "string"
+                },
+                "deleted_count": {
+                    "type": "integer"
+                },
+                "retention_days": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogIPAnalysisSummary": {
+            "type": "object",
+            "properties": {
+                "bandwidth_served": {
+                    "type": "integer"
+                },
+                "bytes_received": {
+                    "type": "integer"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "total_requests": {
+                    "type": "integer"
+                },
+                "unique_hosts": {
+                    "type": "integer"
+                },
+                "unique_paths": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogIPAnalysisView": {
+            "type": "object",
+            "properties": {
+                "device_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "hours": {
+                    "type": "integer"
+                },
+                "remote_addr": {
+                    "type": "string"
+                },
+                "status_codes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "summary": {
+                    "$ref": "#/definitions/apps_openflare_observability.AccessLogIPAnalysisSummary"
+                },
+                "top_browsers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "top_hosts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "top_paths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "top_user_agents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogIPSummaryList": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "hours": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.AccessLogIPSummaryView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "since": {
+                    "type": "string"
+                },
+                "sort_by": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "string"
+                },
+                "total_ip": {
+                    "type": "integer"
+                },
+                "until": {
                     "type": "string"
                 }
             }
         },
-        "db_manage.ExecuteSQLResponse": {
+        "apps_openflare_observability.AccessLogIPSummaryView": {
             "type": "object",
             "properties": {
-                "affected_rows": {
+                "bytes_received": {
                     "type": "integer"
                 },
-                "columns": {
+                "bytes_sent": {
+                    "type": "integer"
+                },
+                "last_seen_at": {
+                    "type": "string"
+                },
+                "recent_requests": {
+                    "description": "RecentRequests is deprecated and always 0.",
+                    "type": "integer"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "remote_addr": {
+                    "type": "string"
+                },
+                "success_2xx_count": {
+                    "type": "integer"
+                },
+                "success_ratio": {
+                    "type": "number"
+                },
+                "total_requests": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogIPTrendPoint": {
+            "type": "object",
+            "properties": {
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "request_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogIPTrendView": {
+            "type": "object",
+            "properties": {
+                "bucket_minutes": {
+                    "type": "integer"
+                },
+                "hours": {
+                    "type": "integer"
+                },
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.AccessLogIPTrendPoint"
+                    }
+                },
+                "remote_addr": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogList": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.AccessLogView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total_ip": {
+                    "type": "integer"
+                },
+                "total_record": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogOverview": {
+            "type": "object",
+            "properties": {
+                "bucket_minutes": {
+                    "type": "integer"
+                },
+                "device_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "hours": {
+                    "type": "integer"
+                },
+                "status_codes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "summary": {
+                    "$ref": "#/definitions/apps_openflare_observability.AccessLogOverviewSummary"
+                },
+                "top_browsers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "top_hosts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "top_ips": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "top_operating_systems": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "top_paths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "top_user_agents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "trends": {
+                    "$ref": "#/definitions/apps_openflare_observability.AccessLogOverviewTrends"
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogOverviewMetricPoint": {
+            "type": "object",
+            "properties": {
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogOverviewSummary": {
+            "type": "object",
+            "properties": {
+                "bandwidth_served": {
+                    "type": "integer"
+                },
+                "total_requests": {
+                    "type": "integer"
+                },
+                "total_visits": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogOverviewTrends": {
+            "type": "object",
+            "properties": {
+                "bandwidth": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.AccessLogOverviewMetricPoint"
+                    }
+                },
+                "requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.AccessLogOverviewMetricPoint"
+                    }
+                },
+                "visits": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.AccessLogOverviewMetricPoint"
+                    }
+                }
+            }
+        },
+        "apps_openflare_observability.AccessLogView": {
+            "type": "object",
+            "properties": {
+                "bytes_sent": {
+                    "type": "integer"
+                },
+                "cache_status": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "logged_at": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "node_name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "remote_addr": {
+                    "type": "string"
+                },
+                "request_length": {
+                    "type": "integer"
+                },
+                "request_time_ms": {
+                    "type": "integer"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "user_agent": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_observability.DistributionItem": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.FoldedAccessLogIPList": {
+            "type": "object",
+            "properties": {
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "fold_minutes": {
+                    "type": "integer"
+                },
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.FoldedAccessLogIPView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "sort_by": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "string"
+                },
+                "total_ip": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.FoldedAccessLogIPView": {
+            "type": "object",
+            "properties": {
+                "client_error_count": {
+                    "type": "integer"
+                },
+                "last_seen_at": {
+                    "type": "string"
+                },
+                "remote_addr": {
+                    "type": "string"
+                },
+                "request_count": {
+                    "type": "integer"
+                },
+                "server_error_count": {
+                    "type": "integer"
+                },
+                "success_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.FoldedAccessLogList": {
+            "type": "object",
+            "properties": {
+                "fold_minutes": {
+                    "type": "integer"
+                },
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_observability.FoldedAccessLogView"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total_bucket": {
+                    "type": "integer"
+                },
+                "total_ip": {
+                    "type": "integer"
+                },
+                "total_record": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_observability.FoldedAccessLogView": {
+            "type": "object",
+            "properties": {
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "client_error_count": {
+                    "type": "integer"
+                },
+                "request_count": {
+                    "type": "integer"
+                },
+                "server_error_count": {
+                    "type": "integer"
+                },
+                "success_count": {
+                    "type": "integer"
+                },
+                "unique_host_count": {
+                    "type": "integer"
+                },
+                "unique_ip_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_option.geoIPLookupRequest": {
+            "type": "object",
+            "properties": {
+                "ip": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_option.geoIPLookupView": {
+            "type": "object",
+            "properties": {
+                "ip": {
+                    "type": "string"
+                },
+                "iso_code": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_option.optionBatchPayload": {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OpenFlareOption"
+                    }
+                }
+            }
+        },
+        "apps_openflare_option.publicAuthSourceView": {
+            "type": "object",
+            "properties": {
+                "authorize_url": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "icon_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_option.statusView": {
+            "type": "object",
+            "properties": {
+                "auth_sources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_option.publicAuthSourceView"
+                    }
+                },
+                "cap_login_enabled": {
+                    "type": "boolean"
+                },
+                "email_verification": {
+                    "type": "boolean"
+                },
+                "password_register_enabled": {
+                    "type": "boolean"
+                },
+                "server_address": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_origin.DetailView": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "route_count": {
+                    "type": "integer"
+                },
+                "routes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_origin.RouteSummary"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_origin.Input": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_origin.RouteSummary": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "origin_url": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_origin.View": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "route_count": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_pages.DeploymentFileView": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deployment_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_pages.DeploymentView": {
+            "type": "object",
+            "properties": {
+                "activated_at": {
+                    "type": "string"
+                },
+                "checksum": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deployment_number": {
+                    "type": "integer"
+                },
+                "file_count": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "source_label": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_size": {
+                    "type": "integer"
+                },
+                "trigger_type": {
+                    "type": "string"
+                },
+                "upload_id": {
+                    "type": "string",
+                    "example": "0"
+                }
+            }
+        },
+        "apps_openflare_pages.Input": {
+            "type": "object",
+            "properties": {
+                "api_proxy_enabled": {
+                    "type": "boolean"
+                },
+                "api_proxy_pass": {
+                    "type": "string"
+                },
+                "api_proxy_path": {
+                    "type": "string"
+                },
+                "api_proxy_rewrite": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "entry_file": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "root_dir": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "spa_fallback_enabled": {
+                    "type": "boolean"
+                },
+                "spa_fallback_path": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_pages.SourceActionReceipt": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "execution_id": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_pages.SourceRevisionView": {
+            "type": "object",
+            "properties": {
+                "asset_name": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_pages.SourceSyncInput": {
+            "type": "object",
+            "properties": {
+                "confirmed_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_pages.SourceUpdateInput": {
+            "type": "object",
+            "properties": {
+                "allow_insecure": {
+                    "type": "boolean"
+                },
+                "asset_name": {
+                    "type": "string"
+                },
+                "auto_update_enabled": {
+                    "type": "boolean"
+                },
+                "check_interval_minutes": {
+                    "type": "integer"
+                },
+                "release_selector": {
+                    "type": "string"
+                },
+                "release_tag": {
+                    "type": "string"
+                },
+                "remote_url": {
+                    "type": "string"
+                },
+                "repository_url": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_pages.SourceUpdateResult": {
+            "type": "object",
+            "properties": {
+                "check_task": {
+                    "$ref": "#/definitions/apps_openflare_pages.SourceActionReceipt"
+                },
+                "source": {
+                    "$ref": "#/definitions/apps_openflare_pages.SourceView"
+                },
+                "warning": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_pages.SourceView": {
+            "type": "object",
+            "properties": {
+                "allow_insecure": {
+                    "type": "boolean"
+                },
+                "asset_name": {
+                    "type": "string"
+                },
+                "auto_update_enabled": {
+                    "type": "boolean"
+                },
+                "check_interval_minutes": {
+                    "type": "integer"
+                },
+                "github_repository": {
+                    "type": "string"
+                },
+                "last_applied": {
+                    "$ref": "#/definitions/apps_openflare_pages.SourceRevisionView"
+                },
+                "last_checked_at": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_seen": {
+                    "$ref": "#/definitions/apps_openflare_pages.SourceRevisionView"
+                },
+                "last_synced_at": {
+                    "type": "string"
+                },
+                "next_check_at": {
+                    "type": "string"
+                },
+                "release_selector": {
+                    "type": "string"
+                },
+                "release_tag": {
+                    "type": "string"
+                },
+                "remote_url": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "sync_status": {
+                    "type": "string"
+                },
+                "update_available": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_openflare_pages.UploadFromURLInput": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_pages.View": {
+            "type": "object",
+            "properties": {
+                "active_deployment": {
+                    "$ref": "#/definitions/apps_openflare_pages.DeploymentView"
+                },
+                "active_deployment_id": {
+                    "type": "integer"
+                },
+                "api_proxy_enabled": {
+                    "type": "boolean"
+                },
+                "api_proxy_pass": {
+                    "type": "string"
+                },
+                "api_proxy_path": {
+                    "type": "string"
+                },
+                "api_proxy_rewrite": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deployment_count": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "entry_file": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "root_dir": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "spa_fallback_enabled": {
+                    "type": "boolean"
+                },
+                "spa_fallback_path": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_pow.Policy": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/openresty.PoWConfig"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "route_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_proxy_route.CustomHeaderInput": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_proxy_route.Input": {
+            "type": "object",
+            "properties": {
+                "basic_auth_enabled": {
+                    "type": "boolean"
+                },
+                "basic_auth_password": {
+                    "type": "string"
+                },
+                "basic_auth_username": {
+                    "type": "string"
+                },
+                "cache_enabled": {
+                    "type": "boolean"
+                },
+                "cache_policy": {
+                    "type": "string"
+                },
+                "cache_rules": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
-                "execution_time_ms": {
-                    "type": "integer"
-                },
-                "results": {
+                "custom_headers": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "additionalProperties": {}
+                        "$ref": "#/definitions/apps_openflare_proxy_route.CustomHeaderInput"
                     }
                 },
-                "type": {
-                    "description": "\"select\" 或 \"exec\"",
+                "enable_http2": {
+                    "type": "boolean"
+                },
+                "enable_https": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "limit_conn_per_ip": {
+                    "type": "integer"
+                },
+                "limit_conn_per_server": {
+                    "type": "integer"
+                },
+                "limit_rate": {
+                    "type": "string"
+                },
+                "limit_req_per_ip": {
+                    "type": "string"
+                },
+                "origin_address": {
+                    "type": "string"
+                },
+                "origin_host": {
+                    "type": "string"
+                },
+                "origin_id": {
+                    "type": "integer"
+                },
+                "origin_port": {
+                    "type": "string"
+                },
+                "origin_scheme": {
+                    "type": "string"
+                },
+                "origin_uri": {
+                    "type": "string"
+                },
+                "origin_url": {
+                    "type": "string"
+                },
+                "pages_project_id": {
+                    "type": "integer"
+                },
+                "redirect_http": {
+                    "type": "boolean"
+                },
+                "site_auth_ttl_hours": {
+                    "type": "integer"
+                },
+                "site_name": {
+                    "type": "string"
+                },
+                "tunnel_id": {
+                    "type": "integer"
+                },
+                "tunnel_node_id": {
+                    "type": "integer"
+                },
+                "tunnel_target_addr": {
+                    "type": "string"
+                },
+                "tunnel_target_protocol": {
+                    "type": "string"
+                },
+                "upstream_type": {
+                    "type": "string"
+                },
+                "upstreams": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "zone_domain_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "apps_openflare_proxy_route.View": {
+            "type": "object",
+            "properties": {
+                "basic_auth_enabled": {
+                    "type": "boolean"
+                },
+                "basic_auth_password": {
+                    "type": "string"
+                },
+                "basic_auth_username": {
+                    "type": "string"
+                },
+                "cache_enabled": {
+                    "type": "boolean"
+                },
+                "cache_policy": {
+                    "type": "string"
+                },
+                "cache_rule_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "cache_rules": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "custom_header_list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_proxy_route.CustomHeaderInput"
+                    }
+                },
+                "custom_headers": {
+                    "type": "string"
+                },
+                "enable_http2": {
+                    "type": "boolean"
+                },
+                "enable_https": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "limit_conn_per_ip": {
+                    "type": "integer"
+                },
+                "limit_conn_per_server": {
+                    "type": "integer"
+                },
+                "limit_rate": {
+                    "type": "string"
+                },
+                "limit_req_per_ip": {
+                    "type": "string"
+                },
+                "origin_host": {
+                    "type": "string"
+                },
+                "origin_id": {
+                    "type": "integer"
+                },
+                "origin_url": {
+                    "type": "string"
+                },
+                "pages_project_id": {
+                    "type": "integer"
+                },
+                "redirect_http": {
+                    "type": "boolean"
+                },
+                "site_auth_ttl_hours": {
+                    "type": "integer"
+                },
+                "site_name": {
+                    "type": "string"
+                },
+                "tunnel_id": {
+                    "type": "integer"
+                },
+                "tunnel_node_id": {
+                    "type": "integer"
+                },
+                "tunnel_target_addr": {
+                    "type": "string"
+                },
+                "tunnel_target_protocol": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "upstream_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "upstream_type": {
+                    "type": "string"
+                },
+                "upstreams": {
+                    "type": "string"
+                },
+                "zone_domain_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "zone_domains": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_proxy_route.ZoneDomainView"
+                    }
+                }
+            }
+        },
+        "apps_openflare_proxy_route.ZoneDomainView": {
+            "type": "object",
+            "properties": {
+                "cert_id": {
+                    "type": "integer"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "zone_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_tls.ApplyInput": {
+            "type": "object",
+            "properties": {
+                "acme_account_id": {
+                    "type": "integer"
+                },
+                "auto_renew": {
+                    "type": "boolean"
+                },
+                "disable_cname": {
+                    "type": "boolean"
+                },
+                "dns1": {
+                    "type": "string"
+                },
+                "dns2": {
+                    "type": "string"
+                },
+                "dns_account_id": {
+                    "type": "integer"
+                },
+                "key_algorithm": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "other_domains": {
+                    "type": "string"
+                },
+                "primary_domain": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "skip_dns": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_openflare_tls.CertificateContent": {
+            "type": "object",
+            "properties": {
+                "acme_account_id": {
+                    "type": "integer"
+                },
+                "apply_message": {
+                    "type": "string"
+                },
+                "apply_status": {
+                    "type": "string"
+                },
+                "auto_renew": {
+                    "type": "boolean"
+                },
+                "cert_pem": {
+                    "type": "string"
+                },
+                "disable_cname": {
+                    "type": "boolean"
+                },
+                "dns1": {
+                    "type": "string"
+                },
+                "dns2": {
+                    "type": "string"
+                },
+                "dns_account_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "key_algorithm": {
+                    "type": "string"
+                },
+                "key_pem": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "other_domains": {
+                    "type": "string"
+                },
+                "primary_domain": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "skip_dns": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_openflare_tls.CertificateInput": {
+            "type": "object",
+            "properties": {
+                "cert_pem": {
+                    "type": "string"
+                },
+                "key_pem": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "remark": {
                     "type": "string"
                 }
             }
         },
-        "diskcache.Status": {
+        "apps_openflare_tls.DNSAccountInput": {
+            "type": "object",
+            "properties": {
+                "authorization": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_waf.CreateRuleInput": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_waf.IDsRequest": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "apps_openflare_waf.IPGroupAutoTestInput": {
+            "type": "object",
+            "properties": {
+                "auto_config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "apps_openflare_waf.IPGroupAutoTestResult": {
+            "type": "object",
+            "properties": {
+                "lookback": {
+                    "type": "string"
+                },
+                "matched_count": {
+                    "type": "integer"
+                },
+                "matched_ips": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "rule_count": {
+                    "type": "integer"
+                },
+                "tested_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_waf.IPGroupExtIPView": {
+            "type": "object",
+            "properties": {
+                "captured_at": {
+                    "type": "string"
+                },
+                "ip": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_waf.IPGroupInput": {
+            "type": "object",
+            "properties": {
+                "auto_config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "ip_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "subscription_format": {
+                    "type": "string"
+                },
+                "subscription_mapping_rule": {
+                    "type": "string"
+                },
+                "subscription_url": {
+                    "type": "string"
+                },
+                "sync_interval_minutes": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_waf.IPGroupSyncResult": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "$ref": "#/definitions/apps_openflare_waf.IPGroupView"
+                },
+                "ip_count": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "next_sync_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "synced_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_waf.IPGroupView": {
+            "type": "object",
+            "properties": {
+                "auto_config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "ext_ips": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_waf.IPGroupExtIPView"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "last_sync_message": {
+                    "type": "string"
+                },
+                "last_sync_status": {
+                    "type": "string"
+                },
+                "last_synced_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "next_sync_at": {
+                    "type": "string"
+                },
+                "referenced_by_rule_count": {
+                    "type": "integer"
+                },
+                "subscription_format": {
+                    "type": "string"
+                },
+                "subscription_mapping_rule": {
+                    "type": "string"
+                },
+                "subscription_url": {
+                    "type": "string"
+                },
+                "sync_interval_minutes": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_waf.RuleEdge": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "source_handle": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_waf.RuleGraph": {
+            "type": "object",
+            "properties": {
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_waf.RuleEdge"
+                    }
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_waf.RuleNode"
+                    }
+                },
+                "schema_version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_waf.RuleNode": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "position": {
+                    "$ref": "#/definitions/apps_openflare_waf.RulePosition"
+                },
+                "type": {
+                    "$ref": "#/definitions/apps_openflare_waf.RuleNodeType"
+                }
+            }
+        },
+        "apps_openflare_waf.RuleNodeType": {
+            "type": "string",
+            "enum": [
+                "start",
+                "allow",
+                "block",
+                "ip_match",
+                "geo_match",
+                "pow",
+                "ua_check",
+                "security_check"
+            ],
+            "x-enum-varnames": [
+                "RuleNodeStart",
+                "RuleNodeAllow",
+                "RuleNodeBlock",
+                "RuleNodeIPMatch",
+                "RuleNodeGeoMatch",
+                "RuleNodePoW",
+                "RuleNodeUACheck",
+                "RuleNodeSecurityCheck"
+            ]
+        },
+        "apps_openflare_waf.RulePosition": {
+            "type": "object",
+            "properties": {
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "apps_openflare_waf.RuleView": {
+            "type": "object",
+            "properties": {
+                "applied_site_count": {
+                    "type": "integer"
+                },
+                "applied_site_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "graph": {
+                    "$ref": "#/definitions/apps_openflare_waf.RuleGraph"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_global": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "revision": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_waf.SaveRuleGraphInput": {
+            "type": "object",
+            "properties": {
+                "graph": {
+                    "$ref": "#/definitions/apps_openflare_waf.RuleGraph"
+                },
+                "revision": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_waf.SiteRuleGroupsView": {
+            "type": "object",
+            "properties": {
+                "applied_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "applied_rule_groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_waf.RuleView"
+                    }
+                },
+                "global_rule_group": {
+                    "$ref": "#/definitions/apps_openflare_waf.RuleView"
+                },
+                "route_id": {
+                    "type": "integer"
+                },
+                "rule_groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_waf.RuleView"
+                    }
+                }
+            }
+        },
+        "apps_openflare_waf.UpdateRuleMetaInput": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_zone.CleanupUnlinkedDomainsResult": {
+            "type": "object",
+            "properties": {
+                "deleted_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_zone.DomainInput": {
+            "type": "object",
+            "properties": {
+                "cert_id": {
+                    "type": "integer"
+                },
+                "domain": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_zone.Input": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_zone.ListItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "domain_count": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_zone.Overview": {
+            "type": "object",
+            "properties": {
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ZoneDomain"
+                    }
+                },
+                "zone": {
+                    "$ref": "#/definitions/model.Zone"
+                }
+            }
+        },
+        "apps_openflare_zone.Stats": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "bucket_minutes": {
+                    "type": "integer"
+                },
+                "bytes_sent": {
+                    "type": "integer"
+                },
+                "domain_count": {
+                    "type": "integer"
+                },
+                "range": {
+                    "$ref": "#/definitions/apps_openflare_zone.StatsRange"
+                },
+                "range_hours": {
+                    "type": "integer"
+                },
+                "request_count": {
+                    "type": "integer"
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_zone.StatsPoint"
+                    }
+                },
+                "unique_visitors": {
+                    "type": "integer"
+                },
+                "window_ended_at": {
+                    "type": "string"
+                },
+                "window_started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_zone.StatsPoint": {
+            "type": "object",
+            "properties": {
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "bytes_sent": {
+                    "type": "integer"
+                },
+                "request_count": {
+                    "type": "integer"
+                },
+                "unique_visitors": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_zone.StatsRange": {
+            "type": "string",
+            "enum": [
+                "24h",
+                "7d",
+                "30d"
+            ],
+            "x-enum-varnames": [
+                "StatsRange24h",
+                "StatsRange7d",
+                "StatsRange30d"
+            ]
+        },
+        "apps_upload.batchDownloadRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "apps_upload.distributionItem": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_upload.fileStatsResponse": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_upload.distributionItem"
+                    }
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "total_size": {
+                    "type": "integer"
+                },
+                "trend": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_upload.trendItem"
+                    }
+                },
+                "types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_upload.distributionItem"
+                    }
+                }
+            }
+        },
+        "apps_upload.listFilesResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Upload"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_upload.listMyFilesResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Upload"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_upload.trendItem": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_upload.updateMyFileRequest": {
+            "type": "object",
+            "properties": {
+                "access_mode": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1
+                    ]
+                },
+                "file_name": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "apps_user.changePasswordRequest": {
+            "type": "object",
+            "properties": {
+                "new_password": {
+                    "type": "string"
+                },
+                "old_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_user.createTokenRequest": {
+            "type": "object",
+            "properties": {
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_user.loginRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_user.registerRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_user.sendEmailCodeRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "scene"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "scene": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_user.tokenResponse": {
+            "type": "object",
+            "properties": {
+                "record": {
+                    "$ref": "#/definitions/model.AccessToken"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_user.updateProfileRequest": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_oauth.BasicUserInfo": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "need_change_password": {
+                    "type": "boolean"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.CapacityTrendPoint": {
+            "type": "object",
+            "properties": {
+                "average_cpu_usage_percent": {
+                    "type": "number"
+                },
+                "average_memory_usage_percent": {
+                    "type": "number"
+                },
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "reported_nodes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.DiskIOTrendPoint": {
+            "type": "object",
+            "properties": {
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "disk_read_bytes": {
+                    "type": "integer"
+                },
+                "disk_write_bytes": {
+                    "type": "integer"
+                },
+                "reported_nodes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.DistributionItem": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.HealthSummary": {
+            "type": "object",
+            "properties": {
+                "active_alerts": {
+                    "type": "integer"
+                },
+                "critical_alerts": {
+                    "type": "integer"
+                },
+                "has_capacity_risk": {
+                    "type": "boolean"
+                },
+                "has_runtime_risk": {
+                    "type": "boolean"
+                },
+                "has_traffic_risk": {
+                    "type": "boolean"
+                },
+                "info_alerts": {
+                    "type": "integer"
+                },
+                "resolved_alerts": {
+                    "type": "integer"
+                },
+                "warning_alerts": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NetworkTrendPoint": {
+            "type": "object",
+            "properties": {
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "bytes_provided": {
+                    "description": "sum(bytes_sent)",
+                    "type": "integer"
+                },
+                "bytes_received": {
+                    "description": "sum(request_length)",
+                    "type": "integer"
+                },
+                "reported_nodes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeAnalytics": {
+            "type": "object",
+            "properties": {
+                "distributions": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.TrafficDistributions"
+                },
+                "health": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.HealthSummary"
+                },
+                "traffic": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.TrafficWindowSummary"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeMetricSnapshotView": {
+            "type": "object",
+            "properties": {
+                "captured_at": {
+                    "type": "string"
+                },
+                "cpu_usage_percent": {
+                    "type": "number"
+                },
+                "disk_read_bytes": {
+                    "type": "integer"
+                },
+                "disk_write_bytes": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "memory_total_bytes": {
+                    "type": "integer"
+                },
+                "memory_used_bytes": {
+                    "type": "integer"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "openresty_connections": {
+                    "type": "integer"
+                },
+                "storage_total_bytes": {
+                    "type": "integer"
+                },
+                "storage_used_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeTrends": {
+            "type": "object",
+            "properties": {
+                "capacity_24h": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.CapacityTrendPoint"
+                    }
+                },
+                "disk_io_24h": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.DiskIOTrendPoint"
+                    }
+                },
+                "network_24h": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NetworkTrendPoint"
+                    }
+                },
+                "traffic_24h": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.TrafficTrendPoint"
+                    }
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.RelayDashboardSnapshot": {
+            "type": "object",
+            "properties": {
+                "client_counts": {
+                    "type": "integer"
+                },
+                "offline_proxies": {
+                    "type": "integer"
+                },
+                "online_proxies": {
+                    "type": "integer"
+                },
+                "proxies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.RelayProxyStat"
+                    }
+                },
+                "total_connections": {
+                    "type": "integer"
+                },
+                "total_proxies": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.RelayProxyStat": {
+            "type": "object",
+            "properties": {
+                "client_addr": {
+                    "type": "string"
+                },
+                "client_version": {
+                    "type": "string"
+                },
+                "last_close_time": {
+                    "type": "string"
+                },
+                "last_start_time": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.TrafficDistributions": {
+            "type": "object",
+            "properties": {
+                "source_countries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "status_codes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "top_domains": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.DistributionItem"
+                    }
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.TrafficTrendPoint": {
+            "type": "object",
+            "properties": {
+                "bucket_started_at": {
+                    "type": "string"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "request_count": {
+                    "type": "integer"
+                },
+                "status_2xx_count": {
+                    "type": "integer"
+                },
+                "status_4xx_count": {
+                    "type": "integer"
+                },
+                "status_5xx_count": {
+                    "type": "integer"
+                },
+                "unique_visitor_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.TrafficWindowSummary": {
+            "type": "object",
+            "properties": {
+                "error_count": {
+                    "type": "integer"
+                },
+                "error_rate_percent": {
+                    "type": "number"
+                },
+                "estimated_qps": {
+                    "type": "number"
+                },
+                "request_count": {
+                    "type": "integer"
+                },
+                "unique_visitor_count": {
+                    "type": "integer"
+                },
+                "window_ended_at": {
+                    "type": "string"
+                },
+                "window_started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_infra_diskcache.Status": {
             "type": "object",
             "properties": {
                 "base_path": {
@@ -16290,7 +19963,255 @@ const docTemplate = `{
                 }
             }
         },
-        "flared.ApplyLogPayload": {
+        "github_com_Rain-kl_Wavelet_internal_infra_task.TaskMeta": {
+            "type": "object",
+            "properties": {
+                "asynq_task": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "max_retry": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "params": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_infra_task.TaskParam"
+                    }
+                },
+                "queue": {
+                    "type": "string"
+                },
+                "retryable": {
+                    "description": "是否支持手动重试",
+                    "type": "boolean"
+                },
+                "supports_time": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_infra_task.TaskParam": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "描述",
+                    "type": "string"
+                },
+                "label": {
+                    "description": "显示名称",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "参数键名",
+                    "type": "string"
+                },
+                "placeholder": {
+                    "description": "占位符",
+                    "type": "string"
+                },
+                "required": {
+                    "description": "是否必填",
+                    "type": "boolean"
+                },
+                "type": {
+                    "description": "类型：string, text, number, boolean",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_model_analytics.BatchWriterStats": {
+            "type": "object",
+            "properties": {
+                "cap": {
+                    "type": "integer"
+                },
+                "depth": {
+                    "type": "integer"
+                },
+                "drops": {
+                    "type": "integer"
+                },
+                "flush_errors": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "running": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_model_analytics.ClickHouseOperationalStats": {
+            "type": "object",
+            "properties": {
+                "active_parts": {
+                    "type": "integer"
+                },
+                "async_insert_bytes": {
+                    "type": "integer"
+                },
+                "async_insert_queue": {
+                    "type": "integer"
+                },
+                "batch_writers": {
+                    "description": "BatchWriters reports in-process queue depth/drops/flush errors for CH writers.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_model_analytics.BatchWriterStats"
+                    }
+                },
+                "database": {
+                    "type": "string"
+                },
+                "pending_mutations": {
+                    "type": "integer"
+                },
+                "total_rows": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.ActiveConfigMeta": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeHealthEvent": {
+            "type": "object",
+            "properties": {
+                "event_type": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "triggered_at_unix": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeMetricSnapshot": {
+            "type": "object",
+            "properties": {
+                "captured_at_unix": {
+                    "type": "integer"
+                },
+                "cpu_usage_percent": {
+                    "type": "number"
+                },
+                "disk_read_bytes": {
+                    "type": "integer"
+                },
+                "disk_write_bytes": {
+                    "type": "integer"
+                },
+                "memory_total_bytes": {
+                    "type": "integer"
+                },
+                "memory_used_bytes": {
+                    "type": "integer"
+                },
+                "storage_total_bytes": {
+                    "type": "integer"
+                },
+                "storage_used_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeSystemProfile": {
+            "type": "object",
+            "properties": {
+                "architecture": {
+                    "type": "string"
+                },
+                "cpu_cores": {
+                    "type": "integer"
+                },
+                "cpu_model": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "kernel_version": {
+                    "type": "string"
+                },
+                "os_name": {
+                    "type": "string"
+                },
+                "os_version": {
+                    "type": "string"
+                },
+                "reported_at_unix": {
+                    "type": "integer"
+                },
+                "total_disk_bytes": {
+                    "type": "integer"
+                },
+                "total_memory_bytes": {
+                    "type": "integer"
+                },
+                "uptime_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentSettings": {
+            "type": "object",
+            "properties": {
+                "auto_update": {
+                    "type": "boolean"
+                },
+                "heartbeat_interval": {
+                    "type": "integer"
+                },
+                "restart_openresty_now": {
+                    "type": "boolean"
+                },
+                "update_channel": {
+                    "type": "string"
+                },
+                "update_now": {
+                    "type": "boolean"
+                },
+                "update_repo": {
+                    "type": "string"
+                },
+                "update_tag": {
+                    "type": "string"
+                },
+                "websocket_upgrade_enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.ApplyLogPayload": {
             "type": "object",
             "properties": {
                 "checksum": {
@@ -16319,7 +20240,41 @@ const docTemplate = `{
                 }
             }
         },
-        "flared.HeartbeatPayload": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.BufferedObservabilityRecord": {
+            "type": "object",
+            "properties": {
+                "access_logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeAccessLog"
+                    }
+                },
+                "captured_at_unix": {
+                    "type": "integer"
+                },
+                "edge_health": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth"
+                },
+                "host_metrics": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeMetricSnapshot"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredConnectedRelay": {
+            "type": "object",
+            "properties": {
+                "proxy_count": {
+                    "type": "integer"
+                },
+                "relay_node_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredHeartbeatPayload": {
             "type": "object",
             "properties": {
                 "client_version": {
@@ -16328,7 +20283,7 @@ const docTemplate = `{
                 "connected_relays": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/protocol.FlaredConnectedRelay"
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredConnectedRelay"
                     }
                 },
                 "current_checksum": {
@@ -16348,18 +20303,58 @@ const docTemplate = `{
                 }
             }
         },
-        "flared.HeartbeatResponse": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredHeartbeatResponse": {
             "type": "object",
             "properties": {
                 "active_config": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.ActiveConfigMeta"
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.ActiveConfigMeta"
                 },
                 "tunnel_settings": {
-                    "$ref": "#/definitions/protocol.RelaySettings"
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelaySettings"
                 }
             }
         },
-        "flared.TunnelConfigResponse": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredProxyEntry": {
+            "type": "object",
+            "properties": {
+                "custom_domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "local_addr": {
+                    "type": "string"
+                },
+                "local_port": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredRelayInfo": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "auth_token": {
+                    "type": "string"
+                },
+                "proxy_url": {
+                    "type": "string"
+                },
+                "relay_node_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredTunnelConfigResponse": {
             "type": "object",
             "properties": {
                 "checksum": {
@@ -16368,13 +20363,13 @@ const docTemplate = `{
                 "proxies": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/protocol.FlaredProxyEntry"
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredProxyEntry"
                     }
                 },
                 "relays": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/protocol.FlaredRelayInfo"
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredRelayInfo"
                     }
                 },
                 "version": {
@@ -16382,111 +20377,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_internal_apps_cap.ChallengeResponse": {
-            "type": "object",
-            "properties": {
-                "challenge": {
-                    "type": "object",
-                    "properties": {
-                        "c": {
-                            "type": "integer"
-                        },
-                        "d": {
-                            "type": "integer"
-                        },
-                        "s": {
-                            "type": "integer"
-                        }
-                    }
-                },
-                "expires": {
-                    "description": "ms timestamp",
-                    "type": "integer"
-                },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_apps_cap.RedeemResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "expires": {
-                    "type": "integer"
-                },
-                "success": {
-                    "type": "boolean"
-                },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_model_analytics.ClickHouseOperationalStats": {
-            "type": "object",
-            "properties": {
-                "active_parts": {
-                    "type": "integer"
-                },
-                "async_insert_bytes": {
-                    "type": "integer"
-                },
-                "async_insert_queue": {
-                    "type": "integer"
-                },
-                "batch_writers": {
-                    "description": "BatchWriters reports in-process queue depth/drops/flush errors for CH writers.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/analytics.BatchWriterStats"
-                    }
-                },
-                "database": {
-                    "type": "string"
-                },
-                "pending_mutations": {
-                    "type": "integer"
-                },
-                "total_rows": {
-                    "type": "integer"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.ActiveConfigMeta": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.BufferedObservabilityRecord": {
-            "type": "object",
-            "properties": {
-                "access_logs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog"
-                    }
-                },
-                "captured_at_unix": {
-                    "type": "integer"
-                },
-                "edge_health": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth"
-                },
-                "host_metrics": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeAccessLog": {
             "type": "object",
             "properties": {
                 "bytes_sent": {
@@ -16525,7 +20416,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth": {
             "type": "object",
             "properties": {
                 "captured_at_unix": {
@@ -16542,7 +20433,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.NodeHealthEvent": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeHealthEvent": {
             "type": "object",
             "properties": {
                 "event_type": {
@@ -16565,7 +20456,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeMetricSnapshot": {
             "type": "object",
             "properties": {
                 "captured_at_unix": {
@@ -16594,7 +20485,75 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.NodeSystemProfile": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodePayload": {
+            "type": "object",
+            "properties": {
+                "access_logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeAccessLog"
+                    }
+                },
+                "buffered": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.BufferedObservabilityRecord"
+                    }
+                },
+                "current_version": {
+                    "type": "string"
+                },
+                "edge_health": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth"
+                },
+                "ext_version": {
+                    "type": "string"
+                },
+                "health_events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeHealthEvent"
+                    }
+                },
+                "host_metrics": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeMetricSnapshot"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "openresty_message": {
+                    "type": "string"
+                },
+                "openresty_status": {
+                    "type": "string"
+                },
+                "profile": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeSystemProfile"
+                },
+                "schema_version": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "waf_ip_group_checksums": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeSystemProfile": {
             "type": "object",
             "properties": {
                 "architecture": {
@@ -16632,7 +20591,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.PagesDeploymentHashResponse": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.PagesDeploymentHashResponse": {
             "type": "object",
             "properties": {
                 "deployment_id": {
@@ -16643,7 +20602,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.PagesProjectLatestHashResponse": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.PagesProjectLatestHashResponse": {
             "type": "object",
             "properties": {
                 "deployment_id": {
@@ -16666,26 +20625,26 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.RegisterNodeRequest": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RegisterNodeRequest": {
             "type": "object",
             "properties": {
                 "access_logs": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeAccessLog"
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeAccessLog"
                     }
                 },
                 "buffered": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.BufferedObservabilityRecord"
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.BufferedObservabilityRecord"
                     }
                 },
                 "current_version": {
                     "type": "string"
                 },
                 "edge_health": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeEdgeHealth"
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth"
                 },
                 "ext_version": {
                     "type": "string"
@@ -16693,11 +20652,11 @@ const docTemplate = `{
                 "health_events": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeHealthEvent"
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeHealthEvent"
                     }
                 },
                 "host_metrics": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeMetricSnapshot"
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeMetricSnapshot"
                 },
                 "ip": {
                     "type": "string"
@@ -16718,7 +20677,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "profile": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_pkg_protocol.NodeSystemProfile"
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeSystemProfile"
                 },
                 "registration_key": {
                     "type": "string"
@@ -16737,7 +20696,151 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_pkg_protocol.WAFIPGroup": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayConfig": {
+            "type": "object",
+            "properties": {
+                "auth_token": {
+                    "type": "string"
+                },
+                "bind_port": {
+                    "type": "integer"
+                },
+                "log_level": {
+                    "type": "string"
+                },
+                "vhost_http_port": {
+                    "type": "integer"
+                },
+                "web_server_enabled": {
+                    "type": "boolean"
+                },
+                "web_server_port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayHeartbeatPayload": {
+            "type": "object",
+            "properties": {
+                "frp_version": {
+                    "type": "string"
+                },
+                "frps_client_count": {
+                    "type": "integer"
+                },
+                "frps_connections": {
+                    "type": "integer"
+                },
+                "frps_proxies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayProxyStat"
+                    }
+                },
+                "frps_proxy_count": {
+                    "type": "integer"
+                },
+                "health_events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeHealthEvent"
+                    }
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "profile": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeSystemProfile"
+                },
+                "relay_status": {
+                    "type": "string"
+                },
+                "snapshot": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeMetricSnapshot"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayHeartbeatResponse": {
+            "type": "object",
+            "properties": {
+                "relay_config": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayConfig"
+                },
+                "relay_settings": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelaySettings"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayProxyStat": {
+            "type": "object",
+            "properties": {
+                "client_addr": {
+                    "type": "string"
+                },
+                "client_version": {
+                    "type": "string"
+                },
+                "last_close_time": {
+                    "type": "string"
+                },
+                "last_start_time": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelaySettings": {
+            "type": "object",
+            "properties": {
+                "auto_update": {
+                    "type": "boolean"
+                },
+                "heartbeat_interval": {
+                    "type": "integer"
+                },
+                "update_channel": {
+                    "type": "string"
+                },
+                "update_now": {
+                    "type": "boolean"
+                },
+                "update_repo": {
+                    "type": "string"
+                },
+                "update_tag": {
+                    "type": "string"
+                },
+                "websocket_upgrade_enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.SupportFile": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroup": {
             "type": "object",
             "properties": {
                 "checksum": {
@@ -16763,131 +20866,41 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.batchDownloadRequest": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroupSyncRequest": {
             "type": "object",
-            "required": [
-                "ids"
-            ],
             "properties": {
-                "ids": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
+                "checksums": {
+                    "type": "object",
+                    "additionalProperties": {
                         "type": "string"
                     }
-                }
-            }
-        },
-        "handler.distributionItem": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer"
                 },
-                "name": {
-                    "type": "string"
-                },
-                "size": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handler.fileStatsResponse": {
-            "type": "object",
-            "properties": {
-                "categories": {
+                "ids": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/handler.distributionItem"
-                    }
-                },
-                "total_count": {
-                    "type": "integer"
-                },
-                "total_size": {
-                    "type": "integer"
-                },
-                "trend": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handler.trendItem"
-                    }
-                },
-                "types": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handler.distributionItem"
+                        "type": "integer"
                     }
                 }
             }
         },
-        "handler.listFilesResponse": {
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroupSyncResponse": {
             "type": "object",
             "properties": {
-                "items": {
+                "groups": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/model.Upload"
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroup"
                     }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "page_size": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
                 }
             }
         },
-        "handler.listMyFilesResponse": {
+        "github_com_Rain-kl_Wavelet_internal_shared_response.Any": {
             "type": "object",
             "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.Upload"
-                    }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "page_size": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handler.trendItem": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "size": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handler.updateMyFileRequest": {
-            "type": "object",
-            "properties": {
-                "access_mode": {
-                    "type": "integer",
-                    "enum": [
-                        0,
-                        1
-                    ]
-                },
-                "file_name": {
+                "data": {},
+                "error_msg": {
                     "type": "string",
-                    "maxLength": 255
+                    "example": ""
                 }
             }
         },
@@ -16901,144 +20914,6 @@ const docTemplate = `{
                 "index": {
                     "description": "全局递增序号",
                     "type": "integer"
-                }
-            }
-        },
-        "logs.accessLogItem": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "headers": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "0"
-                },
-                "ip": {
-                    "type": "string"
-                },
-                "latency": {
-                    "type": "integer"
-                },
-                "method": {
-                    "type": "string"
-                },
-                "nickname": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "integer"
-                },
-                "user_agent": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "0"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "logs.accessLogsResponse": {
-            "type": "object",
-            "properties": {
-                "list": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/logs.accessLogItem"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "logs.browserItem": {
-            "type": "object",
-            "properties": {
-                "browser": {
-                    "type": "string"
-                },
-                "count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "logs.logsAnalyticsResponse": {
-            "type": "object",
-            "properties": {
-                "browsers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/logs.browserItem"
-                    }
-                },
-                "top_users": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/logs.topUserItem"
-                    }
-                },
-                "trend": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/logs.trendItem"
-                    }
-                }
-            }
-        },
-        "logs.logsResponse": {
-            "type": "object",
-            "properties": {
-                "has_more": {
-                    "type": "boolean"
-                },
-                "lines": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/logger.LogEntry"
-                    }
-                },
-                "next_cursor": {
-                    "description": "用于加载更早日志的 cursor",
-                    "type": "integer"
-                }
-            }
-        },
-        "logs.topUserItem": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer"
-                },
-                "nickname": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "0"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "logs.trendItem": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer"
-                },
-                "date": {
-                    "type": "string"
                 }
             }
         },
@@ -18007,1209 +21882,6 @@ const docTemplate = `{
                 }
             }
         },
-        "node.AgentReleaseInfo": {
-            "type": "object",
-            "properties": {
-                "body": {
-                    "type": "string"
-                },
-                "channel": {
-                    "type": "string"
-                },
-                "current_version": {
-                    "type": "string"
-                },
-                "has_update": {
-                    "type": "boolean"
-                },
-                "html_url": {
-                    "type": "string"
-                },
-                "prerelease": {
-                    "type": "boolean"
-                },
-                "published_at": {
-                    "type": "string"
-                },
-                "requested_channel": {
-                    "type": "string"
-                },
-                "requested_tag": {
-                    "type": "string"
-                },
-                "tag_name": {
-                    "type": "string"
-                },
-                "update_requested": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "node.AgentUpdateInput": {
-            "type": "object",
-            "properties": {
-                "channel": {
-                    "type": "string"
-                },
-                "tag_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "node.BootstrapView": {
-            "type": "object",
-            "properties": {
-                "discovery_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "node.HealthEventCleanupResult": {
-            "type": "object",
-            "properties": {
-                "deleted_count": {
-                    "type": "integer"
-                },
-                "node_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "node.Input": {
-            "type": "object",
-            "properties": {
-                "auto_update_enabled": {
-                    "type": "boolean"
-                },
-                "geo_latitude": {
-                    "type": "number"
-                },
-                "geo_longitude": {
-                    "type": "number"
-                },
-                "geo_manual_override": {
-                    "type": "boolean"
-                },
-                "geo_name": {
-                    "type": "string"
-                },
-                "ip": {
-                    "type": "string"
-                },
-                "ip_manual_override": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "node_type": {
-                    "type": "string"
-                },
-                "relay_agent_access_addr": {
-                    "type": "string"
-                },
-                "relay_bind_port": {
-                    "type": "integer"
-                },
-                "relay_client_access_addr": {
-                    "type": "string"
-                },
-                "relay_client_proxy_url": {
-                    "type": "string"
-                },
-                "relay_vhost_http_port": {
-                    "type": "integer"
-                },
-                "relay_web_server_enabled": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "node.ListResult": {
-            "type": "object",
-            "properties": {
-                "page": {
-                    "type": "integer"
-                },
-                "page_size": {
-                    "type": "integer"
-                },
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/node.View"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "node.ObservabilityView": {
-            "type": "object",
-            "properties": {
-                "analytics": {
-                    "$ref": "#/definitions/observability.NodeAnalytics"
-                },
-                "health_events": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.OpenFlareHealthEvent"
-                    }
-                },
-                "metric_snapshots": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.NodeMetricSnapshotView"
-                    }
-                },
-                "node_id": {
-                    "type": "string"
-                },
-                "profile": {
-                    "$ref": "#/definitions/model.OpenFlareNodeSystemProfile"
-                },
-                "relay_dashboard": {
-                    "$ref": "#/definitions/observability.RelayDashboardSnapshot"
-                },
-                "trends": {
-                    "$ref": "#/definitions/observability.NodeTrends"
-                }
-            }
-        },
-        "node.View": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "auto_update_enabled": {
-                    "type": "boolean"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "current_version": {
-                    "type": "string"
-                },
-                "ext_version": {
-                    "type": "string"
-                },
-                "geo_latitude": {
-                    "type": "number"
-                },
-                "geo_longitude": {
-                    "type": "number"
-                },
-                "geo_manual_override": {
-                    "type": "boolean"
-                },
-                "geo_name": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "ip": {
-                    "type": "string"
-                },
-                "ip_manual_override": {
-                    "type": "boolean"
-                },
-                "last_error": {
-                    "type": "string"
-                },
-                "last_seen_at": {},
-                "latest_apply_at": {
-                    "type": "string"
-                },
-                "latest_apply_checksum": {
-                    "type": "string"
-                },
-                "latest_apply_message": {
-                    "type": "string"
-                },
-                "latest_apply_result": {
-                    "type": "string"
-                },
-                "latest_main_config_checksum": {
-                    "type": "string"
-                },
-                "latest_route_config_checksum": {
-                    "type": "string"
-                },
-                "latest_support_file_count": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "node_id": {
-                    "type": "string"
-                },
-                "node_type": {
-                    "type": "string"
-                },
-                "openresty_message": {
-                    "type": "string"
-                },
-                "openresty_status": {
-                    "type": "string"
-                },
-                "relay_agent_access_addr": {
-                    "type": "string"
-                },
-                "relay_bind_port": {
-                    "type": "integer"
-                },
-                "relay_client_access_addr": {
-                    "type": "string"
-                },
-                "relay_client_proxy_url": {
-                    "type": "string"
-                },
-                "relay_status": {
-                    "type": "string"
-                },
-                "relay_vhost_http_port": {
-                    "type": "integer"
-                },
-                "relay_web_server_enabled": {
-                    "type": "boolean"
-                },
-                "restart_openresty_requested": {
-                    "type": "boolean"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "update_channel": {
-                    "type": "string"
-                },
-                "update_requested": {
-                    "type": "boolean"
-                },
-                "update_tag": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "oauth.AuthSourceView": {
-            "type": "object",
-            "properties": {
-                "client_secret_configured": {
-                    "type": "boolean"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "icon_url": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "oauth.BasicUserInfo": {
-            "type": "object",
-            "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
-                "bio": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "gender": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_admin": {
-                    "type": "boolean"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "need_change_password": {
-                    "type": "boolean"
-                },
-                "nickname": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                },
-                "website": {
-                    "type": "string"
-                }
-            }
-        },
-        "oauth.CallbackRequest": {
-            "type": "object",
-            "required": [
-                "code",
-                "state"
-            ],
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "state": {
-                    "type": "string"
-                }
-            }
-        },
-        "oauth.OAuthAuthorizeResponse": {
-            "type": "object",
-            "properties": {
-                "authorize_url": {
-                    "type": "string"
-                }
-            }
-        },
-        "oauth.OAuthCallbackResult": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/oauth.BasicUserInfo"
-                }
-            }
-        },
-        "observability.AccessLogCleanupInput": {
-            "type": "object",
-            "properties": {
-                "retention_days": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.AccessLogCleanupResult": {
-            "type": "object",
-            "properties": {
-                "cutoff": {
-                    "type": "string"
-                },
-                "deleted_count": {
-                    "type": "integer"
-                },
-                "retention_days": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.AccessLogIPAnalysisSummary": {
-            "type": "object",
-            "properties": {
-                "bandwidth_served": {
-                    "type": "integer"
-                },
-                "bytes_received": {
-                    "type": "integer"
-                },
-                "error_count": {
-                    "type": "integer"
-                },
-                "total_requests": {
-                    "type": "integer"
-                },
-                "unique_hosts": {
-                    "type": "integer"
-                },
-                "unique_paths": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.AccessLogIPAnalysisView": {
-            "type": "object",
-            "properties": {
-                "device_types": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "generated_at": {
-                    "type": "string"
-                },
-                "hours": {
-                    "type": "integer"
-                },
-                "remote_addr": {
-                    "type": "string"
-                },
-                "status_codes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "summary": {
-                    "$ref": "#/definitions/observability.AccessLogIPAnalysisSummary"
-                },
-                "top_browsers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "top_hosts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "top_paths": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "top_user_agents": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                }
-            }
-        },
-        "observability.AccessLogIPSummaryList": {
-            "type": "object",
-            "properties": {
-                "has_more": {
-                    "type": "boolean"
-                },
-                "hours": {
-                    "type": "integer"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.AccessLogIPSummaryView"
-                    }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "page_size": {
-                    "type": "integer"
-                },
-                "since": {
-                    "type": "string"
-                },
-                "sort_by": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "string"
-                },
-                "total_ip": {
-                    "type": "integer"
-                },
-                "until": {
-                    "type": "string"
-                }
-            }
-        },
-        "observability.AccessLogIPSummaryView": {
-            "type": "object",
-            "properties": {
-                "bytes_received": {
-                    "type": "integer"
-                },
-                "bytes_sent": {
-                    "type": "integer"
-                },
-                "last_seen_at": {
-                    "type": "string"
-                },
-                "recent_requests": {
-                    "description": "RecentRequests is deprecated and always 0.",
-                    "type": "integer"
-                },
-                "region": {
-                    "type": "string"
-                },
-                "remote_addr": {
-                    "type": "string"
-                },
-                "success_2xx_count": {
-                    "type": "integer"
-                },
-                "success_ratio": {
-                    "type": "number"
-                },
-                "total_requests": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.AccessLogIPTrendPoint": {
-            "type": "object",
-            "properties": {
-                "bucket_started_at": {
-                    "type": "string"
-                },
-                "request_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.AccessLogIPTrendView": {
-            "type": "object",
-            "properties": {
-                "bucket_minutes": {
-                    "type": "integer"
-                },
-                "hours": {
-                    "type": "integer"
-                },
-                "points": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.AccessLogIPTrendPoint"
-                    }
-                },
-                "remote_addr": {
-                    "type": "string"
-                }
-            }
-        },
-        "observability.AccessLogList": {
-            "type": "object",
-            "properties": {
-                "has_more": {
-                    "type": "boolean"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.AccessLogView"
-                    }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "page_size": {
-                    "type": "integer"
-                },
-                "total_ip": {
-                    "type": "integer"
-                },
-                "total_record": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.AccessLogOverview": {
-            "type": "object",
-            "properties": {
-                "bucket_minutes": {
-                    "type": "integer"
-                },
-                "device_types": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "generated_at": {
-                    "type": "string"
-                },
-                "hours": {
-                    "type": "integer"
-                },
-                "status_codes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "summary": {
-                    "$ref": "#/definitions/observability.AccessLogOverviewSummary"
-                },
-                "top_browsers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "top_hosts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "top_ips": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "top_operating_systems": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "top_paths": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "top_user_agents": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "trends": {
-                    "$ref": "#/definitions/observability.AccessLogOverviewTrends"
-                }
-            }
-        },
-        "observability.AccessLogOverviewMetricPoint": {
-            "type": "object",
-            "properties": {
-                "bucket_started_at": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.AccessLogOverviewSummary": {
-            "type": "object",
-            "properties": {
-                "bandwidth_served": {
-                    "type": "integer"
-                },
-                "total_requests": {
-                    "type": "integer"
-                },
-                "total_visits": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.AccessLogOverviewTrends": {
-            "type": "object",
-            "properties": {
-                "bandwidth": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.AccessLogOverviewMetricPoint"
-                    }
-                },
-                "requests": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.AccessLogOverviewMetricPoint"
-                    }
-                },
-                "visits": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.AccessLogOverviewMetricPoint"
-                    }
-                }
-            }
-        },
-        "observability.AccessLogView": {
-            "type": "object",
-            "properties": {
-                "bytes_sent": {
-                    "type": "integer"
-                },
-                "cache_status": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "host": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "logged_at": {
-                    "type": "string"
-                },
-                "node_id": {
-                    "type": "string"
-                },
-                "node_name": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
-                },
-                "region": {
-                    "type": "string"
-                },
-                "remote_addr": {
-                    "type": "string"
-                },
-                "request_length": {
-                    "type": "integer"
-                },
-                "request_time_ms": {
-                    "type": "integer"
-                },
-                "status_code": {
-                    "type": "integer"
-                },
-                "user_agent": {
-                    "type": "string"
-                }
-            }
-        },
-        "observability.CapacityTrendPoint": {
-            "type": "object",
-            "properties": {
-                "average_cpu_usage_percent": {
-                    "type": "number"
-                },
-                "average_memory_usage_percent": {
-                    "type": "number"
-                },
-                "bucket_started_at": {
-                    "type": "string"
-                },
-                "reported_nodes": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.DiskIOTrendPoint": {
-            "type": "object",
-            "properties": {
-                "bucket_started_at": {
-                    "type": "string"
-                },
-                "disk_read_bytes": {
-                    "type": "integer"
-                },
-                "disk_write_bytes": {
-                    "type": "integer"
-                },
-                "reported_nodes": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.DistributionItem": {
-            "type": "object",
-            "properties": {
-                "key": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.FoldedAccessLogIPList": {
-            "type": "object",
-            "properties": {
-                "bucket_started_at": {
-                    "type": "string"
-                },
-                "fold_minutes": {
-                    "type": "integer"
-                },
-                "has_more": {
-                    "type": "boolean"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.FoldedAccessLogIPView"
-                    }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "page_size": {
-                    "type": "integer"
-                },
-                "sort_by": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "string"
-                },
-                "total_ip": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.FoldedAccessLogIPView": {
-            "type": "object",
-            "properties": {
-                "client_error_count": {
-                    "type": "integer"
-                },
-                "last_seen_at": {
-                    "type": "string"
-                },
-                "remote_addr": {
-                    "type": "string"
-                },
-                "request_count": {
-                    "type": "integer"
-                },
-                "server_error_count": {
-                    "type": "integer"
-                },
-                "success_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.FoldedAccessLogList": {
-            "type": "object",
-            "properties": {
-                "fold_minutes": {
-                    "type": "integer"
-                },
-                "has_more": {
-                    "type": "boolean"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.FoldedAccessLogView"
-                    }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "page_size": {
-                    "type": "integer"
-                },
-                "total_bucket": {
-                    "type": "integer"
-                },
-                "total_ip": {
-                    "type": "integer"
-                },
-                "total_record": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.FoldedAccessLogView": {
-            "type": "object",
-            "properties": {
-                "bucket_started_at": {
-                    "type": "string"
-                },
-                "client_error_count": {
-                    "type": "integer"
-                },
-                "request_count": {
-                    "type": "integer"
-                },
-                "server_error_count": {
-                    "type": "integer"
-                },
-                "success_count": {
-                    "type": "integer"
-                },
-                "unique_host_count": {
-                    "type": "integer"
-                },
-                "unique_ip_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.HealthSummary": {
-            "type": "object",
-            "properties": {
-                "active_alerts": {
-                    "type": "integer"
-                },
-                "critical_alerts": {
-                    "type": "integer"
-                },
-                "has_capacity_risk": {
-                    "type": "boolean"
-                },
-                "has_runtime_risk": {
-                    "type": "boolean"
-                },
-                "has_traffic_risk": {
-                    "type": "boolean"
-                },
-                "info_alerts": {
-                    "type": "integer"
-                },
-                "resolved_alerts": {
-                    "type": "integer"
-                },
-                "warning_alerts": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.NetworkTrendPoint": {
-            "type": "object",
-            "properties": {
-                "bucket_started_at": {
-                    "type": "string"
-                },
-                "bytes_provided": {
-                    "description": "sum(bytes_sent)",
-                    "type": "integer"
-                },
-                "bytes_received": {
-                    "description": "sum(request_length)",
-                    "type": "integer"
-                },
-                "reported_nodes": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.NodeAnalytics": {
-            "type": "object",
-            "properties": {
-                "distributions": {
-                    "$ref": "#/definitions/observability.TrafficDistributions"
-                },
-                "health": {
-                    "$ref": "#/definitions/observability.HealthSummary"
-                },
-                "traffic": {
-                    "$ref": "#/definitions/observability.TrafficWindowSummary"
-                }
-            }
-        },
-        "observability.NodeMetricSnapshotView": {
-            "type": "object",
-            "properties": {
-                "captured_at": {
-                    "type": "string"
-                },
-                "cpu_usage_percent": {
-                    "type": "number"
-                },
-                "disk_read_bytes": {
-                    "type": "integer"
-                },
-                "disk_write_bytes": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "memory_total_bytes": {
-                    "type": "integer"
-                },
-                "memory_used_bytes": {
-                    "type": "integer"
-                },
-                "node_id": {
-                    "type": "string"
-                },
-                "openresty_connections": {
-                    "type": "integer"
-                },
-                "storage_total_bytes": {
-                    "type": "integer"
-                },
-                "storage_used_bytes": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.NodeTrends": {
-            "type": "object",
-            "properties": {
-                "capacity_24h": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.CapacityTrendPoint"
-                    }
-                },
-                "disk_io_24h": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DiskIOTrendPoint"
-                    }
-                },
-                "network_24h": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.NetworkTrendPoint"
-                    }
-                },
-                "traffic_24h": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.TrafficTrendPoint"
-                    }
-                }
-            }
-        },
-        "observability.RelayDashboardSnapshot": {
-            "type": "object",
-            "properties": {
-                "client_counts": {
-                    "type": "integer"
-                },
-                "offline_proxies": {
-                    "type": "integer"
-                },
-                "online_proxies": {
-                    "type": "integer"
-                },
-                "proxies": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.RelayProxyStat"
-                    }
-                },
-                "total_connections": {
-                    "type": "integer"
-                },
-                "total_proxies": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.RelayProxyStat": {
-            "type": "object",
-            "properties": {
-                "client_addr": {
-                    "type": "string"
-                },
-                "client_version": {
-                    "type": "string"
-                },
-                "last_close_time": {
-                    "type": "string"
-                },
-                "last_start_time": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "observability.TrafficDistributions": {
-            "type": "object",
-            "properties": {
-                "source_countries": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "status_codes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                },
-                "top_domains": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/observability.DistributionItem"
-                    }
-                }
-            }
-        },
-        "observability.TrafficTrendPoint": {
-            "type": "object",
-            "properties": {
-                "bucket_started_at": {
-                    "type": "string"
-                },
-                "error_count": {
-                    "type": "integer"
-                },
-                "request_count": {
-                    "type": "integer"
-                },
-                "status_2xx_count": {
-                    "type": "integer"
-                },
-                "status_4xx_count": {
-                    "type": "integer"
-                },
-                "status_5xx_count": {
-                    "type": "integer"
-                },
-                "unique_visitor_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "observability.TrafficWindowSummary": {
-            "type": "object",
-            "properties": {
-                "error_count": {
-                    "type": "integer"
-                },
-                "error_rate_percent": {
-                    "type": "number"
-                },
-                "estimated_qps": {
-                    "type": "number"
-                },
-                "request_count": {
-                    "type": "integer"
-                },
-                "unique_visitor_count": {
-                    "type": "integer"
-                },
-                "window_ended_at": {
-                    "type": "string"
-                },
-                "window_started_at": {
-                    "type": "string"
-                }
-            }
-        },
         "openresty.PoWConfig": {
             "type": "object",
             "properties": {
@@ -19302,1011 +21974,6 @@ const docTemplate = `{
                 }
             }
         },
-        "option.geoIPLookupRequest": {
-            "type": "object",
-            "properties": {
-                "ip": {
-                    "type": "string"
-                },
-                "provider": {
-                    "type": "string"
-                }
-            }
-        },
-        "option.geoIPLookupView": {
-            "type": "object",
-            "properties": {
-                "ip": {
-                    "type": "string"
-                },
-                "iso_code": {
-                    "type": "string"
-                },
-                "latitude": {
-                    "type": "number"
-                },
-                "longitude": {
-                    "type": "number"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "provider": {
-                    "type": "string"
-                }
-            }
-        },
-        "option.optionBatchPayload": {
-            "type": "object",
-            "properties": {
-                "options": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.OpenFlareOption"
-                    }
-                }
-            }
-        },
-        "option.publicAuthSourceView": {
-            "type": "object",
-            "properties": {
-                "authorize_url": {
-                    "type": "string"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "icon_url": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "option.statusView": {
-            "type": "object",
-            "properties": {
-                "auth_sources": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/option.publicAuthSourceView"
-                    }
-                },
-                "cap_login_enabled": {
-                    "type": "boolean"
-                },
-                "email_verification": {
-                    "type": "boolean"
-                },
-                "password_register_enabled": {
-                    "type": "boolean"
-                },
-                "server_address": {
-                    "type": "string"
-                },
-                "start_time": {
-                    "type": "integer"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "origin.DetailView": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "route_count": {
-                    "type": "integer"
-                },
-                "routes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/origin.RouteSummary"
-                    }
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "origin.Input": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                }
-            }
-        },
-        "origin.RouteSummary": {
-            "type": "object",
-            "properties": {
-                "domain": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "origin_url": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "origin.View": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "route_count": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "pages.DeploymentFileView": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deployment_id": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "path": {
-                    "type": "string"
-                },
-                "size": {
-                    "type": "integer"
-                }
-            }
-        },
-        "pages.DeploymentView": {
-            "type": "object",
-            "properties": {
-                "activated_at": {
-                    "type": "string"
-                },
-                "checksum": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "created_by": {
-                    "type": "string"
-                },
-                "deployment_number": {
-                    "type": "integer"
-                },
-                "file_count": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "project_id": {
-                    "type": "integer"
-                },
-                "source_label": {
-                    "type": "string"
-                },
-                "source_type": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "total_size": {
-                    "type": "integer"
-                },
-                "trigger_type": {
-                    "type": "string"
-                },
-                "upload_id": {
-                    "type": "string",
-                    "example": "0"
-                }
-            }
-        },
-        "pages.Input": {
-            "type": "object",
-            "properties": {
-                "api_proxy_enabled": {
-                    "type": "boolean"
-                },
-                "api_proxy_pass": {
-                    "type": "string"
-                },
-                "api_proxy_path": {
-                    "type": "string"
-                },
-                "api_proxy_rewrite": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "entry_file": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "root_dir": {
-                    "type": "string"
-                },
-                "slug": {
-                    "type": "string"
-                },
-                "spa_fallback_enabled": {
-                    "type": "boolean"
-                },
-                "spa_fallback_path": {
-                    "type": "string"
-                }
-            }
-        },
-        "pages.SourceActionReceipt": {
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string"
-                },
-                "execution_id": {
-                    "type": "string"
-                },
-                "task_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "pages.SourceRevisionView": {
-            "type": "object",
-            "properties": {
-                "asset_name": {
-                    "type": "string"
-                },
-                "label": {
-                    "type": "string"
-                },
-                "revision": {
-                    "type": "string"
-                }
-            }
-        },
-        "pages.SourceSyncInput": {
-            "type": "object",
-            "properties": {
-                "confirmed_revision": {
-                    "type": "string"
-                }
-            }
-        },
-        "pages.SourceUpdateInput": {
-            "type": "object",
-            "properties": {
-                "allow_insecure": {
-                    "type": "boolean"
-                },
-                "asset_name": {
-                    "type": "string"
-                },
-                "auto_update_enabled": {
-                    "type": "boolean"
-                },
-                "check_interval_minutes": {
-                    "type": "integer"
-                },
-                "release_selector": {
-                    "type": "string"
-                },
-                "release_tag": {
-                    "type": "string"
-                },
-                "remote_url": {
-                    "type": "string"
-                },
-                "repository_url": {
-                    "type": "string"
-                },
-                "source_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "pages.SourceUpdateResult": {
-            "type": "object",
-            "properties": {
-                "check_task": {
-                    "$ref": "#/definitions/pages.SourceActionReceipt"
-                },
-                "source": {
-                    "$ref": "#/definitions/pages.SourceView"
-                },
-                "warning": {
-                    "type": "string"
-                }
-            }
-        },
-        "pages.SourceView": {
-            "type": "object",
-            "properties": {
-                "allow_insecure": {
-                    "type": "boolean"
-                },
-                "asset_name": {
-                    "type": "string"
-                },
-                "auto_update_enabled": {
-                    "type": "boolean"
-                },
-                "check_interval_minutes": {
-                    "type": "integer"
-                },
-                "github_repository": {
-                    "type": "string"
-                },
-                "last_applied": {
-                    "$ref": "#/definitions/pages.SourceRevisionView"
-                },
-                "last_checked_at": {
-                    "type": "string"
-                },
-                "last_error": {
-                    "type": "string"
-                },
-                "last_seen": {
-                    "$ref": "#/definitions/pages.SourceRevisionView"
-                },
-                "last_synced_at": {
-                    "type": "string"
-                },
-                "next_check_at": {
-                    "type": "string"
-                },
-                "release_selector": {
-                    "type": "string"
-                },
-                "release_tag": {
-                    "type": "string"
-                },
-                "remote_url": {
-                    "type": "string"
-                },
-                "source_type": {
-                    "type": "string"
-                },
-                "sync_status": {
-                    "type": "string"
-                },
-                "update_available": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "pages.UploadFromURLInput": {
-            "type": "object",
-            "properties": {
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "pages.View": {
-            "type": "object",
-            "properties": {
-                "active_deployment": {
-                    "$ref": "#/definitions/pages.DeploymentView"
-                },
-                "active_deployment_id": {
-                    "type": "integer"
-                },
-                "api_proxy_enabled": {
-                    "type": "boolean"
-                },
-                "api_proxy_pass": {
-                    "type": "string"
-                },
-                "api_proxy_path": {
-                    "type": "string"
-                },
-                "api_proxy_rewrite": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deployment_count": {
-                    "type": "integer"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "entry_file": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "root_dir": {
-                    "type": "string"
-                },
-                "slug": {
-                    "type": "string"
-                },
-                "spa_fallback_enabled": {
-                    "type": "boolean"
-                },
-                "spa_fallback_path": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "pow.Policy": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "$ref": "#/definitions/openresty.PoWConfig"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "route_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "protocol.AgentNodeHealthEvent": {
-            "type": "object",
-            "properties": {
-                "event_type": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "severity": {
-                    "type": "string"
-                },
-                "triggered_at_unix": {
-                    "type": "integer"
-                }
-            }
-        },
-        "protocol.AgentNodeMetricSnapshot": {
-            "type": "object",
-            "properties": {
-                "captured_at_unix": {
-                    "type": "integer"
-                },
-                "cpu_usage_percent": {
-                    "type": "number"
-                },
-                "disk_read_bytes": {
-                    "type": "integer"
-                },
-                "disk_write_bytes": {
-                    "type": "integer"
-                },
-                "memory_total_bytes": {
-                    "type": "integer"
-                },
-                "memory_used_bytes": {
-                    "type": "integer"
-                },
-                "storage_total_bytes": {
-                    "type": "integer"
-                },
-                "storage_used_bytes": {
-                    "type": "integer"
-                }
-            }
-        },
-        "protocol.AgentNodeSystemProfile": {
-            "type": "object",
-            "properties": {
-                "architecture": {
-                    "type": "string"
-                },
-                "cpu_cores": {
-                    "type": "integer"
-                },
-                "cpu_model": {
-                    "type": "string"
-                },
-                "hostname": {
-                    "type": "string"
-                },
-                "kernel_version": {
-                    "type": "string"
-                },
-                "os_name": {
-                    "type": "string"
-                },
-                "os_version": {
-                    "type": "string"
-                },
-                "reported_at_unix": {
-                    "type": "integer"
-                },
-                "total_disk_bytes": {
-                    "type": "integer"
-                },
-                "total_memory_bytes": {
-                    "type": "integer"
-                },
-                "uptime_seconds": {
-                    "type": "integer"
-                }
-            }
-        },
-        "protocol.FlaredConnectedRelay": {
-            "type": "object",
-            "properties": {
-                "proxy_count": {
-                    "type": "integer"
-                },
-                "relay_node_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "protocol.FlaredProxyEntry": {
-            "type": "object",
-            "properties": {
-                "custom_domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "local_addr": {
-                    "type": "string"
-                },
-                "local_port": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "protocol.FlaredRelayInfo": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "auth_token": {
-                    "type": "string"
-                },
-                "proxy_url": {
-                    "type": "string"
-                },
-                "relay_node_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "protocol.RelayConfig": {
-            "type": "object",
-            "properties": {
-                "auth_token": {
-                    "type": "string"
-                },
-                "bind_port": {
-                    "type": "integer"
-                },
-                "log_level": {
-                    "type": "string"
-                },
-                "vhost_http_port": {
-                    "type": "integer"
-                },
-                "web_server_enabled": {
-                    "type": "boolean"
-                },
-                "web_server_port": {
-                    "type": "integer"
-                }
-            }
-        },
-        "protocol.RelayProxyStat": {
-            "type": "object",
-            "properties": {
-                "client_addr": {
-                    "type": "string"
-                },
-                "client_version": {
-                    "type": "string"
-                },
-                "last_close_time": {
-                    "type": "string"
-                },
-                "last_start_time": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "protocol.RelaySettings": {
-            "type": "object",
-            "properties": {
-                "auto_update": {
-                    "type": "boolean"
-                },
-                "heartbeat_interval": {
-                    "type": "integer"
-                },
-                "update_channel": {
-                    "type": "string"
-                },
-                "update_now": {
-                    "type": "boolean"
-                },
-                "update_repo": {
-                    "type": "string"
-                },
-                "update_tag": {
-                    "type": "string"
-                },
-                "websocket_upgrade_enabled": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "proxy_route.CustomHeaderInput": {
-            "type": "object",
-            "properties": {
-                "key": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "string"
-                }
-            }
-        },
-        "proxy_route.Input": {
-            "type": "object",
-            "properties": {
-                "basic_auth_enabled": {
-                    "type": "boolean"
-                },
-                "basic_auth_password": {
-                    "type": "string"
-                },
-                "basic_auth_username": {
-                    "type": "string"
-                },
-                "cache_enabled": {
-                    "type": "boolean"
-                },
-                "cache_policy": {
-                    "type": "string"
-                },
-                "cache_rules": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "custom_headers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/proxy_route.CustomHeaderInput"
-                    }
-                },
-                "enable_http2": {
-                    "type": "boolean"
-                },
-                "enable_https": {
-                    "type": "boolean"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "limit_conn_per_ip": {
-                    "type": "integer"
-                },
-                "limit_conn_per_server": {
-                    "type": "integer"
-                },
-                "limit_rate": {
-                    "type": "string"
-                },
-                "limit_req_per_ip": {
-                    "type": "string"
-                },
-                "origin_address": {
-                    "type": "string"
-                },
-                "origin_host": {
-                    "type": "string"
-                },
-                "origin_id": {
-                    "type": "integer"
-                },
-                "origin_port": {
-                    "type": "string"
-                },
-                "origin_scheme": {
-                    "type": "string"
-                },
-                "origin_uri": {
-                    "type": "string"
-                },
-                "origin_url": {
-                    "type": "string"
-                },
-                "pages_project_id": {
-                    "type": "integer"
-                },
-                "redirect_http": {
-                    "type": "boolean"
-                },
-                "site_auth_ttl_hours": {
-                    "type": "integer"
-                },
-                "site_name": {
-                    "type": "string"
-                },
-                "tunnel_id": {
-                    "type": "integer"
-                },
-                "tunnel_node_id": {
-                    "type": "integer"
-                },
-                "tunnel_target_addr": {
-                    "type": "string"
-                },
-                "tunnel_target_protocol": {
-                    "type": "string"
-                },
-                "upstream_type": {
-                    "type": "string"
-                },
-                "upstreams": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "zone_domain_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
-        "proxy_route.View": {
-            "type": "object",
-            "properties": {
-                "basic_auth_enabled": {
-                    "type": "boolean"
-                },
-                "basic_auth_password": {
-                    "type": "string"
-                },
-                "basic_auth_username": {
-                    "type": "string"
-                },
-                "cache_enabled": {
-                    "type": "boolean"
-                },
-                "cache_policy": {
-                    "type": "string"
-                },
-                "cache_rule_list": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "cache_rules": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "custom_header_list": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/proxy_route.CustomHeaderInput"
-                    }
-                },
-                "custom_headers": {
-                    "type": "string"
-                },
-                "enable_http2": {
-                    "type": "boolean"
-                },
-                "enable_https": {
-                    "type": "boolean"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "limit_conn_per_ip": {
-                    "type": "integer"
-                },
-                "limit_conn_per_server": {
-                    "type": "integer"
-                },
-                "limit_rate": {
-                    "type": "string"
-                },
-                "limit_req_per_ip": {
-                    "type": "string"
-                },
-                "origin_host": {
-                    "type": "string"
-                },
-                "origin_id": {
-                    "type": "integer"
-                },
-                "origin_url": {
-                    "type": "string"
-                },
-                "pages_project_id": {
-                    "type": "integer"
-                },
-                "redirect_http": {
-                    "type": "boolean"
-                },
-                "site_auth_ttl_hours": {
-                    "type": "integer"
-                },
-                "site_name": {
-                    "type": "string"
-                },
-                "tunnel_id": {
-                    "type": "integer"
-                },
-                "tunnel_node_id": {
-                    "type": "integer"
-                },
-                "tunnel_target_addr": {
-                    "type": "string"
-                },
-                "tunnel_target_protocol": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "upstream_list": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "upstream_type": {
-                    "type": "string"
-                },
-                "upstreams": {
-                    "type": "string"
-                },
-                "zone_domain_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "zone_domains": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/proxy_route.ZoneDomainView"
-                    }
-                }
-            }
-        },
-        "proxy_route.ZoneDomainView": {
-            "type": "object",
-            "properties": {
-                "cert_id": {
-                    "type": "integer"
-                },
-                "domain": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "zone_id": {
-                    "type": "integer"
-                }
-            }
-        },
         "push.Config": {
             "type": "object",
             "properties": {
@@ -20332,1687 +21999,6 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
-        },
-        "push.CreateChannelRequest": {
-            "type": "object",
-            "required": [
-                "name",
-                "type"
-            ],
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "other": {
-                    "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "push.CreateEventRequest": {
-            "type": "object",
-            "properties": {
-                "channels": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "event_key": {
-                    "type": "string"
-                },
-                "targets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "task_type": {
-                    "description": "关联的异步任务类型",
-                    "type": "string"
-                },
-                "template": {
-                    "type": "string"
-                }
-            }
-        },
-        "push.Definition": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "description": "short description",
-                    "type": "string"
-                },
-                "fields": {
-                    "description": "form fields",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/push.Field"
-                    }
-                },
-                "name": {
-                    "description": "display name",
-                    "type": "string"
-                },
-                "type": {
-                    "description": "channel type (e.g., custom, lark, email)",
-                    "type": "string"
-                }
-            }
-        },
-        "push.EventMetadata": {
-            "type": "object",
-            "properties": {
-                "default_template": {
-                    "$ref": "#/definitions/push.NotificationMessage"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "key": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "push.Field": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "description": "field explanation/help text",
-                    "type": "string"
-                },
-                "key": {
-                    "description": "unique key for the field (e.g. url, token, other)",
-                    "type": "string"
-                },
-                "label": {
-                    "description": "human readable label (e.g. \"Webhook 地址\")",
-                    "type": "string"
-                },
-                "placeholder": {
-                    "description": "input placeholder",
-                    "type": "string"
-                },
-                "required": {
-                    "description": "whether this field is required",
-                    "type": "boolean"
-                },
-                "type": {
-                    "description": "input type: \"text\" | \"password\" | \"textarea\"",
-                    "type": "string"
-                }
-            }
-        },
-        "push.NotificationMessage": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "ext": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "level": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "push.TestChannelRequest": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "other": {
-                    "type": "string"
-                },
-                "target": {
-                    "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "push.TestPushRequest": {
-            "type": "object",
-            "required": [
-                "config"
-            ],
-            "properties": {
-                "config": {
-                    "$ref": "#/definitions/push.Config"
-                },
-                "target": {
-                    "type": "string"
-                }
-            }
-        },
-        "push.UpdateChannelRequest": {
-            "type": "object",
-            "required": [
-                "type"
-            ],
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "other": {
-                    "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "push.UpdateEventRequest": {
-            "type": "object",
-            "required": [
-                "template"
-            ],
-            "properties": {
-                "channels": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "targets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "template": {
-                    "type": "string"
-                }
-            }
-        },
-        "push.pushHistoriesResponse": {
-            "type": "object",
-            "properties": {
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.PushHistory"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "relay.HeartbeatPayload": {
-            "type": "object",
-            "properties": {
-                "frp_version": {
-                    "type": "string"
-                },
-                "frps_client_count": {
-                    "type": "integer"
-                },
-                "frps_connections": {
-                    "type": "integer"
-                },
-                "frps_proxies": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/protocol.RelayProxyStat"
-                    }
-                },
-                "frps_proxy_count": {
-                    "type": "integer"
-                },
-                "health_events": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/protocol.AgentNodeHealthEvent"
-                    }
-                },
-                "ip": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "profile": {
-                    "$ref": "#/definitions/protocol.AgentNodeSystemProfile"
-                },
-                "relay_status": {
-                    "type": "string"
-                },
-                "snapshot": {
-                    "$ref": "#/definitions/protocol.AgentNodeMetricSnapshot"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "relay.HeartbeatResponse": {
-            "type": "object",
-            "properties": {
-                "relay_config": {
-                    "$ref": "#/definitions/protocol.RelayConfig"
-                },
-                "relay_settings": {
-                    "$ref": "#/definitions/protocol.RelaySettings"
-                }
-            }
-        },
-        "response.Any": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "error_msg": {
-                    "type": "string",
-                    "example": ""
-                }
-            }
-        },
-        "status.DatabaseInfoResponse": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "status.LogDatabaseStatus": {
-            "type": "object",
-            "properties": {
-                "active_database": {
-                    "type": "string"
-                },
-                "available_targets": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "clickhouse": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_model_analytics.ClickHouseOperationalStats"
-                },
-                "migration": {
-                    "description": "idle | migrating",
-                    "type": "string"
-                },
-                "retention_days": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
-        "status.SystemStatusResponse": {
-            "type": "object",
-            "properties": {
-                "alloc": {
-                    "type": "string"
-                },
-                "buck_hash_sys": {
-                    "type": "string"
-                },
-                "frees": {
-                    "type": "integer"
-                },
-                "gc_sys": {
-                    "type": "string"
-                },
-                "heap_alloc": {
-                    "type": "string"
-                },
-                "heap_idle": {
-                    "type": "string"
-                },
-                "heap_inuse": {
-                    "type": "string"
-                },
-                "heap_objects": {
-                    "type": "integer"
-                },
-                "heap_released": {
-                    "type": "string"
-                },
-                "heap_sys": {
-                    "type": "string"
-                },
-                "last_gc_time": {
-                    "type": "string"
-                },
-                "last_pause": {
-                    "type": "string"
-                },
-                "lookups": {
-                    "type": "integer"
-                },
-                "mallocs": {
-                    "type": "integer"
-                },
-                "mcache_inuse": {
-                    "type": "string"
-                },
-                "mcache_sys": {
-                    "type": "string"
-                },
-                "mspan_inuse": {
-                    "type": "string"
-                },
-                "mspan_sys": {
-                    "type": "string"
-                },
-                "next_gc": {
-                    "type": "string"
-                },
-                "num_gc": {
-                    "type": "integer"
-                },
-                "num_goroutine": {
-                    "type": "integer"
-                },
-                "other_sys": {
-                    "type": "string"
-                },
-                "pause_total_ns": {
-                    "type": "string"
-                },
-                "stack_inuse": {
-                    "type": "string"
-                },
-                "stack_sys": {
-                    "type": "string"
-                },
-                "sys": {
-                    "type": "string"
-                },
-                "total_alloc": {
-                    "type": "string"
-                },
-                "uptime": {
-                    "type": "string"
-                }
-            }
-        },
-        "system_config.CreateSystemConfigRequest": {
-            "type": "object",
-            "required": [
-                "key",
-                "type",
-                "value"
-            ],
-            "properties": {
-                "description": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "key": {
-                    "type": "string",
-                    "maxLength": 64
-                },
-                "type": {
-                    "type": "string",
-                    "enum": [
-                        "system",
-                        "business"
-                    ]
-                },
-                "value": {
-                    "type": "string"
-                },
-                "visibility": {
-                    "type": "integer",
-                    "enum": [
-                        0,
-                        1
-                    ]
-                }
-            }
-        },
-        "system_config.TestSMTPRequest": {
-            "type": "object",
-            "required": [
-                "smtp_host",
-                "smtp_password",
-                "smtp_port",
-                "smtp_username",
-                "to"
-            ],
-            "properties": {
-                "smtp_host": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "smtp_password": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "smtp_port": {
-                    "type": "integer"
-                },
-                "smtp_username": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "to": {
-                    "type": "string"
-                }
-            }
-        },
-        "system_config.TestSMTPResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "log": {
-                    "type": "string"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "system_config.UpdateSystemConfigRequest": {
-            "type": "object",
-            "required": [
-                "value"
-            ],
-            "properties": {
-                "description": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "value": {
-                    "type": "string"
-                },
-                "visibility": {
-                    "type": "integer",
-                    "enum": [
-                        0,
-                        1
-                    ]
-                }
-            }
-        },
-        "task.CreateScheduleRequest": {
-            "type": "object",
-            "required": [
-                "cron",
-                "is_active",
-                "name",
-                "task_type"
-            ],
-            "properties": {
-                "cron": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "payload": {
-                    "type": "string"
-                },
-                "task_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "task.DispatchTaskRequest": {
-            "type": "object",
-            "required": [
-                "task_type"
-            ],
-            "properties": {
-                "end_time": {
-                    "type": "string"
-                },
-                "payload": {
-                    "type": "string"
-                },
-                "start_time": {
-                    "type": "string"
-                },
-                "task_type": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "task.TaskMeta": {
-            "type": "object",
-            "properties": {
-                "asynq_task": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "max_retry": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "params": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/task.TaskParam"
-                    }
-                },
-                "queue": {
-                    "type": "string"
-                },
-                "retryable": {
-                    "description": "是否支持手动重试",
-                    "type": "boolean"
-                },
-                "supports_time": {
-                    "type": "boolean"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "task.TaskParam": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "description": "描述",
-                    "type": "string"
-                },
-                "label": {
-                    "description": "显示名称",
-                    "type": "string"
-                },
-                "name": {
-                    "description": "参数键名",
-                    "type": "string"
-                },
-                "placeholder": {
-                    "description": "占位符",
-                    "type": "string"
-                },
-                "required": {
-                    "description": "是否必填",
-                    "type": "boolean"
-                },
-                "type": {
-                    "description": "类型：string, text, number, boolean",
-                    "type": "string"
-                }
-            }
-        },
-        "task.UpdateScheduleRequest": {
-            "type": "object",
-            "required": [
-                "cron",
-                "is_active",
-                "name",
-                "task_type"
-            ],
-            "properties": {
-                "cron": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "payload": {
-                    "type": "string"
-                },
-                "task_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "template.CreateTemplateRequest": {
-            "type": "object",
-            "required": [
-                "content",
-                "key",
-                "name",
-                "type"
-            ],
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "key": {
-                    "type": "string",
-                    "maxLength": 80
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 100
-                },
-                "subject": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "type": {
-                    "type": "string",
-                    "maxLength": 20
-                }
-            }
-        },
-        "template.UpdateTemplateRequest": {
-            "type": "object",
-            "required": [
-                "content",
-                "name",
-                "type"
-            ],
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 100
-                },
-                "subject": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "type": {
-                    "type": "string",
-                    "maxLength": 20
-                }
-            }
-        },
-        "tls.ApplyInput": {
-            "type": "object",
-            "properties": {
-                "acme_account_id": {
-                    "type": "integer"
-                },
-                "auto_renew": {
-                    "type": "boolean"
-                },
-                "disable_cname": {
-                    "type": "boolean"
-                },
-                "dns1": {
-                    "type": "string"
-                },
-                "dns2": {
-                    "type": "string"
-                },
-                "dns_account_id": {
-                    "type": "integer"
-                },
-                "key_algorithm": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "other_domains": {
-                    "type": "string"
-                },
-                "primary_domain": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "skip_dns": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "tls.CertificateContent": {
-            "type": "object",
-            "properties": {
-                "acme_account_id": {
-                    "type": "integer"
-                },
-                "apply_message": {
-                    "type": "string"
-                },
-                "apply_status": {
-                    "type": "string"
-                },
-                "auto_renew": {
-                    "type": "boolean"
-                },
-                "cert_pem": {
-                    "type": "string"
-                },
-                "disable_cname": {
-                    "type": "boolean"
-                },
-                "dns1": {
-                    "type": "string"
-                },
-                "dns2": {
-                    "type": "string"
-                },
-                "dns_account_id": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "key_algorithm": {
-                    "type": "string"
-                },
-                "key_pem": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "other_domains": {
-                    "type": "string"
-                },
-                "primary_domain": {
-                    "type": "string"
-                },
-                "provider": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "skip_dns": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "tls.CertificateInput": {
-            "type": "object",
-            "properties": {
-                "cert_pem": {
-                    "type": "string"
-                },
-                "key_pem": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                }
-            }
-        },
-        "tls.DNSAccountInput": {
-            "type": "object",
-            "properties": {
-                "authorization": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "updater.Status": {
-            "type": "object",
-            "properties": {
-                "asset_name": {
-                    "type": "string"
-                },
-                "build_time": {
-                    "type": "string"
-                },
-                "can_upgrade": {
-                    "type": "boolean"
-                },
-                "current_version": {
-                    "type": "string"
-                },
-                "latest_version": {
-                    "type": "string"
-                },
-                "platform": {
-                    "type": "string"
-                },
-                "prerelease": {
-                    "type": "boolean"
-                },
-                "published_at": {
-                    "type": "string"
-                },
-                "release_name": {
-                    "type": "string"
-                },
-                "release_notes": {
-                    "type": "string"
-                },
-                "release_url": {
-                    "type": "string"
-                },
-                "update_available": {
-                    "type": "boolean"
-                },
-                "upstream_repository": {
-                    "type": "string"
-                }
-            }
-        },
-        "user.changePasswordRequest": {
-            "type": "object",
-            "properties": {
-                "new_password": {
-                    "type": "string"
-                },
-                "old_password": {
-                    "type": "string"
-                }
-            }
-        },
-        "user.createTokenRequest": {
-            "type": "object",
-            "properties": {
-                "is_admin": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "user.createUserRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password",
-                "username"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "is_admin": {
-                    "type": "boolean"
-                },
-                "nickname": {
-                    "type": "string",
-                    "maxLength": 64
-                },
-                "password": {
-                    "type": "string",
-                    "maxLength": 64,
-                    "minLength": 8
-                },
-                "username": {
-                    "type": "string",
-                    "maxLength": 64,
-                    "minLength": 3
-                }
-            }
-        },
-        "user.listUsersResponse": {
-            "type": "object",
-            "properties": {
-                "total": {
-                    "type": "integer"
-                },
-                "users": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/user.user"
-                    }
-                }
-            }
-        },
-        "user.loginRequest": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "user.registerRequest": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "nickname": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "user.sendEmailCodeRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "scene"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "scene": {
-                    "type": "string"
-                }
-            }
-        },
-        "user.tokenResponse": {
-            "type": "object",
-            "properties": {
-                "record": {
-                    "$ref": "#/definitions/model.AccessToken"
-                },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "user.updateProfileRequest": {
-            "type": "object",
-            "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
-                "bio": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "gender": {
-                    "type": "string"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "nickname": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "website": {
-                    "type": "string"
-                }
-            }
-        },
-        "user.updateUserRequest": {
-            "type": "object",
-            "required": [
-                "email"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "is_admin": {
-                    "type": "boolean"
-                },
-                "nickname": {
-                    "type": "string",
-                    "maxLength": 64
-                },
-                "password": {
-                    "type": "string",
-                    "maxLength": 64,
-                    "minLength": 8
-                }
-            }
-        },
-        "user.updateUserStatusRequest": {
-            "type": "object",
-            "properties": {
-                "is_active": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "user.user": {
-            "type": "object",
-            "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
-                "bio": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "gender": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "0"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "is_admin": {
-                    "type": "boolean"
-                },
-                "last_login_at": {
-                    "type": "string"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "nickname": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                },
-                "website": {
-                    "type": "string"
-                }
-            }
-        },
-        "waf.CreateRuleInput": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "waf.IDsRequest": {
-            "type": "object",
-            "properties": {
-                "ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
-        "waf.IPGroupAutoTestInput": {
-            "type": "object",
-            "properties": {
-                "auto_config": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
-        "waf.IPGroupAutoTestResult": {
-            "type": "object",
-            "properties": {
-                "lookback": {
-                    "type": "string"
-                },
-                "matched_count": {
-                    "type": "integer"
-                },
-                "matched_ips": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "rule_count": {
-                    "type": "integer"
-                },
-                "tested_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "waf.IPGroupExtIPView": {
-            "type": "object",
-            "properties": {
-                "captured_at": {
-                    "type": "string"
-                },
-                "ip": {
-                    "type": "string"
-                }
-            }
-        },
-        "waf.IPGroupInput": {
-            "type": "object",
-            "properties": {
-                "auto_config": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "ip_list": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "subscription_format": {
-                    "type": "string"
-                },
-                "subscription_mapping_rule": {
-                    "type": "string"
-                },
-                "subscription_url": {
-                    "type": "string"
-                },
-                "sync_interval_minutes": {
-                    "type": "integer"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "waf.IPGroupSyncResult": {
-            "type": "object",
-            "properties": {
-                "group": {
-                    "$ref": "#/definitions/waf.IPGroupView"
-                },
-                "ip_count": {
-                    "type": "integer"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "next_sync_at": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "synced_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "waf.IPGroupView": {
-            "type": "object",
-            "properties": {
-                "auto_config": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "ext_ips": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/waf.IPGroupExtIPView"
-                    }
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "ip_list": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "last_sync_message": {
-                    "type": "string"
-                },
-                "last_sync_status": {
-                    "type": "string"
-                },
-                "last_synced_at": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "next_sync_at": {
-                    "type": "string"
-                },
-                "referenced_by_rule_count": {
-                    "type": "integer"
-                },
-                "subscription_format": {
-                    "type": "string"
-                },
-                "subscription_mapping_rule": {
-                    "type": "string"
-                },
-                "subscription_url": {
-                    "type": "string"
-                },
-                "sync_interval_minutes": {
-                    "type": "integer"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "waf.RuleEdge": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "source": {
-                    "type": "string"
-                },
-                "source_handle": {
-                    "type": "string"
-                },
-                "target": {
-                    "type": "string"
-                }
-            }
-        },
-        "waf.RuleGraph": {
-            "type": "object",
-            "properties": {
-                "edges": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/waf.RuleEdge"
-                    }
-                },
-                "nodes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/waf.RuleNode"
-                    }
-                },
-                "schema_version": {
-                    "type": "integer"
-                }
-            }
-        },
-        "waf.RuleNode": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "label": {
-                    "type": "string"
-                },
-                "position": {
-                    "$ref": "#/definitions/waf.RulePosition"
-                },
-                "type": {
-                    "$ref": "#/definitions/waf.RuleNodeType"
-                }
-            }
-        },
-        "waf.RuleNodeType": {
-            "type": "string",
-            "enum": [
-                "start",
-                "allow",
-                "block",
-                "ip_match",
-                "geo_match",
-                "pow",
-                "ua_check",
-                "security_check"
-            ],
-            "x-enum-varnames": [
-                "RuleNodeStart",
-                "RuleNodeAllow",
-                "RuleNodeBlock",
-                "RuleNodeIPMatch",
-                "RuleNodeGeoMatch",
-                "RuleNodePoW",
-                "RuleNodeUACheck",
-                "RuleNodeSecurityCheck"
-            ]
-        },
-        "waf.RulePosition": {
-            "type": "object",
-            "properties": {
-                "x": {
-                    "type": "number"
-                },
-                "y": {
-                    "type": "number"
-                }
-            }
-        },
-        "waf.RuleView": {
-            "type": "object",
-            "properties": {
-                "applied_site_count": {
-                    "type": "integer"
-                },
-                "applied_site_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "graph": {
-                    "$ref": "#/definitions/waf.RuleGraph"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_global": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "revision": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "waf.SaveRuleGraphInput": {
-            "type": "object",
-            "properties": {
-                "graph": {
-                    "$ref": "#/definitions/waf.RuleGraph"
-                },
-                "revision": {
-                    "type": "integer"
-                }
-            }
-        },
-        "waf.SiteRuleGroupsView": {
-            "type": "object",
-            "properties": {
-                "applied_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "applied_rule_groups": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/waf.RuleView"
-                    }
-                },
-                "global_rule_group": {
-                    "$ref": "#/definitions/waf.RuleView"
-                },
-                "route_id": {
-                    "type": "integer"
-                },
-                "rule_groups": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/waf.RuleView"
-                    }
-                }
-            }
-        },
-        "waf.UpdateRuleMetaInput": {
-            "type": "object",
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "zone.CleanupUnlinkedDomainsResult": {
-            "type": "object",
-            "properties": {
-                "deleted_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "zone.DomainInput": {
-            "type": "object",
-            "properties": {
-                "cert_id": {
-                    "type": "integer"
-                },
-                "domain": {
-                    "type": "string"
-                }
-            }
-        },
-        "zone.Input": {
-            "type": "object",
-            "properties": {
-                "domain": {
-                    "type": "string"
-                }
-            }
-        },
-        "zone.ListItem": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "domain": {
-                    "type": "string"
-                },
-                "domain_count": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "zone.Overview": {
-            "type": "object",
-            "properties": {
-                "domains": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.ZoneDomain"
-                    }
-                },
-                "zone": {
-                    "$ref": "#/definitions/model.Zone"
-                }
-            }
-        },
-        "zone.Stats": {
-            "type": "object",
-            "properties": {
-                "available": {
-                    "type": "boolean"
-                },
-                "bucket_minutes": {
-                    "type": "integer"
-                },
-                "bytes_sent": {
-                    "type": "integer"
-                },
-                "domain_count": {
-                    "type": "integer"
-                },
-                "range": {
-                    "$ref": "#/definitions/zone.StatsRange"
-                },
-                "range_hours": {
-                    "type": "integer"
-                },
-                "request_count": {
-                    "type": "integer"
-                },
-                "series": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/zone.StatsPoint"
-                    }
-                },
-                "unique_visitors": {
-                    "type": "integer"
-                },
-                "window_ended_at": {
-                    "type": "string"
-                },
-                "window_started_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "zone.StatsPoint": {
-            "type": "object",
-            "properties": {
-                "bucket_started_at": {
-                    "type": "string"
-                },
-                "bytes_sent": {
-                    "type": "integer"
-                },
-                "request_count": {
-                    "type": "integer"
-                },
-                "unique_visitors": {
-                    "type": "integer"
-                }
-            }
-        },
-        "zone.StatsRange": {
-            "type": "string",
-            "enum": [
-                "24h",
-                "7d",
-                "30d"
-            ],
-            "x-enum-varnames": [
-                "StatsRange24h",
-                "StatsRange7d",
-                "StatsRange30d"
-            ]
         }
     },
     "securityDefinitions": {

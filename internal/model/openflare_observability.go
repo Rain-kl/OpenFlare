@@ -8,7 +8,7 @@ import (
 )
 
 // OpenFlareMetricSnapshot stores a node capacity snapshot in ClickHouse (database: openflare, table: of_node_metric_snapshots).
-// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/analytics.
+// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/logstore.
 type OpenFlareMetricSnapshot struct {
 	ID                uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	NodeID            string    `json:"node_id" gorm:"index;size:64;not null"`
@@ -31,7 +31,7 @@ func (OpenFlareMetricSnapshot) TableName() string {
 }
 
 // OpenFlareAccessLog stores a single access log row in ClickHouse (database: openflare, table: of_node_access_logs).
-// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/analytics.
+// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/logstore.
 type OpenFlareAccessLog struct {
 	ID            uint64    `json:"id,string" gorm:"column:id"`
 	NodeID        string    `json:"node_id" gorm:"index;size:64;not null"`
@@ -122,7 +122,7 @@ func (OpenFlareEdgeHealth) TableName() string {
 }
 
 // OpenFlareNodeObservationFrpc stores tunnel client frpc observations in ClickHouse (database: openflare, table: of_node_obs_frpc).
-// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/analytics.
+// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/logstore.
 type OpenFlareNodeObservationFrpc struct {
 	ID                   uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	NodeID               string    `json:"node_id" gorm:"index;size:64;not null"`
@@ -138,7 +138,7 @@ func (OpenFlareNodeObservationFrpc) TableName() string {
 }
 
 // OpenFlareNodeObservationFrps stores tunnel relay frps observations in ClickHouse (database: openflare, table: of_node_obs_frps).
-// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/analytics.
+// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/logstore.
 type OpenFlareNodeObservationFrps struct {
 	ID              uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	NodeID          string    `json:"node_id" gorm:"index;size:64;not null"`

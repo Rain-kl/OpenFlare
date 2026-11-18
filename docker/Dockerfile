@@ -45,9 +45,9 @@ COPY --from=frontend-builder /workspace/frontend/out ./internal/router/root/dist
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -tags embed_frontend \
     -trimpath \
-    -ldflags="-s -w -X github.com/Rain-kl/Wavelet/internal/buildinfo.Version=${VERSION} -X github.com/Rain-kl/Wavelet/internal/buildinfo.BuildTime=${BUILD_DATE}" \
+    -ldflags="-s -w -X github.com/Rain-kl/Wavelet/internal/platform/buildinfo.Version=${VERSION} -X github.com/Rain-kl/Wavelet/internal/platform/buildinfo.BuildTime=${BUILD_DATE}" \
     -o /out/openflare-server \
-    ./main.go
+    ./cmd/server/main.go
 
 FROM alpine:${ALPINE_VERSION}
 

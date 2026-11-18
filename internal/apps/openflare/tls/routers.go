@@ -6,7 +6,7 @@ package tls
 import (
 	"net/http"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +15,7 @@ func handleLogicError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false
 	}
-	return apiutil.AbortNotFoundIfMissing(c, err, "Record was not found")
+	return httpx.AbortNotFoundIfMissing(c, err, "Record was not found")
 }
 
 // GetCertificates 列出 TLS 证书。
@@ -53,7 +53,7 @@ func GetCertificates(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id} [get]
 func GetCertificateDetail(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -79,7 +79,7 @@ func GetCertificateDetail(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/content [get]
 func GetCertificateContentHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -106,7 +106,7 @@ func GetCertificateContentHandler(c *gin.Context) {
 // @Router /api/v1/d/tls-certificates [post]
 func CreateCertificateHandler(c *gin.Context) {
 	var input CertificateInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	certificate, err := CreateCertificate(c.Request.Context(), input)
@@ -133,12 +133,12 @@ func CreateCertificateHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/update [post]
 func UpdateCertificateHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input CertificateInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	certificate, err := UpdateCertificate(c.Request.Context(), id, input)
@@ -200,7 +200,7 @@ func ImportCertificateFile(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/delete [post]
 func DeleteCertificateHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -226,7 +226,7 @@ func DeleteCertificateHandler(c *gin.Context) {
 // @Router /api/v1/d/tls-certificates/apply [post]
 func ApplyCertificateHandler(c *gin.Context) {
 	var input ApplyInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	certificate, err := ApplyCertificate(c.Request.Context(), input)
@@ -253,12 +253,12 @@ func ApplyCertificateHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/update-acme [post]
 func UpdateACMECertificateHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input ApplyInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	certificate, err := UpdateACMECertificate(c.Request.Context(), id, input)
@@ -285,12 +285,12 @@ func UpdateACMECertificateHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/convert-acme [post]
 func ConvertCertificateToACMEHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input ApplyInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	certificate, err := ConvertCertificateToACME(c.Request.Context(), id, input)
@@ -315,7 +315,7 @@ func ConvertCertificateToACMEHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/tls-certificates/{id}/renew [post]
 func RenewCertificateHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -362,7 +362,7 @@ func GetDNSAccounts(c *gin.Context) {
 // @Router /api/v1/d/dns-accounts [post]
 func CreateDNSAccountHandler(c *gin.Context) {
 	var input DNSAccountInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	account, err := CreateDNSAccount(c.Request.Context(), input)
@@ -389,12 +389,12 @@ func CreateDNSAccountHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/dns-accounts/{id}/update [post]
 func UpdateDNSAccountHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input DNSAccountInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	account, err := UpdateDNSAccount(c.Request.Context(), id, input)
@@ -419,7 +419,7 @@ func UpdateDNSAccountHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/dns-accounts/{id}/delete [post]
 func DeleteDNSAccountHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}

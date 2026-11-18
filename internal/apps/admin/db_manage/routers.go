@@ -8,8 +8,6 @@ package db_manage
 
 import (
 	"database/sql"
-	"fmt"
-	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -17,19 +15,13 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
+	"github.com/Rain-kl/Wavelet/pkg/util"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-
-	"github.com/Rain-kl/Wavelet/internal/shared/response"
 )
 
-const (
-	binaryKB        = 0
-	binaryMB        = 1
-	binaryGB        = 2
-	valueThreshold  = 10
-	maxStringLength = 200
-)
+const maxStringLength = 200
 
 // DBOverviewResponse 数据库运行概览响应结构体
 type DBOverviewResponse struct {
@@ -69,39 +61,6 @@ type ExecuteSQLResponse struct {
 	ExecutionTimeMs int64            `json:"execution_time_ms"`
 }
 
-// formatBytes 格式化字节大小为可读字符串
-func formatBytes(bytes uint64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	value := float64(bytes) / float64(div)
-	var suffix string
-	switch exp {
-	case binaryKB:
-		suffix = "KiB"
-	case binaryMB:
-		suffix = "MiB"
-	case binaryGB:
-		suffix = "GiB"
-	default:
-		suffix = "TiB"
-	}
-
-	if value == math.Trunc(value) {
-		if value >= valueThreshold {
-			return fmt.Sprintf("%.0f %s", value, suffix)
-		}
-		return fmt.Sprintf("%.1f %s", value, suffix)
-	}
-	return fmt.Sprintf("%.1f %s", value, suffix)
-}
-
 // getSQLiteOverview 获取 SQLite 数据库概览信息
 func getSQLiteOverview(gormDB *gorm.DB) DBOverviewResponse {
 	name := config.Config.Database.SQLitePath
@@ -120,7 +79,7 @@ func getSQLiteOverview(gormDB *gorm.DB) DBOverviewResponse {
 	var sizeStr string
 	if fi, err := os.Stat(name); err == nil {
 		size := max(fi.Size(), 0)
-		sizeStr = formatBytes(uint64(size))
+		sizeStr = util.FormatBinaryBytes(uint64(size))
 	} else {
 		sizeStr = "0 B"
 	}
@@ -163,7 +122,7 @@ func getPostgresOverview(gormDB *gorm.DB) DBOverviewResponse {
 	var sizeBytes sql.NullInt64
 	if err := gormDB.Raw("SELECT pg_database_size(current_database())").Scan(&sizeBytes).Error; err == nil && sizeBytes.Valid {
 		size := max(sizeBytes.Int64, 0)
-		sizeStr = formatBytes(uint64(size))
+		sizeStr = util.FormatBinaryBytes(uint64(size))
 	} else {
 		sizeStr = "0 B"
 	}

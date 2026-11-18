@@ -9,20 +9,10 @@ import (
 	"testing"
 )
 
-// forbiddenImports 上层应用禁止直接触碰的底层日志实现。
-var forbiddenImports = []string{
-	"github.com/Rain-kl/Wavelet/internal/repository/analytics",
-}
-
-// allowedAnalyticsDelegation 允许直接依赖 analyticsrepo 的委托层：
-//   - internal/repository：持久化门面，ListOpenFlareLatestMetricSnapshotsSince 的
-//     CH 快速路径仍直连 analyticsrepo（LIMIT 1 BY node_id）；小时级聚合读已改走 logstore；
-//   - internal/repository/logstore：CH 后端实现按设计委托 analyticsrepo。
-//
-// 除此之外，依赖闭包内任何包都禁止引入 analyticsrepo。
-var allowedAnalyticsDelegation = map[string]bool{
-	"github.com/Rain-kl/Wavelet/internal/repository":          true,
-	"github.com/Rain-kl/Wavelet/internal/repository/logstore": true,
+// forbiddenImportPrefixes 上层应用禁止直接引入的日志后端/驱动包前缀。
+var forbiddenImportPrefixes = []string{
+	"github.com/ClickHouse/clickhouse-go/",
+	"gorm.io/driver/clickhouse",
 }
 
 // allowedInfraPersistence 允许 apps 引入的 infra/persistence 子包。
@@ -47,9 +37,9 @@ func TestAppsMustNotImportLogBackendDirectly(t *testing.T) {
 			continue
 		}
 		for _, imp := range fields[1:] {
-			for _, forbidden := range forbiddenImports {
-				if imp == forbidden && !allowedAnalyticsDelegation[pkg] {
-					t.Errorf("%s must not import forbidden log backend %s", pkg, forbidden)
+			for _, prefix := range forbiddenImportPrefixes {
+				if imp == prefix || strings.HasPrefix(imp, prefix) {
+					t.Errorf("%s must not import forbidden log backend %s", pkg, imp)
 				}
 			}
 			if strings.HasPrefix(imp, "github.com/Rain-kl/Wavelet/internal/infra/persistence/") {

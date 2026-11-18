@@ -6,7 +6,7 @@ package dashboard
 import (
 	"net/http"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -25,7 +25,7 @@ import (
 // @Router /api/v1/d/dashboard/overview [get]
 func GetOverviewHandler(c *gin.Context) {
 	overview, err := GetOverview(c.Request.Context())
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(overview))

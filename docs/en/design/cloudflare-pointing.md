@@ -176,7 +176,7 @@ Phase 1 does not do scheduled full reconciliation.
 
 ## API (Admin Panel)
 
-Prefix: `/api/v1/d/cloudflare`, Session admin auth. Package: `internal/apps/openflare/cloudflare/`; routes: `internal/router/v1/openflare/register_cloudflare.go`.
+Prefix: `/api/v1/d/cloudflare`, Session admin auth. Package: `internal/apps/openflare/cloudflare/`; routes: `internal/router/v1/openflare_console.go`.
 
 | Resource | Method & Path |
 | --- | --- |

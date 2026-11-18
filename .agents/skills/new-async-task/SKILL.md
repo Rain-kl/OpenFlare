@@ -14,7 +14,7 @@ description: "Wavelet 项目专用：新增或修改 Asynq 异步任务、后台
 - `internal/infra/task/handler.go`：`TaskHandler`、`TaskResult`、`PayloadValidator`
 - `internal/infra/task/meta.go`：`TaskMeta`、`TaskParam`
 - `internal/infra/task/executor.go`：下发、执行、日志、重试、`OnTaskCompleted` 订阅
-- `internal/infra/task/handlers/register.go`：Handler 和元数据注册（由 bootstrap 调用）
+- `internal/platform/bootstrap/tasks.go`：Handler 与元数据统一装配注册（由 `bootstrap.RegisterTasks()` 调用）
 - `internal/platform/bootstrap/bootstrap.go`：任务注册与进程级装配入口
 - `internal/infra/task/worker/worker.go`：Worker 路由和队列
 - `internal/infra/task/scheduler/scheduler.go`：定时调度
@@ -47,19 +47,19 @@ description: "Wavelet 项目专用：新增或修改 Asynq 异步任务、后台
 
 ### 注册
 
-- 在 `internal/infra/task/handlers/register.go` 同时注册 Handler 和 `TaskMeta`。
+- 在 `internal/platform/bootstrap/tasks.go` 统一注册 Handler 和 `TaskMeta`（可委派各业务域的 `RegisterTasks()`）。
 - 不要在其他位置单独注册任务。
-- **禁止**在业务包 `routers.go` 或 `init()` 中调用 `task.RegisterHandler`；统一由 `bootstrap.RegisterTasks()` → `taskhandlers.Register()` 在进程启动时装配。
+- **禁止**在业务包 `routers.go` 或 `init()` 中调用 `task.RegisterHandler`；统一由 `bootstrap.RegisterTasks()` 在进程启动时装配。
 - 任务完成钩子（如 push 通知）通过 `task.OnTaskCompleted` 注册，在 `bootstrap.RegisterTaskListeners()` 中装配（Worker/`all` 进程）。
 
 ### 进程装配分工
 
 | 进程 | 注册入口 |
 | :--- | :--- |
-| `api` | `cmd/api.go` → `bootstrap.RegisterAPI()`（含 `RegisterTasks`） |
+| `api` | `cmd/server/cli/api.go` → `bootstrap.RegisterAPI()`（含 `RegisterTasks`） |
 | `worker` | `worker.StartWorker()` → `bootstrap.RegisterWorker()`（含 `RegisterTasks` + `RegisterTaskListeners`） |
 | `scheduler` | `scheduler.StartScheduler()` → `bootstrap.RegisterScheduler()` |
-| `all` | `cmd/all.go` → `bootstrap.RegisterAll()` |
+| `all` | `cmd/server/cli/all.go` → `bootstrap.RegisterAll()` |
 
 所有 `Register*` 使用 `sync.Once`，重复调用安全。
 
@@ -107,8 +107,8 @@ description: "Wavelet 项目专用：新增或修改 Asynq 异步任务、后台
 
 ## Admin API
 
-- Handler 放在现有 Admin task 模块或 `internal/apps/admin/<module>/`。
-- 路由只在 `internal/router/router.go` 注册。
+- Handler 放在现有 Admin task 模块、对应业务域（如 `internal/apps/openflare/tasks/`）或 `internal/apps/admin/<module>/`。
+- 路由只在 `internal/router/v1/`（如 `admin.go` 或业务域注册文件）挂载，禁止在 `internal/router/router.go` 直接挂业务 Handler。
 - 响应保持 `{ "error_msg": "", "data": ... }`。
 - 分页数据保持 `{ "total": 0, "results": [] }`。
 - Swagger 注释必须完整；API 变化后运行 `make swagger`。

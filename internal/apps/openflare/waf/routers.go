@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -74,7 +74,7 @@ func ReplaceSiteRuleGroupsHandler(c *gin.Context) {
 		return
 	}
 	var request IDsRequest
-	if !apiutil.BindJSON(c, &request) {
+	if !httpx.BindJSON(c, &request) {
 		return
 	}
 	view, err := ReplaceSiteRuleGroups(c.Request.Context(), routeID, request.IDs)
@@ -119,7 +119,7 @@ func ListIPGroupsHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups/{id} [get]
 func GetIPGroupHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -146,7 +146,7 @@ func GetIPGroupHandler(c *gin.Context) {
 // @Router /api/v1/d/waf/ip-groups [post]
 func CreateIPGroupHandler(c *gin.Context) {
 	var input IPGroupInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	group, err := CreateIPGroup(c.Request.Context(), input)
@@ -173,12 +173,12 @@ func CreateIPGroupHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups/{id}/update [post]
 func UpdateIPGroupHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input IPGroupInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	group, err := UpdateIPGroup(c.Request.Context(), id, input)
@@ -203,7 +203,7 @@ func UpdateIPGroupHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups/{id}/delete [post]
 func DeleteIPGroupHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -228,7 +228,7 @@ func DeleteIPGroupHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/waf/ip-groups/{id}/sync [post]
 func SyncIPGroupHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -255,7 +255,7 @@ func SyncIPGroupHandler(c *gin.Context) {
 // @Router /api/v1/d/waf/ip-groups/test [post]
 func TestIPGroupAutoConfigHandler(c *gin.Context) {
 	var input IPGroupAutoTestInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	result, err := TestIPGroupAutoConfig(c.Request.Context(), input)

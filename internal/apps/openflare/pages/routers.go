@@ -12,8 +12,8 @@ import (
 	"strconv"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
@@ -24,7 +24,7 @@ func handleLogicError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false
 	}
-	return apiutil.AbortNotFoundIfMissing(c, err, errPagesProjectNotFound)
+	return httpx.AbortNotFoundIfMissing(c, err, errPagesProjectNotFound)
 }
 
 func handleSourceLogicError(c *gin.Context, err error) bool {
@@ -141,7 +141,7 @@ func ListProjectsHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id} [get]
 func GetProjectHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -168,7 +168,7 @@ func GetProjectHandler(c *gin.Context) {
 // @Router /api/v1/d/pages [post]
 func CreateProjectHandler(c *gin.Context) {
 	var input Input
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	project, err := CreateProject(c.Request.Context(), input)
@@ -195,12 +195,12 @@ func CreateProjectHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/update [post]
 func UpdateProjectHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input Input
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	project, err := UpdateProject(c.Request.Context(), id, input)
@@ -225,7 +225,7 @@ func UpdateProjectHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/delete [post]
 func DeleteProjectHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -249,7 +249,7 @@ func DeleteProjectHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/source [get]
 func GetSourceHandler(c *gin.Context) {
-	projectID, ok := apiutil.IDParam(c)
+	projectID, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -276,7 +276,7 @@ func GetSourceHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/source/update [post]
 func UpdateSourceHandler(c *gin.Context) {
-	projectID, ok := apiutil.IDParam(c)
+	projectID, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -309,7 +309,7 @@ func UpdateSourceHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/source/delete [post]
 func DeleteSourceHandler(c *gin.Context) {
-	projectID, ok := apiutil.IDParam(c)
+	projectID, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -335,7 +335,7 @@ func DeleteSourceHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/source/check [post]
 func CheckSourceHandler(c *gin.Context) {
-	projectID, ok := apiutil.IDParam(c)
+	projectID, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -372,7 +372,7 @@ type SourceSyncInput struct {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/source/sync [post]
 func SyncSourceHandler(c *gin.Context) {
-	projectID, ok := apiutil.IDParam(c)
+	projectID, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -412,7 +412,7 @@ func SyncSourceHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/deployments [get]
 func ListDeploymentsHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -440,7 +440,7 @@ func ListDeploymentsHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/deployments/upload [post]
 func UploadDeploymentHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -478,7 +478,7 @@ func UploadDeploymentHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/deployments/upload-from-url [post]
 func UploadDeploymentFromURLHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -514,7 +514,7 @@ func UploadDeploymentFromURLHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/deployments/{deployment_id}/activate [post]
 func ActivateDeploymentHandler(c *gin.Context) {
-	projectID, ok := apiutil.IDParam(c)
+	projectID, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -549,7 +549,7 @@ func ActivateDeploymentHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/pages/{id}/deployments/{deployment_id}/delete [post]
 func DeleteDeploymentHandler(c *gin.Context) {
-	projectID, ok := apiutil.IDParam(c)
+	projectID, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}

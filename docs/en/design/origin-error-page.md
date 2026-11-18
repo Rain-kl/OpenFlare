@@ -96,7 +96,7 @@ No new resource routes. goose migration writes the seed; constants defined in th
 1. `enabled`: parseable as bool.  
 2. `status_codes`: valid JSON array; each entry `^\d{3}$` or `^\d{3}-\d{3}$`; expanded values all in 400–599; non-empty when enabled.  
 3. `html`: length ≤ 256 KiB (bytes); empty allowed.  
-4. Parse/expand logic is a **pure function** shared by the API and `pkg/render/openresty` to avoid semantic forks.
+4. Parse/expand logic is a **pure function** shared by the API and `internal/openflare/openresty` to avoid semantic forks.
 
 No XSS sanitization on HTML: it's an admin global ops config consistent with public edge display; docs warn not to embed untrusted third-party scripts.
 

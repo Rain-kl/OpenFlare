@@ -294,7 +294,7 @@ Default admin account:
 In large production deployments, split the Server into multiple processes by responsibility:
 
 ```bash
-go run main.go api             # API service for admin panel and node communication only
-go run main.go worker          # background task Worker service only
-go run main.go scheduler       # scheduled task Scheduler service only
+go run ./cmd/server api             # API service for admin panel and node communication only
+go run ./cmd/server worker          # background task Worker service only
+go run ./cmd/server scheduler       # scheduled task Scheduler service only
 ```

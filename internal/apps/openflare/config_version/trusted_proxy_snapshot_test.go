@@ -12,8 +12,8 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
 	"github.com/Rain-kl/Wavelet/pkg/cache/ram"
-	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
 func TestTrustedProxyCIDRsSurviveSnapshotRendering(t *testing.T) {

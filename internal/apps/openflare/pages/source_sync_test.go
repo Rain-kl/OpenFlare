@@ -22,7 +22,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
+	"github.com/Rain-kl/Wavelet/internal/openflare/pagesarchive"
 	"gorm.io/gorm"
 )
 

@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
-	"github.com/Rain-kl/Wavelet/pkg/protocol"
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,14 +29,14 @@ import (
 // @Router /api/v1/agent/nodes/register [post]
 func RegisterHandler(c *gin.Context) {
 	var request protocol.RegisterNodeRequest
-	if !apiutil.BindJSON(c, &request) {
+	if !httpx.BindJSON(c, &request) {
 		return
 	}
 	payload := request.NodePayload
 	payload.IP = resolveReportedNodeIP(payload.IP, c.Request.RemoteAddr)
 
 	var (
-		result *RegistrationResponse
+		result *protocol.RegisterNodeResponse
 		err    error
 	)
 	if authNode, ok := NodeFromContext(c); ok {
@@ -44,7 +44,7 @@ func RegisterHandler(c *gin.Context) {
 	} else {
 		result, err = RegisterWithDiscovery(c.Request.Context(), payload, request.RegistrationKey)
 	}
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))
@@ -57,14 +57,14 @@ func RegisterHandler(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security AgentTokenAuth
-// @Param body body agent.NodePayload true "心跳数据"
+// @Param body body protocol.NodePayload true "心跳数据"
 // @Success 200 {object} response.Any{data=agent.HeartbeatResponse} "心跳成功"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "Token 无效"
 // @Router /api/v1/agent/nodes/heartbeat [post]
 func HeartbeatHandler(c *gin.Context) {
-	var payload NodePayload
-	if !apiutil.BindJSON(c, &payload) {
+	var payload protocol.NodePayload
+	if !httpx.BindJSON(c, &payload) {
 		return
 	}
 	payload.IP = resolveReportedNodeIP(payload.IP, c.Request.RemoteAddr)
@@ -76,7 +76,7 @@ func HeartbeatHandler(c *gin.Context) {
 	}
 
 	heartbeat, err := HeartbeatNode(c.Request.Context(), authNode, payload)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(heartbeat))
@@ -99,7 +99,7 @@ func GetActiveConfigHandler(c *gin.Context) {
 		return
 	}
 	config, err := GetActiveConfig(c.Request.Context(), c.Query("site_auth") == "true")
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(config))
@@ -112,18 +112,18 @@ func GetActiveConfigHandler(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security AgentTokenAuth
-// @Param body body agent.WAFIPGroupSyncInput true "同步请求"
-// @Success 200 {object} response.Any{data=agent.WAFIPGroupSyncResult} "同步结果"
+// @Param body body protocol.WAFIPGroupSyncRequest true "同步请求"
+// @Success 200 {object} response.Any{data=protocol.WAFIPGroupSyncResponse} "同步结果"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "Token 无效"
 // @Router /api/v1/agent/waf/ip-groups/sync [post]
 func SyncWAFIPGroupsHandler(c *gin.Context) {
-	var input WAFIPGroupSyncInput
-	if !apiutil.BindJSON(c, &input) {
+	var input protocol.WAFIPGroupSyncRequest
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	result, err := SyncWAFIPGroups(c.Request.Context(), input)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))
@@ -136,21 +136,21 @@ func SyncWAFIPGroupsHandler(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security AgentTokenAuth
-// @Param body body agent.ApplyLogPayload true "应用日志"
+// @Param body body protocol.ApplyLogPayload true "应用日志"
 // @Success 200 {object} response.Any{data=model.OpenFlareApplyLog} "日志记录"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "Token 无效"
 // @Router /api/v1/agent/apply-logs [post]
 func ReportApplyLogHandler(c *gin.Context) {
-	var payload ApplyLogPayload
-	if !apiutil.BindJSON(c, &payload) {
+	var payload protocol.ApplyLogPayload
+	if !httpx.BindJSON(c, &payload) {
 		return
 	}
 	if authNode, ok := NodeFromContext(c); ok {
 		payload.NodeID = authNode.NodeID
 	}
 	log, err := ReportApplyLog(c.Request.Context(), payload)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(log))
@@ -173,7 +173,7 @@ func GetPagesDeploymentHashHandler(c *gin.Context) {
 		return
 	}
 	hash, err := pages.GetDeploymentPackageHash(c.Request.Context(), deploymentID)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(protocol.PagesDeploymentHashResponse{
@@ -199,7 +199,7 @@ func DownloadPagesPackageHandler(c *gin.Context) {
 		return
 	}
 	packageObj, err := pages.OpenDeploymentPackage(c.Request.Context(), deploymentID)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	defer func() { _ = packageObj.Body.Close() }()
@@ -227,7 +227,7 @@ func GetPagesProjectLatestHashHandler(c *gin.Context) {
 		return
 	}
 	metadata, err := pages.GetProjectLatestPackageMetadata(c.Request.Context(), projectID)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(protocol.PagesProjectLatestHashResponse{
@@ -257,7 +257,7 @@ func DownloadPagesProjectLatestPackageHandler(c *gin.Context) {
 		return
 	}
 	packageObj, err := pages.OpenProjectLatestPackage(c.Request.Context(), projectID)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	defer func() { _ = packageObj.Body.Close() }()

@@ -80,7 +80,7 @@ curl -I http://127.0.0.1:3000
 忘记 `admin` 账户密码时，使用 `reset-passwd` 命令重置（支持 SQLite 与 PostgreSQL）：
 
 ```bash
-go run main.go reset-passwd --user admin --password your-new-password
+go run ./cmd/server reset-passwd --user admin --password your-new-password
 ```
 
 若使用 SQLite，建议先停止 Server 进程再执行，避免数据库文件锁冲突。未指定 `--password` 时命令会生成随机密码并输出到终端。重置成功后请立即登录并修改密码。

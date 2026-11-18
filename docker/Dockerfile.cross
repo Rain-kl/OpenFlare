@@ -96,9 +96,9 @@ RUN set -e; \
           go build \
             -tags embed_frontend \
             -trimpath \
-            -ldflags="-s -w -X github.com/Rain-kl/Wavelet/internal/buildinfo.Version=${VERSION} -X github.com/Rain-kl/Wavelet/internal/buildinfo.BuildTime=${BUILD_DATE}" \
+            -ldflags="-s -w -X github.com/Rain-kl/Wavelet/internal/platform/buildinfo.Version=${VERSION} -X github.com/Rain-kl/Wavelet/internal/platform/buildinfo.BuildTime=${BUILD_DATE}" \
             -o "${OUTPUT}" \
-            ./main.go; \
+            ./cmd/server/main.go; \
       done; \
     done
 

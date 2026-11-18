@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
+	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
 )
 
 func TestIsRuntimeGeneratedSupportFile(t *testing.T) {
@@ -29,7 +31,7 @@ func TestIsRuntimeGeneratedSupportFile(t *testing.T) {
 }
 
 func TestSourceSupportFilesFiltersRuntimeGeneratedFiles(t *testing.T) {
-	files := []SupportFile{
+	files := []protocol.SupportFile{
 		{Path: "certs/example.pem", Content: "pem"},
 		{Path: "pow_config.json", Content: "{}"},
 		{Path: "waf_config.json", Content: "{}"},

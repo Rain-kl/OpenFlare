@@ -80,7 +80,7 @@ Steps:
 If you forget the `admin` password, reset it with the `reset-passwd` command (supports SQLite and PostgreSQL):
 
 ```bash
-go run main.go reset-passwd --user admin --password your-new-password
+go run ./cmd/server reset-passwd --user admin --password your-new-password
 ```
 
 With SQLite, stop the Server process first to avoid DB file lock conflicts. Without `--password`, the command generates a random password and prints it. After resetting, log in and change the password immediately.

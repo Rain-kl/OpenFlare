@@ -487,7 +487,7 @@ t=6s     下一轮…
 | 观测端口 | `openresty_observability_port`（默认 18081） |
 | access.log 路径 | `access_log_path` |
 | 补传分钟数 | `observability_replay_minutes`（默认 60） |
-| 协议类型 | `pkg/protocol/agent.go`（落地时按 v2 演进） |
+| 协议类型 | `internal/openflare/protocol/agent.go`（落地时按 v2 演进） |
 | 表结构 DDL | [observability-data-model.md](./observability-data-model.md) |
 
 ---

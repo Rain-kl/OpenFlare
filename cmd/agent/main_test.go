@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/config"
+	"github.com/Rain-kl/Wavelet/internal/edge/agent/config"
+	edgeconfig "github.com/Rain-kl/Wavelet/internal/edge/common/config"
 )
 
 func TestNewGeoIPUpdaterWiresCountryAndCity(t *testing.T) {
@@ -16,7 +17,7 @@ func TestNewGeoIPUpdaterWiresCountryAndCity(t *testing.T) {
 		MMDBDownloadURL:     "https://geo.example/GeoLite2-Country.mmdb",
 		CityMMDBPath:        "/data/GeoLite2-City.mmdb",
 		CityMMDBDownloadURL: "https://geo.example/GeoLite2-City.mmdb",
-		MMDBUpdateInterval:  config.MillisecondDuration(time.Hour),
+		MMDBUpdateInterval:  edgeconfig.MillisecondDuration(time.Hour),
 	}
 	updater := newGeoIPUpdater(cfg)
 	if updater.MMDBPath != cfg.MMDBPath || updater.DownloadURL != cfg.MMDBDownloadURL ||

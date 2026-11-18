@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -19,7 +21,7 @@ import (
 const nodeStatusOnline = "online"
 
 // Heartbeat processes a relay heartbeat, updates node status, and returns config.
-func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload HeartbeatPayload) (*HeartbeatResponse, error) {
+func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload protocol.RelayHeartbeatPayload) (*protocol.RelayHeartbeatResponse, error) {
 	if node == nil {
 		return nil, errors.New("relay node is nil")
 	}
@@ -98,7 +100,7 @@ func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload Heartbeat
 	agent.RefreshAccessTokenCache(ctx, node)
 	persistRelayHeartbeatObservability(ctx, node.NodeID, payload, now)
 
-	return &HeartbeatResponse{
+	return &protocol.RelayHeartbeatResponse{
 		RelayConfig:   buildRelayConfig(ctx, node),
 		RelaySettings: BuildSettings(ctx, node, updateNow, updateChannel, updateTag),
 	}, nil

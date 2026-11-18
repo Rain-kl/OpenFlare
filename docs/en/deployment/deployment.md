@@ -89,7 +89,7 @@ cp config.example.yaml config.yaml
 export APP_SESSION_SECRET='replace-with-a-long-random-string'
 # optional: use PostgreSQL
 # export DB_HOST=127.0.0.1 DB_USERNAME=postgres DB_PASSWORD=postgres DB_NAME=openflare
-go run main.go all
+go run ./cmd/server all
 ```
 
 Listens on `:3000` by default (controlled by `app.addr` in `config.yaml` or `APP_ADDR`).

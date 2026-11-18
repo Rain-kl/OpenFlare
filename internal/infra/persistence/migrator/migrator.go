@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/zone"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -134,7 +133,7 @@ func maybeImportZoneDomains(sqlDB *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("begin zone import transaction: %w", err)
 	}
-	report, err := zone.ImportLegacyTx(ctx, tx, gooseDialect() == dialectPostgres)
+	report, err := ImportZoneLegacyTx(ctx, tx, gooseDialect() == dialectPostgres)
 	if err != nil {
 		_ = tx.Rollback()
 		return report.LogAndReturn(err)

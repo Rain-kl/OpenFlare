@@ -6,13 +6,10 @@ package cache
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/diskcache"
-	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/gin-gonic/gin"
-
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
+	"github.com/gin-gonic/gin"
 )
 
 type updateCacheConfigRequest struct {
@@ -58,24 +55,10 @@ func UpdateCacheConfig(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
-
-	if err := saveOrUpdateConfig(ctx, model.ConfigKeyDiskCacheMaxSizeMB, strconv.FormatInt(req.MaxSizeMB, 10)); err != nil {
+	if err := applyCacheConfig(c.Request.Context(), req); err != nil {
 		response.AbortInternal(c, err.Error())
 		return
 	}
-
-	if err := saveOrUpdateConfig(ctx, model.ConfigKeyDiskCacheTTLMinutes, strconv.FormatInt(req.TTLMinutes, 10)); err != nil {
-		response.AbortInternal(c, err.Error())
-		return
-	}
-
-	if err := saveOrUpdateConfig(ctx, model.ConfigKeyDiskCacheLRUEnabled, strconv.FormatBool(req.LRUEnabled)); err != nil {
-		response.AbortInternal(c, err.Error())
-		return
-	}
-
-	diskcache.GetGlobalCache().ReloadConfig(ctx)
 
 	c.JSON(http.StatusOK, response.OKNil())
 }

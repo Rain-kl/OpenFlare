@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/apps/relay/config.Version=$VERSION'" -o /build/bin/openflare-relay ./cmd/relay/main.go
+    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/edge/relay/config.Version=$VERSION'" -o /build/bin/openflare-relay ./cmd/relay/main.go
 
 # Final runtime image
 FROM fatedier/frps:v0.69.0

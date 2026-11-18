@@ -122,7 +122,7 @@ http://localhost:3000
 如果忘记密码并且没有配置找回密码渠道，可以使用命令重置：
 
 ```bash
-go run main.go reset-passwd --user admin
+go run ./cmd/server reset-passwd --user admin
 ```
 
 未指定 `--password` 时命令会自动生成随机密码并输出到终端；也可以使用 `--password` 显式指定新密码。

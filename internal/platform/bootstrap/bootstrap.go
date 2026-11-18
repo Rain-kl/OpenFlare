@@ -14,10 +14,10 @@ import (
 
 	admin_push "github.com/Rain-kl/Wavelet/internal/apps/admin/push"
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push/custom_events"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
+	admin_status "github.com/Rain-kl/Wavelet/internal/apps/admin/status"
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/logwriter"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
-	taskhandlers "github.com/Rain-kl/Wavelet/internal/infra/task/handlers"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/platform/lifecycle"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -88,9 +88,7 @@ func PreheatAllCaches(ctx context.Context) error {
 
 // RegisterTasks registers all built-in task handlers and metadata.
 func RegisterTasks() {
-	registerTasksOnce.Do(func() {
-		taskhandlers.Register()
-	})
+	registerTasksOnce.Do(registerBuiltInTasks)
 }
 
 // RegisterPushDomainEvents wires push notification handlers for domain events.
@@ -167,7 +165,8 @@ func Init(ctx context.Context, opts Options) {
 			logger.ErrorF(ctx, "[Bootstrap] sync push events failed: %v", err)
 		}
 		if opts.API {
-			chwriter.Init(ctx)
+			logwriter.Init(ctx)
+			admin_status.RegisterBatchWriterStatsProvider(logwriter.WriterStats)
 		}
 	})
 }

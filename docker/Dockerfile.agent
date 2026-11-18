@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/apps/agent/config.Version=$VERSION'" -o /build/bin/openflare-agent ./cmd/agent/main.go
+    go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/edge/agent/config.Version=$VERSION'" -o /build/bin/openflare-agent ./cmd/agent/main.go
 
 # Fetch MMDB into dist/geoip for COPY into the runtime image (not go:embed).
 RUN apk add --no-cache bash curl \

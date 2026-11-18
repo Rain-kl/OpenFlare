@@ -9,19 +9,21 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
-	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
+	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
 	"gorm.io/gorm"
 )
 
-func getActiveConfigMeta(ctx context.Context) (*ActiveConfigMeta, error) {
+func getActiveConfigMeta(ctx context.Context) (*protocol.ActiveConfigMeta, error) {
 	version, err := repository.GetActiveConfigVersion(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &ActiveConfigMeta{
+	return &protocol.ActiveConfigMeta{
 		Version:  version.Version,
 		Checksum: version.Checksum,
 	}, nil
@@ -33,7 +35,7 @@ func getActiveConfigForAgent(ctx context.Context, siteAuthSupported bool) (*Conf
 		return nil, err
 	}
 
-	var supportFiles []SupportFile
+	var supportFiles []protocol.SupportFile
 	if strings.TrimSpace(version.SupportFilesJSON) != "" {
 		if err = json.Unmarshal([]byte(version.SupportFilesJSON), &supportFiles); err != nil {
 			return nil, err
@@ -124,11 +126,11 @@ func disableLegacyPagesAPIProxy(route map[string]json.RawMessage) error {
 	return nil
 }
 
-func sourceSupportFiles(files []SupportFile) []SupportFile {
+func sourceSupportFiles(files []protocol.SupportFile) []protocol.SupportFile {
 	if len(files) == 0 {
 		return nil
 	}
-	result := make([]SupportFile, 0, len(files))
+	result := make([]protocol.SupportFile, 0, len(files))
 	for _, file := range files {
 		if isRuntimeGeneratedSupportFile(file.Path) {
 			continue

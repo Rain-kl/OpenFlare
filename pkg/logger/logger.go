@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -26,7 +25,7 @@ type Config struct {
 	Compress   bool
 }
 
-var logger *otelzap.Logger
+var logger *zap.Logger
 
 // ringBufferCapacity 环形缓冲区容量
 const ringBufferCapacity = 5000
@@ -51,14 +50,10 @@ func doInit(cfg Config) {
 		zapcore.AddSync(GlobalRingBuffer),
 	)
 
-	zapLogger := zap.New(
+	logger = zap.New(
 		zapcore.NewCore(getEncoderForConfig(cfg), multiWriter, getLogLevelForConfig(cfg)),
 		zap.AddCaller(),
 		zap.AddCallerSkip(1),
-	)
-	logger = otelzap.New(
-		zapLogger,
-		otelzap.WithMinLevel(zapLogger.Level()),
 	)
 }
 
@@ -80,23 +75,23 @@ func Init(cfg Config) {
 // DebugF 输出 Debug 级别日志
 func DebugF(ctx context.Context, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
-	logger.Ctx(ctx).Debug(msg, getTraceIDFields(ctx)...)
+	logger.Debug(msg, getTraceIDFields(ctx)...)
 }
 
 // InfoF 输出 Info 级别日志
 func InfoF(ctx context.Context, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
-	logger.Ctx(ctx).Info(msg, getTraceIDFields(ctx)...)
+	logger.Info(msg, getTraceIDFields(ctx)...)
 }
 
 // WarnF 输出 Warn 级别日志
 func WarnF(ctx context.Context, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
-	logger.Ctx(ctx).Warn(msg, getTraceIDFields(ctx)...)
+	logger.Warn(msg, getTraceIDFields(ctx)...)
 }
 
 // ErrorF 输出 Error 级别日志
 func ErrorF(ctx context.Context, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
-	logger.Ctx(ctx).Error(msg, getTraceIDFields(ctx)...)
+	logger.Error(msg, getTraceIDFields(ctx)...)
 }

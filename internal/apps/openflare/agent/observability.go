@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -22,7 +24,7 @@ const (
 )
 
 // PersistHeartbeatObservability stores profile, host metrics, edge health, and access logs.
-func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload NodePayload, reportedAt time.Time) {
+func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload protocol.NodePayload, reportedAt time.Time) {
 	if strings.TrimSpace(nodeID) == "" {
 		return
 	}
@@ -71,7 +73,7 @@ func PersistHeartbeatObservability(ctx context.Context, nodeID string, payload N
 	}
 }
 
-func persistBufferedObservability(ctx context.Context, nodeID string, records []BufferedObservabilityRecord, reportedAt time.Time) error {
+func persistBufferedObservability(ctx context.Context, nodeID string, records []protocol.BufferedObservabilityRecord, reportedAt time.Time) error {
 	for _, record := range records {
 		if err := persistNodeMetricSnapshot(ctx, nodeID, record.HostMetrics, reportedAt); err != nil {
 			return err
@@ -83,7 +85,7 @@ func persistBufferedObservability(ctx context.Context, nodeID string, records []
 	return nil
 }
 
-func persistNodeEdgeHealth(ctx context.Context, nodeID string, health *NodeEdgeHealth, fallbackStatus string, reportedAt time.Time) error {
+func persistNodeEdgeHealth(ctx context.Context, nodeID string, health *protocol.NodeEdgeHealth, fallbackStatus string, reportedAt time.Time) error {
 	if health == nil {
 		return nil
 	}
@@ -102,7 +104,7 @@ func persistNodeEdgeHealth(ctx context.Context, nodeID string, health *NodeEdgeH
 	})
 }
 
-func buildNodeSystemProfileModel(nodeID string, profile *NodeSystemProfile, reportedAt time.Time) *model.OpenFlareNodeSystemProfile {
+func buildNodeSystemProfileModel(nodeID string, profile *protocol.NodeSystemProfile, reportedAt time.Time) *model.OpenFlareNodeSystemProfile {
 	if profile == nil {
 		return nil
 	}
@@ -122,7 +124,7 @@ func buildNodeSystemProfileModel(nodeID string, profile *NodeSystemProfile, repo
 	}
 }
 
-func healthEventInputs(events []NodeHealthEvent) []repository.OpenFlareHealthEventInput {
+func healthEventInputs(events []protocol.NodeHealthEvent) []repository.OpenFlareHealthEventInput {
 	if events == nil {
 		return nil
 	}
@@ -139,7 +141,7 @@ func healthEventInputs(events []NodeHealthEvent) []repository.OpenFlareHealthEve
 	return out
 }
 
-func persistNodeMetricSnapshot(ctx context.Context, nodeID string, snapshot *NodeMetricSnapshot, reportedAt time.Time) error {
+func persistNodeMetricSnapshot(ctx context.Context, nodeID string, snapshot *protocol.NodeMetricSnapshot, reportedAt time.Time) error {
 	if snapshot == nil {
 		return nil
 	}
@@ -158,7 +160,7 @@ func persistNodeMetricSnapshot(ctx context.Context, nodeID string, snapshot *Nod
 	return repository.InsertOpenFlareMetricSnapshot(ctx, record)
 }
 
-func buildNodeAccessLogRecords(ctx context.Context, nodeID string, direct []NodeAccessLog, buffered []BufferedObservabilityRecord, reportedAt time.Time) ([]*model.OpenFlareAccessLog, error) {
+func buildNodeAccessLogRecords(ctx context.Context, nodeID string, direct []protocol.NodeAccessLog, buffered []protocol.BufferedObservabilityRecord, reportedAt time.Time) ([]*model.OpenFlareAccessLog, error) {
 	total := len(direct)
 	for _, record := range buffered {
 		total += len(record.AccessLogs)
@@ -168,7 +170,7 @@ func buildNodeAccessLogRecords(ctx context.Context, nodeID string, direct []Node
 	}
 
 	records := make([]*model.OpenFlareAccessLog, 0, total)
-	appendLogs := func(logs []NodeAccessLog) {
+	appendLogs := func(logs []protocol.NodeAccessLog) {
 		for _, item := range logs {
 			bytesSent := max(item.BytesSent, 0)
 			requestLength := max(item.RequestLength, 0)
@@ -205,7 +207,7 @@ func persistNodeAccessLogs(ctx context.Context, _ string, records []*model.OpenF
 }
 
 // ReconcileScopedNodeHealthEvents reconciles health events, optionally scoped to managed event types.
-func ReconcileScopedNodeHealthEvents(ctx context.Context, nodeID string, events []NodeHealthEvent, reportedAt time.Time, managedEventTypes map[string]struct{}) error {
+func ReconcileScopedNodeHealthEvents(ctx context.Context, nodeID string, events []protocol.NodeHealthEvent, reportedAt time.Time, managedEventTypes map[string]struct{}) error {
 	return repository.ReconcileOpenFlareHealthEvents(ctx, nodeID, healthEventInputs(events), reportedAt, managedEventTypes)
 }
 

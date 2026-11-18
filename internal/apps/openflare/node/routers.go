@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
@@ -20,7 +20,7 @@ func handleLogicError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false
 	}
-	return apiutil.AbortNotFoundIfMissing(c, err, errNodeNotFound)
+	return httpx.AbortNotFoundIfMissing(c, err, errNodeNotFound)
 }
 
 // ListNodesHandler lists all nodes.
@@ -57,7 +57,7 @@ func ListNodesHandler(c *gin.Context) {
 // @Router /api/v1/d/nodes [post]
 func CreateNodeHandler(c *gin.Context) {
 	var input Input
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	view, err := CreateNode(c.Request.Context(), input)
@@ -82,12 +82,12 @@ func CreateNodeHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或节点不存在"
 // @Router /api/v1/d/nodes/{id}/update [post]
 func UpdateNodeHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input Input
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	view, err := UpdateNode(c.Request.Context(), id, input)
@@ -110,7 +110,7 @@ func UpdateNodeHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或节点不存在"
 // @Router /api/v1/d/nodes/{id}/delete [post]
 func DeleteNodeHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -170,7 +170,7 @@ func RotateBootstrapTokenHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或节点不存在"
 // @Router /api/v1/d/nodes/{id}/agent-release [get]
 func GetAgentReleaseHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -196,7 +196,7 @@ func GetAgentReleaseHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或节点不存在"
 // @Router /api/v1/d/nodes/{id}/agent-update [post]
 func RequestAgentUpdateHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -227,7 +227,7 @@ func RequestAgentUpdateHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或节点不存在"
 // @Router /api/v1/d/nodes/{id}/openresty-restart [post]
 func RequestOpenrestyRestartHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -251,7 +251,7 @@ func RequestOpenrestyRestartHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或节点不存在"
 // @Router /api/v1/d/nodes/{id}/force-sync [post]
 func RequestForceSyncHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -277,7 +277,7 @@ func RequestForceSyncHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或节点不存在"
 // @Router /api/v1/d/nodes/{id}/observability [get]
 func GetObservabilityHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -306,7 +306,7 @@ func GetObservabilityHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或节点不存在"
 // @Router /api/v1/d/nodes/{id}/observability/cleanup [post]
 func CleanupHealthEventsHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -375,7 +375,7 @@ func ListNodePageHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "查询失败"
 // @Router /api/v1/d/nodes/{id} [get]
 func GetNodeHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}

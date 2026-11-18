@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
+	"github.com/Rain-kl/Wavelet/internal/openflare/pagesarchive"
 )
 
 // downloadPagesPackageFromURL is the deprecated one-shot URL adapter. It uses

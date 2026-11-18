@@ -1,0 +1,92 @@
+// Copyright 2025 linux.do
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
+package cli
+
+import (
+	"context"
+	"log"
+	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/migrator"
+	"github.com/Rain-kl/Wavelet/internal/platform/buildinfo"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
+	"github.com/Rain-kl/Wavelet/pkg/trace"
+	"github.com/spf13/cobra"
+)
+
+const traceShutdownTimeout = 10 * time.Second
+
+var rootCmd = &cobra.Command{
+	Use: "wavelet",
+	PersistentPreRun: func(_ *cobra.Command, _ []string) {
+		logger.Init(logger.Config{
+			Level:      config.Config.Log.Level,
+			Format:     config.Config.Log.Format,
+			Output:     config.Config.Log.Output,
+			FilePath:   config.Config.Log.FilePath,
+			MaxSize:    config.Config.Log.MaxSize,
+			MaxAge:     config.Config.Log.MaxAge,
+			MaxBackups: config.Config.Log.MaxBackups,
+			Compress:   config.Config.Log.Compress,
+		})
+		trace.Init(trace.Config{
+			AppName:        config.Config.App.AppName,
+			SamplingRate:   config.Config.Otel.SamplingRate,
+			TracerName:     config.Config.Otel.TracerName,
+			ExportProtocol: config.Config.Otel.ExportProtocol,
+		})
+	},
+	PreRun: func(_ *cobra.Command, _ []string) {
+		runMigrations()
+	},
+	PersistentPostRun: func(_ *cobra.Command, _ []string) {
+		shutdownTraceProvider()
+	},
+	Run: func(_ *cobra.Command, args []string) {
+		// 无参数时默认以融合模式启动所有服务
+		allCmd.Run(allCmd, args)
+	},
+}
+
+var latestMigrationState struct {
+	relationalDB migrator.Report
+	clickHouseDB migrator.Report
+}
+
+func runMigrations() {
+	latestMigrationState.relationalDB = migrator.Migrate()
+	latestMigrationState.clickHouseDB = migrator.MigrateClickHouse()
+}
+
+func shutdownTraceProvider() {
+	ctx, cancel := context.WithTimeout(context.Background(), traceShutdownTimeout)
+	defer cancel()
+	trace.Shutdown(ctx)
+}
+
+func init() {
+	rootCmd.Version = buildinfo.Version
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
+	// 1. 为需要迁移的子命令动态绑定原先 rootCmd.PreRun 拥有的数据库迁移行为
+	migratePreRun := func(_ *cobra.Command, _ []string) {
+		runMigrations()
+	}
+	allCmd.PreRun = migratePreRun
+	apiCmd.PreRun = migratePreRun
+	workerCmd.PreRun = migratePreRun
+	schedulerCmd.PreRun = migratePreRun
+
+	// 2. 集中将这些命令注册为真正的子命令，以解决 Cobra 的 unknown command 校验限制
+	rootCmd.AddCommand(allCmd, apiCmd, workerCmd, schedulerCmd)
+}
+
+// Execute 执行根命令
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("[CMD] execute failed; %s\n", err)
+	}
+}

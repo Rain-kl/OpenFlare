@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/pagesarchive"
 	"github.com/Rain-kl/Wavelet/pkg/httppool"
-	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 )
 
 const (

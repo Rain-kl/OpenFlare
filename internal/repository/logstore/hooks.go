@@ -9,12 +9,12 @@ import (
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 
-// AccessLogHooks 节点访问日志异步入队回调（由 chwriter 装配）。
+// AccessLogHooks 节点访问日志异步入队回调（由 logwriter 装配）。
 type AccessLogHooks struct {
 	QueueNodeAccessLogs func(logs []analyticsmodel.NodeAccessLog)
 }
 
-// ObservabilityHooks 可观测异步入队回调（由 chwriter 装配）。
+// ObservabilityHooks 可观测异步入队回调（由 logwriter 装配）。
 type ObservabilityHooks struct {
 	QueueMetricSnapshot func(record analyticsmodel.NodeMetricSnapshot)
 	QueueEdgeHealth     func(record analyticsmodel.NodeEdgeHealth)

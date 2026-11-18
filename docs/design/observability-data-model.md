@@ -305,7 +305,7 @@ Agent：tail access.log → 解析 JSON 行 → 原样字段上报（可截断 p
 ### 3.8 Go 协议结构
 
 ```go
-// pkg/protocol/agent.go（当前实现）
+// internal/openflare/protocol/agent.go（当前实现）
 
 type NodePayload struct {
     SchemaVersion       int                    `json:"schema_version,omitempty"`

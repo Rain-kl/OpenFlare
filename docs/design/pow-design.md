@@ -12,7 +12,7 @@ PoW 由独立的站点策略、页面模板、浏览器运行时和组件组成�
 
 发布快照将独立策略附加到对应站点的 `pow_enabled` / `pow_config`；渲染器生成按站点标识索引的 `pow_config.json`。挑战页单独写入 `pow/page.json`，纳入配置校验和、备份与回滚。独立 PoW 的端点和静态资源可在没有 WAF PoW 节点的站点上渲染。
 
-内置 HTML 的唯一来源为 `pkg/render/openresty/pow_templates/`。运行 `node frontend/scripts/generate-pow-assets.mjs` 可同步前端预览素材，`make code-check` 会检查素材是否同步。生成文件随前端源码交付，Docker 前端构建可直接使用；预览复用实际 Widget 源码。
+内置 HTML 的唯一来源为 `internal/openflare/openresty/pow_templates/`。运行 `node frontend/scripts/generate-pow-assets.mjs` 可同步前端预览素材，`make code-check` 会检查素材是否同步。生成文件随前端源码交付，Docker 前端构建可直接使用；预览复用实际 Widget 源码。
 
 canary 分支推送会同时触发 Server 与 Agent 镜像构建。Agent 的 canary 构建仅更新 `canary` 标签，不更新稳定版 `latest`；部署新的 PoW 策略时应同步更新 Server 与 Agent，再发布配置版本。
 

@@ -168,4 +168,4 @@ func Register(c *gin.Context) {
 ### 3. 禁止 init() 与 router 副作用注册 (Explicit Bootstrap)
 - 不得在 `init()` 中调用 `RegisterBuiltInEvent` 或订阅 listener。
 - 不得在 `router.go` 空白导入 `custom_events` 触发注册。
-- 统一在 `internal/platform/bootstrap` + `internal/cmd` 入口显式装配。
+- 统一在 `internal/platform/bootstrap` + `cmd/server/cli` 入口显式装配。

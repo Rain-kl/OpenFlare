@@ -15,10 +15,7 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
-	analyticsrepo "github.com/Rain-kl/Wavelet/internal/repository/analytics"
 	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
-	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
 const (
@@ -28,9 +25,6 @@ const (
 	openFlareHealthSeverityWarning     = "warning"
 	openFlareHealthSeverityCritical    = "critical"
 	openFlareHealthEventMessageMaxLen  = 4096
-
-	// logStoreNameClickHouse 与 logstore 内部 dbNameClickHouse 取值一致。
-	logStoreNameClickHouse = "clickhouse"
 )
 
 // OpenFlareHealthEventInput describes a desired active health event for reconciliation.
@@ -101,71 +95,13 @@ func ListOpenFlareMetricSnapshotsSince(ctx context.Context, nodeID string, since
 }
 
 // ListOpenFlareLatestMetricSnapshotsSince returns the latest metric snapshot per node.
-// The ClickHouse LIMIT 1 BY fast path is used only when ClickHouse is the ACTIVE log
-// database; otherwise the request goes straight to the active log store (PG/SQLite),
-// avoiding stale reads of the previous CH store after a migration.
+// ClickHouse uses LIMIT 1 BY node_id; PG/SQLite resolves latest per node in logstore.
 func ListOpenFlareLatestMetricSnapshotsSince(ctx context.Context, nodeID string, since time.Time) ([]*model.OpenFlareMetricSnapshot, error) {
-	active, err := logstore.ActiveDatabase(ctx)
+	s, err := logstore.Active(ctx)
 	if err != nil {
-		logger.ErrorF(ctx, "failed to resolve active log database for latest metric snapshots: %v", err)
-	} else if active == logStoreNameClickHouse {
-		rows, chErr := analyticsrepo.ListLatestNodeMetricSnapshots(ctx, analyticsrepo.NodeObservabilityFilter{
-			NodeID: nodeID,
-			Since:  since,
-		})
-		if chErr == nil {
-			return fromAnalyticsNodeMetricSnapshots(rows), nil
-		}
-		logger.ErrorF(ctx, "clickhouse fast-path ListLatestNodeMetricSnapshots failed: %v", chErr)
-		return nil, chErr
+		return nil, err
 	}
-	// Routes through the active log store (PG/SQLite active).
-	all, listErr := ListOpenFlareMetricSnapshotsSince(ctx, nodeID, since, 0)
-	if listErr != nil {
-		return nil, listErr
-	}
-	return openFlareLatestMetricSnapshots(all), nil
-}
-
-func openFlareLatestMetricSnapshots(snapshots []*model.OpenFlareMetricSnapshot) []*model.OpenFlareMetricSnapshot {
-	latestByNode := make(map[string]*model.OpenFlareMetricSnapshot, len(snapshots))
-	for _, snapshot := range snapshots {
-		if snapshot == nil || snapshot.NodeID == "" {
-			continue
-		}
-		if existing, ok := latestByNode[snapshot.NodeID]; ok && !snapshot.CapturedAt.After(existing.CapturedAt) {
-			continue
-		}
-		latestByNode[snapshot.NodeID] = snapshot
-	}
-	result := make([]*model.OpenFlareMetricSnapshot, 0, len(latestByNode))
-	for _, snapshot := range latestByNode {
-		result = append(result, snapshot)
-	}
-	return result
-}
-
-// fromAnalyticsNodeMetricSnapshots converts analytics rows back to the business model.
-func fromAnalyticsNodeMetricSnapshots(rows []analyticsmodel.NodeMetricSnapshot) []*model.OpenFlareMetricSnapshot {
-	result := make([]*model.OpenFlareMetricSnapshot, len(rows))
-	for index, row := range rows {
-		result[index] = &model.OpenFlareMetricSnapshot{
-			ID:                uint(row.ID),
-			NodeID:            row.NodeID,
-			CapturedAt:        row.CapturedAt,
-			CPUUsagePercent:   row.CPUUsagePercent,
-			MemoryUsedBytes:   row.MemoryUsedBytes,
-			MemoryTotalBytes:  row.MemoryTotalBytes,
-			StorageUsedBytes:  row.StorageUsedBytes,
-			StorageTotalBytes: row.StorageTotalBytes,
-			DiskReadBytes:     row.DiskReadBytes,
-			DiskWriteBytes:    row.DiskWriteBytes,
-			NetworkRxBytes:    row.NetworkRxBytes,
-			NetworkTxBytes:    row.NetworkTxBytes,
-			CreatedAt:         row.CreatedAt,
-		}
-	}
-	return result
+	return s.Observability.ListLatestMetricSnapshots(ctx, nodeID, since)
 }
 
 // ListOpenFlareTrafficHourlySince returns hourly traffic rollup rows since the given time.

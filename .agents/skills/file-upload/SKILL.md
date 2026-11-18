@@ -17,8 +17,8 @@ Wavelet 将「对象存储」与「上传业务」分为两层，**禁止混用�
 | :--- | :--- | :--- | :--- |
 | **对象存储引擎** | `internal/infra/objectstore` | `Backend` 接口：`Put` / `Get` / `Delete` / `Test`；按配置切换 Local / S3 / R2 / OSS / WebDAV | **禁止**（仅 upload 域内部使用） |
 | **上传域服务** | `internal/apps/upload` | `w_uploads` 记录、权限、秒传、统计、文件服务、`upload.Ingest` | **必须** |
-| **上传 HTTP 入口** | `internal/apps/upload/handler` | `POST /api/v1/upload` 等 multipart 接口 | 前端 / 用户侧上传 |
-| **文件访问** | `internal/apps/upload/filesrv` | `GET /f/:id` 流式响应、访问控制、图片 WebP 压缩 | 展示 / 下载 |
+| **上传 HTTP 入口** | `internal/apps/upload`（`routers.go`） | `POST /api/v1/upload` 等 multipart 接口 | 前端 / 用户侧上传 |
+| **文件访问** | `internal/apps/upload`（`file_server.go` / `access.go`） | `GET /f/:id` 流式响应、访问控制、图片 WebP 压缩 | 展示 / 下载 |
 
 ```text
 业务模块 ──► upload.Ingest / upload.Remove（唯一写入门禁）
@@ -58,7 +58,7 @@ invoice.FilePath = "uploads/2026/01/02/123.pdf"
 
 | 场景 | Policy | 哈希命中时 | 未命中时 | 典型调用方 |
 | :--- | :--- | :--- | :--- | :--- |
-| 用户 HTTP 上传（含秒传） | `PolicyDedupNewRecord` | 复用 path，**新建记录 + 统计** | 写 blob + 新建记录 + 统计 | `handler.UploadFile`（已内置） |
+| 用户 HTTP 上传（含秒传） | `PolicyDedupNewRecord` | 复用 path，**新建记录 + 统计** | 写 blob + 新建记录 + 统计 | `upload.UploadFile`（已内置） |
 | Worker 生成全新文件 | `PolicyCreate` | 不查重，始终写 blob + 记录 | 同左 | 报表导出、定时生成 |
 | 镜像 / 去重摄取（Pixez） | `PolicyResolveExisting` | **直接返回已有记录**，不建新记录、不加统计 | 写 blob + 新建记录 + 统计 | 异步镜像任务 |
 | 业务只需引用已有文件 | 不调 Ingest | — | — | 业务 API 校验 `upload_id` 即可 |
@@ -126,8 +126,8 @@ func ingestMirrorFile(ctx context.Context, userID uint64, data []byte, hash, fil
 | 错误 | 含义 | Handler 映射建议 |
 | :--- | :--- | :--- |
 | `upload.ErrIngestStorageReadOnly` | 存储迁移维护中 | `response.AbortConflict` |
-| `ingest.ErrForbidden` | 无权删除他人文件 | HTTP 403 |
-| `shared.ErrUnsupportedFormat` | 扩展名不在白名单 | `response.AbortBadRequest` |
+| `upload.ErrIngestForbidden` | 无权删除他人文件 | HTTP 403 |
+| `upload.ErrUnsupportedFormat` | 扩展名不在白名单 | `response.AbortBadRequest` |
 
 ### 删除
 
@@ -143,11 +143,11 @@ _, err := upload.RemoveOwned(ctx, userID, uploadID)
 
 ```go
 uploadRec, err := repository.GetActiveUploadByID(ctx, uploadID)
-obj, err := uploadstorage.OpenStoredObject(ctx, &uploadRec)
+obj, err := upload.OpenStoredObject(ctx, &uploadRec)
 defer obj.Body.Close()
 ```
 
-或通过门面（若已从 `exports` 暴露 `OpenStoredObject`）读取。HTTP 对外访问统一走 `GET /f/:id`。
+或使用 `upload.OpenStoredUpload(ctx, uploadID)`。HTTP 对外访问统一走 `GET /f/:id`。
 
 ---
 
@@ -217,7 +217,7 @@ upload.RebuildUploadStats(ctx) // 从 w_uploads 全量重建统计
 - **禁止**在源码目录硬编码 `uploads/test` 路径；本地文件测试用 `t.TempDir()` 或 mock backend
 - 覆盖：三种 Policy、Remove 后统计归零、ReadOnly 拒绝写入
 
-参考：[internal/apps/upload/ingest/ingest_test.go](file:///Users/ryan/DEV/Go/Wavelet/internal/apps/upload/ingest/ingest_test.go)
+参考：[ingest_test.go](file:///Users/ryan/Code/Go/OpenFlare/internal/apps/upload/ingest_test.go)
 
 ### Handler 回归
 

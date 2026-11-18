@@ -12,13 +12,11 @@ import (
 
 	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/openflare/routeidentity"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
-	"golang.org/x/net/publicsuffix"
 	"gorm.io/gorm"
 )
-
-const maxDomainLength = 253
 
 // Input is the mutable Zone payload.
 type Input struct {
@@ -51,44 +49,13 @@ type ListItem struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func zoneRoot(domain string) (string, error) {
-	domain = strings.ToLower(strings.TrimSpace(domain))
-	return publicsuffix.EffectiveTLDPlusOne(strings.TrimPrefix(domain, "*."))
-}
-
-func normalizeDomain(raw string) (string, error) {
-	domain := strings.ToLower(strings.TrimSpace(raw))
-	if domain == "" {
-		return "", errors.New(errZoneDomainRequired)
-	}
-	// 只允许最左侧完整标签为通配符；其余字符必须是 DNS 标签，不能进入配置语法。
-	host := strings.TrimPrefix(domain, "*.")
-	if len(domain) > maxDomainLength {
-		return "", errors.New(errDomainInvalid)
-	}
-	for _, label := range strings.Split(host, ".") {
-		if len(label) == 0 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
-			return "", errors.New(errDomainInvalid)
-		}
-		for _, char := range label {
-			if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' {
-				return "", errors.New(errDomainInvalid)
-			}
-		}
-	}
-	if _, err := zoneRoot(domain); err != nil {
-		return "", errors.New(errDomainInvalid)
-	}
-	return domain, nil
-}
-
 // Create persists a validated registered root.
 func Create(ctx context.Context, input Input) (*model.Zone, error) {
-	domain, err := normalizeDomain(input.Domain)
+	domain, err := routeidentity.NormalizeDomain(input.Domain)
 	if err != nil {
 		return nil, err
 	}
-	root, err := zoneRoot(domain)
+	root, err := routeidentity.ZoneRoot(domain)
 	if err != nil || root != domain {
 		return nil, errors.New(errZoneRootInvalid)
 	}
@@ -108,11 +75,11 @@ func Update(ctx context.Context, id uint, input Input) (*model.Zone, error) {
 	if err != nil {
 		return nil, err
 	}
-	domain, err := normalizeDomain(input.Domain)
+	domain, err := routeidentity.NormalizeDomain(input.Domain)
 	if err != nil {
 		return nil, err
 	}
-	root, err := zoneRoot(domain)
+	root, err := routeidentity.ZoneRoot(domain)
 	if err != nil || root != domain {
 		return nil, errors.New(errZoneRootInvalid)
 	}
@@ -174,11 +141,11 @@ func CreateDomain(ctx context.Context, zoneID uint, input DomainInput) (*model.Z
 	if err != nil {
 		return nil, err
 	}
-	domain, err := normalizeDomain(input.Domain)
+	domain, err := routeidentity.NormalizeDomain(input.Domain)
 	if err != nil {
 		return nil, err
 	}
-	root, err := zoneRoot(domain)
+	root, err := routeidentity.ZoneRoot(domain)
 	if err != nil || root != zone.Domain {
 		return nil, errors.New(errDomainOutsideZone)
 	}
@@ -203,7 +170,7 @@ func UpdateDomain(ctx context.Context, zoneID, id uint, input DomainInput) (*mod
 	if err != nil {
 		return nil, err
 	}
-	domain, err := normalizeDomain(input.Domain)
+	domain, err := routeidentity.NormalizeDomain(input.Domain)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +178,7 @@ func UpdateDomain(ctx context.Context, zoneID, id uint, input DomainInput) (*mod
 	if err != nil {
 		return nil, err
 	}
-	root, err := zoneRoot(domain)
+	root, err := routeidentity.ZoneRoot(domain)
 	if err != nil || root != zone.Domain {
 		return nil, errors.New(errDomainOutsideZone)
 	}

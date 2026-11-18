@@ -12,7 +12,7 @@ on:
 
 env:
   APP_NAME: openflare-server
-  GO_MAIN: ./main.go
+  GO_MAIN: ./cmd/server/main.go
   GO_BUILD_TAGS: embed_frontend
   GO_LDFLAGS: -s -w
   NODE_VERSION: "22"
@@ -212,7 +212,7 @@ jobs:
             binary_name="${binary_name}.exe"
           fi
 
-          ldflags="$GO_LDFLAGS -X github.com/Rain-kl/Wavelet/internal/buildinfo.Version=$VERSION -X github.com/Rain-kl/Wavelet/internal/buildinfo.BuildTime=$BUILD_DATE"
+          ldflags="$GO_LDFLAGS -X github.com/Rain-kl/Wavelet/internal/platform/buildinfo.Version=$VERSION -X github.com/Rain-kl/Wavelet/internal/platform/buildinfo.BuildTime=$BUILD_DATE"
           build_args=(
             -trimpath
             -ldflags "$ldflags"
@@ -309,7 +309,7 @@ jobs:
         run: |
           go mod download
           mkdir -p dist
-          go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/apps/agent/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/agent/main.go
+          go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/edge/agent/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/agent/main.go
 
       - name: Upload release artifact
         uses: softprops/action-gh-release@v2
@@ -356,7 +356,7 @@ jobs:
         run: |
           go mod download
           mkdir -p dist
-          go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/apps/relay/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/relay/main.go
+          go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/edge/relay/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/relay/main.go
 
       - name: Upload release artifact
         uses: softprops/action-gh-release@v2
@@ -403,7 +403,7 @@ jobs:
         run: |
           go mod download
           mkdir -p dist
-          go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/apps/flared/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/flared/main.go
+          go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/edge/flared/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/flared/main.go
 
       - name: Upload release artifact
         uses: softprops/action-gh-release@v2

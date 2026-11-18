@@ -529,11 +529,11 @@ bytes_sent (= $body_bytes_sent), request_length
 
 | 区域 | 主要路径 |
 | --- | --- |
-| 协议 | `pkg/protocol/agent.go` |
-| Agent 采集 | `internal/apps/agent/observability/`、`heartbeat/` |
-| OpenResty 日志与 Lua | `pkg/render/openresty/`、`internal/apps/agent/nginx/observability_assets.go` |
+| 协议 | `internal/openflare/protocol/agent.go` |
+| Agent 采集 | `internal/edge/agent/observability/`、`internal/edge/agent/heartbeat/` |
+| OpenResty 日志与 Lua | `internal/openflare/openresty/`、`internal/edge/agent/nginx/observability_assets.go` |
 | Server 入库 | `internal/apps/openflare/agent/observability.go` |
-| 日志聚合 | `internal/repository/analytics/node_access_log*.go`、`internal/apps/openflare/zone/stats.go` |
+| 日志聚合 | `internal/repository/logstore/ch_node_access_log*.go`、`internal/repository/logstore/postgres_store.go`、`internal/apps/openflare/zone/stats.go` |
 | 看板 | `internal/apps/openflare/dashboard/`、`internal/apps/openflare/observability/analytics.go` |
 | 前端 | `frontend/app/(main)/page.tsx`、`components/dashboard/*`、`websites/.../zone-overview.tsx` |
 

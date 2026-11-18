@@ -89,7 +89,7 @@ cp config.example.yaml config.yaml
 export APP_SESSION_SECRET='replace-with-a-long-random-string'
 # 可选：使用 PostgreSQL
 # export DB_HOST=127.0.0.1 DB_USERNAME=postgres DB_PASSWORD=postgres DB_NAME=openflare
-go run main.go all
+go run ./cmd/server all
 ```
 
 默认监听 `:3000`（由 `config.yaml` 的 `app.addr` 或 `APP_ADDR` 控制）。

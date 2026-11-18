@@ -16,7 +16,7 @@ DDL 与表结构变更见 `database-migration` 技能。日志/分析用途表�
 | 连接 | `internal/infra/persistence/clickhouse.go` | `ChConn`（原生批量写）、`ChDB`（GORM 查询）；禁止在业务包直接 `clickhouse.Open` |
 | 批量框架 | `internal/infra/persistence/batchwriter/` | 泛型队列 + 按条数/时间 flush + 非阻塞入队 + 优雅停机；**各业务域独立实例** |
 | Model | `internal/model/analytics/` | 列定义、`TableName()`、`BatchInsertSQL()`（及可选 `InsertColumns()`） |
-| Repository | `internal/repository/analytics/` | `BatchInsert*` / `BatchInsertNodeAccessLogs` 等；`PrepareBatch` + 多行 `Append` + 一次 `Send` |
+| Repository | `internal/repository/logstore/`（或 `internal/repository/`） | `BatchInsert*` / `BatchInsertNodeAccessLogs` 等；`PrepareBatch` + 多行 `Append` + 一次 `Send` |
 | Apps | `internal/apps/<domain>/` | 采集、入队、背压；`FlushFunc` 只调 logstore / repository，不写 SQL、不 `PrepareBatch` |
 | 装配 | `internal/platform/bootstrap/bootstrap.go` | 进程启动时调用 `Writer.Start`；初始化时需调用 `lifecycle.OnShutdown` 挂载停机钩子 |
 | 生命周期 | `internal/platform/lifecycle/lifecycle.go` | 统一协调全局并发优雅停机，业务包无需在 `bootstrap.go` 中硬编码 `Stop` 逻辑 |
@@ -50,8 +50,8 @@ writer.Stop(stopCtx)      // close 队列 + drain + 最终 flush
 ### FlushFunc 规范
 
 - 签名：`func(ctx context.Context, items []T) error`
-- **日志/分析用途表**：`logstore.Active(ctx)` 再调对应 `BatchInsert*`。禁止 apps 直连 `analyticsrepo` 或 `db.ChConn`。
-- 仅 CH、无需主库回落的分析表：才直接调 `repository/analytics` 的 `BatchInsert*`。
+- **日志/分析用途表**：`logstore.Active(ctx)` 再调对应 `BatchInsert*`。禁止 apps 直连 ClickHouse 驱动或 `db.ChConn`。
+- 仅 CH、无需主库回落的分析表：在 `internal/repository/` 实现 `BatchInsert*`，apps 只调 `repository` 或 `logstore`。
 - 在 flush 边界记录一次错误日志，不要把 DB 驱动错误直接暴露给 HTTP 客户端
 - `Start` 使用 `context.WithoutCancel(parent)`，避免请求 ctx 取消中断后台 flush
 
@@ -62,8 +62,8 @@ writer.Stop(stopCtx)      // close 队列 + drain + 最终 flush
 | 域 | 表 | 写入路径 |
 | :--- | :--- | :--- |
 | 管理端审计 | `w_user_access_logs` | `risk_control` → `batchwriter` → `logstore.Active` |
-| 边缘访问日志 | `of_node_access_logs` | `openflare/chwriter` → `logstore.Active` |
-| 可观测时序 | `of_node_metric_snapshots` 等 | `openflare/chwriter` 分表 writer + 进程内短 TTL 去重 → `logstore.Active` |
+| 边缘访问日志 | `of_node_access_logs` | `openflare/logwriter` → `logstore.Active` |
+| 可观测时序 | `of_node_metric_snapshots` 等 | `openflare/logwriter` 分表 writer + 进程内短 TTL 去重 → `logstore.Active` |
 
 **不要**把 audit、access log、observability 并入同一 channel。
 
@@ -140,7 +140,7 @@ func RegisterAPI(ctx context.Context) {
 
 ```bash
 go test ./internal/infra/persistence/batchwriter
-go test ./internal/repository/analytics
+go test ./internal/repository/...
 make code-check
 ```
 
@@ -155,9 +155,9 @@ make code-check
 - 框架：`internal/infra/persistence/batchwriter/{config,writer,errs}.go`
 - 连接：`internal/infra/persistence/clickhouse.go`
 - 审计写入：`internal/apps/risk_control/logics.go`
-- OpenFlare 写入胶水：`internal/apps/openflare/chwriter/writer.go`
+- OpenFlare 写入胶水：`internal/apps/openflare/logwriter/writer.go`
 - 日志抽象：`internal/repository/logstore`
-- 节点访问日志 CH 实现：`internal/repository/analytics/node_access_log_writer.go`
-- 可观测 CH 实现：`internal/repository/analytics/node_observability_writer.go`
+- 节点访问日志 CH 实现：`internal/repository/logstore/ch_node_access_log_writer.go`
+- 可观测 CH 实现：`internal/repository/logstore/ch_node_observability_writer.go`
 - 生命周期管理器：`internal/platform/lifecycle/lifecycle.go`
 - Bootstrap：`internal/platform/bootstrap/bootstrap.go`

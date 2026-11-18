@@ -6,7 +6,7 @@ package origin
 import (
 	"net/http"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +15,7 @@ func handleLogicError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false
 	}
-	return apiutil.AbortNotFoundIfMissing(c, err, errOriginNotFound)
+	return httpx.AbortNotFoundIfMissing(c, err, errOriginNotFound)
 }
 
 // GetOrigins 列出全部源站。
@@ -50,7 +50,7 @@ func GetOrigins(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或源站不存在"
 // @Router /api/v1/d/origins/{id} [get]
 func GetOrigin(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -76,7 +76,7 @@ func GetOrigin(c *gin.Context) {
 // @Router /api/v1/d/origins [post]
 func CreateOriginHandler(c *gin.Context) {
 	var input Input
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	origin, err := CreateOrigin(c.Request.Context(), input)
@@ -101,12 +101,12 @@ func CreateOriginHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或源站不存在"
 // @Router /api/v1/d/origins/{id}/update [post]
 func UpdateOriginHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input Input
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	origin, err := UpdateOrigin(c.Request.Context(), id, input)
@@ -129,7 +129,7 @@ func UpdateOriginHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或源站不存在"
 // @Router /api/v1/d/origins/{id}/delete [post]
 func DeleteOriginHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}

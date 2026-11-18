@@ -7,8 +7,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/infra/persistence/batchwriter"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -20,6 +20,24 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+// BatchWriterStatsProvider returns runtime queue metrics for asynchronous log batch writers.
+type BatchWriterStatsProvider func() []batchwriter.Stats
+
+var (
+	batchStatsMu        sync.RWMutex
+	batchStatsProviders []BatchWriterStatsProvider
+)
+
+// RegisterBatchWriterStatsProvider registers a stats source exposed on the admin log-database status endpoint.
+func RegisterBatchWriterStatsProvider(provider BatchWriterStatsProvider) {
+	if provider == nil {
+		return
+	}
+	batchStatsMu.Lock()
+	batchStatsProviders = append(batchStatsProviders, provider)
+	batchStatsMu.Unlock()
+}
 
 // 日志库名取值（与 model 配置值、logstore provider 分支保持一致）。
 const (
@@ -127,9 +145,15 @@ func availableTargets(active string) []string {
 }
 
 func collectBatchWriterStats() []batchwriter.Stats {
-	out := chwriter.WriterStats()
-	if out == nil {
-		out = make([]batchwriter.Stats, 0, 1)
+	batchStatsMu.RLock()
+	providers := append([]BatchWriterStatsProvider(nil), batchStatsProviders...)
+	batchStatsMu.RUnlock()
+
+	out := make([]batchwriter.Stats, 0, len(providers))
+	for _, provider := range providers {
+		if stats := provider(); len(stats) > 0 {
+			out = append(out, stats...)
+		}
 	}
 	return out
 }

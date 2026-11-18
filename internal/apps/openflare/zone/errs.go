@@ -4,9 +4,7 @@
 package zone
 
 const (
-	errZoneDomainRequired  = "domain name must not be empty"
 	errZoneRootInvalid     = "zone must be a valid registered root domain"
-	errDomainInvalid       = "invalid domain name format"
 	errDomainOutsideZone   = "domain does not belong to this zone"
 	errZoneNotFound        = "Zone was not found"
 	errDomainNotFound      = "Domain was not found"

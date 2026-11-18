@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -55,7 +57,7 @@ func normalizeOpenrestyStatus(status string) string {
 	}
 }
 
-func normalizeNodePayload(payload NodePayload) NodePayload {
+func normalizeNodePayload(payload protocol.NodePayload) protocol.NodePayload {
 	payload.Name = strings.TrimSpace(payload.Name)
 	payload.IP = strings.TrimSpace(payload.IP)
 	payload.Version = strings.TrimSpace(payload.Version)
@@ -81,7 +83,7 @@ func normalizeNodePayload(payload NodePayload) NodePayload {
 	return payload
 }
 
-func validateNodePayload(payload NodePayload) error {
+func validateNodePayload(payload protocol.NodePayload) error {
 	if payload.IP == "" {
 		return errPayload(errIPRequired)
 	}
@@ -100,7 +102,7 @@ func (e payloadError) Error() string { return string(e) }
 
 func errPayload(message string) error { return payloadError(message) }
 
-func applyNodeRuntime(ctx context.Context, node *model.OpenFlareNode, payload NodePayload, preserveName bool) {
+func applyNodeRuntime(ctx context.Context, node *model.OpenFlareNode, payload protocol.NodePayload, preserveName bool) {
 	if !preserveName || strings.TrimSpace(node.Name) == "" {
 		if strings.TrimSpace(payload.Name) != "" {
 			node.Name = strings.TrimSpace(payload.Name)
@@ -191,7 +193,7 @@ func isPublicNodeIP(raw string) bool {
 	return true
 }
 
-func buildAgentSettings(ctx context.Context, node *model.OpenFlareNode, updateNow bool, updateChannel string, updateTag string, restartOpenrestyNow bool) *Settings {
+func buildAgentSettings(ctx context.Context, node *model.OpenFlareNode, updateNow bool, updateChannel string, updateTag string, restartOpenrestyNow bool) *protocol.AgentSettings {
 	autoUpdate := false
 	if node != nil {
 		autoUpdate = node.AutoUpdateEnabled
@@ -211,7 +213,7 @@ func buildAgentSettings(ctx context.Context, node *model.OpenFlareNode, updateNo
 		updateRepo.Value = defaultAgentUpdateRepo
 	}
 
-	return &Settings{
+	return &protocol.AgentSettings{
 		HeartbeatInterval:       heartbeatInterval,
 		WebsocketUpgradeEnabled: wsUpgradeEnabled,
 		AutoUpdate:              autoUpdate,
@@ -273,7 +275,7 @@ func lastSeenAtEqual(before *time.Time, after *time.Time) bool {
 	return before.Equal(*after)
 }
 
-func normalizeApplyLogPayload(payload ApplyLogPayload) ApplyLogPayload {
+func normalizeApplyLogPayload(payload protocol.ApplyLogPayload) protocol.ApplyLogPayload {
 	payload.NodeID = strings.TrimSpace(payload.NodeID)
 	payload.Version = strings.TrimSpace(payload.Version)
 	payload.Result = strings.ToLower(strings.TrimSpace(payload.Result))

@@ -6,9 +6,11 @@ package relay
 import (
 	"net/http"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -20,15 +22,15 @@ import (
 // @Accept json
 // @Produce json
 // @Security AgentTokenAuth
-// @Param body body relay.HeartbeatPayload true "心跳载荷"
-// @Success 200 {object} response.Any{data=relay.HeartbeatResponse} "心跳响应"
+// @Param body body protocol.RelayHeartbeatPayload true "心跳载荷"
+// @Success 200 {object} response.Any{data=protocol.RelayHeartbeatResponse} "心跳响应"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "Agent Token 无效"
 // @Failure 403 {object} response.Any "节点类型不匹配"
 // @Router /api/v1/relay/heartbeat [post]
 func PostHeartbeat(c *gin.Context) {
-	var payload HeartbeatPayload
-	if !apiutil.BindJSON(c, &payload) {
+	var payload protocol.RelayHeartbeatPayload
+	if !httpx.BindJSON(c, &payload) {
 		return
 	}
 	payload.IP = resolveReportedNodeIP(payload.IP, c.Request.RemoteAddr)
@@ -45,7 +47,7 @@ func PostHeartbeat(c *gin.Context) {
 	}
 
 	result, err := Heartbeat(c.Request.Context(), node, payload)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))

@@ -33,9 +33,9 @@ build-embedded:
 	cp -R frontend/out internal/router/root/dist
 	go build \
 		-tags embed_frontend \
-		-ldflags "-s -w -X '$(MODULE)/internal/buildinfo.Version=$(VERSION)' -X '$(MODULE)/internal/buildinfo.BuildTime=$(BUILD_DATE)'" \
+		-ldflags "-s -w -X '$(MODULE)/internal/platform/buildinfo.Version=$(VERSION)' -X '$(MODULE)/internal/platform/buildinfo.BuildTime=$(BUILD_DATE)'" \
 		-o bin/openflare-server \
-		main.go
+		cmd/server/main.go
 
 code-check:
 	@echo "==> Architecture guards..."
@@ -50,28 +50,28 @@ code-check:
 build-backend:
 	@echo "==> Building backend version=$(VERSION) build_date=$(BUILD_DATE)..."
 	go build \
-		-ldflags "-s -w -X '$(MODULE)/internal/buildinfo.Version=$(VERSION)' -X '$(MODULE)/internal/buildinfo.BuildTime=$(BUILD_DATE)'" \
+		-ldflags "-s -w -X '$(MODULE)/internal/platform/buildinfo.Version=$(VERSION)' -X '$(MODULE)/internal/platform/buildinfo.BuildTime=$(BUILD_DATE)'" \
 		-o bin/openflare-server \
-		main.go
+		cmd/server/main.go
 
 build-agent:
 	@echo "==> Building agent version=$(VERSION)..."
 	go build \
-		-ldflags "-s -w -X '$(MODULE)/internal/apps/agent/config.Version=$(VERSION)'" \
+		-ldflags "-s -w -X '$(MODULE)/internal/edge/agent/config.Version=$(VERSION)'" \
 		-o bin/openflare-agent \
 		cmd/agent/main.go
 
 build-relay:
 	@echo "==> Building relay version=$(VERSION)..."
 	go build \
-		-ldflags "-s -w -X '$(MODULE)/internal/apps/relay/config.Version=$(VERSION)'" \
+		-ldflags "-s -w -X '$(MODULE)/internal/edge/relay/config.Version=$(VERSION)'" \
 		-o bin/openflare-relay \
 		cmd/relay/main.go
 
 build-flared:
 	@echo "==> Building flared version=$(VERSION)..."
 	go build \
-		-ldflags "-s -w -X '$(MODULE)/internal/apps/flared/config.Version=$(VERSION)'" \
+		-ldflags "-s -w -X '$(MODULE)/internal/edge/flared/config.Version=$(VERSION)'" \
 		-o bin/flared \
 		cmd/flared/main.go
 
@@ -124,14 +124,14 @@ dev-f:
 
 dev-b:
 	@echo "==> Starting backend development server..."
-	go run main.go all
+	go run ./cmd/server all
 
 dev:
 	@echo "==> Starting frontend and backend development servers in parallel..."
 	@PIDS=""; \
 	STATUS=0; \
 	( cd frontend && pnpm dev 2>&1 | sed 's/^/[frontend] /' ) & PIDS="$$PIDS $$!"; \
-	( go run main.go all 2>&1 | sed 's/^/[backend]  /' ) & PIDS="$$PIDS $$!"; \
+	( go run ./cmd/server all 2>&1 | sed 's/^/[backend]  /' ) & PIDS="$$PIDS $$!"; \
 	for PID in $$PIDS; do \
 		wait $$PID || STATUS=1; \
 	done; \

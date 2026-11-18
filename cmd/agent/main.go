@@ -13,22 +13,22 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/agent"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/config"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/geoipupdate"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/heartbeat"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/httpclient"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/logging"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/nginx"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/runtimeuser"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/state"
-	syncservice "github.com/Rain-kl/Wavelet/internal/apps/agent/sync"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/updater"
-	"github.com/Rain-kl/Wavelet/internal/apps/agent/wsclient"
+	"github.com/Rain-kl/Wavelet/internal/edge/agent/agent"
+	"github.com/Rain-kl/Wavelet/internal/edge/agent/config"
+	"github.com/Rain-kl/Wavelet/internal/edge/agent/geoipupdate"
+	"github.com/Rain-kl/Wavelet/internal/edge/agent/heartbeat"
+	"github.com/Rain-kl/Wavelet/internal/edge/agent/httpclient"
+	"github.com/Rain-kl/Wavelet/internal/edge/agent/nginx"
+	"github.com/Rain-kl/Wavelet/internal/edge/agent/runtimeuser"
+	"github.com/Rain-kl/Wavelet/internal/edge/agent/state"
+	syncservice "github.com/Rain-kl/Wavelet/internal/edge/agent/sync"
+	edgelogging "github.com/Rain-kl/Wavelet/internal/edge/common/logging"
+	edgeupdater "github.com/Rain-kl/Wavelet/internal/edge/common/updater"
+	edgews "github.com/Rain-kl/Wavelet/internal/edge/common/wsclient"
 )
 
 func main() {
-	logging.Setup()
+	edgelogging.Setup(edgelogging.Options{AddSource: true})
 
 	configPath := flag.String("config", "./agent.json", "agent config path")
 	flag.Parse()
@@ -74,7 +74,7 @@ func main() {
 	)
 
 	client := httpclient.New(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
-	wsClient := wsclient.New(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
+	wsClient := edgews.NewAgentClient(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
 	stateStore := state.NewStore(cfg.StatePath)
 	observabilityBuffer := state.NewObservabilityBufferStore(cfg.ObservabilityBufferPath)
 	runtimeManager := &nginx.Manager{
@@ -110,7 +110,11 @@ func main() {
 	syncService := syncservice.New(client, runtimeManager, stateStore)
 	syncService.SetPagesDir(cfg.PagesDir)
 	heartbeatService := heartbeat.New(client)
-	updateService := updater.New()
+	updateService := edgeupdater.New(edgeupdater.Config{
+		LocalVersion: config.Version,
+		AssetPrefix:  "openflare-agent",
+		LogLabel:     "agent",
+	})
 	runner := &agent.Runner{
 		Config:     cfg,
 		StateStore: stateStore,

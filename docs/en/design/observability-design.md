@@ -529,11 +529,11 @@ bytes_sent (= $body_bytes_sent), request_length
 
 | Area | Main Paths |
 | --- | --- |
-| Protocol | `pkg/protocol/agent.go` |
-| Agent collection | `internal/apps/agent/observability/`, `heartbeat/` |
-| OpenResty logging and Lua | `pkg/render/openresty/`, `internal/apps/agent/nginx/observability_assets.go` |
+| Protocol | `internal/openflare/protocol/agent.go` |
+| Agent collection | `internal/edge/agent/observability/`, `internal/edge/agent/heartbeat/` |
+| OpenResty logging and Lua | `internal/openflare/openresty/`, `internal/edge/agent/nginx/observability_assets.go` |
 | Server storage | `internal/apps/openflare/agent/observability.go` |
-| Log aggregation | `internal/repository/analytics/node_access_log*.go`, `internal/apps/openflare/zone/stats.go` |
+| Log aggregation | `internal/repository/logstore/ch_node_access_log*.go`, `internal/repository/logstore/postgres_store.go`, `internal/apps/openflare/zone/stats.go` |
 | Dashboard | `internal/apps/openflare/dashboard/`, `internal/apps/openflare/observability/analytics.go` |
 | Frontend | `frontend/app/(main)/page.tsx`, `components/dashboard/*`, `websites/.../zone-overview.tsx` |
 

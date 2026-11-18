@@ -163,10 +163,10 @@ func (h *SendEmailHandler) Execute(ctx context.Context, payload []byte) (*task.T
 
 ## 统一注册
 
-在 `internal/infra/task/handlers/register.go` 注册。Admin dispatch 的 `ValidateAndNormalizePayload` 和 Worker 执行都依赖这里。
+在 `internal/platform/bootstrap/tasks.go` 注册（可按模块拆分 helper，由 `RegisterTasks()` 调用）。Admin dispatch 的 `ValidateAndNormalizePayload` 和 Worker 执行都依赖这里。
 
 ```go
-package handlers
+package bootstrap
 
 import (
     "github.com/Rain-kl/Wavelet/internal/apps/upload"
@@ -174,7 +174,7 @@ import (
     "github.com/Rain-kl/Wavelet/internal/infra/task"
 )
 
-func Register() {
+func registerDomainTasks() {
     task.RegisterHandler(task.CleanupUnusedUploadsTask, &upload.CleanupUnusedUploadsHandler{})
     task.RegisterHandler(task.SendEmailTask, &user.SendEmailHandler{})
 }

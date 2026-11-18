@@ -19,8 +19,8 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	pkgprotocol "github.com/Rain-kl/Wavelet/pkg/protocol"
-	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
+	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	pkgprotocol "github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"gorm.io/gorm"
 )
 

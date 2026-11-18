@@ -7,17 +7,20 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
-	taskhandlers "github.com/Rain-kl/Wavelet/internal/infra/task/handlers"
 )
 
 func TestDuplicateTaskMeta(t *testing.T) {
-	// Call Register twice to simulate being imported by multiple packages (routers, worker, etc.)
-	taskhandlers.Register()
-	taskhandlers.Register()
+	// Registering the same task type repeatedly must remain idempotent.
+	meta := task.TaskMeta{
+		Type:      "test_duplicate_meta",
+		AsynqTask: "test:duplicate_meta",
+		Name:      "Duplicate test task",
+	}
+	task.RegisterTaskMeta(meta)
+	task.RegisterTaskMeta(meta)
 
 	metas := task.GetDispatchableTasks()
 
-	// Check if we have duplicates by checking if a Type appears more than once
 	seen := make(map[string]int)
 	for _, m := range metas {
 		seen[m.Type]++

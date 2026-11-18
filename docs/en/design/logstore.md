@@ -9,7 +9,7 @@ Observability fields and the reporting protocol are still governed by [Observabi
 ## 1. Goals
 
 * **ClickHouse optional**: when not enabled, PostgreSQL (or SQLite when the primary DB is off) fully takes over writes, queries, aggregation, and cleanup.
-* **Upper layers don't touch the underlying DB**: apps only face `internal/repository/logstore` (or the `repository` facade). `repository/analytics` and `db.ChConn` / `db.ChDB` are only used by logstore's ClickHouse implementation.
+* **Upper layers don't touch the underlying DB**: apps only face `internal/repository/logstore` (or the `repository` facade). `db.ChConn` / `db.ChDB` and ClickHouse native batch IO are only used inside `logstore`'s ClickHouse implementation.
 * **Switchable**: 「Switch Log Database」in Task Management copies data between PostgreSQL/SQLite and ClickHouse and flips the primary; writes are frozen during migration, the switch only happens on success, and source data is not deleted.
 
 ---
@@ -42,11 +42,11 @@ Hourly materialized views on ClickHouse (e.g. `of_access_log_hourly`) only serve
 | Layer | Path | Responsibility |
 | --- | --- | --- |
 | Abstraction | `internal/repository/logstore` | Interfaces + `Active` / `BuildForMigration`; selects implementation by `log_database` |
-| CH implementation | `logstore/clickhouse_store.go` | Delegates to `repository/analytics` (native batch + existing aggregation SQL) |
+| CH implementation | `logstore/clickhouse_store.go` + `logstore/ch_*.go` | Native batch (`PrepareBatch` / `Append` / `Send`) + aggregation SQL |
 | Primary DB implementation | `logstore/postgres_store.go` | PostgreSQL (high-frequency tables partitioned monthly) and SQLite (plain tables) share GORM |
 | Model | `internal/model/analytics` | Entities and batch SQL, no IO |
-| Enqueue | `chwriter` / `risk_control` + `batchwriter` | `FlushFunc` calls `logstore.Active`; node logs / observability enqueue via hooks |
-| Constraint | `logstore/imports_test.go` | apps are forbidden from importing `repository/analytics` |
+| Enqueue | `openflare/logwriter` / `risk_control` + `batchwriter` | `FlushFunc` calls `logstore.Active`; node logs / observability enqueue via hooks |
+| Constraint | `logstore/imports_test.go` | apps are forbidden from importing ClickHouse drivers, `migrator`, or persistence internals |
 
 `log_database` has only two legal states: **follow the business primary DB** (`postgres` or `sqlite`) or **`clickhouse`**. "Primary PostgreSQL + log SQLite" does not exist. `log_database` / `log_db_migration` are protected and cannot be changed from the admin panel.
 
@@ -64,7 +64,7 @@ Task type `of_log_db_switch` (admin name 「Switch Log Database」), parameter `
 4. Only on full success write `log_database=target` and clear the migration marker; on failure clear the marker and writes continue on the source DB.
 5. Source data is not deleted; re-clear the target before retry to guarantee idempotency.
 
-Don't invent another switch protocol, and don't connect `analyticsrepo` directly inside tasks.
+Don't invent another switch protocol, and don't bypass `logstore` via direct `db.ChConn` or ClickHouse drivers inside tasks.
 
 ---
 
@@ -74,7 +74,7 @@ Column names must be identical across the three goose migrations (ClickHouse / P
 
 * High-frequency tables: CH uses `MergeTree` + `toYYYYMM`; PG uses `PARTITION BY RANGE(time column)` with the partition key in the primary key; SQLite uses a plain table + indexes.
 * IDs use snowflake `uint64`, preserved as-is during migration.
-* Writes go through a dedicated `batchwriter`; flush calls `logstore.Active`, not `analyticsrepo.BatchInsert`.
+* Writes go through a dedicated `batchwriter`; flush calls `logstore.Active` instead of bypassing to raw ClickHouse inserts.
 * The switch task's `copy*` must cover the new table; cleanup uses existing `log_retention_days_*` or `metric_retention_days`, don't use the wrong TTL.
 
 Runtime config: [Configuration Reference · Log Storage](../reference/configuration.md#8-日志存储log-database).

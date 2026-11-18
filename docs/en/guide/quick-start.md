@@ -122,7 +122,7 @@ Default account:
 If you forget the password and no password-recovery channel is configured, reset it with:
 
 ```bash
-go run main.go reset-passwd --user admin
+go run ./cmd/server reset-passwd --user admin
 ```
 
 Without `--password`, the command auto-generates a random password and prints it to the terminal; you can also explicitly specify a new password with `--password`.

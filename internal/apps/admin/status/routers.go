@@ -23,6 +23,7 @@ import (
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
+	"github.com/Rain-kl/Wavelet/pkg/util"
 	"github.com/gin-gonic/gin"
 
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
@@ -36,10 +37,6 @@ const (
 	minutesInHour   = 60
 	secondsInMinute = 60
 	nanosPerSecond  = 1e9
-	binaryKB        = 0
-	binaryMB        = 1
-	binaryGB        = 2
-	valueThreshold  = 10 // 格式化时区分整数显示的阈值
 )
 
 // SystemStatusResponse 系统状态响应结构体
@@ -72,44 +69,6 @@ type SystemStatusResponse struct {
 	PauseTotalNs string `json:"pause_total_ns"`
 	LastPause    string `json:"last_pause"`
 	NumGC        uint32 `json:"num_gc"`
-}
-
-// formatBytes 格式化字节大小
-func formatBytes(bytes uint64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	value := float64(bytes) / float64(div)
-	var suffix string
-	switch exp {
-	case binaryKB:
-		suffix = "KiB"
-	case binaryMB:
-		suffix = "MiB"
-	case binaryGB:
-		suffix = "GiB"
-	default:
-		suffix = "TiB"
-	}
-
-	// 格式化规则：
-	// - 如果是整数（如 16, 73, 105, 986, 112）：
-	//   - 如果 >= 10，则格式化为 "%.0f" (e.g. "16 KiB")
-	//   - 如果 < 10，则格式化为 "%.1f" (e.g. "9.0 KiB")
-	// - 如果不是整数（如 5.8, 9.1, 7.6, 4.8）：格式化为 "%.1f"
-	if value == math.Trunc(value) {
-		if value >= valueThreshold {
-			return fmt.Sprintf("%.0f %s", value, suffix)
-		}
-		return fmt.Sprintf("%.1f %s", value, suffix)
-	}
-	return fmt.Sprintf("%.1f %s", value, suffix)
 }
 
 // formatDuration 格式化时间持续时间
@@ -172,28 +131,28 @@ func GetSystemStatus(c *gin.Context) {
 	res := SystemStatusResponse{
 		Uptime:       uptime,
 		NumGoroutine: numGoroutine,
-		Alloc:        formatBytes(m.Alloc),
-		TotalAlloc:   formatBytes(m.TotalAlloc),
-		Sys:          formatBytes(m.Sys),
+		Alloc:        util.FormatBinaryBytes(m.Alloc),
+		TotalAlloc:   util.FormatBinaryBytes(m.TotalAlloc),
+		Sys:          util.FormatBinaryBytes(m.Sys),
 		Lookups:      m.Lookups,
 		Mallocs:      m.Mallocs,
 		Frees:        m.Frees,
-		HeapAlloc:    formatBytes(m.HeapAlloc),
-		HeapSys:      formatBytes(m.HeapSys),
-		HeapIdle:     formatBytes(m.HeapIdle),
-		HeapInuse:    formatBytes(m.HeapInuse),
-		HeapReleased: formatBytes(m.HeapReleased),
+		HeapAlloc:    util.FormatBinaryBytes(m.HeapAlloc),
+		HeapSys:      util.FormatBinaryBytes(m.HeapSys),
+		HeapIdle:     util.FormatBinaryBytes(m.HeapIdle),
+		HeapInuse:    util.FormatBinaryBytes(m.HeapInuse),
+		HeapReleased: util.FormatBinaryBytes(m.HeapReleased),
 		HeapObjects:  m.HeapObjects,
-		StackInuse:   formatBytes(m.StackInuse),
-		StackSys:     formatBytes(m.StackSys),
-		MSpanInuse:   formatBytes(m.MSpanInuse),
-		MSpanSys:     formatBytes(m.MSpanSys),
-		MCacheInuse:  formatBytes(m.MCacheInuse),
-		MCacheSys:    formatBytes(m.MCacheSys),
-		BuckHashSys:  formatBytes(m.BuckHashSys),
-		GCSys:        formatBytes(m.GCSys),
-		OtherSys:     formatBytes(m.OtherSys),
-		NextGC:       formatBytes(m.NextGC),
+		StackInuse:   util.FormatBinaryBytes(m.StackInuse),
+		StackSys:     util.FormatBinaryBytes(m.StackSys),
+		MSpanInuse:   util.FormatBinaryBytes(m.MSpanInuse),
+		MSpanSys:     util.FormatBinaryBytes(m.MSpanSys),
+		MCacheInuse:  util.FormatBinaryBytes(m.MCacheInuse),
+		MCacheSys:    util.FormatBinaryBytes(m.MCacheSys),
+		BuckHashSys:  util.FormatBinaryBytes(m.BuckHashSys),
+		GCSys:        util.FormatBinaryBytes(m.GCSys),
+		OtherSys:     util.FormatBinaryBytes(m.OtherSys),
+		NextGC:       util.FormatBinaryBytes(m.NextGC),
 		LastGCTime:   lastGCTime,
 		PauseTotalNs: fmt.Sprintf("%.1fs", float64(m.PauseTotalNs)/nanosPerSecond),
 		LastPause:    lastPause,

@@ -20,7 +20,7 @@ const legacyCategoryKeys = new Set([
   '其他',
 ]);
 const compatibilityFiles = new Set([
-  'internal/apps/upload/stats/category.go',
+  'internal/apps/upload/category.go',
   'frontend/app/(main)/admin/files/components/file-stats.tsx',
 ]);
 

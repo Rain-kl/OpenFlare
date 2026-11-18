@@ -6,7 +6,7 @@ package proxy_route
 import (
 	"net/http"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +15,7 @@ func handleLogicError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false
 	}
-	return apiutil.AbortNotFoundIfMissing(c, err, errProxyRouteNotFound)
+	return httpx.AbortNotFoundIfMissing(c, err, errProxyRouteNotFound)
 }
 
 // GetProxyRoutes 列出全部代理规则。
@@ -50,7 +50,7 @@ func GetProxyRoutes(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或规则不存在"
 // @Router /api/v1/d/proxy-routes/{id} [get]
 func GetProxyRouteHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -76,7 +76,7 @@ func GetProxyRouteHandler(c *gin.Context) {
 // @Router /api/v1/d/proxy-routes [post]
 func CreateProxyRouteHandler(c *gin.Context) {
 	var input Input
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	route, err := CreateProxyRoute(c.Request.Context(), input)
@@ -101,12 +101,12 @@ func CreateProxyRouteHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或规则不存在"
 // @Router /api/v1/d/proxy-routes/{id}/update [post]
 func UpdateProxyRouteHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input Input
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	route, err := UpdateProxyRoute(c.Request.Context(), id, input)
@@ -129,7 +129,7 @@ func UpdateProxyRouteHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any "无权限或规则不存在"
 // @Router /api/v1/d/proxy-routes/{id}/delete [post]
 func DeleteProxyRouteHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}

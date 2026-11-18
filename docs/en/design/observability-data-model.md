@@ -306,7 +306,7 @@ Written to the relational health-event table (existing model suffices), not into
 ### 3.8 Go Protocol Structures
 
 ```go
-// pkg/protocol/agent.go (current implementation)
+// internal/openflare/protocol/agent.go (current implementation)
 
 type NodePayload struct {
     SchemaVersion       int                    `json:"schema_version,omitempty"`

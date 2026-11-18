@@ -91,12 +91,12 @@ ClickHouse 是**辅助 OLAP 存储**，与 PostgreSQL/SQLite 主库**完全独�
 | :--- | :--- |
 | `internal/infra/persistence/migrator/goose/clickhouse/` | **唯一** ClickHouse DDL 来源（goose SQL，嵌入二进制） |
 | `internal/model/analytics/` | 分析表 Go model，列名须与 goose DDL 一致 |
-| `internal/repository/analytics/` | 所有 ClickHouse 读写（批量写入、查询、聚合） |
+| `internal/repository/logstore/` | 日志用途表的 ClickHouse 实现（`ch_*.go`）与主库回落实现 |
 | `internal/infra/persistence/clickhouse.go` | 连接初始化（`ChConn` 原生批量、`ChDB` GORM 查询） |
 
 ### 迁移入口与版本表
 
-- 入口：`migrator.MigrateClickHouse()`，在 `cmd/root.go` 的 `PreRun` 中于 `migrator.Migrate()` 之后调用。
+- 入口：`migrator.MigrateClickHouse()`，在 `cmd/server/cli/root.go` 的 `PreRun` 中于 `migrator.Migrate()` 之后调用。
 - 仅当 `clickhouse.enabled: true` 时执行；禁用时直接跳过（见 `TestMigrateClickHouseSkipsWhenDisabled`）。
 - 版本表：`goose_clickhouse_version`，与主库 `goose_db_version` **分离**，互不影响。
 - 方言：仅 ClickHouse，**无** SQLite 镜像目录。
@@ -109,7 +109,7 @@ ClickHouse 是**辅助 OLAP 存储**，与 PostgreSQL/SQLite 主库**完全独�
 4. **Down 谨慎**：MergeTree 等引擎上 `DROP TABLE` 会立即删除数据，生产环境通常只前滚；仅在开发/测试需要回滚时编写 `Down`。
 5. **DDL 与 DML 分离**：与主库相同，表结构变更与数据初始化分文件、分版本号；分析表通常无 seed，批量写入由 repository 在运行时完成。
 6. **引擎与排序键**：在 SQL 中显式声明 `ENGINE`、`PARTITION BY`、`ORDER BY` 等，与查询模式对齐（例如按 `created_at` 分区）。
-7. **禁止重复 DDL**：不要在 `support-files/`、`apps` 初始化逻辑或 `repository/analytics` 中复制建表语句。
+7. **禁止重复 DDL**：不要在 `support-files/`、`apps` 初始化逻辑或 `repository/` 中复制建表语句。
 
 ### 新增分析表工作流
 
@@ -117,8 +117,8 @@ ClickHouse 是**辅助 OLAP 存储**，与 PostgreSQL/SQLite 主库**完全独�
 
 1. **Model**：在 `internal/model/analytics/` 定义 struct，`gorm:"column:..."` 与 DDL 列名一一对应；实现 `TableName()`，批量写入表可提供 `InsertColumns()` / `BatchInsertSQL()`。
 2. **Goose SQL**：在 `internal/infra/persistence/migrator/goose/clickhouse/` 新增递增版本文件（格式同主库，如 `YYYYMMDDNNNN_create_xxx.sql`），编写 `-- +goose Up` / `-- +goose Down`。
-3. **Repository**：在 `internal/repository/analytics/` 实现 `BatchInsert*`（`db.ChConn` 一次 `PrepareBatch` + 多行 `Append` + 一次 `Send`）与查询（`db.ChDB`）；连接未初始化时返回明确错误，**不要**在 handler 写 SQL，**不要**在 repository 内维护 channel/goroutine。
-4. **Apps**：在 `internal/apps/<domain>/` 编排采集与入队；高频写入通过 `internal/infra/persistence/batchwriter` 各域独立实例异步 flush（详见 `clickhouse-batchwriter` 技能）。**日志/分析用途表**还要同时建 PG/SQLite 回落并接入 `logstore`（见 `logstore` 技能），`FlushFunc` 调 `logstore.Active` 而不是 `analyticsrepo`；普通业务分析表仍只读 repository。
+3. **Repository**：日志用途表放入 `internal/repository/logstore/`（CH 放在 `ch_*.go` 并附 PG/SQLite 回落）；其他分析表放在 `internal/repository/`，使用 `db.ChConn` 一次 `PrepareBatch` + 多行 `Append` + 一次 `Send` 与查询（`db.ChDB`），连接未初始化时返回明确错误，**不要**在 handler 写 SQL，**不要**在 repository 内维护 channel/goroutine。
+4. **Apps**：在 `internal/apps/<domain>/` 编排采集与入队；高频写入通过 `internal/infra/persistence/batchwriter` 各域独立实例异步 flush（详见 `clickhouse-batchwriter` 技能）。**日志/分析用途表**`FlushFunc` 调 `logstore.Active`；普通业务分析表仍只读 `repository`。
 
 ### ClickHouse 验证
 
@@ -126,7 +126,7 @@ ClickHouse 是**辅助 OLAP 存储**，与 PostgreSQL/SQLite 主库**完全独�
 
 ```bash
 go test ./internal/infra/persistence/migrator
-go test ./internal/repository/analytics
+go test ./internal/repository/...
 make code-check
 ```
 

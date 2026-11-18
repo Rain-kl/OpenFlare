@@ -194,7 +194,7 @@ OpenFlare 库表为 Source of Truth。每个成员期望：
 
 ## API（管理端）
 
-前缀：`/api/v1/d/cloudflare`，Session 管理员鉴权。包：`internal/apps/openflare/cloudflare/`；路由：`internal/router/v1/openflare/register_cloudflare.go`。
+前缀：`/api/v1/d/cloudflare`，Session 管理员鉴权。包：`internal/apps/openflare/cloudflare/`；路由：`internal/router/v1/openflare_console.go`。
 
 | 资源 | 方法与路径 |
 | --- | --- |

@@ -6,7 +6,7 @@ package config_version
 import (
 	"net/http"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +15,7 @@ func handleLogicError(c *gin.Context, err error) bool {
 	if err == nil {
 		return false
 	}
-	return apiutil.AbortNotFoundIfMissing(c, err, "Record was not found")
+	return httpx.AbortNotFoundIfMissing(c, err, "Record was not found")
 }
 
 func versionParam(c *gin.Context) (string, bool) {
@@ -82,7 +82,7 @@ func GetConfigVersionHandler(c *gin.Context) {
 // @Router /api/v1/d/config-versions/active [get]
 func GetActiveConfigVersionHandler(c *gin.Context) {
 	version, err := GetActiveConfigVersion(c.Request.Context())
-	if apiutil.AbortNotFoundIfMissing(c, err, errNoActiveVersion) {
+	if httpx.AbortNotFoundIfMissing(c, err, errNoActiveVersion) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(version))
@@ -187,7 +187,7 @@ func ActivateConfigVersionHandler(c *gin.Context) {
 // @Router /api/v1/d/config-versions/cleanup [post]
 func CleanupConfigVersionsHandler(c *gin.Context) {
 	var input CleanupInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	result, err := CleanupConfigVersions(c.Request.Context(), input.KeepCount)

@@ -10,15 +10,15 @@ Source startup:
 
 ```bash
 cp config.example.yaml config.yaml
-go run main.go all
+go run ./cmd/server all
 ```
 
 Split processes:
 
 ```bash
-go run main.go api          # HTTP API only
-go run main.go worker       # Asynq Worker only
-go run main.go scheduler    # scheduled tasks only
+go run ./cmd/server api          # HTTP API only
+go run ./cmd/server worker       # Asynq Worker only
+go run ./cmd/server scheduler    # scheduled tasks only
 ```
 
 Build the binary:
@@ -93,7 +93,7 @@ make build-agent
 Tests:
 
 ```bash
-GOCACHE=/tmp/openflare-go-cache go test ./internal/apps/agent/...
+GOCACHE=/tmp/openflare-go-cache go test ./internal/edge/agent/...
 ```
 
 ## Relay

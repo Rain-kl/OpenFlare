@@ -6,7 +6,7 @@ package config_version
 import (
 	"testing"
 
-	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
+	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
 	"github.com/stretchr/testify/assert"
 )
 

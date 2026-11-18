@@ -12,8 +12,8 @@ import (
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 )
 
-// TestClickHouseHourlyDelegationRegression 验证 CH 后端小时级聚合读委托 analyticsrepo：
-// 未初始化 CH 连接时返回 analyticsrepo 的 "clickhouse connection is not initialized" 错误
+// TestClickHouseHourlyDelegationRegression 验证 CH 后端小时级聚合读走 CH 原生查询：
+// 未初始化 CH 连接时返回 "clickhouse connection is not initialized" 错误
 // （而非未实现/panic），证明 3 个方法都路由到 CH 原生查询。
 func TestClickHouseHourlyDelegationRegression(t *testing.T) {
 	if db.ChConnReady() {

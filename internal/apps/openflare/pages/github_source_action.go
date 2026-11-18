@@ -16,9 +16,9 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/integration/githubrelease"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/openflare/pagesarchive"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
-	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
 	"gorm.io/gorm"
 )
 

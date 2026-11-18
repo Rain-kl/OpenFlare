@@ -77,36 +77,35 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 
 | 路径 | 职责 |
 | --- | --- |
-| `main.go` | Server 唯一入口，委派给 `internal/cmd/` |
-| `cmd/agent`、`cmd/relay`、`cmd/flared` | 边缘组件 CLI 入口（**不含** Server） |
+| `cmd/server`、`cmd/agent`、`cmd/relay`、`cmd/flared` | 四组件 CLI 启动入口（Server 在 `cmd/server/main.go` + `cmd/server/cli/`） |
 | `internal/` | 控制面与边缘运行时实现 |
 | `frontend/` | Next.js 管理端，构建产物嵌入 Go Server |
-| `pkg/` | 跨组件共享库（协议、渲染、GeoIP 等） |
+| `pkg/` | 通用基础设施共享库（GeoIP、缓存、邮件、推送、工具函数等） |
 | `scripts/` | Swagger 生成、安装脚本等 |
 | `docs/` | VitePress 文档站与设计基线 |
 | `docker/` | 各组件 Dockerfile |
+| `tests/integration/` | 跨模块集成测试 |
 | `uploads/`、`data/` | 运行时上传目录与静态数据（`.gitignore` 忽略） |
 
-### 1. Server 分层（`main.go` + `internal/`）
+### 1. Server 与共享域分层（`cmd/server/` + `internal/`）
 
 | 目录 | 职责 |
 | --- | --- |
-| `main.go` | Server 启动入口 |
-| `internal/cmd/` | Cobra 子命令：`api`、`worker`、`scheduler`、`all`（默认融合模式） |
-| `internal/platform/bootstrap/` | 跨模块装配：任务 Handler、推送域事件、进程级初始化 |
-| `internal/router/` | HTTP 路由注册与全局中间件 |
-| `internal/router/v1/openflare/` | OpenFlare 路由注册器（`register_*.go`） |
-| `internal/apps/openflare/` | OpenFlare 控制面业务域（`routers.go` + `logics.go`） |
-| `internal/apps/{admin,user,oauth,upload,cap,...}/` | Wavelet 平台能力（用户、认证、任务、推送等） |
+| `cmd/server/` | Server 启动入口（`main.go`）与 Cobra 子命令 `cli/`（`api`、`worker`、`scheduler`、`all`） |
+| `internal/platform/` | 跨模块装配与生命周期：`bootstrap/`、`buildinfo/`、`lifecycle/` |
+| `internal/router/` | HTTP 路由注册与全局中间件（OpenFlare 挂载于 `v1/openflare_console.go` 与 `v1/openflare_edge.go`） |
+| `internal/apps/openflare/` | OpenFlare 控制面业务域（`routers.go` + `logics.go`、`tasks/`、`logwriter/`） |
+| `internal/apps/{admin,user,oauth,upload,cap,...}/` | Wavelet 平台能力（用户、认证、上传、任务、推送等） |
 | `internal/apps/openflare/{agent,relay,flared}/` | **Server 侧**边缘协议处理器（鉴权、心跳、WS） |
+| `internal/openflare/` | OpenFlare 跨端共享域模块：`protocol/`、`openresty/`、`pagesarchive/`、`routeidentity/` |
+| `internal/edge/` | 边缘运行时共享基础与端侧实现：`common/`、`agent/`、`relay/`、`flared/` |
 | `internal/model/` | GORM 实体 / DTO / 无 IO 领域规则（`openflare_*.go` + 平台模型）；**不含** DB 访问 |
 | `internal/infra/persistence/migrator/goose/` | goose SQL 迁移（PostgreSQL / SQLite / ClickHouse） |
-| `internal/repository/` | 数据访问层（平台 + OpenFlare 业务 CRUD、缓存、`logstore` 日志读写）；**唯一**持久化入口 |
+| `internal/repository/` | 数据访问层（平台 + OpenFlare 业务 CRUD、缓存、`logstore` 日志/分析读写）；**唯一**持久化入口 |
 | `internal/infra/task/` | Asynq 异步任务（Worker + Scheduler） |
 | `internal/infra/config/` | Viper 配置加载 |
-| `internal/shared/` | 统一 API 响应封装（`response/`） |
-| `pkg/protocol/` | Relay / Tunnel 共享 HTTP/WS 协议结构 |
-| `pkg/render/`、`pkg/geoip/`、`pkg/wsclient/` | OpenResty 配置渲染、GeoIP、WebSocket 客户端 |
+| `internal/shared/` | 统一 API 响应封装（`response/`）与 HTTP 绑定助手（`httpx/`） |
+| `pkg/` | 通用基础设施库（`cache/`、`cap/`、`geoip/`、`httppool/`、`i18n/`、`logger/`、`mail/`、`push/`、`trace/`、`util/`、`wsclient/`） |
 
 **API 路由前缀：**
 
@@ -118,25 +117,23 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 | `/api/v1/tunnel/*` | Tunnel 客户端协议 | `X-Tunnel-Token` |
 | `/api/v1/admin/*` | Wavelet 平台管理 API | 管理员 Session |
 
-### 2. Agent 模块 (`internal/apps/agent/` / `cmd/agent/`)
+### 2. Agent 模块 (`internal/edge/agent/` / `cmd/agent/`)
 
-| 目录/模块                     | 职责                                         |
-| ----------------------------- | -------------------------------------------- |
-| `cmd/agent/`                  | Agent 命令行启动入口及主函数                 |
-| `internal/apps/agent/config/`      | 配置读取与默认值                             |
-| `internal/apps/agent/heartbeat/`   | 心跳与版本摘要判断                           |
-| `internal/apps/agent/sync/`        | 配置拉取与应用编排                           |
-| `internal/apps/agent/nginx/`       | OpenResty 文件写入、校验、reload、启动与回滚 |
-| `internal/apps/agent/state/`       | 本地状态与观测补报缓冲                       |
-| `internal/apps/agent/httpclient/`  | Server 通信                                  |
-| `internal/apps/agent/wsclient/`    | WebSocket 客户端通信                         |
-| `internal/apps/agent/protocol/`    | Agent API 协议类型                           |
-| `internal/apps/agent/updater/`     | Agent 自更新逻辑                             |
-| `internal/apps/agent/logging/`     | 日志处理                                     |
-| `internal/apps/agent/observability/`| 可观测性（指标、链路等）                     |
-| `internal/apps/agent/geoipdata/`   | GeoIP 数据处理                               |
-| `internal/apps/agent/geoipupdate/` | GeoIP 数据更新                               |
-| `internal/apps/agent/agent/`       | 核心 Agent 逻辑与生命周期                    |
+> 通用边缘能力（`config/`、`heartbeat/`、`httpclient/`、`logging/`、`nodeip/`、`observability/`、`runner/`、`updater/`、`wsclient/`）沉淀在 `internal/edge/common/`；协议模型共用 `internal/openflare/protocol/`。
+
+| 目录/模块 | 职责 |
+| --- | --- |
+| `cmd/agent/` | Agent 命令行启动入口及主函数 |
+| `internal/edge/agent/config/` | 配置读取与默认值 |
+| `internal/edge/agent/heartbeat/` | 心跳与版本摘要判断 |
+| `internal/edge/agent/sync/` | 配置拉取与应用编排 |
+| `internal/edge/agent/nginx/` | OpenResty 文件写入、校验、reload、启动与回滚 |
+| `internal/edge/agent/state/` | 本地状态与观测补报缓冲 |
+| `internal/edge/agent/httpclient/` | Server 通信 |
+| `internal/edge/agent/observability/` | 可观测性（指标、链路等） |
+| `internal/edge/agent/geoipupdate/` | GeoIP 数据更新 |
+| `internal/edge/agent/localfile/`、`runtimeuser/` | 本地状态文件管理与运行时权限控制 |
+| `internal/edge/agent/agent/` | 核心 Agent 逻辑与生命周期 |
 
 ### 3. Frontend 分层 (`frontend/`)
 
@@ -158,34 +155,30 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 
 **API 约定**：OpenFlare 业务接口统一前缀 `/api/v1/d/*`，通过 `OpenFlareBaseService` 封装；页面数据获取使用 `@tanstack/react-query`。
 
-### 4. Relay 模块 (`internal/apps/relay/` / `cmd/relay/`)
+### 4. Relay 模块 (`internal/edge/relay/` / `cmd/relay/`)
 
-| 模块             | 职责                                             |
-| ---------------- | ------------------------------------------------ |
-| `cmd/relay/`     | Relay 命令行启动入口及初始化主函数               |
-| `internal/apps/relay/config/`| 本地配置文件解析与默认参数初始化                 |
-| `internal/apps/relay/frps/` | 管理 frps 进程生命周期、端口与 Token 并监控运行   |
-| `internal/apps/relay/heartbeat/`| 周期性 HTTP 心跳通信、上报状态并获取更新请求  |
-| `internal/apps/relay/httpclient/`| Server 的通用 API 客户端调用工具类              |
-| `internal/apps/relay/observability/`| 采集本地宿主机、frps 的基础运行指标并进行预聚合 |
-| `internal/apps/relay/relay/` | 协调中继的核心生命周期、初始化与清理             |
-| `internal/apps/relay/state/` | 本地运行时状态、错误记录与持久化缓存             |
-| `internal/apps/relay/updater/`| Relay 升级检查、下载安装与重启机制               |
-| `internal/apps/relay/wsclient/`| 与 Server 保持的长连接 WebSocket 双向通信管道     |
+| 模块 | 职责 |
+| --- | --- |
+| `cmd/relay/` | Relay 命令行启动入口及初始化主函数 |
+| `internal/edge/relay/config/` | 本地配置文件解析与默认参数初始化 |
+| `internal/edge/relay/frps/` | 管理 frps 进程生命周期、端口与 Token 并监控运行 |
+| `internal/edge/relay/heartbeat/` | 周期性 HTTP 心跳通信、上报状态并获取更新请求 |
+| `internal/edge/relay/httpclient/` | Server 的通用 API 客户端调用工具 |
+| `internal/edge/relay/observability/` | 采集本地宿主机、frps 的基础运行指标并进行预聚合 |
+| `internal/edge/relay/relay/` | 协调中继的核心生命周期、初始化与清理 |
+| `internal/edge/relay/state/` | 本地运行时状态、错误记录与持久化缓存 |
 
-### 5. OpenFlared (Client) 模块 (`internal/apps/flared/` / `cmd/flared/`)
+### 5. OpenFlared (Client) 模块 (`internal/edge/flared/` / `cmd/flared/`)
 
-| 模块             | 职责                                             |
-| ---------------- | ------------------------------------------------ |
-| `cmd/flared/`    | Client 命令行启动入口及初始化主函数              |
-| `internal/apps/flared/config/`| 本地客户端配置加载与解析                         |
-| `internal/apps/flared/flared/`| 内网穿透客户端的核心调度与状态管理机制           |
-| `internal/apps/flared/frpc/` | 热重载/动态生成多 Relay 的 `frpc_{relayNodeID}.toml` 并监控 frpc |
-| `internal/apps/flared/heartbeat/`| 与控制面进行的心跳通信，包含 Token 校验机制       |
-| `internal/apps/flared/httpclient/`| 客户端通用 API 通信（`/api/v1/tunnel/*`）       |
-| `internal/apps/flared/sync/`  | 增量拉取最新 Tunnel 路由绑定关系、生成快照并应用  |
-| `internal/apps/flared/updater/`| 客户端自更新、新版检查与更新落地逻辑             |
-| `internal/apps/flared/wsclient/`| 用于实时监听 Server 端隧道配置变更推送的 WS 信道  |
+| 模块 | 职责 |
+| --- | --- |
+| `cmd/flared/` | Client 命令行启动入口及初始化主函数 |
+| `internal/edge/flared/config/` | 本地客户端配置加载与解析 |
+| `internal/edge/flared/flared/` | 内网穿透客户端的核心调度与状态管理机制 |
+| `internal/edge/flared/frpc/` | 热重载/动态生成多 Relay 的 `frpc_{relayNodeID}.toml` 并监控 frpc |
+| `internal/edge/flared/heartbeat/` | 与控制面进行的心跳通信，包含 Token 校验机制 |
+| `internal/edge/flared/httpclient/` | 客户端通用 API 通信（`/api/v1/tunnel/*`） |
+| `internal/edge/flared/sync/` | 增量拉取最新 Tunnel 路由绑定关系、生成快照并应用 |
 
 > **说明**：OpenFlared 无独立 `state/` 包；版本与 checksum 由 `frpc/manager.go` 持久化到 `flared-state.json`。
 

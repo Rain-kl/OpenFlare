@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/logwriter"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -98,7 +98,7 @@ func (h *LogDBSwitchHandler) Execute(ctx context.Context, payload []byte) (*task
 		}
 	}()
 
-	// 冻结标记置位后再排空在途批次（chwriter + 用户访问日志 writer），
+	// 冻结标记置位后再排空在途批次（logwriter + 用户访问日志 writer），
 	// 保证排空完成后不再有新批次进入源库。
 	if err := drainLogWriters(ctx); err != nil {
 		return nil, fmt.Errorf("failed to drain log write queue: %w", err)
@@ -178,10 +178,10 @@ func currentLogDatabase(ctx context.Context) (string, error) {
 	return cfg.Value, nil
 }
 
-// drainLogWriters 等待 chwriter（节点访问日志 + 可观测 4 表）的在途批次全部落库。
+// drainLogWriters 等待 logwriter（节点访问日志 + 可观测 4 表）的在途批次全部落库。
 // 见设计 §7.2：先排空再冻结。用户访问日志（w_user_access_logs）记录已禁用，无在途批次。
 func drainLogWriters(ctx context.Context) error {
-	return chwriter.Drain(ctx)
+	return logwriter.Drain(ctx)
 }
 
 // setMigrationFlag 写入迁移冻结标记。用 SaveOrUpdateSystemConfig：行缺失时 upsert，

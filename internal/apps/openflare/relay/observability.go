@@ -7,6 +7,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
@@ -23,9 +25,9 @@ func reconcileRelayHealthEvents(ctx context.Context, nodeID string, relayStatus 
 	managedTypes := map[string]struct{}{
 		relayFrpsUnhealthyEventType: {},
 	}
-	events := []agent.NodeHealthEvent{}
+	events := []protocol.NodeHealthEvent{}
 	if relayStatus == relayStatusUnhealthy {
-		events = append(events, agent.NodeHealthEvent{
+		events = append(events, protocol.NodeHealthEvent{
 			EventType:       relayFrpsUnhealthyEventType,
 			Severity:        "critical",
 			Message:         "frps runtime is not healthy",
@@ -38,8 +40,8 @@ func reconcileRelayHealthEvents(ctx context.Context, nodeID string, relayStatus 
 	return agent.ReconcileScopedNodeHealthEvents(ctx, nodeID, events, reportedAt, managedTypes)
 }
 
-func persistRelayHeartbeatObservability(ctx context.Context, nodeID string, payload HeartbeatPayload, reportedAt time.Time) {
-	agent.PersistHeartbeatObservability(ctx, nodeID, agent.NodePayload{
+func persistRelayHeartbeatObservability(ctx context.Context, nodeID string, payload protocol.RelayHeartbeatPayload, reportedAt time.Time) {
+	agent.PersistHeartbeatObservability(ctx, nodeID, protocol.NodePayload{
 		Profile:      payload.Profile,
 		HostMetrics:  payload.Snapshot,
 		HealthEvents: payload.HealthEvents,

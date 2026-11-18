@@ -13,18 +13,18 @@ import (
 	"testing"
 	"time"
 
-	agentclient "github.com/Rain-kl/Wavelet/internal/apps/agent/httpclient"
+	agentclient "github.com/Rain-kl/Wavelet/internal/edge/agent/httpclient"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
-	"github.com/Rain-kl/Wavelet/pkg/protocol"
 )
 
 func TestRegistrationResponseServerClientContract(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(response.OK(RegistrationResponse{NodeID: "node-contract", AccessToken: "issued", Name: "edge"})); err != nil {
+		if err := json.NewEncoder(w).Encode(response.OK(protocol.RegisterNodeResponse{NodeID: "node-contract", AccessToken: "issued", Name: "edge"})); err != nil {
 			t.Error(err)
 		}
 	}))
@@ -37,7 +37,7 @@ func TestRegistrationResponseServerClientContract(t *testing.T) {
 	if got.NodeID != "node-contract" || got.AccessToken != "issued" || got.Name != "edge" {
 		t.Errorf("RegisterNode(server response) = %+v, want node-contract/issued/edge", got)
 	}
-	data, err := json.Marshal(RegistrationResponse{AccessToken: "issued"})
+	data, err := json.Marshal(protocol.RegisterNodeResponse{AccessToken: "issued"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestDiscoveryRetriesKeepOneIdentityAndPreserveChanges(t *testing.T) {
 	t.Cleanup(setupAgentAuthTestDB(t))
 	ctx := context.Background()
 	key := strings.Repeat("a1", 32)
-	payload := NodePayload{IP: "10.0.0.8", Version: "test", Name: "edge"}
+	payload := protocol.NodePayload{IP: "10.0.0.8", Version: "test", Name: "edge"}
 	first, err := RegisterWithDiscovery(ctx, payload, key)
 	if err != nil {
 		t.Fatal(err)
@@ -113,9 +113,9 @@ func TestDiscoveryConcurrentRetriesAndRevokedCredential(t *testing.T) {
 	}
 	sqlDB.SetMaxOpenConns(1)
 	key := strings.Repeat("c3", 32)
-	payload := NodePayload{IP: "10.0.0.8", Version: "test"}
+	payload := protocol.NodePayload{IP: "10.0.0.8", Version: "test"}
 	const attempts = 12
-	results := make(chan *RegistrationResponse, attempts)
+	results := make(chan *protocol.RegisterNodeResponse, attempts)
 	errors := make(chan error, attempts)
 	var wg sync.WaitGroup
 	for range attempts {
@@ -133,7 +133,7 @@ func TestDiscoveryConcurrentRetriesAndRevokedCredential(t *testing.T) {
 			t.Fatalf("Concurrent RegisterWithDiscovery error = %v", registrationErr)
 		}
 	}
-	var first *RegistrationResponse
+	var first *protocol.RegisterNodeResponse
 	for result := range results {
 		if first == nil {
 			first = result

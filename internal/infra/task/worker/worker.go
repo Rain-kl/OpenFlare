@@ -9,7 +9,6 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
-	"github.com/Rain-kl/Wavelet/internal/platform/bootstrap"
 	"github.com/hibiken/asynq"
 )
 
@@ -18,7 +17,6 @@ const workerShutdownTimeout = 3 * time.Minute
 
 // StartWorker 启动任务处理服务器
 func StartWorker() error {
-	bootstrap.RegisterWorker()
 	asynqServer := asynq.NewServer(
 		task.RedisOpt,
 		asynq.Config{

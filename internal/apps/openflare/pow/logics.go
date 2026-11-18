@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	openresty "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	openresty "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
 // Policy is the administrator-facing site configuration.

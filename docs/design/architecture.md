@@ -85,7 +85,7 @@ OpenResty (Agent, TLS/WAF)
 * 统一接收 Pages 本地上传、Remote URL 与公开 GitHub Release 预构建产物，完成来源检查、受限下载、归档校验和不可变 deployment；manual 上传生成待显式激活的 candidate，持久来源 sync 才 create-or-load 并原子激活。Server 向 Agent 提供受控的 latest 下载接口；内部 scanner 负责 GitHub latest 的限量检查、租约恢复、可选自动发布与孤儿上传记录补偿，通用任务管理入口不能修改该排程。未来仓库源码构建由独立 Server build executor 扩展，Agent 不执行第三方拉取或构建命令。
 * 提供可选的 Cloudflare DNS 指向控制面：以 ZoneDomain 为成员维护分组期望状态，通过 Asynq 将单条 A 记录幂等同步到当前生效节点 IPv4；节点 IP 变化只做 best-effort 入队，一期不执行自动故障切换。
 * 后台集成 Uptime Kuma 监控同步服务，自动为可用站点维护 HTTP 探测任务。
-* 启动入口为根目录 `main.go` + `internal/cmd/`（`api` / `worker` / `scheduler` / `all`）；OpenFlare 业务在 `internal/apps/openflare/`，边缘协议处理在 `internal/apps/openflare/{agent,relay,flared}/`。
+* 启动入口为 `cmd/server/main.go` + `cmd/server/cli/`（`api` / `worker` / `scheduler` / `all`）；OpenFlare 业务在 `internal/apps/openflare/`，边缘协议处理在 `internal/apps/openflare/{agent,relay,flared}/`，边缘端侧运行时在 `internal/edge/{common,agent,relay,flared}/`。
 * *详细设计请参阅：[Agent 与发布模型设计](./agent-design.md) 以及 [Uptime Kuma 监控同步设计](./kuma-design.md)*
 
 ### 2. Agent (配置落地端)

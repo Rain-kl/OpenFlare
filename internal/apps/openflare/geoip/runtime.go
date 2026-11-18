@@ -5,6 +5,7 @@ package geoip
 
 import (
 	"context"
+	"flag"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -29,6 +30,7 @@ var (
 	errRuntimeInit    error
 	currentProviderMu sync.RWMutex
 	currentProvider   string
+	serverMMDBPath    string
 )
 
 // EnsureRuntimeProvider loads GeoIP provider config from SystemConfig.
@@ -73,7 +75,7 @@ func ApplyProvider(ctx context.Context, provider string) error {
 	currentProviderMu.Unlock()
 
 	if normalized == pkggeoip.ProviderMaxMind {
-		path, err := ensureServerMMDB()
+		path, err := EnsureServerMMDB()
 		if err != nil {
 			logger.WarnF(ctx, "[GeoIP] seed MaxMind database failed: %v", err)
 		}
@@ -86,8 +88,39 @@ func ApplyProvider(ctx context.Context, provider string) error {
 	return nil
 }
 
+// EnsureServerMMDB ensures the embedded Country MMDB exists on disk and returns its path.
+func EnsureServerMMDB() (string, error) {
+	return ensureServerMMDB()
+}
+
+// SetServerMMDBPathForTest overrides the target MMDB path in tests and returns a restore callback.
+func SetServerMMDBPathForTest(path string) func() {
+	currentProviderMu.Lock()
+	previous := serverMMDBPath
+	serverMMDBPath = path
+	currentProviderMu.Unlock()
+	return func() {
+		currentProviderMu.Lock()
+		serverMMDBPath = previous
+		currentProviderMu.Unlock()
+	}
+}
+
+func resolveServerMMDBPath() (string, error) {
+	currentProviderMu.RLock()
+	override := strings.TrimSpace(serverMMDBPath)
+	currentProviderMu.RUnlock()
+	if override != "" {
+		return filepath.Abs(override)
+	}
+	if flag.Lookup("test.v") != nil {
+		return filepath.Join(os.TempDir(), "openflare-test-geoip", geodata.DefaultMMDBName), nil
+	}
+	return filepath.Abs(serverMMDBRelativePath)
+}
+
 func ensureServerMMDB() (string, error) {
-	path, err := filepath.Abs(serverMMDBRelativePath)
+	path, err := resolveServerMMDBPath()
 	if err != nil {
 		return "", err
 	}

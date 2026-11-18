@@ -17,7 +17,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
-	uploadtask "github.com/Rain-kl/Wavelet/internal/apps/upload/task"
+	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/apps/user"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -118,18 +118,18 @@ func TestListTaskTypes(t *testing.T) {
 		if m.Type == testInternalOnlyTaskType {
 			t.Errorf("internal-only task type %s must not be listed", testInternalOnlyTaskType)
 		}
-		if m.Type == uploadtask.TaskTypeSystemCleanup {
+		if m.Type == upload.TaskTypeSystemCleanup {
 			foundCleanup = true
 		}
-		if m.Type == uploadtask.TaskTypeWarmImageCache {
+		if m.Type == upload.TaskTypeWarmImageCache {
 			foundWarmImageCache = true
 		}
 	}
 	if !foundCleanup {
-		t.Errorf("expected task type %s to be listed", uploadtask.TaskTypeSystemCleanup)
+		t.Errorf("expected task type %s to be listed", upload.TaskTypeSystemCleanup)
 	}
 	if !foundWarmImageCache {
-		t.Errorf("expected task type %s to be listed", uploadtask.TaskTypeWarmImageCache)
+		t.Errorf("expected task type %s to be listed", upload.TaskTypeWarmImageCache)
 	}
 }
 
@@ -152,7 +152,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 		}
 		publicSchedule := &model.Schedule{
 			Name:     "可见的公开排程",
-			TaskType: uploadtask.TaskTypeSystemCleanup,
+			TaskType: upload.TaskTypeSystemCleanup,
 			Cron:     "0 * * * *",
 			Payload:  "{}",
 			IsActive: true,
@@ -222,7 +222,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 		isActive := false
 		body, err := json.Marshal(UpdateScheduleRequest{
 			Name:     "尝试修改内部排程",
-			TaskType: uploadtask.TaskTypeSystemCleanup,
+			TaskType: upload.TaskTypeSystemCleanup,
 			Cron:     "5 * * * *",
 			IsActive: &isActive,
 		})
@@ -248,7 +248,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 	t.Run("update public schedule rejects internal-only target task", func(t *testing.T) {
 		schedule := &model.Schedule{
 			Name:     "公开排程",
-			TaskType: uploadtask.TaskTypeSystemCleanup,
+			TaskType: upload.TaskTypeSystemCleanup,
 			Cron:     "0 * * * *",
 			IsActive: true,
 		}
@@ -275,7 +275,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 		unchanged, err := repository.GetScheduleByID(ctx, schedule.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "公开排程", unchanged.Name)
-		assert.Equal(t, uploadtask.TaskTypeSystemCleanup, unchanged.TaskType)
+		assert.Equal(t, upload.TaskTypeSystemCleanup, unchanged.TaskType)
 	})
 
 	t.Run("delete rejects internal-only schedule", func(t *testing.T) {
@@ -319,7 +319,7 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 	t.Run("delete public schedule remains allowed", func(t *testing.T) {
 		schedule := &model.Schedule{
 			Name:     "可删除的公开排程",
-			TaskType: uploadtask.TaskTypeSystemCleanup,
+			TaskType: upload.TaskTypeSystemCleanup,
 			Cron:     "0 * * * *",
 			IsActive: false,
 		}
@@ -356,7 +356,7 @@ func TestDispatchTask(t *testing.T) {
 
 	t.Run("dispatch valid task successfully", func(t *testing.T) {
 		payload := DispatchTaskRequest{
-			TaskType: uploadtask.TaskTypeSystemCleanup,
+			TaskType: upload.TaskTypeSystemCleanup,
 		}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/v1/admin/tasks/dispatch", bytes.NewBuffer(body))

@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"log/slog"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
@@ -15,7 +17,7 @@ import (
 
 // HandleWSStatus processes an agent websocket status payload (replaces HTTP heartbeat in WS mode).
 func HandleWSStatus(ctx context.Context, nodeID, remoteAddr string, rawPayload json.RawMessage) {
-	var payload NodePayload
+	var payload protocol.NodePayload
 	if err := json.Unmarshal(rawPayload, &payload); err != nil {
 		slog.Debug("agent ws status payload decode failed", "node_id", nodeID, "error", err)
 		return

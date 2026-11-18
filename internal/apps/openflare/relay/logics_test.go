@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
 
@@ -64,7 +66,7 @@ func TestHeartbeatPayloadBindingAndFrpsObservationInsert(t *testing.T) {
 	}
 	require.NoError(t, db.DB(ctx).Create(node).Error)
 
-	proxies := []ProxyStat{
+	proxies := []protocol.RelayProxyStat{
 		{
 			Name:          "proxy-a",
 			Type:          "http",
@@ -73,7 +75,7 @@ func TestHeartbeatPayloadBindingAndFrpsObservationInsert(t *testing.T) {
 			ClientAddr:    "10.0.0.2:12345",
 		},
 	}
-	_, err := Heartbeat(ctx, node, HeartbeatPayload{
+	_, err := Heartbeat(ctx, node, protocol.RelayHeartbeatPayload{
 		Version:         "v0.1.0",
 		ExtVersion:      "0.61.0",
 		RelayStatus:     "healthy",
@@ -83,7 +85,7 @@ func TestHeartbeatPayloadBindingAndFrpsObservationInsert(t *testing.T) {
 		FrpsProxies:     proxies,
 		Name:            "relay-runtime",
 		IP:              "203.0.113.9",
-		Profile: &agent.NodeSystemProfile{
+		Profile: &protocol.NodeSystemProfile{
 			Hostname:       "relay-runtime",
 			OSName:         "Ubuntu",
 			OSVersion:      "24.04",
@@ -91,13 +93,13 @@ func TestHeartbeatPayloadBindingAndFrpsObservationInsert(t *testing.T) {
 			CPUCores:       4,
 			ReportedAtUnix: now.Unix(),
 		},
-		Snapshot: &agent.NodeMetricSnapshot{
+		Snapshot: &protocol.NodeMetricSnapshot{
 			CapturedAtUnix:  now.Unix(),
 			CPUUsagePercent: 12.5,
 			DiskReadBytes:   100,
 			DiskWriteBytes:  200,
 		},
-		HealthEvents: []agent.NodeHealthEvent{},
+		HealthEvents: []protocol.NodeHealthEvent{},
 	})
 	require.NoError(t, err)
 
@@ -126,7 +128,7 @@ func TestHeartbeatPayloadBindingAndFrpsObservationInsert(t *testing.T) {
 	assert.Equal(t, 3, frpsObs[0].FrpsProxyCount)
 	assert.Equal(t, 2, frpsObs[0].FrpsClientCount)
 
-	var decoded []ProxyStat
+	var decoded []protocol.RelayProxyStat
 	require.NoError(t, json.Unmarshal([]byte(frpsObs[0].FrpsProxies), &decoded))
 	require.Len(t, decoded, 1)
 	assert.Equal(t, "proxy-a", decoded[0].Name)
@@ -148,7 +150,7 @@ func TestHeartbeatRelayReconcilesFrpsUnhealthyEvent(t *testing.T) {
 	}
 	require.NoError(t, db.DB(ctx).Create(node).Error)
 
-	_, err := Heartbeat(ctx, node, HeartbeatPayload{
+	_, err := Heartbeat(ctx, node, protocol.RelayHeartbeatPayload{
 		Version:     "v0.1.0",
 		ExtVersion:  "0.61.0",
 		RelayStatus: "unhealthy",
@@ -161,7 +163,7 @@ func TestHeartbeatRelayReconcilesFrpsUnhealthyEvent(t *testing.T) {
 	assert.Equal(t, relayFrpsUnhealthyEventType, events[0].EventType)
 	assert.Equal(t, "active", events[0].Status)
 
-	_, err = Heartbeat(ctx, node, HeartbeatPayload{
+	_, err = Heartbeat(ctx, node, protocol.RelayHeartbeatPayload{
 		Version:     "v0.1.0",
 		ExtVersion:  "0.61.0",
 		RelayStatus: "healthy",

@@ -6,6 +6,7 @@ package util
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 )
 
@@ -18,10 +19,43 @@ const (
 )
 
 const (
-	sizeKB = 1024
-	sizeMB = sizeKB * 1024
-	sizeGB = sizeMB * 1024
+	sizeKB                = 1024
+	sizeMB                = sizeKB * 1024
+	sizeGB                = sizeMB * 1024
+	binaryExponentKB      = 0
+	binaryExponentMB      = 1
+	binaryExponentGB      = 2
+	binaryCompactWholeMin = 10
 )
+
+// FormatBinaryBytes formats bytes using IEC binary units (B, KiB, MiB, GiB, TiB).
+func FormatBinaryBytes(bytes uint64) string {
+	const unit = sizeKB
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := uint64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	value := float64(bytes) / float64(div)
+	var suffix string
+	switch exp {
+	case binaryExponentKB:
+		suffix = "KiB"
+	case binaryExponentMB:
+		suffix = "MiB"
+	case binaryExponentGB:
+		suffix = "GiB"
+	default:
+		suffix = "TiB"
+	}
+	if value == math.Trunc(value) && value >= binaryCompactWholeMin {
+		return fmt.Sprintf("%.0f %s", value, suffix)
+	}
+	return fmt.Sprintf("%.1f %s", value, suffix)
+}
 
 // Bytes2Size converts a byte count to a human-readable string with unit (B, KB, MB, GB).
 func Bytes2Size(num int64) string {

@@ -7,6 +7,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
@@ -55,7 +57,7 @@ func TestHeartbeatFlaredEmitsHealthEventOnUnhealthy(t *testing.T) {
 	}
 	require.NoError(t, db.DB(ctx).Create(node).Error)
 
-	_, err := Heartbeat(ctx, node, HeartbeatPayload{
+	_, err := Heartbeat(ctx, node, protocol.FlaredHeartbeatPayload{
 		ClientVersion:   "v0.2.0",
 		FrpVersion:      "0.61.0",
 		TunnelStatus:    "unhealthy",

@@ -13,8 +13,8 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/pkg/pagesarchive"
-	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
+	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/pagesarchive"
 	"gorm.io/gorm"
 )
 

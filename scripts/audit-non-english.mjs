@@ -64,7 +64,7 @@ function category(path, line, spans, mask, offset) {
   if (path.startsWith('internal/infra/persistence/migrator/goose/')) return 'historical-migration';
   if (!spans.some((span) => /\p{L}/u.test(span.value))) return 'symbol-or-typography';
   if (spans.every((span) => mask[offset + span.column - 1])) return 'source-comment';
-  if ((path === 'internal/apps/upload/stats/category.go' || path === 'frontend/app/(main)/admin/files/components/file-stats.tsx' || path === 'frontend/scripts/check-runtime-language.mjs') && spans.every((span) => /^[图片视频音频文档压缩包其他]+$/u.test(span.value))) return 'legacy-identifier';
+  if ((path === 'internal/apps/upload/category.go' || path === 'frontend/app/(main)/admin/files/components/file-stats.tsx' || path === 'frontend/scripts/check-runtime-language.mjs') && spans.every((span) => /^[图片视频音频文档压缩包其他]+$/u.test(span.value))) return 'legacy-identifier';
   if (extname(path) === '.go' && /`[^`]*(?:json|gorm|description|example):/.test(line)) return 'schema-metadata';
   return 'review-candidate';
 }

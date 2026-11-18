@@ -487,7 +487,7 @@ t=6s     next round…
 | Observability port | `openresty_observability_port` (default 18081) |
 | access.log path | `access_log_path` |
 | Replay minutes | `observability_replay_minutes` (default 60) |
-| Protocol types | `pkg/protocol/agent.go` (evolves to v2 when landing) |
+| Protocol types | `internal/openflare/protocol/agent.go` (evolves to v2 when landing) |
 | Table DDL | [observability-data-model.md](./observability-data-model.md) |
 
 ---

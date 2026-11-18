@@ -8,6 +8,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	pkggeoip "github.com/Rain-kl/Wavelet/pkg/geoip"
@@ -92,7 +94,7 @@ func TestApplyNodeRuntimeRespectsGeoManualOverride(t *testing.T) {
 		GeoLatitude:       geoipFloat(10),
 		GeoLongitude:      geoipFloat(20),
 	}
-	applyNodeRuntime(context.Background(), node, NodePayload{
+	applyNodeRuntime(context.Background(), node, protocol.NodePayload{
 		IP:      "203.0.113.10",
 		Version: "1.0.0",
 	}, true)

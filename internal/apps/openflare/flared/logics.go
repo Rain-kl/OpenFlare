@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
@@ -26,7 +28,7 @@ const (
 )
 
 // Heartbeat processes an OpenFlared heartbeat and returns runtime settings.
-func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload HeartbeatPayload) (*HeartbeatResponse, error) {
+func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload protocol.FlaredHeartbeatPayload) (*protocol.FlaredHeartbeatResponse, error) {
 	if node == nil {
 		return nil, errors.New("tunnel client node is nil")
 	}
@@ -86,14 +88,14 @@ func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload Heartbeat
 		return nil, err
 	}
 
-	return &HeartbeatResponse{
+	return &protocol.FlaredHeartbeatResponse{
 		ActiveConfig:   activeConfig,
 		TunnelSettings: buildTunnelSettings(ctx, node, updateNow, updateChannel, updateTag),
 	}, nil
 }
 
 // GetTunnelConfig builds the full tunnel routing config for an OpenFlared client.
-func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelConfigResponse, error) {
+func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*protocol.FlaredTunnelConfigResponse, error) {
 	if node == nil {
 		return nil, errors.New("node is nil")
 	}
@@ -113,11 +115,11 @@ func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelCon
 		return nil, fmt.Errorf("get relay nodes: %w", err)
 	}
 
-	relays := make([]RelayInfo, 0, len(relayNodes))
+	relays := make([]protocol.FlaredRelayInfo, 0, len(relayNodes))
 	for i := range relayNodes {
 		relayNode := relayNodes[i]
 		if relayNode.RelayStatus == "healthy" || relayNode.Status == nodeStatusOnline {
-			relays = append(relays, RelayInfo{
+			relays = append(relays, protocol.FlaredRelayInfo{
 				RelayNodeID: relayNode.NodeID,
 				Address:     relayClientAddress(&relayNode),
 				AuthToken:   relayNode.RelayAuthToken,
@@ -126,7 +128,7 @@ func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelCon
 		}
 	}
 
-	proxies := make([]ProxyEntry, 0)
+	proxies := make([]protocol.FlaredProxyEntry, 0)
 	for _, route := range routes {
 		if route == nil || route.UpstreamType != "tunnel" || route.TunnelNodeID == nil || *route.TunnelNodeID != node.ID {
 			continue
@@ -139,7 +141,7 @@ func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelCon
 			continue
 		}
 		localAddr, localPort := parseTunnelTargetAddr(route.TunnelTargetAddr)
-		proxies = append(proxies, ProxyEntry{
+		proxies = append(proxies, protocol.FlaredProxyEntry{
 			Name:          fmt.Sprintf("%s-%s", node.NodeID, sanitizeProxyName(zoneDomains[0].Domain)),
 			Type:          "http",
 			LocalAddr:     localAddr,
@@ -148,7 +150,7 @@ func GetTunnelConfig(ctx context.Context, node *model.OpenFlareNode) (*TunnelCon
 		})
 	}
 
-	return &TunnelConfigResponse{
+	return &protocol.FlaredTunnelConfigResponse{
 		Version:  activeVersion.Version,
 		Checksum: activeVersion.Checksum,
 		Relays:   relays,
@@ -165,7 +167,7 @@ func zoneDomainNames(domains []model.ZoneDomain) []string {
 }
 
 // ReportApplyLog records an apply result from OpenFlared.
-func ReportApplyLog(ctx context.Context, payload ApplyLogPayload) (*model.OpenFlareApplyLog, error) {
+func ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) (*model.OpenFlareApplyLog, error) {
 	now := time.Now().UTC()
 	payload = normalizeApplyLogPayload(payload)
 	if payload.NodeID == "" {
@@ -207,7 +209,7 @@ func ReportApplyLog(ctx context.Context, payload ApplyLogPayload) (*model.OpenFl
 	return log, nil
 }
 
-func normalizeApplyLogPayload(payload ApplyLogPayload) ApplyLogPayload {
+func normalizeApplyLogPayload(payload protocol.ApplyLogPayload) protocol.ApplyLogPayload {
 	payload.NodeID = strings.TrimSpace(payload.NodeID)
 	payload.Version = strings.TrimSpace(payload.Version)
 	payload.Result = strings.ToLower(strings.TrimSpace(payload.Result))

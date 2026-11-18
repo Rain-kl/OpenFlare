@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -34,7 +34,7 @@ func GetApplyLogs(c *gin.Context) {
 		PageNo:   readIntQuery(c, "pageNo", "page_no"),
 		PageSize: readIntQuery(c, "pageSize", "page_size"),
 	})
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))
@@ -55,12 +55,12 @@ func GetApplyLogs(c *gin.Context) {
 // @Router /api/v1/d/apply-logs/cleanup [post]
 func CleanupApplyLogs(c *gin.Context) {
 	var input CleanupInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 
 	result, err := Cleanup(c.Request.Context(), input)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))

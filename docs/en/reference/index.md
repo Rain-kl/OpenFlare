@@ -8,4 +8,4 @@ This section consolidates stable runtime, interface, and repository-level inform
 | --- | --- |
 | [Configuration](./configuration.md) | Server env vars, CLI args, runtime Options, and Agent config fields |
 | [Commands & Scripts](./cli.md) | common start, build, test, install, and uninstall commands |
-| [Repository Structure](../design/index.md#repository-structure) | monorepo directory responsibilities and layering (`main.go`, `cmd/`, `internal/apps/`, `frontend/`, etc.) |
+| [Repository Structure](../design/index.md#repository-structure) | monorepo directory responsibilities and layering (`cmd/server/`, `cmd/agent/`, `internal/`, `frontend/`, etc.) |

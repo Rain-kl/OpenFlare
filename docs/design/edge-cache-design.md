@@ -199,7 +199,7 @@ access.log cache_status=$upstream_cache_status
 
 | 区域 | 路径 |
 | --- | --- |
-| 渲染 | `pkg/render/openresty/render.go`（旁路、Set-Cookie、`proxy_cache_valid`、扩展名常量） |
+| 渲染 | `internal/openflare/openresty/render.go`（旁路、Set-Cookie、`proxy_cache_valid`、扩展名常量） |
 | 校验 | `internal/apps/openflare/proxy_route/helpers.go` |
 | 模型/默认 | 创建路由默认 `cache_policy=static`；读写时 `url`→`all` |
 | 快照 | `config_version` 快照规范化 |

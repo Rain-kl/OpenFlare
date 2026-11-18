@@ -11,6 +11,7 @@ import (
 	admin_push "github.com/Rain-kl/Wavelet/internal/apps/admin/push"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
@@ -220,5 +221,20 @@ func TestInitWiresLogstoreConfigReader(t *testing.T) {
 	repository.ResetSystemConfigRAMCacheForTest()
 	if !logstore.Migrating(ctx) {
 		t.Fatal("logstore config reader not wired after bootstrap.Init: Migrating() = false, want true")
+	}
+}
+
+func TestRegisterTasksIdempotent(t *testing.T) {
+	RegisterTasks()
+	RegisterTasks()
+
+	seen := make(map[string]int)
+	for _, m := range task.GetDispatchableTasks() {
+		seen[m.Type]++
+	}
+	for taskType, count := range seen {
+		if count > 1 {
+			t.Errorf("task type %q registered %d times, want 1", taskType, count)
+		}
 	}
 }

@@ -227,47 +227,21 @@ func groupFromInput(ctx context.Context, existing *model.CFPointingGroup, input 
 	if name == "" {
 		return nil, errors.New(errGroupNameRequired)
 	}
-	targetMode := strings.TrimSpace(input.TargetMode)
-	if targetMode == "" {
-		targetMode = model.CFPointingTargetModeNode
+	targetMode, err := resolveGroupTargetMode(input.TargetMode)
+	if err != nil {
+		return nil, err
 	}
-	if targetMode != model.CFPointingTargetModeNode && targetMode != model.CFPointingTargetModeCustom {
-		return nil, errors.New(errGroupTargetModeInvalid)
+	ttl, err := resolveGroupTTL(existing, input.TTL)
+	if err != nil {
+		return nil, err
 	}
-	ttl := automaticTTL
-	if existing != nil {
-		ttl = groupTTL(existing)
+	recordType, recordContent, err := resolveCustomGroupRecord(targetMode, input.RecordType, input.RecordContent)
+	if err != nil {
+		return nil, err
 	}
-	if input.TTL != nil {
-		ttl = *input.TTL
-	}
-	if ttl != automaticTTL && (ttl < minManualTTL || ttl > maxManualTTL) {
-		return nil, errors.New(errGroupTTLInvalid)
-	}
-	primaryNodeID := uint(0)
-	var backupNodeID *uint
-	recordType := strings.ToUpper(strings.TrimSpace(input.RecordType))
-	if recordType == "" {
-		recordType = "A"
-	}
-	recordContent := strings.TrimSpace(input.RecordContent)
-	if targetMode == model.CFPointingTargetModeCustom && !validCustomRecordType(recordType) {
-		return nil, errors.New(errRecordTypeInvalid)
-	}
-	if targetMode == model.CFPointingTargetModeCustom && !validCustomRecordContent(recordType, recordContent) {
-		return nil, errors.New(errRecordContentInvalid)
-	}
-	if targetMode == model.CFPointingTargetModeNode {
-		resolvedPrimary, resolvedBackup, err := resolveGroupNodes(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-		primaryNodeID = resolvedPrimary
-		backupNodeID = resolvedBackup
-	}
-	activeNodeID := primaryNodeID
-	if existing != nil && targetMode == model.CFPointingTargetModeNode && existing.TargetMode == targetMode && existing.PrimaryNodeID == primaryNodeID && equalOptionalUint(existing.BackupNodeID, backupNodeID) {
-		activeNodeID = existing.ActiveNodeID
+	primaryNodeID, activeNodeID, backupNodeID, err := resolveGroupAssignment(ctx, existing, targetMode, input)
+	if err != nil {
+		return nil, err
 	}
 	if existing == nil {
 		existing = &model.CFPointingGroup{}
@@ -283,6 +257,64 @@ func groupFromInput(ctx context.Context, existing *model.CFPointingGroup, input 
 	existing.DefaultProxied = input.DefaultProxied
 	existing.Enabled = input.Enabled
 	return existing, nil
+}
+
+func resolveGroupTargetMode(raw string) (string, error) {
+	targetMode := strings.TrimSpace(raw)
+	if targetMode == "" {
+		return model.CFPointingTargetModeNode, nil
+	}
+	if targetMode != model.CFPointingTargetModeNode && targetMode != model.CFPointingTargetModeCustom {
+		return "", errors.New(errGroupTargetModeInvalid)
+	}
+	return targetMode, nil
+}
+
+func resolveGroupTTL(existing *model.CFPointingGroup, explicit *int) (int, error) {
+	ttl := automaticTTL
+	if existing != nil {
+		ttl = groupTTL(existing)
+	}
+	if explicit != nil {
+		ttl = *explicit
+	}
+	if ttl != automaticTTL && (ttl < minManualTTL || ttl > maxManualTTL) {
+		return 0, errors.New(errGroupTTLInvalid)
+	}
+	return ttl, nil
+}
+
+func resolveCustomGroupRecord(targetMode, rawType, rawContent string) (string, string, error) {
+	recordType := strings.ToUpper(strings.TrimSpace(rawType))
+	if recordType == "" {
+		recordType = "A"
+	}
+	recordContent := strings.TrimSpace(rawContent)
+	if targetMode != model.CFPointingTargetModeCustom {
+		return recordType, recordContent, nil
+	}
+	if !validCustomRecordType(recordType) {
+		return "", "", errors.New(errRecordTypeInvalid)
+	}
+	if !validCustomRecordContent(recordType, recordContent) {
+		return "", "", errors.New(errRecordContentInvalid)
+	}
+	return recordType, recordContent, nil
+}
+
+func resolveGroupAssignment(ctx context.Context, existing *model.CFPointingGroup, targetMode string, input GroupInput) (uint, uint, *uint, error) {
+	if targetMode != model.CFPointingTargetModeNode {
+		return 0, 0, nil, nil
+	}
+	primaryNodeID, backupNodeID, err := resolveGroupNodes(ctx, input)
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	activeNodeID := primaryNodeID
+	if existing != nil && existing.TargetMode == targetMode && existing.PrimaryNodeID == primaryNodeID && equalOptionalUint(existing.BackupNodeID, backupNodeID) {
+		activeNodeID = existing.ActiveNodeID
+	}
+	return primaryNodeID, activeNodeID, backupNodeID, nil
 }
 
 // groupTTL 保留升级前分组的 300 秒行为；数据库零值不直接发送给 Cloudflare。

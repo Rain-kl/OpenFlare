@@ -76,36 +76,35 @@ When contributing code, strictly follow this physical layering and directory div
 
 | Path | Responsibility |
 | --- | --- |
-| `main.go` | the Server's single entry, delegating to `internal/cmd/` |
-| `cmd/agent`, `cmd/relay`, `cmd/flared` | edge component CLI entries (**not** the Server) |
+| `cmd/server`, `cmd/agent`, `cmd/relay`, `cmd/flared` | Four component CLI entries (Server via `cmd/server/main.go` + `cmd/server/cli/`) |
 | `internal/` | control-plane and edge runtime implementations |
 | `frontend/` | Next.js admin panel; build artifacts embedded into the Go Server |
-| `pkg/` | cross-component shared libs (protocol, rendering, GeoIP, etc.) |
+| `pkg/` | generic cross-cutting libraries (GeoIP, cache, mail, push, utilities, etc.) |
 | `scripts/` | Swagger generation, install scripts, etc. |
 | `docs/` | VitePress docs site and design baseline |
 | `docker/` | per-component Dockerfiles |
+| `tests/integration/` | cross-module integration tests |
 | `uploads/`, `data/` | runtime upload dir and static data (`.gitignore`d) |
 
-### 1. Server Layering (`main.go` + `internal/`)
+### 1. Server & Shared Domain Layering (`cmd/server/` + `internal/`)
 
 | Directory | Responsibility |
 | --- | --- |
-| `main.go` | Server startup entry |
-| `internal/cmd/` | Cobra subcommands: `api`, `worker`, `scheduler`, `all` (default fused mode) |
-| `internal/platform/bootstrap/` | cross-module assembly: task handlers, push domain events, process-level init |
-| `internal/router/` | HTTP route registration and global middleware |
-| `internal/router/v1/openflare/` | OpenFlare route registrars (`register_*.go`) |
-| `internal/apps/openflare/` | OpenFlare control-plane business domains (`routers.go` + `logics.go`) |
-| `internal/apps/{admin,user,oauth,upload,cap,...}/` | Wavelet platform capabilities (users, auth, tasks, push, etc.) |
+| `cmd/server/` | Server startup entry (`main.go`) and Cobra subcommands `cli/` (`api`, `worker`, `scheduler`, `all`) |
+| `internal/platform/` | cross-module assembly & lifecycle: `bootstrap/`, `buildinfo/`, `lifecycle/` |
+| `internal/router/` | HTTP route registration and global middleware (OpenFlare mounted in `v1/openflare_console.go` & `v1/openflare_edge.go`) |
+| `internal/apps/openflare/` | OpenFlare control-plane business domains (`routers.go` + `logics.go`, `tasks/`, `logwriter/`) |
+| `internal/apps/{admin,user,oauth,upload,cap,...}/` | Wavelet platform capabilities (users, auth, upload, tasks, push, etc.) |
 | `internal/apps/openflare/{agent,relay,flared}/` | **Server-side** edge protocol handlers (auth, heartbeat, WS) |
+| `internal/openflare/` | shared OpenFlare domain packages: `protocol/`, `openresty/`, `pagesarchive/`, `routeidentity/` |
+| `internal/edge/` | edge runtime shared foundation and component runtimes: `common/`, `agent/`, `relay/`, `flared/` |
 | `internal/model/` | GORM entities / DTOs / no-IO domain rules (`openflare_*.go` + platform models); **no** DB access |
 | `internal/infra/persistence/migrator/goose/` | goose SQL migrations (PostgreSQL / SQLite / ClickHouse) |
-| `internal/repository/` | data access layer (platform + OpenFlare business CRUD, cache, `logstore` log IO); the **only** persistence entry |
+| `internal/repository/` | data access layer (platform + OpenFlare business CRUD, cache, `logstore` log/analytics IO); the **only** persistence entry |
 | `internal/infra/task/` | Asynq async tasks (Worker + Scheduler) |
 | `internal/infra/config/` | Viper config loading |
-| `internal/shared/` | unified API response wrapper (`response/`) |
-| `pkg/protocol/` | Relay / Tunnel shared HTTP/WS protocol structures |
-| `pkg/render/`, `pkg/geoip/`, `pkg/wsclient/` | OpenResty config rendering, GeoIP, WebSocket client |
+| `internal/shared/` | unified API response wrapper (`response/`) and HTTP binding helpers (`httpx/`) |
+| `pkg/` | generic utility libraries (`cache/`, `cap/`, `geoip/`, `httppool/`, `i18n/`, `logger/`, `mail/`, `push/`, `trace/`, `util/`, `wsclient/`) |
 
 **API route prefixes:**
 
@@ -117,16 +116,23 @@ When contributing code, strictly follow this physical layering and directory div
 | `/api/v1/tunnel/*` | Tunnel client protocol | `X-Tunnel-Token` |
 | `/api/v1/admin/*` | Wavelet platform admin API | admin Session |
 
-### 2. Agent Modules (`internal/apps/agent/` / `cmd/agent/`)
-| `internal/apps/agent/httpclient/`  | Server communication |
-| `internal/apps/agent/wsclient/`    | WebSocket client communication |
-| `internal/apps/agent/protocol/`    | Agent API protocol types |
-| `internal/apps/agent/updater/`     | Agent self-update logic |
-| `internal/apps/agent/logging/`     | logging |
-| `internal/apps/agent/observability/`| observability (metrics, traces, etc.) |
-| `internal/apps/agent/geoipdata/`   | GeoIP data handling |
-| `internal/apps/agent/geoipupdate/` | GeoIP data updates |
-| `internal/apps/agent/agent/`       | core Agent logic and lifecycle |
+### 2. Agent Modules (`internal/edge/agent/` / `cmd/agent/`)
+
+> Shared edge runtime modules (`config/`, `heartbeat/`, `httpclient/`, `logging/`, `nodeip/`, `observability/`, `runner/`, `updater/`, `wsclient/`) live under `internal/edge/common/`; wire protocol types live under `internal/openflare/protocol/`.
+
+| Directory / Module | Responsibility |
+| --- | --- |
+| `cmd/agent/` | Agent CLI entrypoint |
+| `internal/edge/agent/config/` | local config parsing and defaults |
+| `internal/edge/agent/heartbeat/` | heartbeat and version digest checks |
+| `internal/edge/agent/sync/` | config pull and apply orchestration |
+| `internal/edge/agent/nginx/` | OpenResty file writes, validation, reload, startup, and rollback |
+| `internal/edge/agent/state/` | local state and observability compensation buffer |
+| `internal/edge/agent/httpclient/` | Server communication |
+| `internal/edge/agent/observability/` | observability (metrics, traces, etc.) |
+| `internal/edge/agent/geoipupdate/` | GeoIP data updates |
+| `internal/edge/agent/localfile/`, `runtimeuser/` | local state file helpers and runtime privilege resolution |
+| `internal/edge/agent/agent/` | core Agent logic and lifecycle |
 
 ### 3. Frontend Layering (`frontend/`)
 
@@ -148,34 +154,30 @@ Based on the Wavelet Next.js scaffold, OpenFlare business UI is organized route-
 
 **API conventions**: OpenFlare business APIs uniformly prefix `/api/v1/d/*`, wrapped via `OpenFlareBaseService`; page data fetching uses `@tanstack/react-query`.
 
-### 4. Relay Modules (`internal/apps/relay/` / `cmd/relay/`)
+### 4. Relay Modules (`internal/edge/relay/` / `cmd/relay/`)
 
 | Module | Responsibility |
 | --- | --- |
 | `cmd/relay/` | Relay CLI entry and init main |
-| `internal/apps/relay/config/` | local config parsing and default init |
-| `internal/apps/relay/frps/` | manage frps process lifecycle, ports & Token, monitor runtime |
-| `internal/apps/relay/heartbeat/` | periodic HTTP heartbeat, report state, fetch update requests |
-| `internal/apps/relay/httpclient/` | generic Server API client helpers |
-| `internal/apps/relay/observability/` | collect local host and frps base runtime metrics with pre-aggregation |
-| `internal/apps/relay/relay/` | coordinate core lifecycle, init, and cleanup |
-| `internal/apps/relay/state/` | local runtime state, error records, persistent cache |
-| `internal/apps/relay/updater/` | Relay upgrade check, download/install, restart |
-| `internal/apps/relay/wsclient/` | long-lived WebSocket bidirectional channel with the Server |
+| `internal/edge/relay/config/` | local config parsing and default init |
+| `internal/edge/relay/frps/` | manage frps process lifecycle, ports & Token, monitor runtime |
+| `internal/edge/relay/heartbeat/` | periodic HTTP heartbeat, report state, fetch update requests |
+| `internal/edge/relay/httpclient/` | generic Server API client helpers |
+| `internal/edge/relay/observability/` | collect local host and frps base runtime metrics with pre-aggregation |
+| `internal/edge/relay/relay/` | coordinate core lifecycle, init, and cleanup |
+| `internal/edge/relay/state/` | local runtime state, error records, persistent cache |
 
-### 5. OpenFlared (Client) Modules (`internal/apps/flared/` / `cmd/flared/`)
+### 5. OpenFlared (Client) Modules (`internal/edge/flared/` / `cmd/flared/`)
 
 | Module | Responsibility |
 | --- | --- |
 | `cmd/flared/` | Client CLI entry and init main |
-| `internal/apps/flared/config/` | local client config loading and parsing |
-| `internal/apps/flared/flared/` | intranet penetration client core scheduling and state management |
-| `internal/apps/flared/frpc/` | hot-reload/dynamically generate per-Relay `frpc_{relayNodeID}.toml` and monitor frpc |
-| `internal/apps/flared/heartbeat/` | heartbeat communication with the control plane, incl. Token validation |
-| `internal/apps/flared/httpclient/` | generic client API communication (`/api/v1/tunnel/*`) |
-| `internal/apps/flared/sync/` | incrementally pull latest Tunnel route bindings, generate snapshots, apply |
-| `internal/apps/flared/updater/` | client self-update, new-version check, update landing |
-| `internal/apps/flared/wsclient/` | WS channel for real-time Server tunnel config change push |
+| `internal/edge/flared/config/` | local client config loading and parsing |
+| `internal/edge/flared/flared/` | intranet penetration client core scheduling and state management |
+| `internal/edge/flared/frpc/` | hot-reload/dynamically generate per-Relay `frpc_{relayNodeID}.toml` and monitor frpc |
+| `internal/edge/flared/heartbeat/` | heartbeat communication with the control plane, incl. Token validation |
+| `internal/edge/flared/httpclient/` | generic client API communication (`/api/v1/tunnel/*`) |
+| `internal/edge/flared/sync/` | incrementally pull latest Tunnel route bindings, generate snapshots, apply |
 
 > **Note**: OpenFlared has no standalone `state/` package; version and checksum are persisted by `frpc/manager.go` to `flared-state.json`.
 

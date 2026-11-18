@@ -9,7 +9,7 @@
 ## 1. 目标
 
 * **ClickHouse 可选**：不启用时，PostgreSQL（或关闭主库时的 SQLite）完整承接写入、查询、聚合与清理。
-* **上层不碰底层库**：apps 只面向 `internal/repository/logstore`（或 `repository` 门面）。`repository/analytics` 与 `db.ChConn` / `db.ChDB` 仅供 logstore 的 ClickHouse 实现使用。
+* **上层不碰底层库**：apps 只面向 `internal/repository/logstore`（或 `repository` 门面）。`db.ChConn` / `db.ChDB` 与 ClickHouse 原生批量读写仅供 logstore 的 ClickHouse 实现使用。
 * **可切换**：任务管理里的「切换日志数据库」在 PostgreSQL/SQLite 与 ClickHouse 之间复制数据并翻转主库；迁移期间冻结写入，成功才切换，源数据不删。
 
 ---
@@ -42,11 +42,11 @@ ClickHouse 上的小时级物化视图（如 `of_access_log_hourly`）只服务 
 | 层级 | 路径 | 职责 |
 | --- | --- | --- |
 | 抽象 | `internal/repository/logstore` | 接口 + `Active` / `BuildForMigration`；按 `log_database` 选实现 |
-| CH 实现 | `logstore/clickhouse_store.go` | 委托 `repository/analytics`（原生批量 + 现有聚合 SQL） |
+| CH 实现 | `logstore/clickhouse_store.go` + `logstore/ch_*.go` | 原生批量（`PrepareBatch` / `Append` / `Send`）+ 聚合 SQL |
 | 主库实现 | `logstore/postgres_store.go` | PostgreSQL（高频表按月分区）与 SQLite（普通表）共用 GORM |
 | Model | `internal/model/analytics` | 实体与批量 SQL，无 IO |
-| 入队 | `chwriter` / `risk_control` + `batchwriter` | `FlushFunc` 调 `logstore.Active`；节点日志 / 可观测经 hooks 入队 |
-| 约束 | `logstore/imports_test.go` | apps 禁止 import `repository/analytics` |
+| 入队 | `openflare/logwriter` / `risk_control` + `batchwriter` | `FlushFunc` 调 `logstore.Active`；节点日志 / 可观测经 hooks 入队 |
+| 约束 | `logstore/imports_test.go` | apps 禁止 import ClickHouse 驱动、`migrator` 或内部持久化连接 |
 
 `log_database` 只有两种合法状态：**随业务主库**（`postgres` 或 `sqlite`）或 **`clickhouse`**。不存在「主库 PostgreSQL + 日志 SQLite」。`log_database` / `log_db_migration` 受保护，管理端不可改。
 
@@ -64,7 +64,7 @@ ClickHouse 上的小时级物化视图（如 `of_access_log_hourly`）只服务 
 4. 全部成功才写 `log_database=target` 并清除迁移标记；失败清除标记，写入继续走源库。
 5. 源数据不删；重试前重新清空目标以保证幂等。
 
-不要另起切换协议，也不要在任务里直连 `analyticsrepo`。
+不要另起切换协议，也不要在任务里直接操作 `db.ChConn` / ClickHouse 驱动。
 
 ---
 
@@ -74,7 +74,7 @@ ClickHouse 上的小时级物化视图（如 `of_access_log_hourly`）只服务 
 
 * 高频表：CH 用 `MergeTree` + `toYYYYMM`；PG 用 `PARTITION BY RANGE(时间列)`，主键含分区键；SQLite 普通表 + 索引。
 * ID 用 snowflake `uint64`，迁移时原样保留。
-* 写入走独立 `batchwriter`；flush 调 `logstore.Active`，不要 `analyticsrepo.BatchInsert`。
+* 写入走独立 `batchwriter`；flush 调 `logstore.Active`，不要旁路直写 ClickHouse。
 * 切换任务的 `copy*` 必须覆盖新表；清理走已有 `log_retention_days_*` 或 `metric_retention_days`，不要用错 TTL。
 
 运行时配置见 [配置项参考 · 日志存储](../reference/configuration.md#8-日志存储log-database)。

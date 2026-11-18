@@ -8,6 +8,8 @@ import (
 	"net"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 )
@@ -88,7 +90,7 @@ func isPublicNodeIP(raw string) bool {
 	return true
 }
 
-func buildRelayConfig(ctx context.Context, node *model.OpenFlareNode) *Config {
+func buildRelayConfig(ctx context.Context, node *model.OpenFlareNode) *protocol.RelayConfig {
 	if node == nil {
 		return nil
 	}
@@ -96,7 +98,7 @@ func buildRelayConfig(ctx context.Context, node *model.OpenFlareNode) *Config {
 	if err != nil || webServerPort <= 0 {
 		webServerPort = node.RelayBindPort + 500
 	}
-	return &Config{
+	return &protocol.RelayConfig{
 		BindPort:         node.RelayBindPort,
 		VhostHTTPPort:    node.RelayVhostHTTPPort,
 		AuthToken:        node.RelayAuthToken,
@@ -107,7 +109,7 @@ func buildRelayConfig(ctx context.Context, node *model.OpenFlareNode) *Config {
 }
 
 // BuildSettings returns runtime settings shared by relay and flared clients.
-func BuildSettings(ctx context.Context, node *model.OpenFlareNode, updateNow bool, updateChannel, updateTag string) *Settings {
+func BuildSettings(ctx context.Context, node *model.OpenFlareNode, updateNow bool, updateChannel, updateTag string) *protocol.RelaySettings {
 	autoUpdate := false
 	if node != nil {
 		autoUpdate = node.AutoUpdateEnabled
@@ -127,7 +129,7 @@ func BuildSettings(ctx context.Context, node *model.OpenFlareNode, updateNow boo
 		updateRepo.Value = defaultAgentUpdateRepo
 	}
 
-	return &Settings{
+	return &protocol.RelaySettings{
 		HeartbeatInterval:       heartbeatInterval,
 		WebsocketUpgradeEnabled: wsUpgradeEnabled,
 		AutoUpdate:              autoUpdate,

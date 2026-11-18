@@ -13,14 +13,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	edgelogging "github.com/Rain-kl/Wavelet/internal/apps/edge/logging"
-	"github.com/Rain-kl/Wavelet/internal/apps/flared/config"
-	"github.com/Rain-kl/Wavelet/internal/apps/flared/flared"
-	"github.com/Rain-kl/Wavelet/internal/apps/flared/frpc"
-	"github.com/Rain-kl/Wavelet/internal/apps/flared/heartbeat"
-	"github.com/Rain-kl/Wavelet/internal/apps/flared/httpclient"
-	"github.com/Rain-kl/Wavelet/internal/apps/flared/sync"
-	"github.com/Rain-kl/Wavelet/internal/apps/flared/wsclient"
+	edgelogging "github.com/Rain-kl/Wavelet/internal/edge/common/logging"
+	edgews "github.com/Rain-kl/Wavelet/internal/edge/common/wsclient"
+	"github.com/Rain-kl/Wavelet/internal/edge/flared/config"
+	"github.com/Rain-kl/Wavelet/internal/edge/flared/flared"
+	"github.com/Rain-kl/Wavelet/internal/edge/flared/frpc"
+	"github.com/Rain-kl/Wavelet/internal/edge/flared/heartbeat"
+	"github.com/Rain-kl/Wavelet/internal/edge/flared/httpclient"
+	"github.com/Rain-kl/Wavelet/internal/edge/flared/sync"
 )
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 	slog.Info("detected frpc version", "version", frpcManager.GetVersion(context.Background()))
 
 	httpClient := httpclient.New(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
-	wsClient := wsclient.New(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
+	wsClient := edgews.New(edgews.PresetFlared, cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
 
 	syncService := sync.New(httpClient, frpcManager, cfg)
 	heartbeatService := heartbeat.New(httpClient, frpcManager, cfg)

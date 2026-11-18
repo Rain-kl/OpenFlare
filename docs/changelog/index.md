@@ -21,6 +21,10 @@ sidebar: false
 
 - Zone 详情的「域名」标签页新增「清理未关联域名」按钮，支持确认后一键批量删除当前 Zone 下所有未关联代理路由的域名及对应 Cloudflare 指向记录，已关联路由的域名不受影响。
 
+### ⚡️ 优化与改进
+
+- 重组 Go 后端与边缘组件工程包结构：将控制面入口统一收敛至 `cmd/server/`，边缘运行时收敛至 `internal/edge/`、跨端共享协议与渲染包收敛至 `internal/openflare/`、ClickHouse 与主库分析存取统一归入 `internal/repository/logstore/`，并扁平化整理上传域、OpenFlare 路由注册及对应设计、部署与开发命令文档（源码启动命令调整为 `go run ./cmd/server ...`）。
+
 ## [v3.6.1] - 2026-11-18
 
 ### 🛠 修复

@@ -26,8 +26,8 @@
 - **分层**：`apps → repository → model`，`repository → infra/persistence`；禁止 `model → repository`。
   - `model`：实体、表名、配置 key、查询 DTO、无 IO 规则。禁止 `db.DB` / Redis / CH；禁止 `import repository`。GORM hook 仅可 mutate 自身字段，禁止在 hook 内再查 DB/缓存。
   - `repository`：唯一持久化入口。apps/logics 禁止为业务 CRUD 直调 `db.DB`（管理端 SQL 控制台、infra 内部等例外保留）。禁止新增 `model.Get/List/Create/...` 类数据访问 API。
-- 日志/分析表（节点访问日志、用户访问日志、可观测时序）走 `internal/repository/logstore`，禁止 apps 直连 `repository/analytics` 或 `db.ChConn`/`db.ChDB`。判定与接入步骤见 `logstore` skill。
-- 跨模块集成（任务 Handler、推送事件、域监听、完成钩子）禁止 `init()` 注册；经 `internal/platform/bootstrap` 在 `internal/cmd` 入口显式装配。
+- 日志/分析表（节点访问日志、用户访问日志、可观测时序）走 `internal/repository/logstore`，禁止 apps 直连 ClickHouse 驱动或 `db.ChConn`/`db.ChDB`（ClickHouse 日志与分析访问已并入 `logstore`）。判定与接入步骤见 `logstore` skill。
+- 跨模块集成（任务 Handler、推送事件、域监听、完成钩子）禁止 `init()` 注册；经 `internal/platform/bootstrap` 在 `cmd/server/cli` 入口显式装配。
 - 核心业务（如 `oauth`、`user`）禁止直接 import push/custom_events；经 `internal/listener` 发域事件，push 在 bootstrap 订阅。
 - 依赖任务/推送注册的测试须显式 `bootstrap.RegisterTasks()` / `RegisterPushDomainEvents()` 等，不依赖 `init()`。
 - API 错误必须 `response.Abort*` + `ErrorHandlerMiddleware`；禁止 Handler 直接 `c.JSON(..., response.Err(...))` 或用 HTTP 200 表示失败。
@@ -106,7 +106,7 @@ Swagger：`@Success 200` 用具体类型或 `response.Any`；每个可能 Abort 
 ### 路由与装配
 
 - `router.go` 只做高层分发，禁止直接挂业务 Handler。归属与开发步骤见 `new-api` skill。
-- 跨模块副作用：在 `bootstrap` 增 `Register*`，于对应 `internal/cmd/*.go` 调用（`RegisterAPI` / `RegisterWorker` / `RegisterAll`）。
+- 跨模块副作用：在 `bootstrap` 增 `Register*`，于对应 `cmd/server/cli/*.go` 调用（`RegisterAPI` / `RegisterWorker` / `RegisterAll`）。
 - API/`all` 模式：`bootstrap.Init` 须在 `RegisterPushDomainEvents()` **之后**调用，保证 `SyncEvents` 同步内置推送元数据。
 
 ### 中间件

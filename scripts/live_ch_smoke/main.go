@@ -16,7 +16,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/chwriter"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/logwriter"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
@@ -39,8 +39,8 @@ func run() error {
 		return errors.New("ChConn not ready — check config.yaml clickhouse.enabled")
 	}
 	ctx := context.Background()
-	chwriter.Init(ctx)
-	defer func() { _ = chwriter.Stop(ctx) }()
+	logwriter.Init(ctx)
+	defer func() { _ = logwriter.Stop(ctx) }()
 
 	now := time.Now().UTC()
 	nodeID := "e2e-app-" + now.Format("150405")
@@ -60,7 +60,7 @@ func run() error {
 	if err := assertLatestIncludes(ctx, nodeID, now); err != nil {
 		return err
 	}
-	for _, s := range chwriter.WriterStats() {
+	for _, s := range logwriter.WriterStats() {
 		fmt.Printf("writer %s running=%v depth=%d drops=%d flush_err=%d\n",
 			s.Name, s.Running, s.Depth, s.Drops, s.FlushErrors)
 	}

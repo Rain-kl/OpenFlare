@@ -5,9 +5,7 @@ package analytics
 
 import "strings"
 
-// User-Agent 浏览器/OS/设备分类（纯函数，无 IO）。
-// 与 internal/repository/analytics/browser.go 的判定逻辑保持一致（Task 4 复制，
-// 因为 model 不得 import analyticsrepo）；后续若移除旧 CH 实现，可让 analyticsrepo 改以别名复用本包。
+// User-Agent 浏览器/OS/设备分类（纯函数，无 IO），供 logstore 与上层统计共用。
 
 const (
 	uaLabelUnknown = "Unknown"

@@ -10,15 +10,15 @@
 
 ```bash
 cp config.example.yaml config.yaml
-go run main.go all
+go run ./cmd/server all
 ```
 
 分进程启动：
 
 ```bash
-go run main.go api          # 仅 HTTP API
-go run main.go worker       # 仅 Asynq Worker
-go run main.go scheduler    # 仅定时任务调度
+go run ./cmd/server api          # 仅 HTTP API
+go run ./cmd/server worker       # 仅 Asynq Worker
+go run ./cmd/server scheduler    # 仅定时任务调度
 ```
 
 编译二进制：
@@ -93,7 +93,7 @@ make build-agent
 测试：
 
 ```bash
-GOCACHE=/tmp/openflare-go-cache go test ./internal/apps/agent/...
+GOCACHE=/tmp/openflare-go-cache go test ./internal/edge/agent/...
 ```
 
 ## Relay（中继端）

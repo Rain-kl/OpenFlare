@@ -19,8 +19,8 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
-	"github.com/Rain-kl/Wavelet/pkg/protocol"
-	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
+	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 )
 
 type activeConfigSnapshot struct {
@@ -34,17 +34,17 @@ type runtimeIPMatchConfig struct {
 }
 
 // WAFIPGroupsForAgent builds agent-facing WAF IP group payloads for the given ids.
-func WAFIPGroupsForAgent(ctx context.Context, ids []uint) ([]WAFIPGroup, error) {
+func WAFIPGroupsForAgent(ctx context.Context, ids []uint) ([]protocol.WAFIPGroup, error) {
 	return validatedAgentWAFIPGroups(ctx, ids, false)
 }
 
 // ChangedWAFIPGroupsForAgent returns WAF IP groups whose checksums differ from the agent state.
-func ChangedWAFIPGroupsForAgent(ctx context.Context, ids []uint, checksums map[string]string) ([]WAFIPGroup, error) {
+func ChangedWAFIPGroupsForAgent(ctx context.Context, ids []uint, checksums map[string]string) ([]protocol.WAFIPGroup, error) {
 	groups, err := validatedAgentWAFIPGroups(ctx, ids, true)
 	if err != nil {
 		return nil, err
 	}
-	changed := make([]WAFIPGroup, 0, len(groups))
+	changed := make([]protocol.WAFIPGroup, 0, len(groups))
 	for _, group := range groups {
 		if strings.TrimSpace(checksums[strconv.FormatUint(uint64(group.ID), 10)]) == group.Checksum {
 			continue
@@ -54,7 +54,7 @@ func ChangedWAFIPGroupsForAgent(ctx context.Context, ids []uint, checksums map[s
 	return changed, nil
 }
 
-func validatedAgentWAFIPGroups(ctx context.Context, ids []uint, fallbackToActive bool) ([]WAFIPGroup, error) {
+func validatedAgentWAFIPGroups(ctx context.Context, ids []uint, fallbackToActive bool) ([]protocol.WAFIPGroup, error) {
 	targetIDs := uniqueUintIDs(ids)
 	activeIDs, err := activeConfigWAFIPGroupIDs(ctx)
 	if err != nil {
@@ -64,7 +64,7 @@ func validatedAgentWAFIPGroups(ctx context.Context, ids []uint, fallbackToActive
 		targetIDs = activeIDs
 	}
 	if len(targetIDs) == 0 {
-		return []WAFIPGroup{}, nil
+		return []protocol.WAFIPGroup{}, nil
 	}
 
 	validationIDs := uniqueUintIDs(append(append([]uint{}, activeIDs...), targetIDs...))
@@ -84,7 +84,7 @@ func validatedAgentWAFIPGroups(ctx context.Context, ids []uint, fallbackToActive
 	for _, id := range targetIDs {
 		targetSet[id] = struct{}{}
 	}
-	result := make([]WAFIPGroup, 0, len(targetIDs))
+	result := make([]protocol.WAFIPGroup, 0, len(targetIDs))
 	for _, group := range allGroups {
 		if _, ok := targetSet[group.ID]; ok {
 			result = append(result, group)
@@ -93,10 +93,10 @@ func validatedAgentWAFIPGroups(ctx context.Context, ids []uint, fallbackToActive
 	return result, nil
 }
 
-func buildAgentWAFIPGroups(ctx context.Context, ids []uint) ([]WAFIPGroup, error) {
+func buildAgentWAFIPGroups(ctx context.Context, ids []uint) ([]protocol.WAFIPGroup, error) {
 	ids = uniqueUintIDs(ids)
 	if len(ids) == 0 {
-		return []WAFIPGroup{}, nil
+		return []protocol.WAFIPGroup{}, nil
 	}
 	slices.Sort(ids)
 	groups, err := repository.ListOpenFlareWAFIPGroupsByIDs(ctx, ids)
@@ -107,7 +107,7 @@ func buildAgentWAFIPGroups(ctx context.Context, ids []uint) ([]WAFIPGroup, error
 	for _, group := range groups {
 		groupByID[group.ID] = group
 	}
-	result := make([]WAFIPGroup, 0, len(ids))
+	result := make([]protocol.WAFIPGroup, 0, len(ids))
 	for _, id := range ids {
 		group := groupByID[id]
 		if group == nil {
@@ -122,18 +122,18 @@ func buildAgentWAFIPGroups(ctx context.Context, ids []uint) ([]WAFIPGroup, error
 	return result, nil
 }
 
-func buildAgentWAFIPGroup(group *model.OpenFlareWAFIPGroup) (WAFIPGroup, error) {
+func buildAgentWAFIPGroup(group *model.OpenFlareWAFIPGroup) (protocol.WAFIPGroup, error) {
 	if group == nil {
-		return WAFIPGroup{}, errors.New("IP group was not found")
+		return protocol.WAFIPGroup{}, errors.New("IP group was not found")
 	}
 	ips, err := decodeWAFIPGroupStringList(group.IPList)
 	if err != nil {
-		return WAFIPGroup{}, err
+		return protocol.WAFIPGroup{}, err
 	}
 	if !group.Enabled {
 		ips = []string{}
 	}
-	agentGroup := WAFIPGroup{
+	agentGroup := protocol.WAFIPGroup{
 		ID:      group.ID,
 		Name:    group.Name,
 		Type:    group.Type,
@@ -144,7 +144,7 @@ func buildAgentWAFIPGroup(group *model.OpenFlareWAFIPGroup) (WAFIPGroup, error) 
 	return agentGroup, nil
 }
 
-func checksumAgentWAFIPGroup(group WAFIPGroup) string {
+func checksumAgentWAFIPGroup(group protocol.WAFIPGroup) string {
 	payload := struct {
 		ID      uint     `json:"id"`
 		Enabled bool     `json:"enabled"`

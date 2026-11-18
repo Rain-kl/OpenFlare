@@ -11,8 +11,8 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/uptimekuma"
-	"github.com/Rain-kl/Wavelet/internal/buildinfo"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/platform/buildinfo"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 

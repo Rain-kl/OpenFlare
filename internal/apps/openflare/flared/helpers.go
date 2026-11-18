@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/relay"
@@ -28,7 +30,7 @@ func normalizeReleaseChannel(channel string) string {
 	return updateChannelStable
 }
 
-func normalizeFlaredHeartbeatPayload(payload HeartbeatPayload) HeartbeatPayload {
+func normalizeFlaredHeartbeatPayload(payload protocol.FlaredHeartbeatPayload) protocol.FlaredHeartbeatPayload {
 	payload.ClientVersion = strings.TrimSpace(payload.ClientVersion)
 	payload.FrpVersion = strings.TrimSpace(payload.FrpVersion)
 	payload.IP = strings.TrimSpace(payload.IP)
@@ -36,7 +38,7 @@ func normalizeFlaredHeartbeatPayload(payload HeartbeatPayload) HeartbeatPayload 
 	payload.CurrentVersion = strings.TrimSpace(payload.CurrentVersion)
 	payload.CurrentChecksum = strings.TrimSpace(payload.CurrentChecksum)
 
-	cleaned := make([]ConnectedRelay, 0, len(payload.ConnectedRelays))
+	cleaned := make([]protocol.FlaredConnectedRelay, 0, len(payload.ConnectedRelays))
 	for _, item := range payload.ConnectedRelays {
 		item.RelayNodeID = strings.TrimSpace(item.RelayNodeID)
 		item.Status = strings.ToLower(strings.TrimSpace(item.Status))
@@ -52,12 +54,12 @@ func normalizeFlaredHeartbeatPayload(payload HeartbeatPayload) HeartbeatPayload 
 	return payload
 }
 
-func getActiveConfigMeta(ctx context.Context) (*ActiveConfigMeta, error) {
+func getActiveConfigMeta(ctx context.Context) (*protocol.ActiveConfigMeta, error) {
 	version, err := repository.GetActiveConfigVersion(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &ActiveConfigMeta{
+	return &protocol.ActiveConfigMeta{
 		Version:  version.Version,
 		Checksum: version.Checksum,
 	}, nil
@@ -129,6 +131,6 @@ func sanitizeProxyName(domain string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(domain, ".", "-"), "*", "wildcard")
 }
 
-func buildTunnelSettings(ctx context.Context, node *model.OpenFlareNode, updateNow bool, updateChannel, updateTag string) *relay.Settings {
+func buildTunnelSettings(ctx context.Context, node *model.OpenFlareNode, updateNow bool, updateChannel, updateTag string) *protocol.RelaySettings {
 	return relay.BuildSettings(ctx, node, updateNow, updateChannel, updateTag)
 }

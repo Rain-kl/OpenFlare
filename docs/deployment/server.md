@@ -310,7 +310,7 @@ Server 默认监听 `3000` 端口，启动成功后可以使用浏览器访问�
 在大型生产部署中，你可以选择将 Server 按职责拆分为多个进程运行：
 
 ```bash
-go run main.go api             # 仅启动管理端与节点通信的 API 服务
-go run main.go worker          # 仅启动后台任务的 Worker 服务
-go run main.go scheduler       # 仅启动定时任务的 Scheduler 服务
+go run ./cmd/server api             # 仅启动管理端与节点通信的 API 服务
+go run ./cmd/server worker          # 仅启动后台任务的 Worker 服务
+go run ./cmd/server scheduler       # 仅启动定时任务的 Scheduler 服务
 ```

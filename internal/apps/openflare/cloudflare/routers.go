@@ -7,7 +7,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -57,7 +57,7 @@ func GetConnectionHandler(c *gin.Context) {
 // @Router /api/v1/d/cloudflare/connection [put]
 func SaveConnectionHandler(c *gin.Context) {
 	var input ConnectionInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	item, err := SaveConnection(c.Request.Context(), input)
@@ -139,7 +139,7 @@ func ListGroupsHandler(c *gin.Context) {
 // @Router /api/v1/d/cloudflare/groups [post]
 func CreateGroupHandler(c *gin.Context) {
 	var input GroupInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	item, err := CreateGroup(c.Request.Context(), input)
@@ -159,7 +159,7 @@ func CreateGroupHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any
 // @Router /api/v1/d/cloudflare/groups/{id} [get]
 func GetGroupHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -183,12 +183,12 @@ func GetGroupHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any
 // @Router /api/v1/d/cloudflare/groups/{id}/update [post]
 func UpdateGroupHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input GroupInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	item, err := UpdateGroup(c.Request.Context(), id, input)
@@ -209,7 +209,7 @@ func UpdateGroupHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any
 // @Router /api/v1/d/cloudflare/groups/{id}/delete [post]
 func DeleteGroupHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -229,7 +229,7 @@ func DeleteGroupHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any
 // @Router /api/v1/d/cloudflare/groups/{id}/sync [post]
 func SyncGroupHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -250,7 +250,7 @@ func SyncGroupHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=[]cloudflare.MemberItem}
 // @Router /api/v1/d/cloudflare/groups/{id}/members [get]
 func ListMembersHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
@@ -274,12 +274,12 @@ func ListMembersHandler(c *gin.Context) {
 // @Failure 409 {object} response.Any
 // @Router /api/v1/d/cloudflare/groups/{id}/members [post]
 func CreateMemberHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input MemberCreateInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	item, err := CreateMember(c.Request.Context(), id, input)
@@ -306,7 +306,7 @@ func UpdateMemberHandler(c *gin.Context) {
 		return
 	}
 	var input MemberUpdateInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	item, err := UpdateMember(c.Request.Context(), groupID, memberID, input)
@@ -377,7 +377,7 @@ func MoveMemberHandler(c *gin.Context) {
 		return
 	}
 	var input MemberMoveInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	item, err := MoveMember(c.Request.Context(), groupID, memberID, input.TargetGroupID)
@@ -400,12 +400,12 @@ func MoveMemberHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any
 // @Router /api/v1/d/cloudflare/groups/{id}/members/batch-move [post]
 func BatchMoveMembersHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input MemberBatchMoveInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	if abortLogic(c, BatchMoveMembers(c.Request.Context(), id, input)) {
@@ -426,12 +426,12 @@ func BatchMoveMembersHandler(c *gin.Context) {
 // @Failure 400 {object} response.Any
 // @Router /api/v1/d/cloudflare/groups/{id}/members/batch-remove [post]
 func BatchRemoveMembersHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input MemberBatchRemoveInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	if abortLogic(c, BatchRemoveMembers(c.Request.Context(), id, input)) {
@@ -453,12 +453,12 @@ func BatchRemoveMembersHandler(c *gin.Context) {
 // @Failure 404 {object} response.Any
 // @Router /api/v1/d/cloudflare/groups/{id}/members/batch-proxy [post]
 func BatchEnableProxyHandler(c *gin.Context) {
-	id, ok := apiutil.IDParam(c)
+	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
 	var input MemberBatchProxyInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	if abortLogic(c, BatchEnableProxy(c.Request.Context(), id, input)) {
@@ -483,10 +483,10 @@ func ListAvailableDomainsHandler(c *gin.Context) {
 }
 
 func memberParams(c *gin.Context) (uint, uint, bool) {
-	groupID, ok := apiutil.IDParam(c)
+	groupID, ok := httpx.IDParam(c)
 	if !ok {
 		return 0, 0, false
 	}
-	memberID, ok := apiutil.NamedIDParam(c, "memberId")
+	memberID, ok := httpx.NamedIDParam(c, "memberId")
 	return groupID, memberID, ok
 }

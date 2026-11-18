@@ -18,9 +18,6 @@ func RegisterRootRoutes(r *gin.Engine) {
 	// 1. Default root routes (/f/:id, /robots.txt, and /swagger/*any)
 	RegisterDefaultRootRoutes(r)
 
-	// 2. Register custom serving
-	RegisterCustomRootRoutes(r)
-
-	// 3. Register frontend serving
+	// 2. Register frontend serving
 	RegisterFrontend(r)
 }

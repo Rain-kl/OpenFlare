@@ -10,8 +10,8 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	openresty "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	openresty "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )

@@ -14,6 +14,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/credential"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
@@ -87,7 +88,7 @@ func GetCertificateContent(ctx context.Context, id uint) (*CertificateContent, e
 	if err != nil {
 		return nil, err
 	}
-	keyPEM, err := openSensitive(certificate.KeyPEM)
+	keyPEM, err := credential.Open(certificate.KeyPEM)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +320,7 @@ func ListDNSAccounts(ctx context.Context) ([]model.DNSAccount, error) {
 
 // CreateDNSAccount 创建 DNS 账号。
 func CreateDNSAccount(ctx context.Context, input DNSAccountInput) (*model.DNSAccount, error) {
-	authorization, err := sealSensitive(strings.TrimSpace(input.Authorization))
+	authorization, err := credential.Seal(strings.TrimSpace(input.Authorization))
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +344,7 @@ func UpdateDNSAccount(ctx context.Context, id uint, input DNSAccountInput) (*mod
 	if err != nil {
 		return nil, err
 	}
-	authorization, err := sealSensitive(strings.TrimSpace(input.Authorization))
+	authorization, err := credential.Seal(strings.TrimSpace(input.Authorization))
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +406,7 @@ func buildCertificate(_ context.Context, existing *model.TLSCertificate, input C
 	if err != nil {
 		return nil, err
 	}
-	sealedKey, err := sealSensitive(keyPEM)
+	sealedKey, err := credential.Seal(keyPEM)
 	if err != nil {
 		return nil, err
 	}

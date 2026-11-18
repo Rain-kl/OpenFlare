@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/apiutil"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -38,7 +38,7 @@ func GetAccessLogOverviewHandler(c *gin.Context) {
 		Hours:         readQueryInt(c, "hours"),
 		BucketMinutes: readQueryInt(c, "bucket_minutes"),
 	})
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))
@@ -69,11 +69,11 @@ func GetAccessLogOverviewHandler(c *gin.Context) {
 // @Router /api/v1/d/access-logs [get]
 func GetAccessLogsHandler(c *gin.Context) {
 	query, err := readAccessLogQuery(c)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	logs, err := ListAccessLogs(c.Request.Context(), query)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(logs))
@@ -102,12 +102,12 @@ func GetAccessLogsHandler(c *gin.Context) {
 // @Router /api/v1/d/access-logs/folds [get]
 func GetFoldedAccessLogsHandler(c *gin.Context) {
 	query, err := readAccessLogQuery(c)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	query.FoldMinutes = readQueryInt(c, "fold_minutes")
 	logs, err := ListFoldedAccessLogs(c.Request.Context(), query)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(logs))
@@ -148,7 +148,7 @@ func GetFoldedAccessLogIPsHandler(c *gin.Context) {
 		SortBy:          c.Query("sort_by"),
 		SortOrder:       c.Query("sort_order"),
 	})
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))
@@ -189,7 +189,7 @@ func GetAccessLogIPSummariesHandler(c *gin.Context) {
 		SortBy:     c.Query("sort_by"),
 		SortOrder:  c.Query("sort_order"),
 	})
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))
@@ -220,7 +220,7 @@ func GetAccessLogIPTrendHandler(c *gin.Context) {
 		Hours:         readQueryInt(c, "hours"),
 		BucketMinutes: readQueryInt(c, "bucket_minutes"),
 	})
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))
@@ -249,7 +249,7 @@ func GetAccessLogIPAnalysisHandler(c *gin.Context) {
 		Host:       c.Query("host"),
 		Hours:      readQueryInt(c, "hours"),
 	})
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))
@@ -271,11 +271,11 @@ func GetAccessLogIPAnalysisHandler(c *gin.Context) {
 // @Router /api/v1/d/access-logs/cleanup [post]
 func CleanupAccessLogsHandler(c *gin.Context) {
 	var input AccessLogCleanupInput
-	if !apiutil.BindJSON(c, &input) {
+	if !httpx.BindJSON(c, &input) {
 		return
 	}
 	result, err := CleanupAccessLogs(c.Request.Context(), input)
-	if apiutil.AbortBadRequestOnError(c, err) {
+	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(result))

@@ -1025,6 +1025,29 @@ func (s *gormLogStore) ListMetricSnapshots(ctx context.Context, nodeID string, s
 	return fromAnalyticsNodeMetricSnapshots(rows), nil
 }
 
+// ListLatestMetricSnapshots 按 node_id 返回窗口内最新一条指标快照。
+func (s *gormLogStore) ListLatestMetricSnapshots(ctx context.Context, nodeID string, since time.Time) ([]*model.OpenFlareMetricSnapshot, error) {
+	all, err := s.ListMetricSnapshots(ctx, nodeID, since, 0)
+	if err != nil {
+		return nil, err
+	}
+	latestByNode := make(map[string]*model.OpenFlareMetricSnapshot, len(all))
+	for _, snapshot := range all {
+		if snapshot == nil || snapshot.NodeID == "" {
+			continue
+		}
+		if existing, ok := latestByNode[snapshot.NodeID]; ok && !snapshot.CapturedAt.After(existing.CapturedAt) {
+			continue
+		}
+		latestByNode[snapshot.NodeID] = snapshot
+	}
+	result := make([]*model.OpenFlareMetricSnapshot, 0, len(latestByNode))
+	for _, snapshot := range latestByNode {
+		result = append(result, snapshot)
+	}
+	return result, nil
+}
+
 func (s *gormLogStore) DeleteAllMetricSnapshots(ctx context.Context) (int64, error) {
 	if err := s.ensureWritable(ctx); err != nil {
 		return 0, err

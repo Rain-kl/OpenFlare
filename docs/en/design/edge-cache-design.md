@@ -199,7 +199,7 @@ access.log cache_status=$upstream_cache_status
 
 | Area | Path |
 | --- | --- |
-| Rendering | `pkg/render/openresty/render.go` (bypass, Set-Cookie, `proxy_cache_valid`, extension constants) |
+| Rendering | `internal/openflare/openresty/render.go` (bypass, Set-Cookie, `proxy_cache_valid`, extension constants) |
 | Validation | `internal/apps/openflare/proxy_route/helpers.go` |
 | Model/defaults | creating a route defaults `cache_policy=static`; `url`→`all` on read/write |
 | Snapshot | `config_version` snapshot normalization |

@@ -15,8 +15,8 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	openrestyrender "github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
 func TestWildcardDomainConfigBundle(t *testing.T) {

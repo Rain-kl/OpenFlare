@@ -87,6 +87,9 @@ func getLogLevelForConfig(cfg Config) zapcore.Level {
 }
 
 func getTraceIDFields(ctx context.Context) []zap.Field {
+	if ctx == nil {
+		return nil
+	}
 	span := trace.SpanFromContext(ctx)
 	spanContext := span.SpanContext()
 	if !spanContext.IsValid() {

@@ -13,14 +13,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	edgelogging "github.com/Rain-kl/Wavelet/internal/apps/edge/logging"
-	"github.com/Rain-kl/Wavelet/internal/apps/relay/config"
-	"github.com/Rain-kl/Wavelet/internal/apps/relay/frps"
-	"github.com/Rain-kl/Wavelet/internal/apps/relay/heartbeat"
-	"github.com/Rain-kl/Wavelet/internal/apps/relay/httpclient"
-	"github.com/Rain-kl/Wavelet/internal/apps/relay/relay"
-	"github.com/Rain-kl/Wavelet/internal/apps/relay/state"
-	"github.com/Rain-kl/Wavelet/internal/apps/relay/wsclient"
+	edgelogging "github.com/Rain-kl/Wavelet/internal/edge/common/logging"
+	edgews "github.com/Rain-kl/Wavelet/internal/edge/common/wsclient"
+	"github.com/Rain-kl/Wavelet/internal/edge/relay/config"
+	"github.com/Rain-kl/Wavelet/internal/edge/relay/frps"
+	"github.com/Rain-kl/Wavelet/internal/edge/relay/heartbeat"
+	"github.com/Rain-kl/Wavelet/internal/edge/relay/httpclient"
+	"github.com/Rain-kl/Wavelet/internal/edge/relay/relay"
+	"github.com/Rain-kl/Wavelet/internal/edge/relay/state"
 )
 
 func main() {
@@ -52,7 +52,7 @@ func main() {
 	slog.Info("detected frps version", "version", frpsManager.GetVersion(context.Background()))
 
 	httpClient := httpclient.New(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
-	wsClient := wsclient.New(cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
+	wsClient := edgews.New(edgews.PresetRelay, cfg.ServerURL, cfg.InitialAuthToken(), cfg.RequestTimeout.Duration())
 
 	runner := &relay.Runner{
 		Config:           cfg,
