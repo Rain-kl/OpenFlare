@@ -330,8 +330,8 @@
     "public": "公开",
     "uploading": "正在上传...",
     "uploadFile": "上传文件",
-    "noFiles": "还没有上传文件",
-    "noMatchingFiles": "未搜索到匹配的文件",
+    "noFiles": "暂无已上传文件",
+    "noMatchingFiles": "未找到匹配的文件",
     "uploadFirstFile": "上传您的第一个文件，支持图片、视频、文档和压缩包等格式。",
     "selectFileUpload": "选择文件上传",
     "downloadFile": "下载文件",
@@ -354,7 +354,7 @@
       "loading": "加载中",
       "noData": "暂无数据",
       "configList": "配置列表",
-      "confirmDelete": "确认删除?",
+      "confirmDelete": "确认删除",
       "confirmDeleteDesc": "此操作无法撤销。这将永久删除该配置。",
       "cancel": "取消",
       "confirmDeleteAction": "确认删除",
@@ -366,7 +366,7 @@
     },
     "passwordDialog": {
       "enterPassword": "请输入密码",
-      "enterPasswordDesc": "为了您的账户安全，请输入6位认证密码进行验证",
+      "enterPasswordDesc": "为保障账户安全，请输入 6 位认证密码进行验证",
       "cancel": "取消",
       "verifying": "验证中...",
       "confirm": "确认"
@@ -374,7 +374,7 @@
   },
   "home": {
     "banner": {
-      "description": "这是一个通用的二次开发基础平台，内置用户管理、认证鉴权、文件存储、任务调度、通知推送和可观测性等常用功能模块，帮助开发者快速启动新项目。",
+      "description": "通用二次开发基础平台，内置用户管理、认证鉴权、文件存储、任务调度、通知推送与可观测性等核心模块，助力开发者快速启动新项目。",
       "getStarted": "快速开始",
       "hideHint": "收起提示"
     },
@@ -464,7 +464,7 @@
     "description": "OpenFlare 边缘节点与反向代理管理平台"
   },
   "notFound": {
-    "description": "抱歉，您访问的页面似已迷失在数字星云中。请检查路径或返回安全地带。",
+    "description": "抱歉，您访问的页面不存在。请检查访问路径或返回首页。",
     "previousPage": "上一页",
     "home": "首页"
   },

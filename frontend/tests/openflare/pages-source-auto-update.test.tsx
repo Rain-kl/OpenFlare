@@ -345,7 +345,7 @@ describe('Pages latest source automatic updates', () => {
     const dialog = screen.getByRole('alertdialog');
     expect(
       within(dialog).getByText(
-        '激活其它历史部署会终止当前来源任务；若已开启自动更新，将同时关闭自动更新。',
+        '激活其他历史部署将终止当前来源任务；若已开启自动更新，将同步关闭自动更新。',
       ),
     ).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: '确认' }));

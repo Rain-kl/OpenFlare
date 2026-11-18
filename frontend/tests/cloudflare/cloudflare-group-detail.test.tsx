@@ -174,8 +174,8 @@ describe('Cloudflare group detail refresh', () => {
   });
 
   it.each([
-    { ttl: 1, label: '灰云 TTL：自动（约 300 秒）' },
-    { ttl: 600, label: '灰云 TTL：600 秒' },
+    { ttl: 1, label: '仅 DNS TTL：自动（约 300 秒）' },
+    { ttl: 600, label: '仅 DNS TTL：600 秒' },
   ])(
     'shows the group TTL $ttl in the detail summary',
     async ({ ttl, label }) => {

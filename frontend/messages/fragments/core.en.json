@@ -9,7 +9,7 @@
     "optional": "(optional)",
     "settings": "Settings",
     "search": "Search",
-    "unknownError": "Something went wrong. Please try again.",
+    "unknownError": "An error occurred. Please try again.",
     "loadFailed": "Load failed",
     "previousPage": "Previous page",
     "nextPage": "Next page"
@@ -354,7 +354,7 @@
       "loading": "Loading",
       "noData": "No data",
       "configList": "Configuration list",
-      "confirmDelete": "Confirm delete?",
+      "confirmDelete": "Confirm delete",
       "confirmDeleteDesc": "This cannot be undone. This will permanently delete the configuration.",
       "cancel": "Cancel",
       "confirmDeleteAction": "Confirm delete",
@@ -464,7 +464,7 @@
     "description": "OpenFlare edge node and reverse proxy control plane"
   },
   "notFound": {
-    "description": "Sorry, the page you're looking for seems lost in the digital nebula. Please check the path or return to safety.",
+    "description": "The page you requested could not be found. Please check the URL or return to the home page.",
     "previousPage": "Previous page",
     "home": "Home"
   },

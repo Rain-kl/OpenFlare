@@ -77,7 +77,7 @@ describe('Cloudflare group TTL', () => {
     expect(screen.getByRole('radiogroup', { name: '分组 TTL' })).toBeVisible();
     expect(screen.getByRole('radio', { name: '自动' })).toBeChecked();
     expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
-    expect(screen.getByText(/Auto 当前约为 300 秒/)).toBeVisible();
+    expect(screen.getByText(/自动模式下当前约为 300 秒/)).toBeVisible();
 
     fillCustomTarget();
     save();
@@ -97,7 +97,7 @@ describe('Cloudflare group TTL', () => {
         },
       });
       expect(
-        screen.getByRole('switch', { name: '新成员默认开启橙云' }),
+        screen.getByRole('switch', { name: '新成员默认开启 Cloudflare 代理' }),
       ).toBeChecked();
       expect(screen.getByRole('radio', { name: '手动' })).toBeChecked();
       expect(manualInput()).toHaveValue(900);

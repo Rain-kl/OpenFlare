@@ -87,7 +87,7 @@
     },
     "requireAuth": {
       "accessDenied": "Access denied",
-      "noPermission": "You don't have permission to access this page"
+      "noPermission": "You do not have permission to access this page"
     }
   },
   "settings": {
@@ -210,7 +210,7 @@
       "yes": "Yes",
       "no": "No",
       "bio": "Bio",
-      "bioDefault": "This user hasn't written anything yet.",
+      "bioDefault": "No bio provided.",
       "changePassword": "Change password",
       "changePasswordDesc": "Change your account password for security. Must be at least 8 characters.",
       "passwordRiskWarning": "Password security warning",
@@ -241,7 +241,7 @@
       "phonePlaceholder": "Enter phone number",
       "genderPlaceholder": "Select gender",
       "locationPlaceholder": "e.g. New York",
-      "bioPlaceholder": "Tell us about yourself...",
+      "bioPlaceholder": "Enter your bio...",
       "cancel": "Cancel",
       "saving": "Saving...",
       "saveChanges": "Save changes",
@@ -256,7 +256,7 @@
       "unbind": "Unbind",
       "bind": "Enter pairing code",
       "bindDialogTitle": "Bind a bot",
-      "bindDialogDescription": "Choose an enabled channel and enter the pairing code the bot sent you.",
+      "bindDialogDescription": "Choose an enabled channel and enter the pairing code provided by the bot.",
       "selectChannel": "Select a channel",
       "pairingCode": "Pairing code",
       "pairingCodePlaceholder": "ABCD-EFGH",
@@ -376,10 +376,10 @@
       "smtpPasswordPlaceholder": "Enter password",
       "testSend": "Send test",
       "smtpTestTitle": "SMTP send test",
-      "smtpTestDesc": "Enter an email address to receive the test message. The system will use the SMTP configuration you've entered in the form above.",
+      "smtpTestDesc": "Enter an email address to receive the test message. The system will use the SMTP configuration entered in the form above.",
       "targetEmail": "Target email address",
       "connectionLog": "Connection and transmission log",
-      "testSuccess": "Test succeeded! Email sent successfully.",
+      "testSuccess": "Test succeeded. Email sent successfully.",
       "testFailed": "Test failed",
       "close": "Close",
       "testing": "Testing...",
@@ -626,7 +626,7 @@
         "username": "Username",
         "password": "Password",
         "basePath": "Base path",
-        "switchWarning": "⚠️ You've switched storage types. Clicking “Save configuration” will switch the active storage engine and update existing file driver tags. Use “Start migration” only when physical file copying is needed.",
+        "switchWarning": "Note: You have switched storage types. Selecting “Save configuration” switches the active storage engine and updates existing file driver tags. Use “Start migration” only when physical file copying is needed.",
         "saveConfig": "Save configuration",
         "startMigration": "Start migration",
         "keyPrefix": "Object prefix",

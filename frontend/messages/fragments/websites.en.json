@@ -297,7 +297,7 @@
     "emptyTitle": "No websites",
     "emptyDesc": "Create a website first, then open the configuration page to finish HTTPS, cache, and rate limits.",
     "noMatches": "No matching results",
-    "noMatchesDesc": "Try a different search term, or clear the filter.",
+    "noMatchesDesc": "Try adjusting your search keywords or clearing the filter.",
     "siteName": "Site name",
     "domain": "Domain",
     "status": "Status",

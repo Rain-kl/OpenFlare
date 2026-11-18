@@ -48,6 +48,20 @@ describe('built-in metadata presentation', () => {
         'en',
       ),
     ).toBe(chinese.builtinMetadata.configDescriptions.site_name);
+    expect(
+      localizeConfigDescription(
+        'sw_offline_domains',
+        'SW 离线兜底生效域名列表（JSON 数组，空则仅总开关无效）',
+        'zh-CN',
+      ),
+    ).toBe(chinese.builtinMetadata.configDescriptions.sw_offline_domains);
+    expect(
+      localizeConfigDescription(
+        'sw_offline_domains',
+        'SW 离线兜底生效域名列表（JSON 数组，空则仅总开关无效）',
+        'en',
+      ),
+    ).toBe(english.builtinMetadata.configDescriptions.sw_offline_domains);
   });
 
   it('only localizes the exact defaults of built-in templates', () => {

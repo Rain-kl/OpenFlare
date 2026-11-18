@@ -1,13 +1,13 @@
 {
   "cloudflare": {
-    "ttlAutoSummary": "灰云 TTL：自动（约 300 秒）",
-    "ttlSecondsSummary": "灰云 TTL：{seconds} 秒",
+    "ttlAutoSummary": "仅 DNS TTL：自动（约 300 秒）",
+    "ttlSecondsSummary": "仅 DNS TTL：{seconds} 秒",
     "groupDialog": {
       "ttl": "分组 TTL",
       "ttlAuto": "自动",
       "ttlManual": "手动",
       "ttlSeconds": "TTL（秒）",
-      "ttlHint": "修改将应用于分组内所有灰云（仅 DNS）成员；橙云始终自动。Auto 当前约为 300 秒。",
+      "ttlHint": "修改将应用于分组内所有仅 DNS（灰云）成员；开启代理（橙云）的成员始终自动。自动模式下当前约为 300 秒。",
       "ttlError": "请输入 60 至 86400 之间的整数秒数。"
     },
     "move": "移动",

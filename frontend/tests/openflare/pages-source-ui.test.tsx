@@ -480,7 +480,7 @@ describe('Pages source UI', () => {
 
     const alert = await screen.findByRole('alert');
     expect(
-      within(alert).getByText('Release Asset 发生变化，需要显式确认'),
+      within(alert).getByText('Release Asset 已变更，请确认后发布'),
     ).toBeVisible();
     expect(within(alert).getByText(githubAttentionRevision)).toBeVisible();
 

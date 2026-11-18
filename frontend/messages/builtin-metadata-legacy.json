@@ -1,0 +1,30 @@
+{
+  "configDescriptions": {
+    "sw_offline_domains": [
+      "SW 离线兜底生效域名列表（JSON 数组，空则仅总开关无效）"
+    ],
+    "sw_offline_enabled": ["是否启用 Service Worker 离线兜底"],
+    "sw_offline_html": ["离线联系页自定义 HTML，空则使用内置默认"],
+    "origin_error_page_get_only": [
+      "源站错误页是否仅对 GET 请求生效（其它方法透传）"
+    ],
+    "origin_error_page_html": ["源站错误页自定义 HTML，空则使用内置默认"],
+    "openresty_default_limit_req_per_ip": [
+      "默认单 IP 请求频率限制（空关闭，例如 10r/s、100r/m）"
+    ],
+    "openresty_default_limit_conn_per_server": [
+      "默认站点并发连接上限（0 关闭）"
+    ],
+    "openresty_default_limit_conn_per_ip": ["默认单 IP 并发连接上限（0 关闭）"],
+    "openresty_default_limit_rate": ["默认单请求带宽限速（空关闭）"],
+    "login_session_ttl_hours": [
+      "登录会话过期时间 (小时，0表示浏览器关闭后自动退出，-1表示永不过期)"
+    ],
+    "disk_cache_ttl_minutes": ["磁盘缓存默认有效期 (分钟)"],
+    "disk_cache_max_size_mb": ["磁盘缓存最大空间大小 (MB)"],
+    "file_access_whitelist": ["免登录访问的文件业务类型白名单 (JSON 数组格式)"],
+    "cap_auto_solve": ["打开页面后是否自动开始计算，关闭则需用户手动点击触发"],
+    "cap_challenge_count": ["客户端需求解的 PoW 难题总数，默认 1，推荐 1～5"],
+    "server_address": ["服务器地址（用于跨域源控制，不设定则允许任意源）"]
+  }
+}
