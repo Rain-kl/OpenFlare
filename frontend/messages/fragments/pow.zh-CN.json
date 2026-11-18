@@ -47,6 +47,8 @@
     "htmlTooLarge": "自定义 HTML 不得超过 256 KiB",
     "customHelp": "使用 {widget} 插入验证组件，使用 {host} 显示域名。验证脚本将自动注入；自定义界面可监听 openflare:pow 状态事件。",
     "pagePreview": "PoW 挑战页预览",
+    "editPage": "编辑 PoW 挑战页",
+    "backToPage": "返回 PoW 挑战页",
     "previewHelp": "预览仅模拟验证状态变化；实际访问时将执行 PoW 计算。",
     "previewTitle": "正在验证您的浏览器",
     "previewStatus": "请稍候，正在检查连接安全性…",

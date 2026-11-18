@@ -10,13 +10,14 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { useAuth } from '@/components/providers/auth-provider';
 import { OptionService } from '@/lib/services/openflare';
 
-import { OPTIONS_QUERY_KEY } from '../components/shared';
-import { SITE_AUTH_HTML_KEY } from '../components/site-auth-page-html';
+import { OPTIONS_QUERY_KEY } from './shared';
 
-export function SiteAuthPageContent({
+export function ResponsePageOption({
+  optionKey,
   children,
 }: {
-  children: (html: string) => ReactNode;
+  optionKey: string;
+  children: (value: string) => ReactNode;
 }) {
   const t = useTranslations('responses');
   const { user, loading: authLoading } = useAuth();
@@ -27,8 +28,8 @@ export function SiteAuthPageContent({
   });
 
   if (options.data && user?.is_admin && !authLoading) {
-    const html = options.data.find(({ key }) => key === SITE_AUTH_HTML_KEY);
-    return children(html?.value ?? '');
+    const option = options.data.find(({ key }) => key === optionKey);
+    return children(option?.value ?? '');
   }
 
   return (

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { Expand, Pencil } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
+import { ResponsePagePreviewCard } from './response-page-preview-card';
 import { SITE_AUTH_HTML_KEY, previewSiteAuthHTML } from './site-auth-page-html';
 
 export function SiteAuthPageTab({
@@ -43,41 +43,13 @@ export function SiteAuthPageTab({
         </CardContent>
       </Card>
 
-      <Card className='overflow-hidden border-dashed shadow-none'>
-        <CardHeader className='flex flex-row items-start justify-between gap-3 space-y-0'>
-          <CardTitle className='text-base'>{t('pagePreview')}</CardTitle>
-          <div className='flex shrink-0 flex-wrap gap-2'>
-            <Button variant='outline' size='sm' asChild>
-              <Link href='/responses/site-auth/preview'>
-                <Expand className='size-3.5' />
-                {t('preview')}
-              </Link>
-            </Button>
-            <Button size='sm' asChild>
-              <Link href='/responses/site-auth/edit'>
-                <Pencil className='size-3.5' />
-                {t('edit')}
-              </Link>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className='relative overflow-hidden rounded-md border bg-muted/30'>
-            <iframe
-              title={t('siteAuthPreview')}
-              sandbox=''
-              srcDoc={previewSiteAuthHTML(html)}
-              tabIndex={-1}
-              className='block h-[32rem] w-full bg-background'
-            />
-            <Link
-              href='/responses/site-auth/edit'
-              aria-label={t('siteAuthEdit')}
-              className='absolute inset-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring'
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <ResponsePagePreviewCard
+        title={t('siteAuthPreview')}
+        editLabel={t('siteAuthEdit')}
+        previewPath='/responses/site-auth/preview'
+        editPath='/responses/site-auth/edit'
+        html={previewSiteAuthHTML(html)}
+      />
     </div>
   );
 }

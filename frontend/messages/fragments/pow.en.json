@@ -47,6 +47,8 @@
     "htmlTooLarge": "Custom HTML must not exceed 256 KiB",
     "customHelp": "Insert {widget} for the verification widget and {host} for the hostname. The runtime is injected automatically. Custom interfaces can listen to openflare:pow state events.",
     "pagePreview": "PoW challenge page preview",
+    "editPage": "Edit PoW challenge page",
+    "backToPage": "Back to PoW challenge page",
     "previewHelp": "The preview simulates verification states. Live visits perform PoW computation.",
     "previewTitle": "Verifying your browser",
     "previewStatus": "Please wait while we check your connection…",

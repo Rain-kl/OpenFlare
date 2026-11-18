@@ -1,11 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2, Save } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -21,16 +19,12 @@ import {
   FieldLabel,
 } from '@/components/ui/field';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { HtmlEditorWorkspace } from '@/components/common/html-editor-workspace';
-import {
-  POW_HTML_MAX_BYTES,
-  POW_PAGE_KEY,
-  powTemplates,
-  previewPoWPage,
-  readPoWPage,
-} from '@/lib/openflare/pow-page';
-import { OptionService, type PoWPageConfig } from '@/lib/services/openflare';
-import { invalidateResponseQueries } from './shared';
+import { POW_PAGE_KEY, readPoWPage } from '@/lib/openflare/pow-page';
+import type { PoWPageConfig } from '@/lib/services/openflare';
+
+import { ResponsePagePreviewCard } from './response-page-preview-card';
+import { usePoWPagePreview } from './use-pow-page-preview';
+import { useSaveResponsePageOption } from './use-save-response-page-option';
 
 export function PoWPageTab({
   optionMap,
@@ -38,45 +32,43 @@ export function PoWPageTab({
   optionMap: Record<string, string>;
 }) {
   const t = useTranslations('pow');
-  const locale = useLocale();
-  const queryClient = useQueryClient();
-  const [config, setConfig] = useState<PoWPageConfig>(() =>
-    readPoWPage(optionMap[POW_PAGE_KEY]),
-  );
-  useEffect(() => setConfig(readPoWPage(optionMap[POW_PAGE_KEY])), [optionMap]);
-  const save = useMutation({
-    mutationFn: async () => {
-      if (
-        new TextEncoder().encode(config.html ?? '').length > POW_HTML_MAX_BYTES
-      )
-        throw new Error(t('htmlTooLarge'));
-      await OptionService.updateBatch([
-        { key: POW_PAGE_KEY, value: JSON.stringify(config) },
-      ]);
-    },
-    onSuccess: async () => {
-      toast.success(t('pageSaved'));
-      await invalidateResponseQueries(queryClient);
-    },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : t('saveFailed')),
-  });
-  const preview = (html: string) =>
-    previewPoWPage({ ...config, html }, locale, {
-      title: t('previewTitle'),
-      status: t('previewStatus'),
-      protected: t('previewProtected'),
-      why: t('previewWhy'),
-      why_description: t('previewWhyDescription'),
-      noscript: t('previewNoscript'),
-      success: t('previewSuccess'),
-    });
+  const preview = usePoWPagePreview();
+  const saved = readPoWPage(optionMap[POW_PAGE_KEY]);
+  const [draft, setDraft] = useState<
+    Partial<Pick<PoWPageConfig, 'template' | 'widget'>>
+  >({});
+  const config = { ...saved, ...draft };
+  const save = useSaveResponsePageOption(POW_PAGE_KEY, t('pageSaved'));
+  const hasChanges =
+    config.template !== saved.template || config.widget !== saved.widget;
+
   return (
-    <div className='flex flex-col gap-6'>
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('pageSettings')}</CardTitle>
-          <CardDescription>{t('pageHelp')}</CardDescription>
+    <div className='space-y-6'>
+      <Card className='border-dashed shadow-none'>
+        <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
+          <div className='space-y-1.5'>
+            <CardTitle className='text-base'>{t('pageSettings')}</CardTitle>
+            <CardDescription>{t('pageHelp')}</CardDescription>
+          </div>
+          <Button
+            size='sm'
+            className='shrink-0'
+            disabled={save.isPending || !hasChanges}
+            onClick={() =>
+              save.mutate(
+                (latest) =>
+                  JSON.stringify({ ...readPoWPage(latest), ...draft }),
+                { onSuccess: () => setDraft({}) },
+              )
+            }
+          >
+            {save.isPending ? (
+              <Loader2 className='size-3.5 animate-spin' />
+            ) : (
+              <Save className='size-3.5' />
+            )}
+            {t('save')}
+          </Button>
         </CardHeader>
         <CardContent>
           <FieldGroup>
@@ -85,9 +77,10 @@ export function PoWPageTab({
               <ToggleGroup
                 type='single'
                 variant='outline'
+                disabled={save.isPending}
                 value={config.template}
                 onValueChange={(template: PoWPageConfig['template']) => {
-                  if (template) setConfig((prev) => ({ ...prev, template }));
+                  if (template) setDraft((prev) => ({ ...prev, template }));
                 }}
               >
                 <ToggleGroupItem value='shield'>{t('shield')}</ToggleGroupItem>
@@ -102,9 +95,10 @@ export function PoWPageTab({
               <ToggleGroup
                 type='single'
                 variant='outline'
+                disabled={save.isPending}
                 value={config.widget}
                 onValueChange={(widget: PoWPageConfig['widget']) => {
-                  if (widget) setConfig((prev) => ({ ...prev, widget }));
+                  if (widget) setDraft((prev) => ({ ...prev, widget }));
                 }}
               >
                 <ToggleGroupItem value='progress'>
@@ -115,51 +109,19 @@ export function PoWPageTab({
                 </ToggleGroupItem>
               </ToggleGroup>
             </Field>
-            <div className='flex flex-wrap items-center gap-2'>
-              <Button disabled={save.isPending} onClick={() => save.mutate()}>
-                {save.isPending ? (
-                  <Loader2 className='animate-spin' data-icon='inline-start' />
-                ) : (
-                  <Save data-icon='inline-start' />
-                )}
-                {t('save')}
-              </Button>
-              <Button
-                variant='outline'
-                onClick={() =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    html: powTemplates[prev.template],
-                  }))
-                }
-              >
-                {t('loadTemplate')}
-              </Button>
-              <Button
-                variant='outline'
-                onClick={() => setConfig((prev) => ({ ...prev, html: '' }))}
-              >
-                {t('useBuiltin')}
-              </Button>
-              <Button variant='link' asChild>
-                <Link href='/proxy-routes'>{t('policySettings')}</Link>
-              </Button>
-            </div>
+            <Button variant='link' className='self-start px-0' asChild>
+              <Link href='/proxy-routes'>{t('policySettings')}</Link>
+            </Button>
           </FieldGroup>
         </CardContent>
       </Card>
-      <p className='text-sm text-muted-foreground'>
-        {t('customHelp', { widget: '{{widget}}', host: '{{host}}' })}
-      </p>
-      <HtmlEditorWorkspace
-        value={config.html ?? ''}
-        onChange={(html) => setConfig((prev) => ({ ...prev, html }))}
-        preview={preview}
-        maxBytes={POW_HTML_MAX_BYTES}
-        showPreviewLink={false}
-        previewTitle={t('pagePreview')}
-        previewSandbox='allow-scripts'
-        footerHint={t('previewHelp')}
+      <ResponsePagePreviewCard
+        title={t('pagePreview')}
+        editLabel={t('editPage')}
+        previewPath='/responses/pow/preview'
+        editPath='/responses/pow/edit'
+        html={preview(config)}
+        sandbox='allow-scripts'
       />
     </div>
   );
