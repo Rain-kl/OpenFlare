@@ -467,12 +467,17 @@ local ip_cache = setmetatable({}, { __mode = "k" })
 local wildcard_cache = setmetatable({}, { __mode = "k" })
 local path_rule_cache = setmetatable({}, { __mode = "k" })
 
+-- JSON null is truthy userdata in cjson, so value or {} is not sufficient.
+local function table_or_empty(value)
+    return type(value) == "table" and value or {}
+end
+
 local function matcher_for_list(list)
     local matcher = ip_cache[list]
     if matcher then return matcher end
     local entries = {}
-    for _, ip in ipairs(list.ips or {}) do entries[#entries + 1] = ip end
-    for _, cidr in ipairs(list.ip_cidrs or {}) do entries[#entries + 1] = cidr end
+    for _, ip in ipairs(table_or_empty(list.ips)) do entries[#entries + 1] = ip end
+    for _, cidr in ipairs(table_or_empty(list.ip_cidrs)) do entries[#entries + 1] = cidr end
     matcher = ip_matcher.compile(entries)
     ip_cache[list] = matcher
     return matcher
@@ -568,12 +573,12 @@ local function path_matches(uri, rules)
 end
 
 function M.prepare(config)
-    for _, list in ipairs({config.whitelist or {}, config.blacklist or {}}) do
+    for _, list in ipairs({table_or_empty(config.whitelist), table_or_empty(config.blacklist)}) do
         matcher_for_list(list)
         if type(list.paths) == "table" then wildcards_for_list(list.paths) end
     end
-    local rules = config.path_rules or {}
-    for _, list in ipairs({rules.whitelist or {}, rules.blacklist or {}}) do
+    local rules = table_or_empty(config.path_rules)
+    for _, list in ipairs({table_or_empty(rules.whitelist), table_or_empty(rules.blacklist)}) do
         for _, rule in ipairs(list) do
             if rule.type == "wildcard" then path_rule_cache[rule] = wildcard_pattern(rule.value) end
         end
@@ -581,6 +586,7 @@ function M.prepare(config)
 end
 
 function M.should_challenge(uri, rules)
+    rules = table_or_empty(rules)
     if path_matches(uri, rules.whitelist) then return false end
     if rules.mode == "blacklist" then return path_matches(uri, rules.blacklist) end
     return true

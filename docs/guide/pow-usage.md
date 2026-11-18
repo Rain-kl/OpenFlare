@@ -26,6 +26,8 @@
 
 挑战页用于浏览器访问。Webhook、健康检查及无法执行 JavaScript 的 API 客户端应通过路径规则跳过校验。
 
+未配置的 IP、CIDR、路径或 UA 名单均按空列表处理，兼容配置中的 `null`。若旧版节点启用 PoW 后返回 HTTP 500，且 OpenResty 错误日志包含 `pow/policy.lua` 的 `ipairs` 类型错误及 `previous error loading module 'pow.config'`，需更新 Agent 至包含空列表兼容修复的版本，并重新加载节点配置。
+
 路径匹配和跳过动作的设计参考 [Cloudflare 规则运算符](https://developers.cloudflare.com/ruleset-engine/rules-language/operators/) 与 [规则动作](https://developers.cloudflare.com/ruleset-engine/rules-language/actions/)。
 
 ## 自定义挑战页

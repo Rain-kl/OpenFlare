@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Rain-kl/Wavelet/pkg/render/openresty"
 )
 
 // TestOpenRestyLuaIntegration exercises the shipped assets with LuaJIT and FFI.
@@ -27,6 +29,19 @@ func TestOpenRestyLuaIntegration(t *testing.T) {
 		RuntimeConfigDir: filepath.Join(dir, "runtime"),
 	}
 	if err := manager.EnsureLuaAssets(); err != nil {
+		t.Fatal(err)
+	}
+	// Reproduce published policies with nil Go slices encoded as JSON null.
+	powConfig := openresty.PoWConfig{
+		Difficulty: 4, Algorithm: "fast", SessionTTL: 600, ChallengeTTL: 300,
+		PathRules: &openresty.PoWPathRules{Mode: "all", Whitelist: []openresty.PoWPathMatch{
+			{Type: "prefix", Value: "/api"},
+		}},
+	}
+	powJSON, err := openresty.RenderPoWConfig([]openresty.Route{
+		{SiteName: "site", PoWEnabled: true, PoWConfig: &powConfig},
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 	files := map[string]string{
@@ -50,11 +65,23 @@ http {
     init_worker_by_lua_block { require("waf.runtime").init() }
     server {
         listen 127.0.0.1:18080;
+        set $openflare_waf_site "site";
         location / { content_by_lua_file %s; }
+        location /protected {
+            access_by_lua_block { require("pow.runtime").check() }
+        }
+        location /api {
+            access_by_lua_block { require("pow.runtime").check() }
+            content_by_lua_block { ngx.say("API bypass passed") }
+        }
+        location = /.within.website/x/cmd/anubis/api/make-challenge {
+            access_by_lua_block { require("pow.runtime").check() }
+            content_by_lua_file %s/pow/challenge.lua;
+        }
     }
 }
-`, manager.LuaDir, manager.LuaDir, filepath.Join(dir, "check.lua")),
-		filepath.Join(manager.RuntimeConfigDir, "pow_config.json"): `{"site":{"enabled":true,"config":{"whitelist":{"ip_cidrs":["192.0.2.0/24","2001:db8::/32"]}}}}`,
+`, manager.LuaDir, manager.LuaDir, filepath.Join(dir, "check.lua"), manager.LuaDir),
+		filepath.Join(manager.RuntimeConfigDir, "pow_config.json"): powJSON,
 		filepath.Join(manager.NginxCertDir, "pow", "page.json"):    `{"html":"<html><body>published page</body></html>","widget":"progress"}`,
 		filepath.Join(dir, "check.lua"): `
 local matcher = require("waf.ip_matcher").compile({"192.0.2.0/24", "2001:db8::/32"})
@@ -80,6 +107,14 @@ runtime.init({config = {
 local rules = runtime.debug_active_rules("site")
 assert(#rules == 1 and rules == runtime.debug_active_rules("site"))
 assert(require("pow.config").get("site").enabled)
+local published = require("pow.config").get("site").config
+assert(published.whitelist.ips == cjson.null, "fixture must exercise native cjson null")
+assert(not policy.match_any("127.0.0.1", "", "/", published.whitelist), "null lists must not exempt protected requests")
+assert(not policy.has_entries(published.blacklist), "null blacklist must be empty")
+local nullable = cjson.decode('{"whitelist":null,"blacklist":null,"path_rules":{"whitelist":null,"blacklist":null}}')
+policy.prepare(nullable)
+assert(policy.should_challenge("/", nullable.path_rules), "null path lists must preserve full-site protection")
+assert(policy.should_challenge("/", cjson.null), "null path configuration must preserve full-site protection")
 assert(require("pow.page").page.html:find("published page", 1, true))
 io.open = function() error("request path must not read files") end
 for _ = 1, 20 do
@@ -106,7 +141,11 @@ openresty -p /tmp/ -c "$1" -g 'daemon off; master_process off;' &
 task_nginx_pid=$!
 trap 'kill "$task_nginx_pid" 2>/dev/null; wait "$task_nginx_pid" 2>/dev/null' EXIT
 for attempt in $(seq 1 30); do
-    if wget -T 1 -q -O - http://127.0.0.1:18080/; then exit 0; fi
+    if wget -T 1 -q -O - http://127.0.0.1:18080/; then
+        wget -T 1 -q -O - http://127.0.0.1:18080/protected | grep -q 'published page' || exit 1
+        wget -T 1 -q -O - http://127.0.0.1:18080/api | grep -q 'API bypass passed' || exit 1
+        exit 0
+    fi
     sleep 0.1
 done
 exit 1
