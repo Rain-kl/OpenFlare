@@ -1,6 +1,6 @@
 ---
 name: "wv-release-guide"
-description: "项目专用：根据自上一个正式版本 Tag 以来的提交记录，整理生成规范的 Version Bump Commit Message，用于触发自动双语 Release。"
+description: "项目专用：根据自上一个正式版本 Tag 以来的提交记录，整理生成中英文双语的 Version Bump Commit Message，用于发布双语 Release。"
 ---
 
 # Release Commit Message Guide
@@ -28,25 +28,33 @@ description: "项目专用：根据自上一个正式版本 Tag 以来的提交�
 
 1. 合并重复或相近提交。
 2. 删除无意义提交，例如格式化、临时调试、无关重构。
-3. 将内部实现描述改写为用户可理解的变更, 说明“修复/优化了什么”以及“带来的效果”。
+3. 将内部实现描述改写为用户可理解的变更，说明“修复/优化了什么”以及“带来的效果”。
 4. 不要写技术细节：只描述用户可感知的行为与效果，禁止内部实现描述，例如字段名/表名/SQL（`node_id = ''`）、框架或库名称（shadcn、GORM、OpenResty）、配置或协议细节（RFC3339、ClickHouse/PostgreSQL 差异）、代码机制（`proxy_intercept_errors`、Lua 过滤器、雪花 ID）。数据库名称仅在说明受影响用户范围时使用（如「PostgreSQL 日志库下无数据」）。
 5. 如果某个分类没有内容，则省略。
+6. **中英文双语格式**：commit message 正文须先完整提供**中文版**发版说明，随后使用独立分隔线 `---` 隔开，再补充内容一一对应的**英文版**发版说明。
 
 固定使用以下分类：
 
 ```text
+中文分类：
 ### ✨ 新功能
 ### 🛠 修复
 ### ⚡️ 优化与改进
 ### 💄 其他/体验
+
+英文分类（与中文一一对应）：
+### ✨ Features
+### 🛠 Fixes
+### ⚡️ Improvements
+### 💄 Other / UX
 ```
 
 分类规则：
 
-- 新功能、新能力、新配置、新任务：放入 ### ✨ 新功能
-- Bug、异常行为、错误逻辑：放入 ### 🛠 修复
-- 性能、稳定性、接口、架构、兼容性：放入 ### ⚡️ 优化与改进
-- 日志、文案、UI、文档、开发体验：放入 ### 💄 其他/体验
+- 新功能、新能力、新配置、新任务：放入 `### ✨ 新功能` / `### ✨ Features`
+- Bug、异常行为、错误逻辑：放入 `### 🛠 修复` / `### 🛠 Fixes`
+- 性能、稳定性、接口、架构、兼容性：放入 `### ⚡️ 优化与改进` / `### ⚡️ Improvements`
+- 日志、文案、UI、文档、开发体验：放入 `### 💄 其他/体验` / `### 💄 Other / UX`
 
 「修复/优化」与「新增」的判定（关键）：
 
@@ -72,12 +80,27 @@ chore(release): v3.3.0
 
 ### 💄 其他/体验
 - 优化了 WebSocket 错误日志，增加请求路径信息，方便问题排查。
+
+---
+
+### ✨ Features
+- Added snapshot backup for note libraries with scheduled backups and one-click manual restore.
+
+### 🛠 Fixes
+- Fixed an issue where the "Source Distribution" dashboard card showed no data when using PostgreSQL or SQLite as the log store.
+- Fixed an issue where origin error page "GET requests only" failed to pass through non-GET responses; POST/PUT and other non-GET requests now receive the raw origin error content.
+
+### ⚡️ Improvements
+- Improved the WebGUI sign-in mechanism with automatic device token rotation, reducing redundant tokens caused by IP changes.
+
+### 💄 Other / UX
+- Improved WebSocket error logs by including the request path for easier troubleshooting.
 ```
 
 ## 提交步骤
 
 1. 确认工作区干净，且 `HEAD` 与将要发布的代码一致（通常已与 `origin/main` 对齐或仅含未 push 的合法新提交）。
-2. 将 `docs/changelog/index.md` 中 `[unreleased]` 落版为 `[vX.Y.Z] - YYYY-MM-DD`（按需整理条目）。
+2. 将 `docs/changelog/index.md` 中 `[Unreleased]` 落版为 `[vX.Y.Z] - YYYY-MM-DD`（按需整理中文条目；更新日志保持中文）。
 3. **新建** release 提交（不要 amend）：
 
 ```bash
@@ -93,6 +116,17 @@ chore(release): vX.Y.Z
 
 ### 💄 其他/体验
 - ...
+
+---
+
+### 🛠 Fixes
+- ...
+
+### ⚡️ Improvements
+- ...
+
+### 💄 Other / UX
+- ...
 EOF
 )"
 ```
@@ -105,7 +139,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-（打 tag 后由 CI 创建双语 Release。）
+（打 tag 后由 CI 根据该提交信息创建双语 Release。）
 
 ## 任务结束条件
 

@@ -13,7 +13,7 @@
 | `file-upload` | 上传/摄取、`upload.Ingest`、文件访问、`w_uploads` |
 | `cache-framework` | 业务缓存（RAM/Redis/DB）、失效、多节点同步 |
 | `push-notification` | 通知推送事件、统一触发器、带推送的业务 |
-| `release-guide` | Version Bump 提交信息（触发双语 Release） |
+| `release-guide` | Version Bump 双语提交信息（中英文以 `---` 分隔） |
 | `shadcn` | 添加/修改/组合 shadcn/ui 组件 |
 
 ## 硬性约束
@@ -34,7 +34,7 @@
 - 根据单次任务工作量动态调整测试力度,不要改个文案就去跑全量测试。
 ### 文档与 Changelog
 
-- 内容变更同步**中文文档**（不同步英文）。
+- 内容变更同步**中文文档**。
 - 代码/配置变更写入 [`docs/changelog/index.md`](./docs/changelog/index.md) 的 `[Unreleased]`；纯文档变更不写 changelog。
 - Changelog：合并相近项；不记格式化/调试/无关重构；用户可读完整中文句；说明效果；不编造；不写密钥等敏感信息；空分类可省略。
 
