@@ -48,6 +48,26 @@
    * **源站选择**：从下拉框中选择第二步创建的源站；或者选择手动输入并填入 `http://10.0.0.20:9000`。
 3. 点击保存创建配置。
 
+### 为网站配置身份验证
+
+1. 为网站的所有域名绑定证书并启用 HTTPS。在规则详情打开「访问认证」，将认证模式设为「身份验证」，填写账号和密码。
+2. 设置「密码有效期」。访客登录后，在此时长内可访问网站。默认 24 小时，可设为 1 至 720 小时。修改账号、密码或有效期并发布后，访客需要重新登录。
+3. 在「响应页面 → 身份认证页」点击预览区或「编辑」，进入 HTML 编辑器。可加载内置模板后修改，右侧会实时预览。编辑完成后点击保存，HTML 上限为 256 KiB。所有启用「身份验证」的站点共用此页面。
+4. 点击「预览并发布」。Agent 会将登录页随配置一并部署到边缘节点。
+
+自定义页面使用同页 POST 表单，省略 `action` 可保留原请求的返回地址。样式可直接写在 HTML 内。页内的 `{{login_error}}` 会在认证失败时替换为提示文案。
+
+```html
+<form method="post">
+  <label>账号 <input name="username" autocomplete="username" required></label>
+  <label>密码 <input name="password" type="password" autocomplete="current-password" required></label>
+  <p role="alert">{{login_error}}</p>
+  <button type="submit">登录</button>
+</form>
+```
+
+登录和会话校验在边缘节点完成。认证后的请求只需在本地校验 Cookie 签名，无需联系控制面。HTTP 访问会跳转到 HTTPS。旧版 Agent 使用 Basic Auth 继续保护站点，并停用该站点的 Pages API 反代。升级 Agent 后即可提供 HTML 登录页。
+
 ### 通配符域名示例
 
 要让 `bucket.s3.example.com` 等域名共用站点规则：

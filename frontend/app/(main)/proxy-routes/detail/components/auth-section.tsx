@@ -9,6 +9,7 @@ import { z } from 'zod';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -31,12 +32,14 @@ import { useRouteSectionSave } from '../hooks/use-route-section-save';
 import { SectionShell } from './section-shell';
 
 type AuthValues = {
-  auth_mode: 'none' | 'basic';
+  auth_mode: 'none' | 'basic' | 'site';
+  site_auth_ttl_hours: string;
   basic_auth_username: string;
   basic_auth_password: string;
 };
 
 function resolveAuthMode(route: ProxyRouteItem): AuthValues['auth_mode'] {
+  if ((route.site_auth_ttl_hours ?? 0) > 0) return 'site';
   return route.basic_auth_enabled ? 'basic' : 'none';
 }
 
@@ -54,13 +57,24 @@ export function AuthSection({
   const t = useTranslations('proxyRoutes');
   const authSchema = z
     .object({
-      auth_mode: z.enum(['none', 'basic']),
+      auth_mode: z.enum(['none', 'basic', 'site']),
+      site_auth_ttl_hours: z.string(),
       basic_auth_username: z.string(),
       basic_auth_password: z.string(),
     })
     .superRefine((value, context) => {
-      if (value.auth_mode !== 'basic') {
+      if (value.auth_mode === 'none') {
         return;
+      }
+      if (value.auth_mode === 'site') {
+        const ttl = Number(value.site_auth_ttl_hours);
+        if (!Number.isInteger(ttl) || ttl < 1 || ttl > 720) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['site_auth_ttl_hours'],
+            message: t('siteAuthTTLInvalid'),
+          });
+        }
       }
       if (!value.basic_auth_username.trim()) {
         context.addIssue({
@@ -87,6 +101,7 @@ export function AuthSection({
     resolver: zodResolver(authSchema),
     defaultValues: {
       auth_mode: resolveAuthMode(route),
+      site_auth_ttl_hours: String(route.site_auth_ttl_hours || 24),
       basic_auth_username: route.basic_auth_username || '',
       basic_auth_password: route.basic_auth_password || '',
     },
@@ -95,6 +110,7 @@ export function AuthSection({
   useEffect(() => {
     form.reset({
       auth_mode: resolveAuthMode(route),
+      site_auth_ttl_hours: String(route.site_auth_ttl_hours || 24),
       basic_auth_username: route.basic_auth_username || '',
       basic_auth_password: route.basic_auth_password || '',
     });
@@ -118,12 +134,16 @@ export function AuthSection({
               await save(
                 {
                   basic_auth_enabled: values.auth_mode === 'basic',
+                  site_auth_ttl_hours:
+                    values.auth_mode === 'site'
+                      ? Number(values.site_auth_ttl_hours)
+                      : 0,
                   basic_auth_username:
-                    values.auth_mode === 'basic'
+                    values.auth_mode !== 'none'
                       ? values.basic_auth_username.trim()
                       : '',
                   basic_auth_password:
-                    values.auth_mode === 'basic'
+                    values.auth_mode !== 'none'
                       ? values.basic_auth_password.trim()
                       : '',
                 },
@@ -145,7 +165,7 @@ export function AuthSection({
                   value={field.value}
                   onValueChange={(mode) => {
                     field.onChange(mode);
-                    if (mode !== 'basic') {
+                    if (mode === 'none') {
                       form.setValue('basic_auth_username', '');
                       form.setValue('basic_auth_password', '');
                     }
@@ -159,6 +179,7 @@ export function AuthSection({
                   <SelectContent>
                     <SelectItem value='none'>{t('authNone')}</SelectItem>
                     <SelectItem value='basic'>Basic Auth</SelectItem>
+                    <SelectItem value='site'>{t('siteAuth')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -166,7 +187,7 @@ export function AuthSection({
             )}
           />
 
-          {authMode === 'basic' ? (
+          {authMode !== 'none' ? (
             <>
               <FormField
                 control={form.control}
@@ -189,7 +210,11 @@ export function AuthSection({
                   <FormItem>
                     <FormLabel>{t('password')}</FormLabel>
                     <FormControl>
-                      <Input type='text' placeholder='secret123' {...field} />
+                      <Input
+                        type='password'
+                        autoComplete='new-password'
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -197,6 +222,28 @@ export function AuthSection({
               />
             </>
           ) : null}
+          {authMode === 'site' && (
+            <FormField
+              control={form.control}
+              name='site_auth_ttl_hours'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('siteAuthTTL')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      min={1}
+                      max={720}
+                      step={1}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>{t('siteAuthTTLDesc')}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </form>
       </Form>
     </SectionShell>

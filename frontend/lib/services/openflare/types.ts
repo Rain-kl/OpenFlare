@@ -263,6 +263,7 @@ export interface ProxyRouteItem {
   custom_headers: string;
   custom_header_list: ProxyRouteCustomHeader[];
   basic_auth_enabled: boolean;
+  site_auth_ttl_hours?: number;
   basic_auth_username: string;
   basic_auth_password: string;
   upstream_type: 'direct' | 'tunnel' | 'pages';
@@ -299,6 +300,7 @@ export interface ProxyRouteMutationPayload {
   cache_rules: string[];
   custom_headers: ProxyRouteCustomHeader[];
   basic_auth_enabled: boolean;
+  site_auth_ttl_hours?: number;
   basic_auth_username?: string;
   basic_auth_password?: string;
   upstream_type?: 'direct' | 'tunnel' | 'pages';

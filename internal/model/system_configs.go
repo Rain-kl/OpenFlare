@@ -114,6 +114,7 @@ const (
 	ConfigKeyOriginErrorPageStatusCodes = "origin_error_page_status_codes" // 源站错误页触发状态码标签 JSON 数组
 	ConfigKeyOriginErrorPageHTML        = "origin_error_page_html"         // 源站错误页自定义 HTML（空则内置默认）
 	ConfigKeyPoWPage                    = "pow_page"                       // PoW 页面模板、组件样式与自定义 HTML
+	ConfigKeySiteAuthHTML               = "site_auth_html"                 // 站点身份认证页 HTML
 	ConfigKeyOriginErrorPageGetOnly     = "origin_error_page_get_only"     // 是否仅对 GET 请求返回自定义错误页
 
 	// Service Worker 离线兜底

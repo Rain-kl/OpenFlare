@@ -27,7 +27,7 @@ func getActiveConfigMeta(ctx context.Context) (*ActiveConfigMeta, error) {
 	}, nil
 }
 
-func getActiveConfigForAgent(ctx context.Context) (*ConfigResponse, error) {
+func getActiveConfigForAgent(ctx context.Context, siteAuthSupported bool) (*ConfigResponse, error) {
 	version, err := repository.GetActiveConfigVersion(ctx)
 	if err != nil {
 		return nil, err
@@ -50,6 +50,13 @@ func getActiveConfigForAgent(ctx context.Context) (*ConfigResponse, error) {
 		sourceJSON = rebound
 	}
 
+	if !siteAuthSupported {
+		sourceJSON, err = legacyAgentSiteAuthConfig(sourceJSON)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &ConfigResponse{
 		Version:          version.Version,
 		Checksum:         version.Checksum,
@@ -57,6 +64,64 @@ func getActiveConfigForAgent(ctx context.Context) (*ConfigResponse, error) {
 		SupportFiles:     sourceSupportFiles(supportFiles),
 		CreatedAt:        version.CreatedAt,
 	}, nil
+}
+
+// Preserve the site access restriction as Basic Auth on Agents that cannot
+// render the HTML login mode. Legacy Pages API locations lack that guard.
+func legacyAgentSiteAuthConfig(sourceJSON string) (string, error) {
+	if !strings.Contains(sourceJSON, `"site_auth_ttl_hours"`) {
+		return sourceJSON, nil
+	}
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(sourceJSON), &document); err != nil {
+		return "", err
+	}
+	if document["routes"] == nil {
+		return sourceJSON, nil
+	}
+	var routes []map[string]json.RawMessage
+	if err := json.Unmarshal(document["routes"], &routes); err != nil {
+		return "", err
+	}
+	for _, route := range routes {
+		if route["site_auth_ttl_hours"] == nil {
+			continue
+		}
+		route["basic_auth_enabled"] = json.RawMessage("true")
+		route["redirect_http"] = json.RawMessage("true")
+		delete(route, "site_auth_ttl_hours")
+		delete(route, "site_auth_key")
+		if err := disableLegacyPagesAPIProxy(route); err != nil {
+			return "", err
+		}
+	}
+	encodedRoutes, err := json.Marshal(routes)
+	if err != nil {
+		return "", err
+	}
+	document["routes"] = encodedRoutes
+	encoded, err := json.Marshal(document)
+	return string(encoded), err
+}
+
+func disableLegacyPagesAPIProxy(route map[string]json.RawMessage) error {
+	if route["pages_deployment"] == nil {
+		return nil
+	}
+	var deployment map[string]json.RawMessage
+	if err := json.Unmarshal(route["pages_deployment"], &deployment); err != nil {
+		return err
+	}
+	if deployment == nil {
+		return nil
+	}
+	deployment["api_proxy_enabled"] = json.RawMessage("false")
+	encoded, err := json.Marshal(deployment)
+	if err != nil {
+		return err
+	}
+	route["pages_deployment"] = encoded
+	return nil
 }
 
 func sourceSupportFiles(files []SupportFile) []SupportFile {

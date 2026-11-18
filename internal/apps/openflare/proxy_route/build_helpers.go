@@ -6,6 +6,8 @@ package proxy_route
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -66,15 +68,55 @@ func marshalProxyRouteJSONFields(
 	}, nil
 }
 
-func normalizeProxyRouteBasicAuth(input *Input) error {
-	if !input.BasicAuthEnabled {
-		input.BasicAuthUsername = ""
-		input.BasicAuthPassword = ""
-		return nil
+func applyProxyRouteAuth(route *model.ProxyRoute, input *Input) error {
+	ttl := 0
+	if input.SiteAuthTTLHours != nil {
+		ttl = *input.SiteAuthTTLHours
+	} else if !input.BasicAuthEnabled && route.SiteAuthTTLHours > 0 {
+		// Older clients omit the field when editing other route settings.
+		ttl = route.SiteAuthTTLHours
+		input.BasicAuthUsername = route.BasicAuthUsername
+		input.BasicAuthPassword = route.BasicAuthPassword
 	}
 	input.BasicAuthUsername = strings.TrimSpace(input.BasicAuthUsername)
 	input.BasicAuthPassword = strings.TrimSpace(input.BasicAuthPassword)
-	if input.BasicAuthUsername == "" || input.BasicAuthPassword == "" {
+	if err := validateProxyRouteAuth(input, ttl); err != nil {
+		return err
+	}
+	if ttl > 0 {
+		if route.SiteAuthKey == "" || route.SiteAuthTTLHours != ttl ||
+			route.BasicAuthUsername != input.BasicAuthUsername || route.BasicAuthPassword != input.BasicAuthPassword {
+			var key [32]byte
+			rand.Read(key[:])
+			route.SiteAuthKey = hex.EncodeToString(key[:])
+		}
+	} else {
+		route.SiteAuthKey = ""
+	}
+	route.SiteAuthTTLHours = ttl
+	if ttl == 0 && !input.BasicAuthEnabled {
+		input.BasicAuthUsername = ""
+		input.BasicAuthPassword = ""
+	}
+	return nil
+}
+
+func validateProxyRouteAuth(input *Input, ttl int) error {
+	if ttl < 0 || ttl > 720 {
+		return errors.New(errProxyRouteSiteAuthTTL)
+	}
+	if ttl > 0 && input.BasicAuthEnabled {
+		return errors.New(errProxyRouteSiteAuthMode)
+	}
+	if ttl > 0 && !input.EnableHTTPS {
+		return errors.New(errProxyRouteSiteAuthHTTPS)
+	}
+	if ttl > 0 && (input.BasicAuthUsername == "" || input.BasicAuthPassword == "" ||
+		len(input.BasicAuthUsername) > 255 || len(input.BasicAuthPassword) > 255 ||
+		strings.ContainsRune(input.BasicAuthUsername, 0) || strings.ContainsRune(input.BasicAuthPassword, 0)) {
+		return errors.New(errProxyRouteSiteAuthCredentials)
+	}
+	if input.BasicAuthEnabled && (input.BasicAuthUsername == "" || input.BasicAuthPassword == "") {
 		return errors.New(errProxyRouteBasicAuth)
 	}
 	return nil

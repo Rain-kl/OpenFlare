@@ -62,7 +62,7 @@ func (c *Client) Heartbeat(ctx context.Context, payload protocol.NodePayload) (*
 // GetActiveConfig retrieves the current active configuration from the control plane server.
 func (c *Client) GetActiveConfig(ctx context.Context) (*protocol.ActiveConfigResponse, error) {
 	resp := protocol.APIResponse[protocol.ActiveConfigResponse]{}
-	if err := c.base.GetJSON(ctx, "/api/v1/agent/config-versions/active", &resp); err != nil {
+	if err := c.base.GetJSON(ctx, "/api/v1/agent/config-versions/active?site_auth=true", &resp); err != nil {
 		return nil, err
 	}
 	if err := edgehttp.APIError(resp.ErrorMsg); err != nil {

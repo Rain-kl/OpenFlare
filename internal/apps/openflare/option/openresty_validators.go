@@ -78,7 +78,7 @@ var openRestyDefaultLimitRatePattern = regexp.MustCompile(`^\d+[kKmM]?$`)
 
 func validateOpenRestyOption(key, value string) error {
 	// HTML 按原始字节长度校验，避免 TrimSpace 影响上限判断
-	if key == model.ConfigKeyOriginErrorPageHTML || key == model.ConfigKeySWOfflineHTML {
+	if key == model.ConfigKeyOriginErrorPageHTML || key == model.ConfigKeySWOfflineHTML || key == model.ConfigKeySiteAuthHTML {
 		return validateOriginErrorPageHTML(key, value)
 	}
 	trimmed := strings.TrimSpace(value)

@@ -409,6 +409,7 @@ export function buildPayloadFromRoute(
     cache_rules: route.cache_rule_list ?? [],
     custom_headers: route.custom_header_list ?? [],
     basic_auth_enabled: route.basic_auth_enabled,
+    site_auth_ttl_hours: route.site_auth_ttl_hours ?? 0,
     basic_auth_username: route.basic_auth_username,
     basic_auth_password: route.basic_auth_password,
     upstream_type: route.upstream_type,

@@ -91,13 +91,14 @@ func HeartbeatHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=agent.ConfigResponse} "活跃配置"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "Token 无效"
+// @Param site_auth query bool false "Agent 支持站点身份验证"
 // @Router /api/v1/agent/config-versions/active [get]
 func GetActiveConfigHandler(c *gin.Context) {
 	if _, ok := NodeFromContext(c); !ok {
 		response.AbortUnauthorized(c, errNodeMissingFromContext)
 		return
 	}
-	config, err := GetActiveConfig(c.Request.Context())
+	config, err := GetActiveConfig(c.Request.Context(), c.Query("site_auth") == "true")
 	if apiutil.AbortBadRequestOnError(c, err) {
 		return
 	}

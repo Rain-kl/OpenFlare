@@ -345,7 +345,7 @@ func normalizeSnapshotRoutes(routes []snapshotRoute) []snapshotRoute {
 			routes[index].OriginURL = normalizedUpstreams[0]
 			routes[index].Upstreams = normalizedUpstreams
 		}
-		if !routes[index].BasicAuthEnabled {
+		if !routes[index].BasicAuthEnabled && routes[index].SiteAuthTTLHours == 0 {
 			routes[index].BasicAuthUsername = ""
 			routes[index].BasicAuthPassword = ""
 		}
@@ -456,7 +456,9 @@ func snapshotRoutePolicyEqual(left, right snapshotRoute) bool {
 		left.CachePolicy == right.CachePolicy &&
 		left.BasicAuthEnabled == right.BasicAuthEnabled &&
 		left.BasicAuthUsername == right.BasicAuthUsername &&
-		left.BasicAuthPassword == right.BasicAuthPassword
+		left.BasicAuthPassword == right.BasicAuthPassword &&
+		left.SiteAuthTTLHours == right.SiteAuthTTLHours &&
+		left.SiteAuthKey == right.SiteAuthKey
 }
 
 func snapshotRouteTunnelEqual(left, right snapshotRoute) bool {
@@ -545,6 +547,7 @@ func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyCon
 	leftPoWPage, _ := json.Marshal(left.PoWPage)
 	rightPoWPage, _ := json.Marshal(right.PoWPage)
 	appendIfChanged("PoWPage", string(leftPoWPage), string(rightPoWPage))
+	appendIfChanged("SiteAuthHTML", left.SiteAuthHTML, right.SiteAuthHTML)
 	appendIfChanged("OriginErrorPageGetOnly", strconv.FormatBool(left.OriginErrorPageGetOnly), strconv.FormatBool(right.OriginErrorPageGetOnly))
 	appendIfChanged("SWOfflineEnabled", strconv.FormatBool(left.SWOfflineEnabled), strconv.FormatBool(right.SWOfflineEnabled))
 	appendIfChanged("SWOfflineHTML", left.SWOfflineHTML, right.SWOfflineHTML)
@@ -628,6 +631,7 @@ func openRestyOptionKeys() []string {
 		"OriginErrorPageStatusCodes",
 		"OriginErrorPageHTML",
 		"PoWPage",
+		"SiteAuthHTML",
 		"OriginErrorPageGetOnly",
 		"SWOfflineEnabled",
 		"SWOfflineHTML",

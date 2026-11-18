@@ -67,6 +67,8 @@ type snapshotRoute struct {
 	BasicAuthEnabled   bool                             `json:"basic_auth_enabled,omitempty"`
 	BasicAuthUsername  string                           `json:"basic_auth_username,omitempty"`
 	BasicAuthPassword  string                           `json:"basic_auth_password,omitempty"`
+	SiteAuthTTLHours   int                              `json:"site_auth_ttl_hours,omitempty"`
+	SiteAuthKey        string                           `json:"site_auth_key,omitempty"`
 	UpstreamType       string                           `json:"upstream_type,omitempty"`
 	TunnelNodeID       *uint                            `json:"tunnel_node_id,omitempty"`
 	TunnelTargetAddr   string                           `json:"tunnel_target_addr,omitempty"`
@@ -154,7 +156,8 @@ type openRestyConfigSnapshot struct {
 	SWOfflineHTML              string   `json:"sw_offline_html,omitempty"`
 	SWOfflineDomains           []string `json:"sw_offline_domains,omitempty"`
 
-	PoWPage openrestyrender.PoWPageConfig `json:"pow_page,omitempty"`
+	PoWPage      openrestyrender.PoWPageConfig `json:"pow_page,omitempty"`
+	SiteAuthHTML string                        `json:"site_auth_html,omitempty"`
 }
 
 type snapshotDocument struct {
@@ -312,6 +315,8 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 			BasicAuthEnabled:   route.BasicAuthEnabled,
 			BasicAuthUsername:  route.BasicAuthUsername,
 			BasicAuthPassword:  route.BasicAuthPassword,
+			SiteAuthTTLHours:   route.SiteAuthTTLHours,
+			SiteAuthKey:        route.SiteAuthKey,
 			UpstreamType:       upstreamType,
 			TunnelNodeID:       tunnelNodeID,
 			TunnelTargetAddr:   tunnelTargetAddr,
@@ -612,6 +617,7 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		OriginErrorPageStatusCodes: parseOriginErrorPageStatusCodes(getStringConfig(model.ConfigKeyOriginErrorPageStatusCodes, `["500-599"]`)),
 		OriginErrorPageHTML:        getStringConfig(model.ConfigKeyOriginErrorPageHTML, ""),
 		PoWPage:                    parsePoWPageConfig(ctx, getStringConfig(model.ConfigKeyPoWPage, "{}")),
+		SiteAuthHTML:               getStringConfig(model.ConfigKeySiteAuthHTML, ""),
 		OriginErrorPageGetOnly:     getBoolConfig(model.ConfigKeyOriginErrorPageGetOnly, false),
 		SWOfflineEnabled:           getBoolConfig(model.ConfigKeySWOfflineEnabled, false),
 		SWOfflineHTML:              getStringConfig(model.ConfigKeySWOfflineHTML, ""),

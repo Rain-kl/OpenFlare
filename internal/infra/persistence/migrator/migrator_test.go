@@ -27,7 +27,7 @@ import (
 // （初始系统配置 + 各期配置迁移/新增 seed：of_options 迁移、文件白名单、磁盘缓存、
 // 登录会话 TTL、升级源、存储、FRPS Web UI、Pages、OpenResty 限流、单 IP 限频、
 // 错误页、SW 离线、日志保留期、指标保留期等）；新增配置 seed 迁移时需同步更新本常量。
-const expectedMigratedSystemConfigCount = 98
+const expectedMigratedSystemConfigCount = 99
 
 func TestTrustedProxyCIDRMigrationDefaultsMatchRenderer(t *testing.T) {
 	want := openrestyrender.DefaultTrustedProxyCIDRs()

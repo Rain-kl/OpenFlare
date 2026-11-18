@@ -34,3 +34,21 @@ if (process.argv.includes('--check')) {
 } else {
   writeFileSync(target, output);
 }
+
+const siteAuthTemplate = readFileSync(
+  new URL('pkg/render/openresty/site_auth.html', root),
+  'utf8',
+);
+const siteAuthOutput = `${JSON.stringify(siteAuthTemplate)}\n`;
+const siteAuthTarget = new URL(
+  'frontend/lib/openflare/site-auth-page.generated.json',
+  root,
+);
+if (process.argv.includes('--check')) {
+  if (readFileSync(siteAuthTarget, 'utf8') !== siteAuthOutput)
+    throw new Error(
+      'Run node scripts/generate-pow-assets.mjs to sync the site authentication page.',
+    );
+} else {
+  writeFileSync(siteAuthTarget, siteAuthOutput);
+}

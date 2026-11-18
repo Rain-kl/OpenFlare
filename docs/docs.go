@@ -4326,6 +4326,14 @@ const docTemplate = `{
                     "openflare-agent"
                 ],
                 "summary": "获取活跃配置版本",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Agent 支持站点身份验证",
+                        "name": "site_auth",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "活跃配置",
@@ -20064,6 +20072,9 @@ const docTemplate = `{
                 "redirect_http": {
                     "type": "boolean"
                 },
+                "site_auth_ttl_hours": {
+                    "type": "integer"
+                },
                 "site_name": {
                     "type": "string"
                 },
@@ -20173,6 +20184,9 @@ const docTemplate = `{
                 },
                 "redirect_http": {
                     "type": "boolean"
+                },
+                "site_auth_ttl_hours": {
+                    "type": "integer"
                 },
                 "site_name": {
                     "type": "string"

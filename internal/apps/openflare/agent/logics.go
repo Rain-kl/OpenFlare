@@ -171,8 +171,8 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload N
 }
 
 // GetActiveConfig returns the active configuration for an agent.
-func GetActiveConfig(ctx context.Context) (*ConfigResponse, error) {
-	config, err := getActiveConfigForAgent(ctx)
+func GetActiveConfig(ctx context.Context, siteAuthSupported bool) (*ConfigResponse, error) {
+	config, err := getActiveConfigForAgent(ctx, siteAuthSupported)
 	if err != nil {
 		if isActiveConfigNotFound(err) {
 			return nil, errors.New(errNoActiveConfig)

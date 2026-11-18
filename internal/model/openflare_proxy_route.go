@@ -31,6 +31,8 @@ type ProxyRoute struct {
 	BasicAuthEnabled     bool         `json:"basic_auth_enabled" gorm:"not null;default:false"`
 	BasicAuthUsername    string       `json:"basic_auth_username" gorm:"size:255;not null;default:''"`
 	BasicAuthPassword    string       `json:"basic_auth_password" gorm:"size:255;not null;default:''"`
+	SiteAuthTTLHours     int          `json:"site_auth_ttl_hours" gorm:"not null;default:0"`
+	SiteAuthKey          string       `json:"-" gorm:"size:64;not null;default:''"`
 	UpstreamType         string       `json:"upstream_type" gorm:"size:32;not null;default:'direct'"`
 	TunnelNodeID         *uint        `json:"tunnel_node_id" gorm:"index"`
 	TunnelTargetAddr     string       `json:"tunnel_target_addr" gorm:"size:512"`

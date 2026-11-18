@@ -3255,6 +3255,8 @@ definitions:
         type: integer
       redirect_http:
         type: boolean
+      site_auth_ttl_hours:
+        type: integer
       site_name:
         type: string
       tunnel_id:
@@ -3328,6 +3330,8 @@ definitions:
         type: integer
       redirect_http:
         type: boolean
+      site_auth_ttl_hours:
+        type: integer
       site_name:
         type: string
       tunnel_id:
@@ -7093,6 +7097,11 @@ paths:
   /api/v1/agent/config-versions/active:
     get:
       description: 返回当前生效的完整配置包，供 Agent 拉取并应用
+      parameters:
+      - description: Agent 支持站点身份验证
+        in: query
+        name: site_auth
+        type: boolean
       produces:
       - application/json
       responses:

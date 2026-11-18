@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>身份验证 · Site sign-in</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
+    body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: Canvas; color: CanvasText; }
+    main { width: min(22rem, calc(100% - 3rem)); }
+    h1 { margin: 0 0 1.5rem; font-size: 1.65rem; letter-spacing: -.02em; }
+    form, label { display: grid; gap: .625rem; }
+    form { gap: 1rem; }
+    label { font-size: .9rem; }
+    input, button { box-sizing: border-box; width: 100%; border-radius: .5rem; padding: .65rem .8rem; font: inherit; }
+    input { border: 1px solid GrayText; background: Field; color: FieldText; }
+    button { border: 1px solid transparent; background: #1959c6; color: white; cursor: pointer; }
+    p { margin: 0; color: #cd4237; }
+    p:empty { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>身份验证</h1>
+    <form method="post">
+      <label>用户名 / Username <input name="username" autocomplete="username" required autofocus></label>
+      <label>密码 / Password <input type="password" name="password" autocomplete="current-password" required></label>
+      <p role="alert">{{login_error}}</p>
+      <button type="submit">登录 / Sign in</button>
+    </form>
+  </main>
+</body>
+</html>

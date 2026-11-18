@@ -199,6 +199,8 @@ type Route struct {
 	BasicAuthEnabled   bool             `json:"basic_auth_enabled,omitempty"`
 	BasicAuthUsername  string           `json:"basic_auth_username,omitempty"`
 	BasicAuthPassword  string           `json:"basic_auth_password,omitempty"`
+	SiteAuthTTLHours   int              `json:"site_auth_ttl_hours,omitempty"`
+	SiteAuthKey        string           `json:"site_auth_key,omitempty"`
 	UpstreamType       string           `json:"upstream_type,omitempty"`
 	PagesDeployment    *PagesDeployment `json:"pages_deployment,omitempty"`
 }
@@ -351,7 +353,9 @@ type ConfigSnapshot struct {
 	// SWOfflineDomains restricts the offline fallback to matching HTTPS routes.
 	SWOfflineDomains []string `json:"sw_offline_domains,omitempty"`
 
-	PoWPage PoWPageConfig `json:"pow_page,omitempty"`
+	PoWPage         PoWPageConfig `json:"pow_page,omitempty"`
+	SiteAuthHTML    string        `json:"site_auth_html,omitempty"`
+	siteAuthEnabled bool
 }
 
 // DefaultTrustedProxyCIDRs returns Cloudflare's published IPv4 and IPv6

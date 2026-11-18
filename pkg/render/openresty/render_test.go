@@ -302,7 +302,7 @@ func TestRenderPagesAPIProxyLocationBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := renderPagesAPIProxyLocationBlock(tt.deployment)
+			got := renderPagesAPIProxyLocationBlock(tt.deployment, Route{})
 			if len(tt.expected) == 1 && tt.expected[0] == "" {
 				if got != "" {
 					t.Fatalf("expected empty output, got: %q", got)
