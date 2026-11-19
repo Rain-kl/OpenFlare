@@ -1,0 +1,26 @@
+[package]
+name = "openflare-edge"
+version = "0.1.0"
+edition = "2021"
+description = "OpenFlare Pingora edge node"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+clap = { version = "4", features = ["derive"] }
+pingora = { version = "0.9.1", features = ["openssl", "proxy"] }
+pingora-error = "0.9.1"
+pingora-http = "0.9.1"
+rand = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+url = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tempfile = "3"

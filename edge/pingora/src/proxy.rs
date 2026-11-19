@@ -1,0 +1,133 @@
+use crate::config::Route;
+use crate::control::SharedState;
+use async_trait::async_trait;
+use pingora::proxy::http_proxy_service;
+use pingora::proxy::{ProxyHttp, Session};
+use pingora::server::configuration::Opt;
+use pingora::server::Server;
+use pingora::upstreams::peer::HttpPeer;
+use pingora::Result;
+use pingora_error::{Error, ErrorType::*};
+use std::sync::Arc;
+use url::Url;
+
+pub struct ProxyService {
+    state: SharedState,
+}
+
+#[async_trait]
+impl ProxyHttp for ProxyService {
+    type CTX = ();
+
+    fn new_ctx(&self) -> Self::CTX {}
+
+    async fn upstream_peer(
+        &self,
+        session: &mut Session,
+        _ctx: &mut Self::CTX,
+    ) -> Result<Box<HttpPeer>> {
+        let config = match self.state.current() {
+            Some(config) => config,
+            None => {
+                return Err(Error::explain(
+                    HTTPStatus(503),
+                    "configuration is not ready",
+                ))
+            }
+        };
+        let host = match request_host(session) {
+            Some(host) => host,
+            None => return Err(Error::explain(HTTPStatus(400), "Host header is invalid")),
+        };
+        let route = match find_route(config.routes(), &host) {
+            Some(route) => route,
+            None => return Err(Error::explain(HTTPStatus(404), "no route matches host")),
+        };
+        let upstream = match route.upstreams().first().cloned() {
+            Some(upstream) => upstream,
+            None => return Err(Error::explain(HTTPStatus(503), "route has no upstream")),
+        };
+        let upstream = normalize_upstream(&upstream)
+            .map_err(|error| Error::because(InternalError, "invalid upstream", error))?;
+        if upstream.scheme == "https" {
+            Ok(Box::new(HttpPeer::new(upstream.addr, true, upstream.host)))
+        } else {
+            Ok(Box::new(HttpPeer::new(upstream.addr, false, upstream.host)))
+        }
+    }
+
+    async fn request_filter(&self, session: &mut Session, _ctx: &mut Self::CTX) -> Result<bool>
+    where
+        Self::CTX: Send + Sync,
+    {
+        let Some(config) = self.state.current() else {
+            let _ = session.respond_error(503).await;
+            return Ok(true);
+        };
+        let Some(host) = request_host(session) else {
+            let _ = session.respond_error(400).await;
+            return Ok(true);
+        };
+        if find_route(config.routes(), &host).is_none() {
+            let _ = session.respond_error(404).await;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+}
+
+fn find_route<'a>(mut routes: impl Iterator<Item = &'a Route>, host: &str) -> Option<&'a Route> {
+    routes.find(|route| {
+        route
+            .domains
+            .iter()
+            .any(|domain| domain.eq_ignore_ascii_case(host))
+    })
+}
+
+fn request_host(session: &Session) -> Option<String> {
+    let value = session.req_header().headers.get("Host")?;
+    let host = value.to_str().ok()?.to_lowercase();
+    Some(host)
+}
+
+struct NormalizedUpstream {
+    scheme: String,
+    host: String,
+    addr: String,
+}
+
+fn normalize_upstream(value: &str) -> anyhow::Result<NormalizedUpstream> {
+    let parsed = Url::parse(value)?;
+    let scheme = parsed.scheme().to_lowercase();
+    if scheme != "http" && scheme != "https" {
+        anyhow::bail!("unsupported upstream scheme: {}", scheme);
+    }
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| anyhow::anyhow!("upstream has no host"))?
+        .to_owned();
+    let port = parsed
+        .port_or_known_default()
+        .ok_or_else(|| anyhow::anyhow!("upstream has no port"))?;
+    Ok(NormalizedUpstream {
+        scheme,
+        addr: format!("{host}:{port}"),
+        host,
+    })
+}
+
+pub fn spawn(state: SharedState, listen: &str) -> anyhow::Result<()> {
+    std::net::TcpListener::bind(listen)?;
+    let mut server = Server::new(Some(Opt::default()))?;
+    server.bootstrap();
+    let mut service =
+        http_proxy_service(&Arc::clone(&server.configuration), ProxyService { state });
+    service.add_tcp(listen);
+    server.add_service(service);
+    std::thread::spawn(move || {
+        tracing::info!("proxy server stopped");
+        server.run_forever();
+    });
+    Ok(())
+}
