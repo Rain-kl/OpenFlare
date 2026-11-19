@@ -29,11 +29,12 @@ const (
 )
 
 type pingoraConfigPayload struct {
-	SchemaVersion        int            `json:"schema_version"`
-	ContractVersion      int            `json:"contract_version"`
-	RequiredCapabilities []string       `json:"required_capabilities"`
-	Routes               []pingoraRoute `json:"routes"`
-	Assets               pingoraAssets  `json:"assets"`
+	SchemaVersion        int                 `json:"schema_version"`
+	ContractVersion      int                 `json:"contract_version"`
+	RequiredCapabilities []string            `json:"required_capabilities"`
+	Routes               []pingoraRoute      `json:"routes"`
+	WAF                  snapshotWAFDocument `json:"waf"`
+	Assets               pingoraAssets       `json:"assets"`
 }
 
 type pingoraRoute struct {
@@ -127,6 +128,7 @@ func buildPingoraConfigVersion(ctx context.Context, bundle *configBundle, openRe
 		ContractVersion:      pingoraContractVersion,
 		RequiredCapabilities: []string{pingoraBaseCapability, pingoraPolicyCapability},
 		Routes:               routes,
+		WAF:                  bundle.WAFSnapshot,
 		Assets: pingoraAssets{
 			Certificates: certificates,
 		},
@@ -253,6 +255,14 @@ func validatePingoraPayload(payload pingoraConfigPayload) error {
 			if _, ok := payload.Assets.Certificates[strconv.FormatUint(uint64(certID), 10)]; !ok {
 				return fmt.Errorf("certificate %d for route %s domain %s is missing", certID, route.SiteName, route.Domains[index])
 			}
+		}
+	}
+	for _, group := range payload.WAF.RuleGroups {
+		if !group.Enabled {
+			continue
+		}
+		if group.Graph.Entry == "" || group.Graph.Nodes == nil {
+			return fmt.Errorf("WAF rule %s has an invalid graph", group.Name)
 		}
 	}
 	return nil

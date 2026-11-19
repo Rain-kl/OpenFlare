@@ -73,6 +73,8 @@ func TestPublishConfigVersionCreatesAlignedPingoraPayload(t *testing.T) {
 	assert.Equal(t, snapshot.Routes[0].EnableHTTPS, payload.Routes[0].EnableHTTPS)
 	assert.Equal(t, snapshot.Routes[0].EnableHTTP2, payload.Routes[0].EnableHTTP2)
 	assert.Equal(t, snapshot.Routes[0].RedirectHTTP, payload.Routes[0].RedirectHTTP)
+	assert.Equal(t, snapshot.WAF, payload.WAF)
+	assert.Equal(t, []string{"tls-sni-h2-v1", "policy-runtime-v1"}, payload.RequiredCapabilities)
 	assert.Contains(t, payload.Assets.Certificates, strconv.FormatUint(uint64(certificate.ID), 10))
 
 	digest := sha256.Sum256([]byte(pingoraVersion.PayloadJSON))

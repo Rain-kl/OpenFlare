@@ -17,7 +17,68 @@ pub struct Config {
     pub contract_version: i64,
     pub required_capabilities: Vec<String>,
     pub routes: Vec<Route>,
+    #[serde(default)]
+    pub waf: WafDocument,
     pub assets: Assets,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct WafDocument {
+    #[serde(default)]
+    pub rule_groups: Vec<WafRuleGroup>,
+    #[serde(default)]
+    pub ip_groups: Vec<WafIPGroup>,
+    #[serde(default)]
+    pub bindings: Vec<WafBinding>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct WafRuleGroup {
+    pub id: u64,
+    #[serde(default)]
+    pub name: String,
+    pub enabled: bool,
+    pub is_global: bool,
+    pub graph: WafGraph,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct WafGraph {
+    #[serde(default)]
+    pub entry: String,
+    #[serde(default)]
+    pub nodes: HashMap<String, WafNode>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct WafNode {
+    #[serde(rename = "type", default)]
+    pub node_type: String,
+    #[serde(default)]
+    pub config: Value,
+    #[serde(default)]
+    pub next: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct WafIPGroup {
+    pub id: u64,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub ip_list: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct WafBinding {
+    #[serde(default)]
+    pub route_id: u64,
+    #[serde(default)]
+    pub site_name: String,
+    #[serde(default)]
+    pub rule_group_ids: Vec<u64>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

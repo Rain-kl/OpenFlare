@@ -1,4 +1,5 @@
 use crate::config::{self, AppliedConfig};
+use crate::pages::PagesSyncer;
 use crate::proxy;
 use anyhow::{Context, Result};
 use rand::RngCore;
@@ -190,6 +191,23 @@ impl Runtime {
                                                 )
                                                 .await;
                                         } else {
+                                            for route in
+                                                applied.routes().filter(|route| route.is_pages())
+                                            {
+                                                if let Some(deployment) = route.pages.as_ref() {
+                                                    let syncer = PagesSyncer::new(
+                                                        authenticated.base_url.clone(),
+                                                        authenticated.token.clone(),
+                                                        authenticated.client.clone(),
+                                                        self.state_dir.join("pages"),
+                                                    );
+                                                    if let Err(error) =
+                                                        syncer.ensure_project(deployment).await
+                                                    {
+                                                        tracing::error!(project_id = deployment.project_id, error = %error, "failed to sync Pages project");
+                                                    }
+                                                }
+                                            }
                                             config::persist_snapshot(&self.state_dir, &applied)?;
                                             let _ = authenticated
                                                 .report_apply(
@@ -461,6 +479,7 @@ fn fallback_applied_config(meta: &ActiveConfigMeta) -> AppliedConfig {
             contract_version: 2,
             required_capabilities: vec![],
             routes: vec![],
+            waf: Default::default(),
             assets: crate::config::Assets::default(),
         },
         certificates: Default::default(),

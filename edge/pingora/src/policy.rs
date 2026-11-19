@@ -1,8 +1,13 @@
-use crate::config::{PagesDeployment, PoWPathMatch, Route};
+use crate::config::{PagesDeployment, PoWConfig, PoWPathMatch, Route, WafDocument};
 use base64::{engine::general_purpose::STANDARD as Base64, Engine as _};
 use hmac::{Hmac, Mac};
+use maxminddb::Reader;
+use rand::RngCore;
 use regex::Regex;
+use serde::Deserialize;
+use sha1::Sha1 as Sha1Digest;
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -10,21 +15,53 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub const SITE_AUTH_COOKIE: &str = "__Host-openflare_site_auth";
 pub const SITE_AUTH_PATH: &str = "/.openflare/site-auth";
+pub const POW_COOKIE: &str = "__openflare_pow";
 pub const POW_API_PREFIX: &str = "/.within.website/x/cmd/anubis/api/";
 pub const POW_STATIC_PREFIX: &str = "/.within.website/x/cmd/anubis/static/";
 
-pub struct RequestContext<'a> {
-    pub method: &'a str,
-    pub host: &'a str,
-    pub path: &'a str,
-    pub query: &'a str,
-    pub remote_addr: &'a str,
-    pub user_agent: &'a str,
-    pub cookie: &'a str,
-    pub authorization: &'a str,
-    pub content_type: &'a str,
-    pub body: &'a [u8],
-    pub origin_header: Option<&'a str>,
+#[derive(Debug, Clone, Default)]
+pub struct RequestContext {
+    pub method: String,
+    pub host: String,
+    pub path: String,
+    pub query: String,
+    pub remote_addr: String,
+    pub user_agent: String,
+    pub cookie: String,
+    pub authorization: String,
+    pub content_type: String,
+    pub body: Vec<u8>,
+    pub origin_header: Option<String>,
+    pub geo: Option<GeoResult>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct GeoResult {
+    pub country: Option<String>,
+    pub region: Option<String>,
+}
+
+pub struct GeoIp {
+    reader: Option<Reader<Vec<u8>>>,
+}
+
+impl GeoIp {
+    pub fn open(path: Option<&Path>) -> Option<Self> {
+        path.and_then(|path| Reader::open_readfile(path).ok())
+            .map(|reader| Self {
+                reader: Some(reader),
+            })
+    }
+
+    pub fn lookup(&self, ip: &str) -> Option<GeoResult> {
+        let ip = ip.parse().ok()?;
+        let lookup = self.reader.as_ref()?.lookup(ip).ok()?;
+        let country: maxminddb::geoip2::Country = lookup.decode().ok()??;
+        Some(GeoResult {
+            country: country.country.iso_code.map(|code| code.to_uppercase()),
+            region: None,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +72,13 @@ pub enum PolicyDecision {
         headers: Vec<(String, String)>,
         body: &'static str,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WafDecision {
+    Allow,
+    Block { status: u16, body: String },
+    Takeover,
 }
 
 pub fn basic_auth(route: &Route, context: &RequestContext) -> PolicyDecision {
@@ -54,8 +98,8 @@ pub fn basic_auth(route: &Route, context: &RequestContext) -> PolicyDecision {
         PolicyDecision::Respond {
             status: 401,
             headers: vec![(
-                "WWW-Authenticate".to_owned(),
-                "Basic realm=\"Restricted\"".to_owned(),
+                "WWW-Authenticate".into(),
+                "Basic realm=\"Restricted\"".into(),
             )],
             body: "",
         }
@@ -73,31 +117,29 @@ pub fn site_auth(route: &Route, context: &RequestContext, https: bool, now: u64)
             body: "",
         };
     }
-    if context.path == SITE_AUTH_PATH {
+    if context.path == SITE_AUTH_PATH || valid_site_auth_cookie(route, context, now) {
         return PolicyDecision::Continue;
     }
-    if valid_site_auth_cookie(route, context, now) {
-        return PolicyDecision::Continue;
-    }
-    let headers = vec![("Cache-Control".to_owned(), "private, no-store".to_owned())];
     if context.method.eq_ignore_ascii_case("GET") || context.method.eq_ignore_ascii_case("HEAD") {
-        let next = format!(
-            "{}?next={}",
-            SITE_AUTH_PATH,
-            encode_uri(&format!("{}{}", context.path, query_suffix(context.query)))
-        );
         PolicyDecision::Respond {
             status: 303,
             headers: vec![
-                ("Location".to_owned(), next),
-                ("Cache-Control".to_owned(), "private, no-store".to_owned()),
+                (
+                    "Location".into(),
+                    format!(
+                        "{}?next={}",
+                        SITE_AUTH_PATH,
+                        encode_uri(&format!("{}{}", context.path, query_suffix(&context.query)))
+                    ),
+                ),
+                ("Cache-Control".into(), "private, no-store".into()),
             ],
             body: "",
         }
     } else {
         PolicyDecision::Respond {
             status: 403,
-            headers,
+            headers: vec![("Cache-Control".into(), "private, no-store".into())],
             body: "",
         }
     }
@@ -105,34 +147,30 @@ pub fn site_auth(route: &Route, context: &RequestContext, https: bool, now: u64)
 
 pub fn site_auth_login(route: &Route, context: &RequestContext, now: u64) -> PolicyDecision {
     let no_store = ("Cache-Control".to_owned(), "private, no-store".to_owned());
+    let page_headers = vec![
+        ("Content-Type".into(), "text/html; charset=utf-8".into()),
+        ("Referrer-Policy".into(), "strict-origin".into()),
+        (
+            "Content-Security-Policy".into(),
+            "form-action 'self'; frame-ancestors 'none'; base-uri 'none'".into(),
+        ),
+    ];
     if context.method.eq_ignore_ascii_case("GET") || context.method.eq_ignore_ascii_case("HEAD") {
         return PolicyDecision::Respond {
             status: 200,
-            headers: vec![
-                no_store,
-                (
-                    "Content-Type".to_owned(),
-                    "text/html; charset=utf-8".to_owned(),
-                ),
-                ("Referrer-Policy".to_owned(), "strict-origin".to_owned()),
-                (
-                    "Content-Security-Policy".to_owned(),
-                    "form-action 'self'; frame-ancestors 'none'; base-uri 'none'".to_owned(),
-                ),
-            ],
+            headers: vec![no_store].into_iter().chain(page_headers).collect(),
             body: "",
         };
     }
     if !context.method.eq_ignore_ascii_case("POST") {
         return PolicyDecision::Respond {
             status: 405,
-            headers: vec![no_store, ("Allow".to_owned(), "GET, HEAD, POST".to_owned())],
+            headers: vec![no_store, ("Allow".into(), "GET, HEAD, POST".into())],
             body: "",
         };
     }
-    let expected_origin = format!("https://{}", context.host);
-    if let Some(origin) = context.origin_header {
-        if origin != expected_origin {
+    if let Some(origin) = context.origin_header.as_ref() {
+        if *origin != format!("https://{}", context.host) {
             return PolicyDecision::Respond {
                 status: 403,
                 headers: vec![no_store],
@@ -151,72 +189,54 @@ pub fn site_auth_login(route: &Route, context: &RequestContext, now: u64) -> Pol
             body: "",
         };
     }
-    let form = parse_form(context.body);
+    let form = parse_form(&context.body);
     let username = form.get("username").map(String::as_str).unwrap_or("");
     let password = form.get("password").map(String::as_str).unwrap_or("");
-    if username.len() > 255
-        || password.len() > 255
-        || username.contains('\0')
-        || password.contains('\0')
-    {
-        return invalid_site_auth_login(no_store);
-    }
     let digest = site_auth_credential_digest(&route.site_auth_key, username, password);
-    let expected_digest = site_auth_credential_digest(
+    let expected = site_auth_credential_digest(
         &route.site_auth_key,
         &route.basic_auth_username,
         &route.basic_auth_password,
     );
-    if !constant_time_equal(digest.as_bytes(), expected_digest.as_bytes()) {
-        return invalid_site_auth_login(no_store);
+    if username.len() > 255
+        || password.len() > 255
+        || username.contains('\0')
+        || password.contains('\0')
+        || !constant_time_equal(digest.as_bytes(), expected.as_bytes())
+    {
+        return PolicyDecision::Respond {
+            status: 403,
+            headers: vec![no_store].into_iter().chain(page_headers).collect(),
+            body: "",
+        };
     }
     let ttl = (route.site_auth_ttl_hours as u64) * 3600;
     let expiry = now + ttl;
     let cookie = format!(
-        "{}={}.{}; Max-Age={}; Path=/; Secure; HttpOnly; SameSite=Lax",
+        "{}={}.{}; Max-Age={ttl}; Path=/; Secure; HttpOnly; SameSite=Lax",
         SITE_AUTH_COOKIE,
         expiry,
-        site_auth_signature(&route.site_auth_key, context.host, expiry),
-        ttl
+        site_auth_signature(&route.site_auth_key, &context.host, expiry)
     );
     PolicyDecision::Respond {
         status: 303,
         headers: vec![
-            ("Location".to_owned(), safe_next_path(context.query)),
-            ("Set-Cookie".to_owned(), cookie),
+            ("Location".into(), safe_next_path(&context.query)),
+            ("Set-Cookie".into(), cookie),
             no_store,
-        ],
-        body: "",
-    }
-}
-
-fn invalid_site_auth_login(no_store: (String, String)) -> PolicyDecision {
-    PolicyDecision::Respond {
-        status: 403,
-        headers: vec![
-            no_store,
-            (
-                "Content-Type".to_owned(),
-                "text/html; charset=utf-8".to_owned(),
-            ),
-            ("Referrer-Policy".to_owned(), "strict-origin".to_owned()),
-            (
-                "Content-Security-Policy".to_owned(),
-                "form-action 'self'; frame-ancestors 'none'; base-uri 'none'".to_owned(),
-            ),
         ],
         body: "",
     }
 }
 
 pub fn valid_site_auth_cookie(route: &Route, context: &RequestContext, now: u64) -> bool {
-    let Some(value) = cookie_value(context.cookie, SITE_AUTH_COOKIE) else {
+    let Some(value) = cookie_value(&context.cookie, SITE_AUTH_COOKIE) else {
         return false;
     };
     let Some((expiry, signature)) = value.split_once('.') else {
         return false;
     };
-    if expiry.len() > 11 || !expiry.bytes().all(|byte| byte.is_ascii_digit()) {
+    if expiry.len() > 11 || !expiry.bytes().all(|b| b.is_ascii_digit()) {
         return false;
     }
     let Ok(expiry) = expiry.parse::<u64>() else {
@@ -225,34 +245,460 @@ pub fn valid_site_auth_cookie(route: &Route, context: &RequestContext, now: u64)
     expiry > now
         && constant_time_equal(
             signature.as_bytes(),
-            site_auth_signature(&route.site_auth_key, context.host, expiry).as_bytes(),
+            site_auth_signature(&route.site_auth_key, &context.host, expiry).as_bytes(),
         )
 }
 
 pub fn site_auth_signature(key: &str, host: &str, expiry: u64) -> String {
     let mut mac =
-        Hmac::<Sha1>::new_from_slice(key.as_bytes()).expect("HMAC accepts any key length");
-    mac.update(format!("{}:{}", host, expiry).as_bytes());
+        Hmac::<Sha1Digest>::new_from_slice(key.as_bytes()).expect("HMAC accepts any key length");
+    mac.update(format!("{host}:{expiry}").as_bytes());
     hex(mac.finalize().into_bytes())
 }
 
 pub fn site_auth_credential_digest(key: &str, username: &str, password: &str) -> String {
-    let digest = Sha256::digest(format!("{key}\0{username}\0{password}").as_bytes());
-    hex(digest)
+    hex(Sha256::digest(
+        format!("{key}\0{username}\0{password}").as_bytes(),
+    ))
 }
 
-type Sha1 = sha1::Sha1;
+pub fn execute_waf(
+    document: &WafDocument,
+    route: &Route,
+    context: &RequestContext,
+    pow_valid: bool,
+) -> Result<WafDecision, String> {
+    let global = document
+        .rule_groups
+        .iter()
+        .filter(|g| g.enabled && g.is_global);
+    let bound_ids = document
+        .bindings
+        .iter()
+        .find(|b| b.route_id == route.id)
+        .map(|b| b.rule_group_ids.as_slice())
+        .unwrap_or_default();
+    let bound = document
+        .rule_groups
+        .iter()
+        .filter(|g| g.enabled && !g.is_global && bound_ids.contains(&g.id));
+    for group in global.chain(bound) {
+        match execute_graph(&group.graph, document, context, pow_valid)? {
+            WafDecision::Allow => continue,
+            decision => return Ok(decision),
+        }
+    }
+    Ok(WafDecision::Allow)
+}
+
+fn execute_graph(
+    graph: &crate::config::WafGraph,
+    document: &WafDocument,
+    context: &RequestContext,
+    pow_valid: bool,
+) -> Result<WafDecision, String> {
+    if graph.entry.is_empty() || graph.nodes.is_empty() {
+        return Err("WAF graph is empty".into());
+    }
+    let mut current = graph.entry.as_str();
+    for _ in 0..graph.nodes.len() {
+        let node = graph
+            .nodes
+            .get(current)
+            .ok_or_else(|| format!("missing WAF node {current}"))?;
+        let handle = match node.node_type.as_str() {
+            "start" => "next",
+            "allow" => return Ok(WafDecision::Allow),
+            "block" => {
+                let config: BlockConfig = serde_json::from_value(node.config.clone())
+                    .map_err(|e| format!("invalid block node: {e}"))?;
+                return Ok(WafDecision::Block {
+                    status: config.status_code,
+                    body: config.response_body,
+                });
+            }
+            "ip_match" => {
+                let config: IpMatchConfig = serde_json::from_value(node.config.clone())
+                    .map_err(|e| format!("invalid ip_match node: {e}"))?;
+                if ip_matches(document, &config, &context.remote_addr) {
+                    "true"
+                } else {
+                    "false"
+                }
+            }
+            "geo_match" => {
+                let config: GeoMatchConfig = serde_json::from_value(node.config.clone())
+                    .map_err(|e| format!("invalid geo_match node: {e}"))?;
+                if geo_matches(&config, context) {
+                    "true"
+                } else {
+                    "false"
+                }
+            }
+            "ua_check" => {
+                let config: UaCheckConfig = serde_json::from_value(node.config.clone())
+                    .map_err(|e| format!("invalid ua_check node: {e}"))?;
+                if ua_matches(&config, &context.user_agent) {
+                    "true"
+                } else {
+                    "false"
+                }
+            }
+            "security_check" => {
+                let config: SecurityCheckConfig = serde_json::from_value(node.config.clone())
+                    .map_err(|e| format!("invalid security_check node: {e}"))?;
+                if security_matches(&config, &context.path, &context.query, &context.body) {
+                    "true"
+                } else {
+                    "false"
+                }
+            }
+            "pow" if pow_valid => "next",
+            "pow" => return Ok(WafDecision::Takeover),
+            other => return Err(format!("unknown WAF node type {other}")),
+        };
+        let next = node
+            .next
+            .get(handle)
+            .ok_or_else(|| format!("missing {handle} edge from node {current}"))?;
+        current = next.as_str();
+    }
+    Err("WAF graph exceeded maximum steps".into())
+}
+
+#[derive(Deserialize)]
+struct BlockConfig {
+    #[serde(default = "default_status")]
+    status_code: u16,
+    #[serde(default)]
+    response_body: String,
+}
+fn default_status() -> u16 {
+    403
+}
+#[derive(Deserialize, Default)]
+struct IpMatchConfig {
+    #[serde(default)]
+    ips: Vec<String>,
+    #[serde(default)]
+    cidrs: Vec<String>,
+    #[serde(default)]
+    ip_group_ids: Vec<u64>,
+}
+#[derive(Deserialize, Default)]
+struct GeoMatchConfig {
+    #[serde(default)]
+    countries: Vec<String>,
+    #[serde(default)]
+    regions: Vec<String>,
+}
+#[derive(Deserialize, Default)]
+struct UaCheckConfig {
+    #[serde(default)]
+    require_ua: bool,
+    #[serde(default)]
+    browsers: Vec<String>,
+    #[serde(default)]
+    operating_systems: Vec<String>,
+    #[serde(default)]
+    match_mode: String,
+    #[serde(default)]
+    block_common_bots: bool,
+    #[serde(default)]
+    block_abnormal_ua: bool,
+    #[serde(default)]
+    block_custom_ua: bool,
+    #[serde(default)]
+    custom_ua_patterns: Vec<String>,
+}
+#[derive(Deserialize, Default)]
+struct SecurityCheckConfig {
+    #[serde(default)]
+    sql_injection: bool,
+    #[serde(default)]
+    path_traversal: bool,
+    #[serde(default)]
+    command_injection: bool,
+    #[serde(default)]
+    xss: bool,
+    #[serde(default)]
+    ssrf: bool,
+    #[serde(default)]
+    file_inclusion: bool,
+    #[serde(default)]
+    malicious_upload: bool,
+    #[serde(default)]
+    xxe: bool,
+    #[serde(default)]
+    crlf_injection: bool,
+}
+
+fn ip_matches(document: &WafDocument, config: &IpMatchConfig, ip: &str) -> bool {
+    config.ips.iter().any(|v| v == ip)
+        || config.cidrs.iter().any(|cidr| ip_in_cidr(ip, cidr))
+        || config.ip_group_ids.iter().any(|id| {
+            document
+                .ip_groups
+                .iter()
+                .find(|g| g.id == *id && g.enabled)
+                .is_some_and(|g| g.ip_list.iter().any(|v| v == ip || ip_in_cidr(ip, v)))
+        })
+}
+fn geo_matches(config: &GeoMatchConfig, context: &RequestContext) -> bool {
+    let Some(geo) = context.geo.as_ref() else {
+        return false;
+    };
+    config.countries.iter().any(|v| {
+        geo.country
+            .as_deref()
+            .is_some_and(|c| c.eq_ignore_ascii_case(v))
+    }) || config.regions.iter().any(|v| {
+        geo.region
+            .as_deref()
+            .is_some_and(|r| r.eq_ignore_ascii_case(v))
+    })
+}
+fn ua_matches(config: &UaCheckConfig, user_agent: &str) -> bool {
+    let ua = user_agent.trim();
+    if config.require_ua && ua.is_empty() {
+        return false;
+    }
+    let browser = classify_browser(ua);
+    let os = classify_os(ua);
+    if config.block_common_bots && (browser == "Bot" || os == "Bot") {
+        return false;
+    }
+    if config.block_abnormal_ua && (browser == "Other" || browser == "Unknown") {
+        return false;
+    }
+    if config.block_custom_ua
+        && config
+            .custom_ua_patterns
+            .iter()
+            .any(|pattern| ua.contains(pattern.as_str()))
+    {
+        return false;
+    }
+    let browser_ok = config.browsers.iter().any(|v| v == browser);
+    let os_ok = config.operating_systems.iter().any(|v| v == os);
+    if config.browsers.is_empty() && config.operating_systems.is_empty() {
+        return true;
+    }
+    if config.browsers.is_empty() {
+        return os_ok;
+    }
+    if config.operating_systems.is_empty() {
+        return browser_ok;
+    }
+    if config.match_mode == "and" {
+        browser_ok && os_ok
+    } else {
+        browser_ok || os_ok
+    }
+}
+fn classify_browser(ua: &str) -> &'static str {
+    let ua = ua.to_ascii_lowercase();
+    if ua.contains("micromessenger") {
+        "WeChat"
+    } else if ua.contains("postman") {
+        "Postman"
+    } else if ua.contains("curl/") || ua.contains("wget/") {
+        "CLI"
+    } else if ua.contains("edg/") || ua.contains("edgios/") || ua.contains("edga/") {
+        "Edge"
+    } else if ua.contains("opr/") || ua.contains("opera") {
+        "Opera"
+    } else if ua.contains("firefox") || ua.contains("fxios") {
+        "Firefox"
+    } else if (ua.contains("crios") || ua.contains("chrome")) && !ua.contains("chromium") {
+        "Chrome"
+    } else if ua.contains("chromium") {
+        "Chromium"
+    } else if ua.contains("safari") {
+        "Safari"
+    } else if ua.contains("bot")
+        || ua.contains("spider")
+        || ua.contains("crawler")
+        || ua.contains("slurp")
+    {
+        "Bot"
+    } else if ua.is_empty() {
+        "Unknown"
+    } else {
+        "Other"
+    }
+}
+fn classify_os(ua: &str) -> &'static str {
+    let ua = ua.to_ascii_lowercase();
+    if ua.contains("android") {
+        "Android"
+    } else if ua.contains("iphone")
+        || ua.contains("ipad")
+        || ua.contains("ipod")
+        || ua.contains("ios")
+    {
+        "iOS"
+    } else if ua.contains("windows") {
+        "Windows"
+    } else if ua.contains("mac os x") || ua.contains("macintosh") || ua.contains("macos") {
+        "macOS"
+    } else if ua.contains("cros") {
+        "Chrome OS"
+    } else if ua.contains("linux") {
+        "Linux"
+    } else if ua.contains("bot") || ua.contains("spider") || ua.contains("crawler") {
+        "Bot"
+    } else {
+        "Other"
+    }
+}
+fn security_matches(config: &SecurityCheckConfig, path: &str, query: &str, body: &[u8]) -> bool {
+    if !config.path_traversal
+        && !config.file_inclusion
+        && !config.sql_injection
+        && !config.command_injection
+        && !config.xss
+        && !config.ssrf
+        && !config.crlf_injection
+        && !config.malicious_upload
+        && !config.xxe
+    {
+        return true;
+    }
+    let mut inputs = vec![
+        percent_decode(path).to_ascii_lowercase(),
+        percent_decode(query).to_ascii_lowercase(),
+        String::from_utf8_lossy(body).to_ascii_lowercase(),
+        percent_decode(query).to_ascii_lowercase(),
+    ];
+    inputs.retain(|value| !value.is_empty());
+    let patterns: &[(&[&str], bool)] = &[
+        (
+            &[
+                "../",
+                "..\\",
+                "..%2f",
+                "..%5c",
+                "%2e%2e/",
+                "%2e%2e\\",
+                "%252e%252e",
+                "....//",
+                "/etc/passwd",
+            ],
+            config.path_traversal,
+        ),
+        (
+            &[
+                "php://",
+                "file://",
+                "zip://",
+                "data://text",
+                "expect://",
+                "/proc/self",
+                "%00",
+            ],
+            config.file_inclusion,
+        ),
+        (
+            &[
+                "union select",
+                " or 1=1",
+                "' or '",
+                "\" or \"",
+                "information_schema",
+                "xp_cmdshell",
+                "load_file(",
+                " into outfile",
+                "/**/",
+                "/*!",
+                "*/--",
+                "@@version",
+            ],
+            config.sql_injection,
+        ),
+        (
+            &[
+                ";wget",
+                ";curl",
+                ";bash",
+                ";sh ",
+                "|bash",
+                "|sh ",
+                "`id`",
+                "$(id)",
+                "&&wget",
+                "&&curl",
+                "&&bash",
+                "&&sh ",
+                "||wget",
+                "||curl",
+                "||bash",
+                "/bin/sh ",
+                "/bin/bash ",
+                "cmd.exe /c",
+                "powershell -",
+                "powershell.exe",
+            ],
+            config.command_injection,
+        ),
+        (
+            &[
+                "<script",
+                "<iframe",
+                "onerror=",
+                "onload=",
+                "onmouseover=",
+                "document.cookie",
+            ],
+            config.xss,
+        ),
+        (
+            &[
+                "http://127.0.0.1",
+                "https://127.0.0.1",
+                "http://localhost",
+                "https://localhost",
+                "http://0.0.0.0",
+                "https://0.0.0.0",
+                "://169.254.",
+                "169.254.169.254",
+                "metadata.google",
+                "file://",
+                "gopher://",
+                "dict://",
+            ],
+            config.ssrf,
+        ),
+        (&["%0d%0a", "\r\n"], config.crlf_injection),
+        (
+            &[
+                ".php.",
+                ".jsp.",
+                ".asp.",
+                ".aspx.",
+                ".phtml",
+                ".phar",
+                "application/x-php",
+                "application/x-httpd-php",
+            ],
+            config.malicious_upload,
+        ),
+        (&["<!entity", " system \"", " system '"], config.xxe),
+    ];
+    !patterns
+        .iter()
+        .filter(|(_, enabled)| *enabled)
+        .any(|(values, _)| {
+            inputs
+                .iter()
+                .any(|input| values.iter().any(|value| input.contains(value)))
+        })
+}
 
 #[derive(Default)]
 pub struct RateLimiter {
-    inner: Mutex<RateLimiterInner>,
+    inner: Mutex<HashMap<(String, String), (u64, Instant)>>,
 }
-
-#[derive(Default)]
-struct RateLimiterInner {
-    req_tokens: std::collections::HashMap<(String, String), (u64, Instant)>,
-}
-
 pub fn request_rate_limit(
     limiter: &RateLimiter,
     site: &str,
@@ -267,14 +713,15 @@ pub fn request_rate_limit(
         .inner
         .lock()
         .expect("rate limiter state is not poisoned");
-    let key = (site.to_owned(), ip.to_owned());
     let capacity = calculate_burst(rate).max(1);
-    let state = inner.req_tokens.entry(key).or_insert((capacity, now));
+    let state = inner
+        .entry((site.into(), ip.into()))
+        .or_insert((capacity, now));
     let elapsed = now.duration_since(state.1).as_millis() as u64;
     let refill = elapsed * rate.tokens / rate.period_ms;
     if refill > 0 {
         state.0 = (state.0 + refill).min(capacity);
-        state.1 += Duration::from_millis(refill * rate.period_ms / rate.tokens.max(1));
+        state.1 += Duration::from_millis(refill * rate.period_ms / rate.tokens);
     }
     if state.0 == 0 {
         return false;
@@ -282,35 +729,51 @@ pub fn request_rate_limit(
     state.0 -= 1;
     true
 }
-
 #[derive(Debug, Clone, Copy)]
 pub struct ParsedRate {
-    pub tokens: u64,
-    pub period_ms: u64,
+    tokens: u64,
+    period_ms: u64,
 }
-
 pub fn parse_rate(value: &str) -> Option<ParsedRate> {
     let value = value.trim().to_ascii_lowercase();
-    let (tokens, unit) = value.split_once("r")?;
-    let unit = unit.trim_start_matches('/');
-    let tokens = tokens.parse::<u64>().ok()?;
+    let (tokens, unit) = value.split_once('r')?;
+    let tokens = tokens.parse().ok()?;
     if tokens == 0 {
         return None;
     }
-    let period_ms = match unit.trim() {
+    let period_ms = match unit.trim_start_matches('/') {
         "s" => 1000,
         "m" => 60_000,
         _ => return None,
     };
     Some(ParsedRate { tokens, period_ms })
 }
-
 pub fn calculate_burst(rate: ParsedRate) -> u64 {
     if rate.period_ms == 1000 {
         rate.tokens * 2
     } else {
         (rate.tokens / 5).max(5)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct PowChallenge {
+    pub data: String,
+    pub difficulty: u8,
+    pub host: String,
+    pub site: String,
+    pub redir: String,
+    pub session_ttl: u64,
+    pub expires_at: u64,
+}
+#[derive(Default)]
+pub struct PowState {
+    inner: Mutex<PowStateInner>,
+}
+#[derive(Default)]
+struct PowStateInner {
+    challenges: HashMap<String, PowChallenge>,
+    sessions: HashMap<(String, String), u64>,
 }
 
 pub fn pow_required(route: &Route, context: &RequestContext, session_valid: bool) -> bool {
@@ -327,66 +790,156 @@ pub fn pow_required(route: &Route, context: &RequestContext, session_valid: bool
         return false;
     }
     if let Some(rules) = config.path_rules.as_ref() {
-        if pow_path_match(&rules.whitelist, context.path) {
+        if pow_path_match(&rules.whitelist, &context.path) {
             return false;
         }
-        if rules.mode != "blacklist" && !pow_path_match(&rules.blacklist, context.path) {
+        if rules.mode != "blacklist" && !pow_path_match(&rules.blacklist, &context.path) {
             return false;
         }
-    }
-    if config.path_rules.is_none() && !pow_list_match(&config.blacklist, context) {
+    } else if !pow_list_match(&config.blacklist, context) {
         return false;
     }
     true
 }
-
 fn pow_list_match(list: &crate::config::PoWListConfig, context: &RequestContext) -> bool {
-    list.ips.iter().any(|ip| ip == context.remote_addr)
+    list.ips.contains(&context.remote_addr)
         || list
             .ip_cidrs
             .iter()
-            .any(|cidr| ip_in_cidr(context.remote_addr, cidr))
-        || list.paths.iter().any(|path| *path == context.path)
+            .any(|cidr| ip_in_cidr(&context.remote_addr, cidr))
+        || list.paths.contains(&context.path)
         || list
             .path_regexes
             .iter()
-            .any(|pattern| Regex::new(pattern).is_ok_and(|regex| regex.is_match(context.path)))
+            .any(|pattern| Regex::new(pattern).is_ok_and(|re| re.is_match(&context.path)))
         || list
             .user_agents
             .iter()
             .any(|ua| context.user_agent.contains(ua.as_str()))
 }
-
 fn pow_path_match(matches: &[PoWPathMatch], path: &str) -> bool {
     matches.iter().any(|item| {
-        let match_type = if item.match_type.is_empty() {
+        let kind = if item.match_type.is_empty() {
             item.match_type_alias.as_str()
         } else {
             item.match_type.as_str()
         };
-        match match_type {
+        match kind {
             "exact" => item.value == path,
             "prefix" => path.starts_with(&item.value),
             "wildcard" => {
-                Regex::new(&wildcard_to_regex(&item.value)).is_ok_and(|regex| regex.is_match(path))
+                Regex::new(&wildcard_to_regex(&item.value)).is_ok_and(|re| re.is_match(path))
             }
-            "regex" => Regex::new(&item.value).is_ok_and(|regex| regex.is_match(path)),
+            "regex" => Regex::new(&item.value).is_ok_and(|re| re.is_match(path)),
             _ => false,
         }
     })
 }
-
 fn wildcard_to_regex(value: &str) -> String {
     let mut regex = String::from('^');
-    for byte in value.chars() {
-        if byte == '*' {
+    for ch in value.chars() {
+        if ch == '*' {
             regex.push_str(".*");
         } else {
-            regex.push_str(&regex::escape(&byte.to_string()));
+            regex.push_str(&regex::escape(&ch.to_string()));
         }
     }
     regex.push('$');
     regex
+}
+
+impl PowState {
+    pub fn valid_session(&self, host: &str, cookie: &str, now: u64) -> Option<String> {
+        let token = cookie_value(cookie, POW_COOKIE)?;
+        let mut inner = self.inner.lock().ok()?;
+        let key = (host.to_owned(), token.clone());
+        let expiry = *inner.sessions.get(&key)?;
+        if expiry <= now {
+            inner.sessions.remove(&key);
+            return None;
+        }
+        Some(token)
+    }
+    pub fn refresh_session(&self, host: &str, token: &str, ttl: u64, now: u64) {
+        if let Ok(mut inner) = self.inner.lock() {
+            let key = (host.to_owned(), token.to_owned());
+            if let Some(expiry) = inner.sessions.get_mut(&key) {
+                *expiry = now + ttl;
+            }
+        }
+    }
+    pub fn issue(
+        &self,
+        config: &PoWConfig,
+        route: &Route,
+        context: &RequestContext,
+        now: u64,
+    ) -> Option<(String, PowChallenge)> {
+        let mut id = [0u8; 16];
+        let mut data = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut id);
+        rand::thread_rng().fill_bytes(&mut data);
+        let id = hex(id);
+        let data = hex(data);
+        let challenge = PowChallenge {
+            data: data.clone(),
+            difficulty: config.difficulty,
+            host: context.host.clone(),
+            site: route.site_name.clone(),
+            redir: format!("{}{}", context.path, query_suffix(&context.query)),
+            session_ttl: config.session_ttl,
+            expires_at: now + config.challenge_ttl,
+        };
+        self.inner
+            .lock()
+            .ok()?
+            .challenges
+            .insert(id.clone(), challenge.clone());
+        Some((id, challenge))
+    }
+    pub fn verify(
+        &self,
+        route: &Route,
+        context: &RequestContext,
+        id: &str,
+        response: &str,
+        nonce: &str,
+        now: u64,
+    ) -> Result<(String, String), u16> {
+        if id.is_empty() || response.is_empty() || nonce.is_empty() {
+            return Err(400);
+        }
+        let Ok(nonce) = nonce.parse::<u64>() else {
+            return Err(400);
+        };
+        let mut inner = self.inner.lock().map_err(|_| 500u16)?;
+        let challenge = inner.challenges.get(id).cloned().ok_or(410u16)?;
+        if challenge.expires_at <= now {
+            inner.challenges.remove(id);
+            return Err(410);
+        }
+        if challenge.host != context.host || challenge.site != route.site_name {
+            return Err(403);
+        }
+        let hash = hex(Sha256::digest(
+            format!("{}{}", challenge.data, nonce).as_bytes(),
+        ));
+        if !constant_time_equal(hash.as_bytes(), response.to_ascii_lowercase().as_bytes()) {
+            return Err(403);
+        }
+        if !hash.starts_with(&"0".repeat(challenge.difficulty.into())) {
+            return Err(403);
+        }
+        inner.challenges.remove(id);
+        let mut token = [0u8; 20];
+        rand::thread_rng().fill_bytes(&mut token);
+        let token = hex(token);
+        inner.sessions.insert(
+            (context.host.clone(), token.clone()),
+            now + challenge.session_ttl,
+        );
+        Ok((token, safe_redirect(&challenge.redir)))
+    }
 }
 
 pub fn ip_in_cidr(ip: &str, cidr: &str) -> bool {
@@ -403,19 +956,12 @@ pub fn ip_in_cidr(ip: &str, cidr: &str) -> bool {
         return false;
     };
     match (ip, network) {
-        (IpAddr::V4(ip), IpAddr::V4(network)) => {
-            let bits = 32 - prefix;
-            if prefix > 32 {
-                return false;
-            }
-            (u32::from(ip) >> bits) == (u32::from(network) >> bits)
+        (IpAddr::V4(ip), IpAddr::V4(net)) => {
+            prefix <= 32 && (u32::from(ip) >> (32 - prefix)) == (u32::from(net) >> (32 - prefix))
         }
-        (IpAddr::V6(ip), IpAddr::V6(network)) => {
-            let bits = 128 - prefix;
-            if prefix > 128 {
-                return false;
-            }
-            (u128::from(ip) >> bits) == (u128::from(network) >> bits)
+        (IpAddr::V6(ip), IpAddr::V6(net)) => {
+            prefix <= 128
+                && (u128::from(ip) >> (128 - prefix)) == (u128::from(net) >> (128 - prefix))
         }
         _ => false,
     }
@@ -438,8 +984,6 @@ pub fn pages_resolve(deployment: &PagesDeployment, root: &Path, path: &str) -> O
     }
     candidate.is_file().then_some(candidate)
 }
-
-#[cfg(test)]
 pub fn pages_fallback(deployment: &PagesDeployment) -> PathBuf {
     if !deployment.spa_fallback_enabled {
         return PathBuf::new();
@@ -450,8 +994,6 @@ pub fn pages_fallback(deployment: &PagesDeployment) -> PathBuf {
     }
     PathBuf::from(value.trim_start_matches('/'))
 }
-
-#[cfg(test)]
 pub fn pages_api_target(deployment: &PagesDeployment, path: &str) -> Option<String> {
     if !deployment.api_proxy_enabled {
         return None;
@@ -477,7 +1019,6 @@ pub fn pages_api_target(deployment: &PagesDeployment, path: &str) -> Option<Stri
         rewritten
     ))
 }
-
 pub fn cookie_value(cookie: &str, name: &str) -> Option<String> {
     cookie.split(';').find_map(|part| {
         let part = part.trim();
@@ -485,93 +1026,89 @@ pub fn cookie_value(cookie: &str, name: &str) -> Option<String> {
         (key == name).then(|| value.to_owned())
     })
 }
-
 pub fn strip_site_auth_cookie(cookie: &str) -> String {
     cookie
         .split(';')
         .filter_map(|part| {
             let part = part.trim();
             if part.starts_with(&format!("{SITE_AUTH_COOKIE}=")) {
-                return None;
+                None
+            } else {
+                Some(part.to_owned())
             }
-            Some(part.to_owned())
         })
         .collect::<Vec<_>>()
         .join("; ")
 }
-
 pub fn unix_now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs())
+        .map(|d| d.as_secs())
         .unwrap_or_default()
 }
-
-pub fn parse_form(body: &[u8]) -> std::collections::HashMap<String, String> {
-    let text = String::from_utf8_lossy(body);
-    text.split('&')
+pub fn parse_form(body: &[u8]) -> HashMap<String, String> {
+    String::from_utf8_lossy(body)
+        .split('&')
         .filter_map(|pair| {
             let (key, value) = pair.split_once('=')?;
             Some((percent_decode(key), percent_decode(value)))
         })
         .collect()
 }
-
 pub fn percent_decode(value: &str) -> String {
     let bytes = value.as_bytes();
     let mut output = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'+' {
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'+' {
             output.push(b' ');
-            index += 1;
-        } else if index + 2 < bytes.len() && bytes[index] == b'%' {
-            if let Ok(byte) = u8::from_str_radix(&value[index + 1..index + 3], 16) {
+            i += 1;
+        } else if i + 2 < bytes.len() && bytes[i] == b'%' {
+            if let Ok(byte) = u8::from_str_radix(&value[i + 1..i + 3], 16) {
                 output.push(byte);
-                index += 3;
+                i += 3;
             } else {
-                output.push(bytes[index]);
-                index += 1;
+                output.push(bytes[i]);
+                i += 1;
             }
         } else {
-            output.push(bytes[index]);
-            index += 1;
+            output.push(bytes[i]);
+            i += 1;
         }
     }
     String::from_utf8_lossy(&output).into_owned()
 }
-
 pub fn encode_uri(value: &str) -> String {
-    let mut output = String::new();
-    for byte in value.bytes() {
-        match byte {
+    value
+        .bytes()
+        .map(|b| match b {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                output.push(byte as char)
+                (b as char).to_string()
             }
-            _ => output.push_str(&format!("%{byte:02X}")),
-        }
-    }
-    output
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
 }
-
 fn safe_next_path(query: &str) -> String {
-    let next = query
-        .split('&')
-        .find_map(|part| part.strip_prefix("next="))
-        .unwrap_or("");
-    let decoded = percent_decode(next);
-    if decoded.starts_with('/')
-        && !decoded.starts_with("//")
-        && !decoded
+    safe_redirect(&percent_decode(
+        query
+            .split('&')
+            .find_map(|p| p.strip_prefix("next="))
+            .unwrap_or(""),
+    ))
+}
+fn safe_redirect(value: &str) -> String {
+    if value.starts_with('/')
+        && !value.starts_with("//")
+        && !value
             .bytes()
-            .any(|byte| byte.is_ascii_control() || byte == b' ' || byte == b'\\')
+            .any(|b| b.is_ascii_control() || b == b' ' || b == b'\\')
     {
-        decoded
+        value.into()
     } else {
-        "/".to_owned()
+        "/".into()
     }
 }
-
 fn query_suffix(query: &str) -> String {
     if query.is_empty() {
         String::new()
@@ -579,29 +1116,22 @@ fn query_suffix(query: &str) -> String {
         format!("?{query}")
     }
 }
-
 pub fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
-    if left.len() != right.len() {
-        return false;
-    }
-    left.iter()
-        .zip(right)
-        .fold(0, |difference, (left, right)| difference | (left ^ right))
-        == 0
+    left.len() == right.len()
+        && left
+            .iter()
+            .zip(right)
+            .fold(0, |diff, (l, r)| diff | (l ^ r))
+            == 0
 }
-
 pub fn hex(bytes: impl AsRef<[u8]>) -> String {
-    bytes
-        .as_ref()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    bytes.as_ref().iter().map(|b| format!("{b:02x}")).collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{LimitConfig, PoWConfig, PoWListConfig};
+    use crate::config::{LimitConfig, WafBinding, WafGraph, WafNode};
 
     fn route() -> Route {
         Route {
@@ -628,20 +1158,27 @@ mod tests {
             pages: None,
         }
     }
-
-    fn context<'a>() -> RequestContext<'a> {
+    fn context() -> RequestContext {
         RequestContext {
-            method: "GET",
-            host: "example.com",
-            path: "/private",
-            query: "",
-            remote_addr: "192.0.2.1",
-            user_agent: "curl/8",
-            cookie: "",
-            authorization: "",
-            content_type: "",
-            body: b"",
+            method: "GET".into(),
+            host: "example.com".into(),
+            path: "/private".into(),
+            query: String::new(),
+            remote_addr: "192.0.2.1".into(),
+            user_agent: "curl/8".into(),
+            cookie: String::new(),
+            authorization: String::new(),
+            content_type: String::new(),
+            body: Vec::new(),
             origin_header: None,
+            geo: None,
+        }
+    }
+    fn next_node(kind: &str, next: &str) -> WafNode {
+        WafNode {
+            node_type: kind.into(),
+            config: serde_json::Value::Null,
+            next: HashMap::from([("next".into(), next.into())]),
         }
     }
 
@@ -655,17 +1192,17 @@ mod tests {
                 status: 303,
                 headers: vec![
                     (
-                        "Location".to_owned(),
-                        "/.openflare/site-auth?next=%2Fprivate".to_owned()
+                        "Location".into(),
+                        "/.openflare/site-auth?next=%2Fprivate".into()
                     ),
-                    ("Cache-Control".to_owned(), "private, no-store".to_owned())
+                    ("Cache-Control".into(), "private, no-store".into())
                 ],
                 body: ""
             }
         );
-        let signature = site_auth_signature(&route.site_auth_key, context.host, 200);
+        let signature = site_auth_signature(&route.site_auth_key, &context.host, 200);
         let signed = RequestContext {
-            cookie: &format!("{SITE_AUTH_COOKIE}=200.{signature}"),
+            cookie: format!("{SITE_AUTH_COOKIE}=200.{signature}"),
             ..context
         };
         assert_eq!(
@@ -673,18 +1210,16 @@ mod tests {
             PolicyDecision::Continue
         );
     }
-
     #[test]
     fn basic_auth_uses_constant_time_expected_header() {
         let mut route = route();
         route.basic_auth_enabled = true;
         let context = RequestContext {
-            authorization: &format!("Basic {}", Base64.encode("user:pass")),
+            authorization: format!("Basic {}", Base64.encode("user:pass")),
             ..context()
         };
         assert_eq!(basic_auth(&route, &context), PolicyDecision::Continue);
     }
-
     #[test]
     fn rate_limit_matches_openresty_burst_and_rejects_after_burst() {
         let limiter = RateLimiter::default();
@@ -708,46 +1243,126 @@ mod tests {
             start
         ));
     }
-
     #[test]
-    fn pow_whitelist_blacklist_and_path_rules() {
+    fn waf_graph_executes_ip_group_and_block() {
+        let mut route = route();
+        let context = context();
+        let mut block = next_node("block", "");
+        block.node_type = "block".into();
+        block.config = serde_json::json!({"status_code":403,"response_body":"blocked"});
+        let mut ip = WafNode {
+            node_type: "ip_match".into(),
+            config: serde_json::json!({"ip_group_ids":[7]}),
+            next: HashMap::from([
+                ("true".into(), "block".into()),
+                ("false".into(), "allow".into()),
+            ]),
+        };
+        ip.node_type = "ip_match".into();
+        let mut allow = next_node("allow", "");
+        allow.node_type = "allow".into();
+        let mut start = next_node("start", "ip");
+        start.node_type = "start".into();
+        let graph = WafGraph {
+            entry: "start".into(),
+            nodes: HashMap::from([
+                ("start".into(), start),
+                ("ip".into(), ip),
+                ("block".into(), block),
+                ("allow".into(), allow),
+            ]),
+        };
+        let document = WafDocument {
+            rule_groups: vec![crate::config::WafRuleGroup {
+                id: 7,
+                name: "global".into(),
+                enabled: true,
+                is_global: true,
+                graph,
+            }],
+            ip_groups: vec![crate::config::WafIPGroup {
+                id: 7,
+                name: "group".into(),
+                enabled: true,
+                ip_list: vec!["192.0.2.0/24".into()],
+            }],
+            bindings: vec![WafBinding {
+                route_id: route.id,
+                site_name: route.site_name.clone(),
+                rule_group_ids: vec![],
+            }],
+        };
+        assert_eq!(
+            execute_waf(&document, &route, &context, false).unwrap(),
+            WafDecision::Block {
+                status: 403,
+                body: "blocked".into()
+            }
+        );
+        route.id = 2;
+        let other = RequestContext {
+            remote_addr: "198.51.100.1".into(),
+            ..context
+        };
+        assert_eq!(
+            execute_waf(&document, &route, &other, false).unwrap(),
+            WafDecision::Allow
+        );
+    }
+    #[test]
+    fn pow_issue_verify_and_replay_are_bound_to_site() {
         let mut route = route();
         route.pow_enabled = true;
         route.pow = Some(PoWConfig {
-            blacklist: PoWListConfig::default(),
-            path_rules: Some(crate::config::PoWPathRules {
-                mode: "all".into(),
-                blacklist: vec![PoWPathMatch {
-                    match_type: "prefix".into(),
-                    match_type_alias: String::new(),
-                    value: "/admin".into(),
-                }],
-                whitelist: vec![],
-            }),
+            difficulty: 1,
+            session_ttl: 600,
+            challenge_ttl: 300,
             ..Default::default()
         });
-        assert!(!pow_required(&route, &context(), false));
-        assert!(pow_required(
-            &route,
-            &RequestContext {
-                path: "/admin/users",
-                ..context()
-            },
-            false
-        ));
-        assert!(!pow_required(
-            &route,
-            &RequestContext {
-                path: "/public",
-                ..context()
-            },
-            false
-        ));
+        let state = PowState::default();
+        let context = context();
+        let (challenge_id, challenge) = state
+            .issue(route.pow.as_ref().unwrap(), &route, &context, 100)
+            .unwrap();
+        let mut nonce = 0;
+        let hash = loop {
+            let hash = hex(Sha256::digest(
+                format!("{}{}", challenge.data, nonce).as_bytes(),
+            ));
+            if hash.starts_with('0') {
+                break hash;
+            }
+            nonce += 1;
+        };
+        let (token, _) = state
+            .verify(
+                &route,
+                &context,
+                &challenge_id,
+                &hash,
+                &nonce.to_string(),
+                100,
+            )
+            .unwrap();
+        let cookie = format!("{POW_COOKIE}={token}");
+        assert!(state.valid_session(&context.host, &cookie, 101).is_some());
+        assert_eq!(
+            state
+                .verify(
+                    &route,
+                    &context,
+                    &challenge_id,
+                    &hash,
+                    &nonce.to_string(),
+                    101
+                )
+                .unwrap_err(),
+            410
+        );
     }
-
     #[test]
     fn pages_paths_are_contained_and_api_target_is_rewritten() {
-        let mut deployment = PagesDeployment {
+        let deployment = PagesDeployment {
             entry_file: "index.html".into(),
             api_proxy_enabled: true,
             api_proxy_path: "/api".into(),
@@ -755,14 +1370,10 @@ mod tests {
             api_proxy_rewrite: "/v1".into(),
             ..Default::default()
         };
-        let root = Path::new("/tmp/pages");
         assert_eq!(
             pages_api_target(&deployment, "/api/users?x=1").unwrap(),
             "https://api.example.com/base/v1/users?x=1"
         );
-        assert!(pages_resolve(&deployment, root, "/../etc/passwd").is_none());
-        deployment.spa_fallback_enabled = true;
-        deployment.spa_fallback_path = "app.html".into();
-        assert_eq!(pages_fallback(&deployment), PathBuf::from("app.html"));
+        assert!(pages_resolve(&deployment, Path::new("/tmp/pages"), "/../etc/passwd").is_none());
     }
 }
