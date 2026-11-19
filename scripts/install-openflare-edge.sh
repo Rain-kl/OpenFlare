@@ -171,6 +171,8 @@ if [[ "$CREATE_SERVICE" == true ]]; then
 Description=OpenFlare Edge (Pingora)
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -199,8 +201,6 @@ RestartSec=5
 KillSignal=SIGTERM
 TimeoutStartSec=90
 TimeoutStopSec=300
-StartLimitIntervalSec=60
-StartLimitBurst=5
 
 [Install]
 WantedBy=multi-user.target

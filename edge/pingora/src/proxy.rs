@@ -19,7 +19,6 @@ use pingora::upstreams::peer::HttpPeer;
 use pingora::{Error, Result};
 use pingora_error::ErrorType::*;
 use pingora_http::ResponseHeader;
-use std::num::NonZeroU64;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -737,11 +736,11 @@ pub fn run_server(state: DataPlaneState) -> anyhow::Result<()> {
     STATE_DIR
         .set(state_dir.to_string_lossy().into_owned())
         .map_err(|_| anyhow::anyhow!("proxy state directory was already initialized"))?;
+    std::fs::create_dir_all(&state_dir)?;
+    let pid_file = state_dir.join("openflare-edge.pid");
+    std::fs::write(&pid_file, format!("{}\n", std::process::id()))?;
     let conf = ServerConf {
-        daemon: true,
-        daemon_wait_for_ready: true,
-        daemon_ready_timeout_seconds: NonZeroU64::new(60),
-        daemon_notify_timeout_seconds: NonZeroU64::new(60),
+        daemon: false,
         working_directory: Some(state_dir.clone()),
         error_log: Some(
             state_dir
@@ -749,10 +748,7 @@ pub fn run_server(state: DataPlaneState) -> anyhow::Result<()> {
                 .to_string_lossy()
                 .into_owned(),
         ),
-        pid_file: state_dir
-            .join("openflare-edge.pid")
-            .to_string_lossy()
-            .into_owned(),
+        pid_file: pid_file.to_string_lossy().into_owned(),
         upgrade_sock: state_dir
             .join("openflare-edge-upgrade.sock")
             .to_string_lossy()
