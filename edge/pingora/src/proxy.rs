@@ -21,7 +21,7 @@ use pingora_error::ErrorType::*;
 use pingora_http::ResponseHeader;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use url::Url;
 
 const MAX_INSPECTED_BODY_BYTES: usize = 64 * 1024;
@@ -737,6 +737,7 @@ pub fn run_server(state: DataPlaneState) -> anyhow::Result<()> {
         .set(state_dir.to_string_lossy().into_owned())
         .map_err(|_| anyhow::anyhow!("proxy state directory was already initialized"))?;
     std::fs::create_dir_all(&state_dir)?;
+    let snapshot_path = state_dir.join("snapshot.json");
     let pid_file = state_dir.join("openflare-edge.pid");
     std::fs::write(&pid_file, format!("{}\n", std::process::id()))?;
     let conf = ServerConf {
@@ -777,7 +778,50 @@ pub fn run_server(state: DataPlaneState) -> anyhow::Result<()> {
     }
     let proxy = server.add_service(service);
     proxy.add_dependency(&bootstrap);
+    std::thread::spawn(move || watch_snapshot(&snapshot_path, &shared));
     server.run_forever()
+}
+
+fn watch_snapshot(snapshot_path: &Path, shared: &SharedState) {
+    let mut last_seen = None;
+    loop {
+        let marker = std::fs::metadata(snapshot_path)
+            .map(|metadata| {
+                (
+                    metadata.len(),
+                    metadata
+                        .modified()
+                        .map_err(|error| {
+                            tracing::error!(error = %error, "failed to read snapshot mtime");
+                            error
+                        })
+                        .ok(),
+                )
+            })
+            .ok();
+        if marker != last_seen {
+            if let Some((size, _)) = marker {
+                match std::fs::read_to_string(snapshot_path) {
+                    Ok(document) => match crate::config::restore_snapshot_from_str(&document) {
+                        Ok(Some(applied)) => {
+                            if let Err(error) = shared.set_config(applied) {
+                                tracing::error!(error = %error, "failed to adopt snapshot");
+                            }
+                        }
+                        Ok(None) => {}
+                        Err(error) => {
+                            tracing::error!(size, error = %error, "invalid snapshot; keeping current configuration");
+                        }
+                    },
+                    Err(error) => {
+                        tracing::error!(path = %snapshot_path.display(), error = %error, "failed to read snapshot");
+                    }
+                }
+            }
+            last_seen = marker;
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
 }
 
 #[cfg(test)]

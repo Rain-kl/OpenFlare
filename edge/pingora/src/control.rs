@@ -56,11 +56,11 @@ struct ApiResponse<T> {
 #[derive(Debug, Deserialize)]
 struct Registration {
     node_id: String,
-    #[serde(flatten, deserialize_with = "deserialize_registration_token")]
+    #[serde(default, deserialize_with = "deserialize_registration_token")]
     token: RegistrationToken,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct RegistrationToken {
     agent_token: String,
 }
@@ -734,6 +734,7 @@ fn fallback_applied_config(meta: &ActiveConfigMeta) -> AppliedConfig {
         checksum: meta.checksum.clone(),
         release_sequence: meta.release_sequence,
         payload_checksum: meta.payload_checksum.clone(),
+        payload_json: String::new(),
         config: crate::config::Config {
             schema_version: 1,
             contract_version: 2,
@@ -773,7 +774,8 @@ mod tests {
 
     #[test]
     fn registration_accepts_matching_duplicate_token_aliases() {
-        let payload = r#"{"node_id":"node-1","agent_token":"issued","access_token":"issued"}"#;
+        let payload =
+            r#"{"node_id":"node-1","token":{"agent_token":"issued","access_token":"issued"}}"#;
         let registration: Registration = serde_json::from_str(payload).expect("registration");
         assert_eq!(registration.token.agent_token, "issued");
     }

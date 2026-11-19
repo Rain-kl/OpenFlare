@@ -12,7 +12,7 @@
     <img src="https://img.shields.io/badge/License-MIT-22c55e?style=flat-square" alt="License: MIT"/>
   </a>
   <img src="https://img.shields.io/badge/Claude_Code-Skill-7c3aed?style=flat-square&logo=anthropic&logoColor=white" alt="Claude Code Skill"/>
-  <img src="https://img.shields.io/badge/Total_Lines-16%2C000%2B-3b82f6?style=flat-square" alt="16000+ lines"/>
+  <img src="https://img.shields.io/badge/Total_Lines-21%2C000%2B-3b82f6?style=flat-square" alt="21000+ lines"/>
   <img src="https://img.shields.io/badge/Languages-20%2B-f59e0b?style=flat-square" alt="20+ languages"/>
   <img src="https://img.shields.io/badge/PRs-Welcome-ec4899?style=flat-square" alt="PRs Welcome"/>
 </p>
@@ -37,13 +37,13 @@
 
 **Code Review Skill** is a production-ready skill for [Claude Code](https://claude.ai/code) that transforms AI-assisted code review from vague suggestions into a **structured, consistent, and expert-level** process.
 
-It covers **20+ languages and frameworks** with over **16,000 lines** of carefully curated review guidelines — loaded progressively to minimize context window usage.
+It covers **20+ languages and frameworks** with over **21,000 lines** of carefully curated review guidelines — loaded progressively to minimize context window usage.
 
 ---
 
 ### &#10024; Key Features
 
-- **Progressive Disclosure** — Core skill is ~190 lines; language guides (~200–1,000 lines each) load only when needed.
+- **Progressive Disclosure** — Core skill is ~220 lines; language guides (~200–1,100 lines each) load only when needed.
 - **Four-Phase Review Process** — Structured workflow from understanding scope to delivering clear feedback.
 - **Severity Labeling** — Every finding is categorized: `blocking` · `important` · `nit` · `suggestion` · `learning` · `praise`
 - **Security-First** — Dedicated security checklists per language ecosystem.
@@ -78,7 +78,7 @@ It covers **20+ languages and frameworks** with over **16,000 lines** of careful
     <tr>
       <td>&#128302; Angular 17+ / Signals / Zoneless</td>
       <td><code>reference/angular.md</code></td>
-      <td>~420</td>
+      <td>~790</td>
     </tr>
     <tr>
       <td>&#128293; Svelte 5 / SvelteKit</td>
@@ -93,13 +93,18 @@ It covers **20+ languages and frameworks** with over **16,000 lines** of careful
     <tr>
       <td>&#128311; TypeScript</td>
       <td><code>reference/typescript.md</code></td>
-      <td>~540</td>
+      <td>~1,020</td>
     </tr>
     <tr>
-      <td rowspan="9"><strong>Backend</strong></td>
+      <td rowspan="11"><strong>Backend</strong></td>
       <td>&#9749; Java 17/21 + Spring Boot 3</td>
       <td><code>reference/java.md</code></td>
       <td>~410</td>
+    </tr>
+    <tr>
+      <td>&#9749; Java 8 + Spring Boot 2</td>
+      <td><code>reference/java8.md</code></td>
+      <td>~580</td>
     </tr>
     <tr>
       <td>&#9889; FastAPI</td>
@@ -110,6 +115,11 @@ It covers **20+ languages and frameworks** with over **16,000 lines** of careful
       <td>PHP 8.x</td>
       <td><code>reference/php.md</code></td>
       <td>~700</td>
+    </tr>
+    <tr>
+      <td>&#128142; Ruby 3.4+/4.0 + Rails 8.x</td>
+      <td><code>reference/ruby.md</code></td>
+      <td>~960</td>
     </tr>
     <tr>
       <td>&#128230; NestJS</td>
@@ -142,7 +152,7 @@ It covers **20+ languages and frameworks** with over **16,000 lines** of careful
       <td>~1,070</td>
     </tr>
     <tr>
-      <td rowspan="5"><strong>Mobile / Systems</strong></td>
+      <td rowspan="7"><strong>Mobile / Systems</strong></td>
       <td>&#128241; Kotlin / Android</td>
       <td><code>reference/kotlin.md</code></td>
       <td>~1,020</td>
@@ -153,22 +163,32 @@ It covers **20+ languages and frameworks** with over **16,000 lines** of careful
       <td>~930</td>
     </tr>
     <tr>
+      <td>&#127919; Dart / Flutter</td>
+      <td><code>reference/dart.md</code></td>
+      <td>~650</td>
+    </tr>
+    <tr>
       <td>&#9881;&#65039; C</td>
       <td><code>reference/c.md</code></td>
-      <td>~290</td>
+      <td>~890</td>
     </tr>
     <tr>
       <td>&#128297; C++</td>
       <td><code>reference/cpp.md</code></td>
-      <td>~390</td>
+      <td>~890</td>
+    </tr>
+    <tr>
+      <td>&#9889; Zig</td>
+      <td><code>reference/zig.md</code></td>
+      <td>~440</td>
     </tr>
     <tr>
       <td>&#128421;&#65039; Qt Framework</td>
       <td><code>reference/qt.md</code></td>
-      <td>~190</td>
+      <td>~760</td>
     </tr>
     <tr>
-      <td rowspan="3"><strong>Cross-Cutting</strong></td>
+      <td rowspan="9"><strong>Cross-Cutting</strong></td>
       <td>&#127963;&#65039; Architecture Design Review</td>
       <td><code>reference/architecture-review-guide.md</code></td>
       <td>~470</td>
@@ -182,6 +202,36 @@ It covers **20+ languages and frameworks** with over **16,000 lines** of careful
       <td>&#128269; Universal Quality Anti-Patterns</td>
       <td><code>reference/code-quality-universal.md</code></td>
       <td>~490</td>
+    </tr>
+    <tr>
+      <td>&#128737;&#65039; Security Review</td>
+      <td><code>reference/security-review-guide.md</code></td>
+      <td>~640</td>
+    </tr>
+    <tr>
+      <td>&#128200; N+1 Queries</td>
+      <td><code>reference/cross-cutting/n-plus-one-queries.md</code></td>
+      <td>~310</td>
+    </tr>
+    <tr>
+      <td>&#9888;&#65039; Error Handling Principles</td>
+      <td><code>reference/cross-cutting/error-handling-principles.md</code></td>
+      <td>~490</td>
+    </tr>
+    <tr>
+      <td>&#9889; Async &amp; Concurrency Patterns</td>
+      <td><code>reference/cross-cutting/async-concurrency-patterns.md</code></td>
+      <td>~540</td>
+    </tr>
+    <tr>
+      <td>&#128737;&#65039; SQL Injection Prevention</td>
+      <td><code>reference/cross-cutting/sql-injection-prevention.md</code></td>
+      <td>~310</td>
+    </tr>
+    <tr>
+      <td>&#128737;&#65039; XSS Prevention</td>
+      <td><code>reference/cross-cutting/xss-prevention.md</code></td>
+      <td>~260</td>
     </tr>
   </tbody>
 </table>
@@ -227,7 +277,7 @@ Phase 4 - Summary & Decision
 ```
 code-review-skill/
 |
-+-- SKILL.md                              # Core skill - loaded on activation (~190 lines)
++-- SKILL.md                              # Core skill - loaded on activation (~220 lines)
 +-- README.md
 +-- LICENSE
 +-- CONTRIBUTING.md
@@ -241,16 +291,20 @@ code-review-skill/
 |   +-- typescript.md                     # TypeScript strict mode, generics, ESLint
 |   +-- nestjs.md                         # NestJS DI, Guards, Interceptors, DTOs
 |   +-- java.md                           # Java 17/21 & Spring Boot 3
+|   +-- java8.md                          # Java 8 & Spring Boot 2 (legacy)
 |   +-- php.md                            # PHP 8.x types, PDO, security, Composer
+|   +-- ruby.md                           # Ruby 3.4+/4.0, Rails 8.x, Active Record/Job
 |   +-- python.md                         # Python async, typing, pytest
 |   +-- django.md                         # Django / DRF security, serializers, async
 |   +-- fastapi.md                        # FastAPI Depends, Pydantic v2, async, test-driven verification
 |   +-- go.md                             # Go goroutines, channels, context, interfaces
 |   +-- kotlin.md                         # Kotlin / Android coroutines, Compose, Flow
 |   +-- swift.md                          # Swift 5.9+/6, SwiftUI, concurrency, optionals
+|   +-- dart.md                           # Dart / Flutter rebuilds, null safety, isolates, state
 |   +-- csharp.md                         # C# 12 / .NET 8, EF Core, ASP.NET Core
 |   +-- c.md                              # C memory safety, UB, error handling
 |   +-- cpp.md                            # C++ RAII, move semantics, exception safety
+|   +-- zig.md                            # Zig allocators, errors, comptime, C interop
 |   +-- qt.md                             # Qt object model, signals/slots, GUI perf
 |   +-- css-less-sass.md                  # CSS/Less/Sass variables, responsive design
 |   +-- architecture-review-guide.md      # SOLID, anti-patterns, coupling/cohesion
@@ -259,6 +313,13 @@ code-review-skill/
 |   +-- security-review-guide.md          # Security checklist (all languages)
 |   +-- common-bugs-checklist.md          # Language-specific bug patterns
 |   +-- code-review-best-practices.md     # Communication & process guidelines
+|
++-- reference/cross-cutting/             # Language-agnostic cross-cutting patterns
+|   +-- sql-injection-prevention.md       # Parameterized queries, 6 languages
+|   +-- xss-prevention.md                 # Output encoding, CSP, 5 frameworks
+|   +-- n-plus-one-queries.md             # N+1 queries, eager loading, 5 languages
+|   +-- error-handling-principles.md      # Error handling principles, 7 languages
+|   +-- async-concurrency-patterns.md     # Concurrency patterns, 7 languages
 |
 +-- assets/
 |   +-- review-checklist.md               # Quick reference checklist
@@ -272,7 +333,15 @@ code-review-skill/
 
 ### &#128640; Installation
 
-**Clone to your Claude Code skills directory:**
+**Install with `npx skills` (Cursor, Claude Code, Codex, OpenCode, and other agents):**
+
+```bash
+npx skills add awesome-skills/code-review-skill
+```
+
+The skills CLI finds `SKILL.md` at the repo root. Do not nest this skill under `skills/`.
+
+**Or clone into the Claude Code skills directory:**
 
 ```bash
 # macOS / Linux
@@ -314,6 +383,8 @@ Focus on: security, performance, and maintainability.
 |--------|-------------|
 | `Review this React component` | Loads `react.md` - checks hooks, Server Components, Suspense patterns |
 | `Review this Java PR` | Loads `java.md` - checks virtual threads, JPA, Spring Boot 3 patterns |
+| `Review this Java 8 / Spring Boot 2 PR` | Loads `java8.md` - Stream/Optional, java.time, RestTemplate timeouts, javax.* |
+| `Review this Flutter widget` | Loads `dart.md` - rebuilds, const, null safety, isolates, Riverpod/Bloc, keys, disposal |
 | `Security review of this Go service` | Loads `go.md` + `security-review-guide.md` |
 | `Architecture review` | Loads `architecture-review-guide.md` - SOLID, anti-patterns, coupling |
 | `Performance review` | Loads `performance-review-guide.md` - Web Vitals, N+1, complexity |
@@ -341,6 +412,16 @@ Focus on: security, performance, and maintainability.
 - **Virtual Threads** (Project Loom): High-throughput I/O patterns
 - **Spring Boot 3**: Constructor injection, `@ConfigurationProperties`, `ProblemDetail`
 - **JPA Performance**: Solving N+1, correct `equals`/`hashCode` on Entities
+
+</details>
+
+<details>
+<summary><strong>&#9749; Java 8 & Spring Boot 2 (Legacy)</strong></summary>
+
+- **Java 8**: Lambda, Stream/`Collectors`, Optional, `java.time` (no Records / virtual threads)
+- **Concurrency**: bounded thread pools, `CompletableFuture` + explicit executors
+- **Spring Boot 2**: `javax.*`, constructor injection, `RestTemplate` timeouts
+- **JPA / Hibernate 5**: N+1, Entity `equals`/`hashCode`, UTC time mapping pitfalls
 
 </details>
 
@@ -381,7 +462,7 @@ Focus on: security, performance, and maintainability.
 Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 **Ideas:**
-- New language guides (Ruby, Elixir, Scala...)
+- New language guides (Elixir, Scala, Lua...)
 - Framework-specific guides (Laravel, Spring WebFlux...)
 - Additional checklists and templates
 - Translations of core documentation
@@ -402,13 +483,13 @@ MIT &copy; [awesome-skills](https://github.com/awesome-skills)
 
 **Code Review Skill** 是专为 [Claude Code](https://claude.ai/code) 打造的生产级代码审查技能，将 AI 辅助的代码审查从模糊建议转变为**结构化、一致且专业级**的流程。
 
-覆盖 **20+ 种语言和框架**，拥有超过 **16,000 行**精心整理的代码审查指南——按需加载，最大程度减少上下文占用。
+覆盖 **20+ 种语言和框架**，拥有超过 **21,000 行**精心整理的代码审查指南——按需加载，最大程度减少上下文占用。
 
 ---
 
 ### &#10024; 核心特性
 
-- **渐进式加载** — 核心技能仅 ~190 行，各语言指南（每份 200–1,000 行）仅在需要时才加载。
+- **渐进式加载** — 核心技能仅 ~220 行，各语言指南（每份 200–1,100 行）仅在需要时才加载。
 - **四阶段审查流程** — 从理解 PR 范围到输出清晰反馈，每一步都有规可循。
 - **严重性标记** — 每条发现均分级：`blocking` · `important` · `nit` · `suggestion` · `learning` · `praise`
 - **安全优先** — 每个语言生态均配备专属安全检查清单。
@@ -423,13 +504,15 @@ MIT &copy; [awesome-skills](https://github.com/awesome-skills)
 |------|--------|----------|------|
 | **前端** | &#9883;&#65039; React 19 / Next.js / TanStack Query v5 | `reference/react.md` | ~870 |
 | | &#128154; Vue 3.5 Composition API | `reference/vue.md` | ~920 |
-| | &#128302; Angular 17+ / Signals / Zoneless | `reference/angular.md` | ~420 |
+| | &#128302; Angular 17+ / Signals / Zoneless | `reference/angular.md` | ~790 |
 | | &#128293; Svelte 5 / SvelteKit | `reference/svelte.md` | ~1,060 |
 | | &#127912; CSS / Less / Sass | `reference/css-less-sass.md` | ~660 |
-| | &#128311; TypeScript | `reference/typescript.md` | ~540 |
+| | &#128311; TypeScript | `reference/typescript.md` | ~1,020 |
 | **后端** | &#9749; Java 17/21 + Spring Boot 3 | `reference/java.md` | ~410 |
+| | &#9749; Java 8 + Spring Boot 2 | `reference/java8.md` | ~580 |
 | | &#9889; FastAPI | `reference/fastapi.md` | ~590 |
 | | PHP 8.x | `reference/php.md` | ~700 |
+| | &#128142; Ruby 3.4+/4.0 + Rails 8.x | `reference/ruby.md` | ~960 |
 | | &#128230; NestJS | `reference/nestjs.md` | ~590 |
 | | &#128013; Django / DRF | `reference/django.md` | ~1,030 |
 | | &#128013; Python | `reference/python.md` | ~1,070 |
@@ -438,12 +521,20 @@ MIT &copy; [awesome-skills](https://github.com/awesome-skills)
 | | &#128187; C# / .NET 8 | `reference/csharp.md` | ~520 |
 | **移动 / 系统** | &#128241; Kotlin / Android | `reference/kotlin.md` | ~1,020 |
 | | &#127822; Swift / SwiftUI | `reference/swift.md` | ~930 |
-| | &#9881;&#65039; C | `reference/c.md` | ~290 |
-| | &#128297; C++ | `reference/cpp.md` | ~390 |
-| | &#128421;&#65039; Qt 框架 | `reference/qt.md` | ~190 |
+| | &#127919; Dart / Flutter | `reference/dart.md` | ~650 |
+| | &#9881;&#65039; C | `reference/c.md` | ~890 |
+| | &#128297; C++ | `reference/cpp.md` | ~890 |
+| | &#9889; Zig | `reference/zig.md` | ~440 |
+| | &#128421;&#65039; Qt 框架 | `reference/qt.md` | ~760 |
 | **架构** | &#127963;&#65039; 架构设计审查 | `reference/architecture-review-guide.md` | ~470 |
 | | &#9889; 性能审查 | `reference/performance-review-guide.md` | ~820 |
 | | &#128269; 通用质量反模式 | `reference/code-quality-universal.md` | ~490 |
+| | &#128737;&#65039; 安全审查 | `reference/security-review-guide.md` | ~640 |
+| | &#128200; N+1 查询 | `reference/cross-cutting/n-plus-one-queries.md` | ~310 |
+| | &#9888;&#65039; 错误处理原则 | `reference/cross-cutting/error-handling-principles.md` | ~490 |
+| | &#9889; 异步与并发模式 | `reference/cross-cutting/async-concurrency-patterns.md` | ~540 |
+| | &#128737;&#65039; SQL 注入防护 | `reference/cross-cutting/sql-injection-prevention.md` | ~310 |
+| | &#128737;&#65039; XSS 防护 | `reference/cross-cutting/xss-prevention.md` | ~260 |
 
 ---
 
@@ -486,7 +577,7 @@ MIT &copy; [awesome-skills](https://github.com/awesome-skills)
 ```
 code-review-skill/
 |
-+-- SKILL.md                              # 核心技能，激活时加载（~190 行）
++-- SKILL.md                              # 核心技能，激活时加载（~220 行）
 +-- README.md
 +-- LICENSE
 +-- CONTRIBUTING.md
@@ -500,16 +591,20 @@ code-review-skill/
 |   +-- typescript.md                     # TypeScript strict 模式、泛型、ESLint
 |   +-- nestjs.md                         # NestJS 依赖注入、Guard、Interceptor、DTO
 |   +-- java.md                           # Java 17/21 & Spring Boot 3
+|   +-- java8.md                          # Java 8 & Spring Boot 2（遗留栈）
 |   +-- php.md                            # PHP 8.x 类型、PDO、安全、Composer
+|   +-- ruby.md                           # Ruby 3.4+/4.0、Rails 8.x、Active Record/Job
 |   +-- python.md                         # Python async、类型注解、pytest
 |   +-- django.md                         # Django / DRF 安全、Serializer、异步视图
 |   +-- fastapi.md                        # FastAPI Depends、Pydantic v2、异步、测试驱动验证
 |   +-- go.md                             # Go goroutine、channel、context、接口
 |   +-- kotlin.md                         # Kotlin / Android 协程、Compose、Flow
 |   +-- swift.md                          # Swift 5.9+/6、SwiftUI、并发、可选值
+|   +-- dart.md                           # Dart / Flutter 重建、空安全、isolate、状态
 |   +-- csharp.md                         # C# 12 / .NET 8、EF Core、ASP.NET Core
 |   +-- c.md                              # C 内存安全、UB、错误处理
 |   +-- cpp.md                            # C++ RAII、移动语义、异常安全
+|   +-- zig.md                            # Zig allocator、错误处理、comptime、C 互操作
 |   +-- qt.md                             # Qt 对象模型、信号/槽、GUI 性能
 |   +-- css-less-sass.md                  # CSS/Less/Sass 变量、响应式设计
 |   +-- architecture-review-guide.md      # SOLID、反模式、耦合度分析
@@ -518,6 +613,13 @@ code-review-skill/
 |   +-- security-review-guide.md          # 安全审查清单（全语言通用）
 |   +-- common-bugs-checklist.md          # 各语言常见 Bug 模式
 |   +-- code-review-best-practices.md     # 沟通与流程最佳实践
+|
++-- reference/cross-cutting/             # 语言无关跨领域模式
+|   +-- sql-injection-prevention.md       # 参数化查询, 6 语言
+|   +-- xss-prevention.md                 # 输出编码, CSP, 5 框架
+|   +-- n-plus-one-queries.md             # N+1 查询, 预加载, 5 语言
+|   +-- error-handling-principles.md      # 错误处理原则, 7 语言
+|   +-- async-concurrency-patterns.md     # 并发模式, 7 语言
 |
 +-- assets/
 |   +-- review-checklist.md               # 快速参考清单
@@ -531,7 +633,15 @@ code-review-skill/
 
 ### &#128640; 安装方法
 
-**克隆到 Claude Code skills 目录：**
+**使用 `npx skills` 安装（Cursor、Claude Code、Codex、OpenCode 及其他 Agent）：**
+
+```bash
+npx skills add awesome-skills/code-review-skill
+```
+
+skills CLI 会发现仓库根目录的 `SKILL.md`。不要把本技能嵌套到 `skills/` 目录下。
+
+**或克隆到 Claude Code skills 目录：**
 
 ```bash
 # macOS / Linux
@@ -573,6 +683,8 @@ Use code-review-skill to review this PR
 |--------|------|
 | `审查这个 React 组件` | 加载 `react.md`，检查 Hooks、Server Components、Suspense |
 | `审查这个 Java PR` | 加载 `java.md`，检查虚拟线程、JPA、Spring Boot 3 |
+| `审查这个 Java 8 / Spring Boot 2 PR` | 加载 `java8.md`，检查 Stream/Optional、java.time、RestTemplate 超时、javax.* |
+| `审查这个 Flutter 组件` | 加载 `dart.md`，检查重建、const、空安全、isolate、Riverpod/Bloc、Key、释放 |
 | `对这个 Go 服务进行安全审查` | 加载 `go.md` + `security-review-guide.md` |
 | `架构审查` | 加载 `architecture-review-guide.md`，检查 SOLID 与反模式 |
 | `性能审查` | 加载 `performance-review-guide.md`，分析 Web Vitals、N+1 等 |
@@ -600,6 +712,16 @@ Use code-review-skill to review this PR
 - **虚拟线程**（Project Loom）：高吞吐量 I/O 模式
 - **Spring Boot 3**：构造器注入、`@ConfigurationProperties`、`ProblemDetail`
 - **JPA 性能**：解决 N+1、Entity 正确的 `equals`/`hashCode` 实现
+
+</details>
+
+<details>
+<summary><strong>&#9749; Java 8 & Spring Boot 2（遗留栈）</strong></summary>
+
+- **Java 8**：Lambda、Stream/`Collectors`、Optional、`java.time`（无 Records / 虚拟线程）
+- **并发**：有界线程池、`CompletableFuture` + 显式 Executor
+- **Spring Boot 2**：`javax.*`、构造器注入、`RestTemplate` 超时
+- **JPA / Hibernate 5**：N+1、Entity `equals`/`hashCode`、UTC 时间映射陷阱
 
 </details>
 
@@ -640,7 +762,7 @@ Use code-review-skill to review this PR
 欢迎贡献！请查阅 [CONTRIBUTING.md](./CONTRIBUTING.md) 了解规范。
 
 **可贡献方向：**
-- 新增语言指南（Ruby、Elixir、Scala...）
+- 新增语言指南（Elixir、Scala、Lua...）
 - 框架专属指南（Laravel、Spring WebFlux...）
 - 补充检查清单和审查模板
 - 核心文档的多语言翻译

@@ -260,6 +260,7 @@ pub struct AppliedConfig {
     pub checksum: String,
     pub release_sequence: i64,
     pub payload_checksum: String,
+    pub payload_json: String,
     pub config: Config,
     pub certificates: HashMap<u64, LoadedCertificate>,
 }
@@ -316,6 +317,7 @@ pub fn decode(
         checksum: checksum.to_owned(),
         release_sequence,
         payload_checksum: digest,
+        payload_json: payload_json.to_owned(),
         config,
         certificates,
     })
@@ -474,7 +476,7 @@ pub fn persist_snapshot(state_dir: &Path, config: &AppliedConfig) -> Result<()> 
         "checksum": config.checksum,
         "release_sequence": config.release_sequence,
         "payload_checksum": config.payload_checksum,
-        "payload_json": config.config,
+        "payload_json": config.payload_json,
     });
     std::fs::write(&temporary, serde_json::to_vec_pretty(&document)?)?;
     std::fs::rename(&temporary, &final_path)?;
@@ -486,7 +488,12 @@ pub fn restore_snapshot(state_dir: &Path) -> Result<Option<AppliedConfig>> {
     if !path.exists() {
         return Ok(None);
     }
-    let document: Value = serde_json::from_slice(&std::fs::read(&path)?)?;
+    let document = std::fs::read_to_string(&path)?;
+    restore_snapshot_from_str(&document)
+}
+
+pub fn restore_snapshot_from_str(document: &str) -> Result<Option<AppliedConfig>> {
+    let document: Value = serde_json::from_str(document)?;
     let version = document
         .get("version")
         .and_then(Value::as_str)
@@ -503,16 +510,16 @@ pub fn restore_snapshot(state_dir: &Path) -> Result<Option<AppliedConfig>> {
         .get("payload_checksum")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    let payload = document
+    let payload_json = document
         .get("payload_json")
+        .and_then(Value::as_str)
         .ok_or_else(|| anyhow::anyhow!("snapshot is missing payload_json"))?;
-    let payload_json = serde_json::to_string(payload)?;
     Ok(Some(decode(
         version,
         checksum,
         release_sequence,
         payload_checksum,
-        &payload_json,
+        payload_json,
     )?))
 }
 
@@ -539,6 +546,22 @@ mod tests {
         let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
         assert!(decode("v1", "checksum", 1, &digest, payload).is_ok());
         assert!(decode("v1", "checksum", 1, "bad", payload).is_err());
+    }
+
+    #[test]
+    fn snapshot_round_trips_original_payload_bytes() {
+        let payload = r#"{"schema_version":1,"contract_version":2,"required_capabilities":["tls-sni-h2-v1","policy-runtime-v1"],"routes":[{"id":1,"site_name":"example","domains":["example.com"],"domain_cert_ids":[0],"origin_url":"http://127.0.0.1:9080","upstreams":[],"enabled":true,"enable_https":true,"enable_http2":true,"redirect_http":true}],"assets":{"certificates":{}}}"#;
+        let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
+        let applied = decode("v1", "checksum", 7, &digest, payload).unwrap();
+        let state_dir = tempfile::tempdir().unwrap();
+        persist_snapshot(state_dir.path(), &applied).unwrap();
+        let restored = restore_snapshot(state_dir.path()).unwrap().unwrap();
+
+        assert_eq!(restored.version, applied.version);
+        assert_eq!(restored.checksum, applied.checksum);
+        assert_eq!(restored.release_sequence, applied.release_sequence);
+        assert_eq!(restored.payload_checksum, applied.payload_checksum);
+        assert_eq!(restored.payload_json, payload);
     }
 
     #[test]

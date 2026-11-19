@@ -23,3 +23,8 @@ build/
 # Local config
 .env
 .env.local
+
+# Skill install artifacts (created by `npx skills add`)
+.agents/
+skills-lock.json
+.skills.json

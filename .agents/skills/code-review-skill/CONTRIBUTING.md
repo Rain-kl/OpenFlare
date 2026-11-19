@@ -26,12 +26,17 @@ code-review-skill/
 │   ├── django.md               # Django / DRF, N+1, serializers, async views
 │   ├── fastapi.md              # FastAPI, Depends, Pydantic v2, async
 │   ├── java.md                 # Java 17/21, Spring Boot 3, virtual threads
+│   ├── java8.md                # Java 8, Spring Boot 2, javax.*, legacy stack
 │   ├── kotlin.md               # Kotlin / Android, coroutines, Flow, Compose
+│   ├── swift.md                # Swift 5.9+/6, SwiftUI, concurrency, optionals
+│   ├── dart.md                 # Dart / Flutter rebuilds, null safety, isolates, state
 │   ├── go.md                   # Error handling, goroutines, context
 │   ├── csharp.md               # C# / .NET 8, async, EF Core, ASP.NET Core
 │   ├── php.md                  # PHP 8.x, types, PDO, security, Composer
+│   ├── ruby.md                 # Ruby 3.4+/4.0, Rails 8.x, Active Record/Job
 │   ├── c.md                    # Memory safety, UB, error handling
 │   ├── cpp.md                  # RAII, move semantics, exception safety
+│   ├── zig.md                  # Allocators, error unions, comptime, C interop
 │   ├── qt.md                   # Object model, signals/slots, GUI perf
 │   ├── css-less-sass.md        # Variables, responsive, performance
 │   ├── architecture-review-guide.md  # SOLID, anti-patterns, coupling
@@ -39,7 +44,13 @@ code-review-skill/
 │   ├── security-review-guide.md      # OWASP Top 10, JWT, validation
 │   ├── common-bugs-checklist.md      # Quick-reference bug patterns
 │   ├── code-quality-universal.md      # Language-agnostic quality anti-patterns
-│   └── code-review-best-practices.md # Communication & process
+│   ├── code-review-best-practices.md # Communication & process
+│   └── cross-cutting/               # Language-agnostic cross-cutting patterns
+│       ├── sql-injection-prevention.md # Parameterized queries, 6 languages
+│       ├── xss-prevention.md           # Output encoding, CSP, 5 frameworks
+│       ├── n-plus-one-queries.md       # N+1 queries, eager loading, 5 languages
+│       ├── error-handling-principles.md # Error handling principles, 7 languages
+│       └── async-concurrency-patterns.md # Concurrency patterns, 7 languages
 ├── assets/                     # Templates and quick reference
 │   ├── review-checklist.md
 │   └── pr-review-template.md
