@@ -266,6 +266,7 @@ def main(binary):
             try:
                 wait_for(lambda: ready.exists())
                 wait_for(lambda: any(item["result"] == "success" for item in server.applies))
+                assert json.loads(ready.read_text())["applied_version"] == server.active["version"]
                 assert json.loads((path / "identity.json").read_text())["agent_token"] == "node-credential"
                 assert http_route() == (301, "https://edge.test/test?query=1")
                 assert request("edge.test", "/test?query=1", use_http2=True)[::3] == (
@@ -313,6 +314,13 @@ def main(binary):
                 edge = launch()
                 wait_for(lambda: server.registered_with_node_token)
                 assert request("edge.test", use_http2=True)[0] == 200
+
+                edge.kill()
+                edge.wait(timeout=5)
+                server.registered_with_node_token = False
+                token.write_text("node-credential")
+                edge = launch("--token-type", "node")
+                wait_for(lambda: server.registered_with_node_token)
 
                 edge.kill()
                 edge.wait(timeout=5)

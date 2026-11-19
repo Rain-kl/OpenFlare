@@ -130,9 +130,14 @@ impl Runtime {
         access_logs: AccessLogBuffer,
         listeners: Listeners,
     ) -> Result<Self> {
-        let identity = load_identity(&state_dir)?;
-        let token = if identity
-            .is_some_and(|id| !id.node_id.is_empty() && !id.agent_token.is_empty())
+        let token_type = match token_type.to_lowercase().as_str() {
+            "discovery" => TokenType::Discovery,
+            "node" => TokenType::Node,
+            _ => anyhow::bail!("invalid token type; use discovery or node"),
+        };
+        let token = if matches!(token_type, TokenType::Discovery)
+            && load_identity(&state_dir)?
+                .is_some_and(|id| !id.node_id.is_empty() && !id.agent_token.is_empty())
         {
             String::new()
         } else {
@@ -142,11 +147,6 @@ impl Runtime {
                 anyhow::bail!("token file is empty");
             }
             token.trim().to_owned()
-        };
-        let token_type = match token_type.to_lowercase().as_str() {
-            "discovery" => TokenType::Discovery,
-            "node" => TokenType::Node,
-            _ => anyhow::bail!("invalid token type; use discovery or node"),
         };
         let url = url::Url::parse(&server_url).context("invalid control plane URL")?;
         let loopback = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
@@ -577,11 +577,13 @@ impl BackgroundService for Runtime {
     async fn start(&self, mut shutdown: ShutdownWatch) {
         tokio::select! {
             _ = async {
-                if let Err(error) = crate::runtime::announce_ready(&self.listeners, &self.state_dir, &self.state).await {
-                    tracing::error!(%error, "Edge data plane failed to become ready");
-                    std::process::exit(1);
-                }
-                tokio::join!(self.run(), self.geo_ip.refresh_periodically());
+                let readiness = async {
+                    if let Err(error) = crate::runtime::announce_ready(&self.listeners, &self.state_dir, &self.state).await {
+                        tracing::error!(%error, "Edge data plane failed to become ready");
+                        std::process::exit(1);
+                    }
+                };
+                tokio::join!(self.run(), self.geo_ip.refresh_periodically(), readiness);
             } => {}
             _ = shutdown.changed() => {}
         }

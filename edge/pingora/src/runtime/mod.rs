@@ -102,19 +102,22 @@ pub async fn announce_ready(
     struct Ready<'a> {
         pid: u32,
         binary_version: &'static str,
-        applied_version: Option<&'a str>,
-        payload_checksum: Option<&'a str>,
+        applied_version: &'a str,
+        payload_checksum: &'a str,
     }
-    let current = state.current();
+    let current = loop {
+        if let Some(snapshot) = state.current() {
+            break snapshot;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    };
     config::persist_private_json(
         &state_dir.join("ready.json"),
         &Ready {
             pid: std::process::id(),
             binary_version: env!("CARGO_PKG_VERSION"),
-            applied_version: current.as_ref().map(|snapshot| snapshot.version.as_str()),
-            payload_checksum: current
-                .as_ref()
-                .map(|snapshot| snapshot.payload_checksum.as_str()),
+            applied_version: &current.version,
+            payload_checksum: &current.payload_checksum,
         },
     )?;
     notify_systemd()?;
@@ -135,7 +138,8 @@ fn notify_systemd() -> Result<()> {
         Some(name) => SocketAddr::from_abstract_name(name),
         None => SocketAddr::from_pathname(&socket),
     }?;
-    UnixDatagram::unbound()?.send_to_addr(b"READY=1\nSTATUS=Pingora listeners ready", &addr)?;
+    UnixDatagram::unbound()?
+        .send_to_addr(b"READY=1\nSTATUS=Pingora configuration active", &addr)?;
     Ok(())
 }
 

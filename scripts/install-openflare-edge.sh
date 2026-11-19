@@ -258,6 +258,7 @@ Restart=always
 RestartSec=5
 KillSignal=SIGTERM
 TimeoutStartSec=90
+TimeoutStartFailureMode=kill
 TimeoutStopSec=300
 
 [Install]
