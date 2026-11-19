@@ -762,11 +762,52 @@ fn save_identity(state_dir: &Path, identity: &PersistedIdentity) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sha2::{Digest, Sha256};
 
     #[test]
     fn registration_accepts_matching_duplicate_token_aliases() {
         let payload = r#"{"node_id":"node-1","agent_token":"issued","access_token":"issued"}"#;
         let registration: Registration = serde_json::from_str(payload).expect("registration");
         assert_eq!(registration.token.agent_token, "issued");
+    }
+
+    #[test]
+    fn decodes_null_pow_lists_as_empty() {
+        let payload = r#"{
+          "schema_version":1,
+          "contract_version":2,
+          "required_capabilities":["tls-sni-h2-v1","policy-runtime-v1"],
+          "routes":[{
+            "id":1,
+            "site_name":"example",
+            "domains":["example.com"],
+            "domain_cert_ids":[0],
+            "origin_url":"http://127.0.0.1:9080",
+            "upstreams":[],
+            "enabled":true,
+            "enable_https":true,
+            "enable_http2":true,
+            "redirect_http":true,
+            "pow":{
+              "difficulty":4,
+              "algorithm":"fast",
+              "session_ttl":600,
+              "challenge_ttl":300,
+              "whitelist":{"ips":null,"ip_cidrs":null,"paths":null,"path_regexes":null,"user_agents":null},
+              "blacklist":{"ips":null,"ip_cidrs":null,"paths":null,"path_regexes":null,"user_agents":null}
+            }
+          }],
+          "assets":{"certificates":{}}
+        }"#;
+        let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
+        let config = crate::config::decode("v1", "checksum", 1, &digest, payload)
+            .expect("payload with null PoW lists decodes");
+        let route = config
+            .routes()
+            .next()
+            .expect("payload contains an enabled route");
+        let pow = route.pow.as_ref().expect("PoW config");
+        assert!(pow.whitelist.ips.is_empty());
+        assert!(pow.blacklist.user_agents.is_empty());
     }
 }

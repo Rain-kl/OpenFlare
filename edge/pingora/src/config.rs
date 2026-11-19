@@ -152,15 +152,15 @@ pub struct PoWConfig {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct PoWListConfig {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
     pub ips: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
     pub ip_cidrs: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
     pub paths: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
     pub path_regexes: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
     pub user_agents: Vec<String>,
 }
 
@@ -225,6 +225,15 @@ fn default_pow_session_ttl() -> u64 {
 }
 fn default_pow_challenge_ttl() -> u64 {
     300
+}
+
+fn deserialize_null_default_vec<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    let value = Option::<Option<Vec<T>>>::deserialize(deserializer)?;
+    Ok(value.flatten().unwrap_or_default())
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -296,8 +305,10 @@ pub fn decode(
     if !constant_time_equal(digest.as_bytes(), payload_checksum.trim().as_bytes()) {
         bail!("active configuration payload checksum mismatch");
     }
-    let config: Config =
-        serde_json::from_str(payload_json).context("failed to decode Pingora payload")?;
+    let config: Config = serde_json::from_str(payload_json).context(format!(
+        "failed to decode Pingora payload ({} bytes)",
+        payload_json.len()
+    ))?;
     validate(&config)?;
     let certificates = load_certificates(&config)?;
     Ok(AppliedConfig {
