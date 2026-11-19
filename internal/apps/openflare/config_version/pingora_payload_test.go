@@ -15,6 +15,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/openflare/openresty"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,6 +54,11 @@ func TestPublishConfigVersionCreatesAlignedPingoraPayload(t *testing.T) {
 		ZoneID: zone.ID, ProxyRouteID: &route.ID, Domain: "pingora.example.com", CertID: &certificate.ID,
 	}).Error)
 
+	require.NoError(t, db.DB(ctx).Create(&model.SystemConfig{
+		Key: model.ConfigKeyPoWPage, Value: `{"template":"shield","widget":"turnstile"}`, Type: "business", Visibility: 0,
+		Description: "PoW challenge page",
+	}).Error)
+
 	openRestyVersion, err := PublishConfigVersion(ctx, "tester", false)
 	require.NoError(t, err)
 	pingoraVersion, err := repository.GetActivePingoraConfigVersion(ctx)
@@ -75,6 +81,24 @@ func TestPublishConfigVersionCreatesAlignedPingoraPayload(t *testing.T) {
 	assert.Equal(t, snapshot.Routes[0].RedirectHTTP, payload.Routes[0].RedirectHTTP)
 	assert.Equal(t, snapshot.WAF, payload.WAF)
 	assert.Equal(t, []string{"tls-sni-h2-v1", "policy-runtime-v1"}, payload.RequiredCapabilities)
+	assert.Equal(t, "shield", payload.PoWPage.Template)
+	assert.Equal(t, "turnstile", payload.PoWPage.Widget)
+	var supportFiles []SupportFile
+	require.NoError(t, json.Unmarshal([]byte(openRestyVersion.SupportFilesJSON), &supportFiles))
+	var openRestyPoWPage openresty.PoWPageConfig
+	found := false
+	for _, file := range supportFiles {
+		if file.Path != openresty.PoWPageSupportPath {
+			continue
+		}
+		found = true
+		require.NoError(t, json.Unmarshal([]byte(file.Content), &openRestyPoWPage))
+	}
+	require.True(t, found, "OpenResty PoW page support file was not rendered")
+	assert.Equal(t, openRestyPoWPage.Template, payload.PoWPage.Template)
+	assert.Equal(t, openRestyPoWPage.Widget, payload.PoWPage.Widget)
+	// Both engines resolve the built-in shield template locally; Pingora embeds the same source file.
+	assert.Equal(t, openresty.DefaultPoWPageHTML(payload.PoWPage.Template), openRestyPoWPage.HTML)
 	assert.Contains(t, payload.Assets.Certificates, strconv.FormatUint(uint64(certificate.ID), 10))
 
 	digest := sha256.Sum256([]byte(pingoraVersion.PayloadJSON))

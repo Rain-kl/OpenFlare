@@ -1,3 +1,4 @@
+use crate::policy::PoWPageConfig;
 use anyhow::{bail, Context, Result};
 use pingora::tls::pkey::{PKey, Private};
 use pingora::tls::x509::X509;
@@ -20,6 +21,8 @@ pub struct Config {
     #[serde(default)]
     pub waf: WafDocument,
     pub assets: Assets,
+    #[serde(default)]
+    pub pow_page: PoWPageConfig,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -255,6 +258,10 @@ pub struct AppliedConfig {
 impl AppliedConfig {
     pub fn routes(&self) -> impl Iterator<Item = &Route> {
         self.config.routes.iter().filter(|route| route.enabled)
+    }
+
+    pub fn pow_page(&self) -> &crate::policy::PoWPageConfig {
+        &self.config.pow_page
     }
 
     pub fn certificate_for_host(&self, host: &str) -> Option<&LoadedCertificate> {

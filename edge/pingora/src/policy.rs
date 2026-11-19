@@ -4,12 +4,13 @@ use hmac::{Hmac, Mac};
 use maxminddb::Reader;
 use rand::RngCore;
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sha1::Sha1 as Sha1Digest;
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -32,6 +33,7 @@ pub struct RequestContext {
     pub content_type: String,
     pub body: Vec<u8>,
     pub origin_header: Option<String>,
+    pub accept_language: String,
     pub geo: Option<GeoResult>,
 }
 
@@ -42,26 +44,346 @@ pub struct GeoResult {
 }
 
 pub struct GeoIp {
-    reader: Option<Reader<Vec<u8>>>,
+    city: Option<Reader<Vec<u8>>>,
+    country: Option<Reader<Vec<u8>>>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PoWPageConfig {
+    #[serde(default)]
+    pub template: String,
+    #[serde(default)]
+    pub widget: String,
+    #[serde(default)]
+    pub html: String,
+}
+
+static POW_STATIC_DIR: include_dir::Dir =
+    include_dir::include_dir!("../../internal/edge/agent/nginx/pow_static");
+const POW_SHIELD_HTML: &str =
+    include_str!("../../../internal/openflare/openresty/pow_templates/shield.html");
+const POW_CLASSIC_HTML: &str =
+    include_str!("../../../internal/openflare/openresty/pow_templates/classic.html");
+const POW_CHALLENGE_EN: &str =
+    include_str!("../../../internal/edge/agent/nginx/pow_static/locales/challenge.en.json");
+const POW_CHALLENGE_ZH_CN: &str =
+    include_str!("../../../internal/edge/agent/nginx/pow_static/locales/challenge.zh-CN.json");
+
+pub const MAX_ACCESS_LOG_BUFFER: usize = 2048;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct NodeAccessLog {
+    pub logged_at_unix: i64,
+    pub remote_addr: String,
+    pub host: String,
+    pub path: String,
+    pub user_agent: String,
+    pub cache_status: String,
+    pub status_code: i32,
+    pub bytes_sent: i64,
+    pub request_length: i64,
+    pub request_time_ms: i64,
+}
+
+#[derive(Clone, Default)]
+pub struct AccessLogBuffer {
+    inner: Arc<Mutex<AccessLogBufferInner>>,
+}
+
+impl std::fmt::Debug for AccessLogBuffer {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let len = self
+            .inner
+            .lock()
+            .map(|inner| inner.logs.len())
+            .unwrap_or_default();
+        formatter
+            .debug_struct("AccessLogBuffer")
+            .field("len", &len)
+            .finish()
+    }
+}
+
+#[derive(Default)]
+struct AccessLogBufferInner {
+    logs: VecDeque<NodeAccessLog>,
+}
+
+impl AccessLogBuffer {
+    pub fn push(&self, log: NodeAccessLog) {
+        let Ok(mut inner) = self.inner.lock() else {
+            return;
+        };
+        inner.logs.push_back(log);
+        while inner.logs.len() > MAX_ACCESS_LOG_BUFFER {
+            inner.logs.pop_front();
+        }
+    }
+
+    pub fn peek(&self, limit: usize) -> Vec<NodeAccessLog> {
+        let Ok(inner) = self.inner.lock() else {
+            return Vec::new();
+        };
+        inner.logs.iter().take(limit).cloned().collect()
+    }
+
+    pub fn commit(&self, count: usize) {
+        let Ok(mut inner) = self.inner.lock() else {
+            return;
+        };
+        let count = count.min(inner.logs.len());
+        for _ in 0..count {
+            inner.logs.pop_front();
+        }
+    }
 }
 
 impl GeoIp {
-    pub fn open(path: Option<&Path>) -> Option<Self> {
-        path.and_then(|path| Reader::open_readfile(path).ok())
-            .map(|reader| Self {
-                reader: Some(reader),
-            })
+    pub fn open(country_path: Option<&Path>, city_path: Option<&Path>) -> Option<Self> {
+        let country = country_path.and_then(|path| Reader::open_readfile(path).ok());
+        let city = city_path.and_then(|path| Reader::open_readfile(path).ok());
+        (country.is_some() || city.is_some()).then_some(Self { city, country })
     }
 
     pub fn lookup(&self, ip: &str) -> Option<GeoResult> {
         let ip = ip.parse().ok()?;
-        let lookup = self.reader.as_ref()?.lookup(ip).ok()?;
-        let country: maxminddb::geoip2::Country = lookup.decode().ok()??;
-        Some(GeoResult {
-            country: country.country.iso_code.map(|code| code.to_uppercase()),
-            region: None,
-        })
+        if let Some(reader) = self.city.as_ref() {
+            if let Some(Some(city)) = reader
+                .lookup(ip)
+                .ok()
+                .and_then(|lookup| lookup.decode::<maxminddb::geoip2::City>().ok())
+            {
+                let country = city.country.iso_code.map(|code| code.to_uppercase());
+                let subdivision = city.subdivisions.first().and_then(|item| item.iso_code);
+                let region = geo_region(country.as_deref(), subdivision);
+                return Some(GeoResult { country, region });
+            }
+        }
+        if let Some(reader) = self.country.as_ref() {
+            if let Some(Some(country_record)) = reader
+                .lookup(ip)
+                .ok()
+                .and_then(|lookup| lookup.decode::<maxminddb::geoip2::Country>().ok())
+            {
+                return Some(GeoResult {
+                    country: country_record
+                        .country
+                        .iso_code
+                        .map(|code| code.to_uppercase()),
+                    region: None,
+                });
+            }
+        }
+        None
     }
+}
+
+pub fn geo_region(country: Option<&str>, subdivision: Option<&str>) -> Option<String> {
+    let country = country?;
+    let subdivision = subdivision?;
+    if subdivision.starts_with(&format!("{country}-")) {
+        Some(subdivision.to_owned())
+    } else {
+        Some(format!("{country}-{subdivision}"))
+    }
+}
+
+pub fn resolved_pow_page(page: &PoWPageConfig) -> PoWPageConfig {
+    let mut resolved = page.clone();
+    resolved.html = Default::default();
+    if resolved.template.is_empty() {
+        resolved.template = "shield".to_owned();
+    }
+    if resolved.widget.is_empty() {
+        resolved.widget = "progress".to_owned();
+    }
+    if resolved.html.trim().is_empty() {
+        resolved.html = if resolved.template == "classic" {
+            POW_CLASSIC_HTML.to_owned()
+        } else {
+            POW_SHIELD_HTML.to_owned()
+        };
+    }
+    resolved
+}
+
+pub fn render_pow_challenge(
+    config: &PoWConfig,
+    _route: &Route,
+    page: &PoWPageConfig,
+    context: &RequestContext,
+    id: &str,
+    challenge: &PowChallenge,
+) -> String {
+    let page = resolved_pow_page(page);
+    let template = if page.template.is_empty() {
+        "shield"
+    } else {
+        page.template.as_str()
+    };
+    let default_html = if template == "classic" {
+        POW_CLASSIC_HTML
+    } else {
+        POW_SHIELD_HTML
+    };
+    let html = if page.html.trim().is_empty() {
+        default_html
+    } else {
+        page.html.as_str()
+    };
+    let widget = match page.widget.as_str() {
+        "turnstile" => "turnstile",
+        _ => "progress",
+    };
+    let lang = if context.accept_language.to_ascii_lowercase().contains("zh") {
+        "zh-CN"
+    } else {
+        "en"
+    };
+    let translation = pow_translation(lang);
+    let values: HashMap<&str, String> = HashMap::from([
+        ("lang", lang.to_owned()),
+        ("host", context.host.clone()),
+        ("title", translation.title.clone()),
+        ("status", translation.status.clone()),
+        ("why", translation.why.clone()),
+        ("why_description", translation.why_description.clone()),
+        ("noscript", translation.noscript.clone()),
+        ("protected", translation.protected.clone()),
+    ]);
+    let rendered = replace_pow_placeholders(html, &values, widget);
+    let boot = serde_json::json!({
+        "id": id,
+        "randomData": challenge.data,
+        "difficulty": challenge.difficulty,
+        "algorithm": challenge.algorithm,
+        "challengeTTL": config.challenge_ttl,
+        "lang": lang,
+        "widget": widget,
+    })
+    .to_string()
+    .replace('<', "\\u003c");
+    let runtime = format!(
+        "<script id=\"openflare-pow-config\" type=\"application/json\">{boot}</script>\n<script type=\"module\" src=\"/.within.website/x/cmd/anubis/static/js/main.mjs\"></script>\n"
+    );
+    insert_before_closing_body(&rendered, &runtime)
+}
+
+pub fn pow_translation(lang: &str) -> PowTranslation {
+    if lang == "zh-CN" {
+        serde_json::from_str(POW_CHALLENGE_ZH_CN).unwrap_or_default()
+    } else {
+        serde_json::from_str(POW_CHALLENGE_EN).unwrap_or_default()
+    }
+}
+
+pub fn replace_pow_placeholders(
+    html: &str,
+    values: &HashMap<&str, String>,
+    widget: &str,
+) -> String {
+    let mut output = String::with_capacity(html.len());
+    let mut chars = html.char_indices().peekable();
+    while let Some((_start, ch)) = chars.next() {
+        if ch != '{' || chars.peek().is_none_or(|&(_, next)| next != '{') {
+            output.push(ch);
+            continue;
+        }
+        chars.next();
+        let mut name = String::new();
+        let mut closed = false;
+        while let Some((_, ch)) = chars.next() {
+            if ch == '}' {
+                if chars.peek().is_some_and(|&(_, next)| next == '}') {
+                    chars.next();
+                }
+                closed = true;
+                break;
+            } else if ch.is_ascii_alphanumeric() || ch == '_' {
+                name.push(ch);
+            } else {
+                closed = false;
+                break;
+            }
+        }
+        if closed {
+            if name == "widget" {
+                output.push_str(&format!(
+                    "<openflare-pow appearance=\"{widget}\"></openflare-pow>"
+                ));
+            } else if let Some(value) = values.get(name.as_str()) {
+                output.push_str(&html_escape(value));
+            } else {
+                output.push_str("{{");
+                output.push_str(&name);
+                output.push_str("}}");
+            }
+        } else {
+            output.push_str("{{");
+            output.push_str(&name);
+        }
+    }
+    output
+}
+
+fn insert_before_closing_body(html: &str, runtime: &str) -> String {
+    let Some(index) = html.rfind("</body>") else {
+        return format!("{html}{runtime}");
+    };
+    let mut output = html[..index].to_owned();
+    output.push_str(runtime);
+    output.push_str(&html[index..]);
+    output
+}
+
+fn html_escape(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
+pub fn pow_static(relative: &str) -> Option<(&'static [u8], &'static str)> {
+    if relative.contains('\\') || relative.contains('\0') {
+        return None;
+    }
+    let file = POW_STATIC_DIR.get_file(relative)?;
+    Some((
+        file.contents(),
+        static_content_type(file.path().as_os_str().to_string_lossy().as_ref()),
+    ))
+}
+
+fn static_content_type(path: &str) -> &'static str {
+    match path.rsplit('.').next().unwrap_or_default() {
+        "css" => "text/css; charset=utf-8",
+        "js" | "mjs" => "text/javascript; charset=utf-8",
+        "json" => "application/json; charset=utf-8",
+        "svg" => "image/svg+xml",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        "ico" => "image/x-icon",
+        "txt" => "text/plain; charset=utf-8",
+        "xml" => "application/xml; charset=utf-8",
+        "wasm" => "application/wasm",
+        "woff" => "font/woff",
+        "woff2" => "font/woff2",
+        _ => "application/octet-stream",
+    }
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct PowTranslation {
+    title: String,
+    status: String,
+    protected: String,
+    why: String,
+    why_description: String,
+    noscript: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -763,6 +1085,7 @@ pub struct PowChallenge {
     pub host: String,
     pub site: String,
     pub redir: String,
+    pub algorithm: String,
     pub session_ttl: u64,
     pub expires_at: u64,
 }
@@ -887,6 +1210,7 @@ impl PowState {
             host: context.host.clone(),
             site: route.site_name.clone(),
             redir: format!("{}{}", context.path, query_suffix(&context.query)),
+            algorithm: config.algorithm.clone(),
             session_ttl: config.session_ttl,
             expires_at: now + config.challenge_ttl,
         };
@@ -1171,6 +1495,7 @@ mod tests {
             content_type: String::new(),
             body: Vec::new(),
             origin_header: None,
+            accept_language: String::new(),
             geo: None,
         }
     }
@@ -1309,6 +1634,116 @@ mod tests {
             WafDecision::Allow
         );
     }
+    #[test]
+    fn geo_region_matches_openresty_country_subdivision_format() {
+        assert_eq!(geo_region(Some("US"), Some("CA")).as_deref(), Some("US-CA"));
+        assert_eq!(
+            geo_region(Some("US"), Some("US-CA")).as_deref(),
+            Some("US-CA")
+        );
+        assert_eq!(geo_region(Some("US"), None), None);
+        assert_eq!(geo_region(None, Some("CA")), None);
+    }
+
+    #[test]
+    fn access_log_buffer_is_bounded_and_commits_only_reported_entries() {
+        let buffer = AccessLogBuffer::default();
+        let log = NodeAccessLog {
+            logged_at_unix: 100,
+            remote_addr: "192.0.2.1".into(),
+            host: "example.com".into(),
+            path: "/".into(),
+            user_agent: "curl/8".into(),
+            cache_status: "-".into(),
+            status_code: 200,
+            bytes_sent: 123,
+            request_length: 45,
+            request_time_ms: 6,
+        };
+        buffer.push(log.clone());
+        buffer.push(NodeAccessLog {
+            path: "/second".into(),
+            ..log.clone()
+        });
+        let reported = buffer.peek(1);
+        assert_eq!(reported.len(), 1);
+        assert_eq!(reported[0].path, "/");
+        buffer.commit(reported.len());
+        assert_eq!(buffer.peek(10).len(), 1);
+        assert_eq!(buffer.peek(10)[0].path, "/second");
+        for i in 0..(MAX_ACCESS_LOG_BUFFER + 10) {
+            buffer.push(NodeAccessLog {
+                path: format!("/{i}"),
+                ..log.clone()
+            });
+        }
+        assert_eq!(
+            buffer.peek(MAX_ACCESS_LOG_BUFFER).len(),
+            MAX_ACCESS_LOG_BUFFER
+        );
+        let oldest = buffer.peek(MAX_ACCESS_LOG_BUFFER)[0]
+            .path
+            .trim_start_matches('/')
+            .parse::<usize>()
+            .unwrap();
+        assert!(oldest > 0 && oldest <= 10);
+    }
+
+    #[test]
+    fn pow_html_challenge_matches_openresty_runtime_shape() {
+        let mut route = route();
+        route.pow_enabled = true;
+        route.pow = Some(PoWConfig {
+            difficulty: 4,
+            algorithm: "fast".into(),
+            challenge_ttl: 300,
+            ..Default::default()
+        });
+        let mut context = context();
+        context.accept_language = "zh-CN,zh;q=0.9".into();
+        let challenge = PowChallenge {
+            data: "randomdata".into(),
+            difficulty: 4,
+            host: context.host.clone(),
+            site: route.site_name.clone(),
+            redir: "/".into(),
+            algorithm: "fast".into(),
+            session_ttl: 600,
+            expires_at: 400,
+        };
+        let html = render_pow_challenge(
+            route.pow.as_ref().unwrap(),
+            &route,
+            &PoWPageConfig::default(),
+            &context,
+            "id-1",
+            &challenge,
+        );
+        assert!(html.contains(r#"<script id="openflare-pow-config" type="application/json">"#));
+        assert!(html.contains(r#"<script type="module" src="/.within.website/x/cmd/anubis/static/js/main.mjs"></script>"#));
+        assert!(html.contains(r#""id":"id-1""#));
+        assert!(html.contains(r#""randomData":"randomdata""#));
+        assert!(html.contains(r#""challengeTTL":300"#));
+        assert!(
+            html.contains("正在确认你是不是机器人") || html.contains("正在确认你是不是机器人！")
+        );
+        assert!(html.contains(r#"<openflare-pow appearance="progress"></openflare-pow>"#));
+        assert!(html.contains("</script>\n</body>"));
+    }
+
+    #[test]
+    fn pow_static_assets_are_embedded_and_path_lookup_is_safe() {
+        assert!(pow_static("js/main.mjs").is_some());
+        assert_eq!(
+            pow_static("js/main.mjs").unwrap().1,
+            "text/javascript; charset=utf-8"
+        );
+        assert!(pow_static("css/xess.css").is_some());
+        assert!(pow_static("locales/challenge.zh-CN.json").is_some());
+        assert!(pow_static("../secret").is_none());
+        assert!(pow_static("missing.js").is_none());
+    }
+
     #[test]
     fn pow_issue_verify_and_replay_are_bound_to_site() {
         let mut route = route();

@@ -1,6 +1,7 @@
 use crate::control::SharedState;
 use crate::policy::{
-    self, PolicyDecision, RateLimiter, RequestContext, POW_COOKIE, SITE_AUTH_PATH,
+    self, AccessLogBuffer, NodeAccessLog, PolicyDecision, RateLimiter, RequestContext, POW_COOKIE,
+    SITE_AUTH_PATH,
 };
 use anyhow::Result as AnyhowResult;
 use async_trait::async_trait;
@@ -19,23 +20,69 @@ use pingora_error::ErrorType::*;
 use pingora_http::ResponseHeader;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use url::Url;
 
 const MAX_INSPECTED_BODY_BYTES: usize = 64 * 1024;
+
+#[derive(Debug)]
+pub struct RequestLogContext {
+    started_at: Instant,
+    host: String,
+    path: String,
+    remote_addr: String,
+    user_agent: String,
+}
+
+impl RequestLogContext {
+    fn new(session: &Session, host: &str) -> Self {
+        let uri = session
+            .req_header()
+            .uri
+            .path_and_query()
+            .map(|value| value.as_str())
+            .unwrap_or_default();
+        Self {
+            started_at: Instant::now(),
+            host: host.to_owned(),
+            path: uri.to_owned(),
+            remote_addr: session
+                .as_downstream()
+                .client_addr()
+                .map(|addr| addr.to_string())
+                .unwrap_or_default(),
+            user_agent: session
+                .req_header()
+                .headers
+                .get("User-Agent")
+                .and_then(|value| value.to_str().ok())
+                .unwrap_or_default()
+                .to_owned(),
+        }
+    }
+}
 
 pub struct ProxyService {
     state: SharedState,
     rate_limiter: &'static RateLimiter,
     state_dir: &'static str,
     pow: &'static policy::PowState,
+    access_logs: AccessLogBuffer,
 }
 
 #[async_trait]
 impl ProxyHttp for ProxyService {
-    type CTX = ();
+    type CTX = RequestLogContext;
 
-    fn new_ctx(&self) -> Self::CTX {}
+    fn new_ctx(&self) -> Self::CTX {
+        RequestLogContext {
+            started_at: Instant::now(),
+            host: String::new(),
+            path: String::new(),
+            remote_addr: String::new(),
+            user_agent: String::new(),
+        }
+    }
 
     async fn upstream_peer(
         &self,
@@ -76,10 +123,13 @@ impl ProxyHttp for ProxyService {
         }
     }
 
-    async fn request_filter(&self, session: &mut Session, _ctx: &mut Self::CTX) -> Result<bool>
+    async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool>
     where
         Self::CTX: Send + Sync,
     {
+        if let Some(host) = request_host(session) {
+            *ctx = RequestLogContext::new(session, &host);
+        }
         let Some(config) = self.state.current() else {
             let _ = session.respond_error(503).await;
             return Ok(true);
@@ -92,6 +142,7 @@ impl ProxyHttp for ProxyService {
             let _ = session.respond_error(404).await;
             return Ok(true);
         };
+        let page = config.pow_page();
         let context = match build_request_context(session, &host).await {
             Ok(context) => context,
             Err(error) => return Err(error),
@@ -101,7 +152,10 @@ impl ProxyHttp for ProxyService {
             return respond_policy_decision(session, decision).await;
         }
         if context.path.starts_with(policy::POW_API_PREFIX) {
-            return self.serve_pow_api(session, route, &context).await;
+            return self.serve_pow_api(session, route, page, &context).await;
+        }
+        if context.path.starts_with(policy::POW_STATIC_PREFIX) {
+            return serve_pow_static(session, &context.path).await;
         }
         let pow_session =
             self.pow
@@ -125,7 +179,7 @@ impl ProxyHttp for ProxyService {
                 return Ok(true);
             }
             Ok(policy::WafDecision::Takeover) => {
-                return self.issue_pow(session, route, &context).await
+                return self.issue_pow(session, route, page, &context).await
             }
             Err(error) => {
                 tracing::error!(site = %route.site_name, error, "WAF graph execution failed");
@@ -154,7 +208,7 @@ impl ProxyHttp for ProxyService {
             }
         }
         if policy::pow_required(route, &context, pow_session.is_some()) {
-            return self.issue_pow(session, route, &context).await;
+            return self.issue_pow(session, route, page, &context).await;
         }
         if !route.limit.req_per_ip.is_empty()
             && !policy::request_rate_limit(
@@ -221,6 +275,33 @@ impl ProxyHttp for ProxyService {
         }
         Ok(())
     }
+
+    async fn logging(&self, session: &mut Session, _error: Option<&Error>, ctx: &mut Self::CTX)
+    where
+        Self::CTX: Send + Sync,
+    {
+        let status = session
+            .as_downstream()
+            .response_written()
+            .map(|response| response.status.as_u16())
+            .unwrap_or_default();
+        let downstream = session.as_downstream();
+        self.access_logs.push(NodeAccessLog {
+            logged_at_unix: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|value| value.as_secs() as i64)
+                .unwrap_or_default(),
+            remote_addr: ctx.remote_addr.clone(),
+            host: ctx.host.clone(),
+            path: ctx.path.clone(),
+            user_agent: ctx.user_agent.clone(),
+            cache_status: "-".to_owned(),
+            status_code: i32::from(status),
+            bytes_sent: downstream.body_bytes_sent() as i64,
+            request_length: downstream.body_bytes_read() as i64,
+            request_time_ms: ctx.started_at.elapsed().as_millis() as i64,
+        });
+    }
 }
 
 static RATE_LIMITER: OnceLock<RateLimiter> = OnceLock::new();
@@ -254,9 +335,11 @@ fn reads_request_body(session: &Session) -> bool {
 fn global_geo_ip() -> Option<&'static policy::GeoIp> {
     GEO_IP
         .get_or_init(|| {
-            policy::GeoIp::open(Some(Path::new(
-                "/var/lib/openflare-edge/GeoLite2-Country.mmdb",
-            )))
+            let state_dir = Path::new(global_state_dir());
+            policy::GeoIp::open(
+                Some(&state_dir.join("GeoLite2-Country.mmdb")),
+                Some(&state_dir.join("GeoLite2-City.mmdb")),
+            )
         })
         .as_ref()
 }
@@ -303,6 +386,13 @@ async fn build_request_context(session: &mut Session, host: &str) -> Result<Requ
         .get("Origin")
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
+    let accept_language = session
+        .req_header()
+        .headers
+        .get("Accept-Language")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned)
+        .unwrap_or_default();
     let remote_addr = session
         .as_downstream()
         .client_addr()
@@ -332,6 +422,7 @@ async fn build_request_context(session: &mut Session, host: &str) -> Result<Requ
         content_type: content_type.unwrap_or_default(),
         body,
         origin_header,
+        accept_language,
         geo,
     })
 }
@@ -366,11 +457,50 @@ async fn respond_policy_decision(session: &mut Session, decision: PolicyDecision
     Ok(false)
 }
 
+async fn serve_pow_static(session: &mut Session, path: &str) -> Result<bool> {
+    let relative = path
+        .strip_prefix(policy::POW_STATIC_PREFIX)
+        .unwrap_or_default()
+        .trim_start_matches('/');
+    let Some(relative) = sanitize_static_path(relative) else {
+        let _ = session.respond_error(404).await;
+        return Ok(true);
+    };
+    let Some((contents, content_type)) = policy::pow_static(relative) else {
+        let _ = session.respond_error(404).await;
+        return Ok(true);
+    };
+    let mut response = ResponseHeader::build(200, Some(2)).map_err(|error| {
+        Error::because(InternalError, "failed to build PoW static response", error)
+    })?;
+    let _ = response.insert_header("Content-Type", content_type);
+    let _ = response.insert_header("Content-Length", contents.len());
+    session
+        .write_response_header(Box::new(response), true)
+        .await?;
+    session
+        .write_response_body(Some(contents.to_vec().into()), true)
+        .await?;
+    Ok(true)
+}
+
+fn sanitize_static_path(value: &str) -> Option<&str> {
+    (!value.is_empty()
+        && !value.starts_with('/')
+        && !value.contains('\\')
+        && !value.contains('\0')
+        && value
+            .split('/')
+            .all(|segment| segment != ".." && !segment.is_empty()))
+    .then_some(value)
+}
+
 impl ProxyService {
     async fn issue_pow(
         &self,
         session: &mut Session,
         route: &crate::config::Route,
+        page: &crate::policy::PoWPageConfig,
         context: &RequestContext,
     ) -> Result<bool> {
         let Some(config) = route.pow.as_ref() else {
@@ -382,13 +512,10 @@ impl ProxyService {
             let _ = session.respond_error(503).await;
             return Ok(true);
         };
-        let body = format!(
-            "{{\"id\":\"{id}\",\"randomData\":\"{}\",\"difficulty\":{},\"algorithm\":\"{}\",\"challengeTTL\":{}}}",
-            challenge.data, challenge.difficulty, config.algorithm, config.challenge_ttl
-        );
+        let body = policy::render_pow_challenge(config, route, page, context, &id, &challenge);
         let mut response = ResponseHeader::build(200, Some(4))
             .map_err(|error| Error::because(InternalError, "failed to build challenge", error))?;
-        let _ = response.insert_header("Content-Type", "application/json");
+        let _ = response.insert_header("Content-Type", "text/html; charset=utf-8");
         let _ = response.insert_header("Cache-Control", "no-store");
         let _ = response.insert_header("Content-Length", body.len());
         session
@@ -404,10 +531,11 @@ impl ProxyService {
         &self,
         session: &mut Session,
         route: &crate::config::Route,
+        page: &crate::policy::PoWPageConfig,
         context: &RequestContext,
     ) -> Result<bool> {
         if context.path.ends_with("/make-challenge") {
-            return self.issue_pow(session, route, context).await;
+            return self.issue_pow(session, route, page, context).await;
         }
         if !context.path.ends_with("/pass-challenge") {
             let _ = session.respond_error(404).await;
@@ -592,6 +720,7 @@ pub fn spawn(
     state: SharedState,
     http_listen: &str,
     tls_listen: Option<&str>,
+    access_logs: AccessLogBuffer,
 ) -> anyhow::Result<()> {
     std::net::TcpListener::bind(http_listen)?;
     if let Some(listen) = tls_listen {
@@ -606,6 +735,7 @@ pub fn spawn(
             rate_limiter: global_rate_limiter(),
             state_dir: global_state_dir(),
             pow: global_pow_state(),
+            access_logs,
         },
     );
     service.add_tcp(http_listen);

@@ -1,5 +1,6 @@
 use crate::config::{self, AppliedConfig};
 use crate::pages::PagesSyncer;
+use crate::policy::{AccessLogBuffer, NodeAccessLog};
 use crate::proxy;
 use anyhow::{Context, Result};
 use rand::RngCore;
@@ -19,6 +20,7 @@ pub struct Runtime {
     http_listen: String,
     tls_listen: Option<String>,
     client: Client,
+    access_logs: AccessLogBuffer,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,6 +41,8 @@ struct NodePayload<'a> {
     openresty_message: &'a str,
     engine: &'a str,
     contract_version: u8,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    access_logs: Vec<NodeAccessLog>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -139,15 +143,18 @@ impl Runtime {
             http_listen,
             tls_listen,
             client,
+            access_logs: AccessLogBuffer::default(),
         })
     }
 
     pub async fn run(self) -> Result<()> {
         let identity = self.ensure_identity().await?;
+        let access_logs = AccessLogBuffer::default();
         let state = SharedState::new(
             identity.node_id.clone(),
             self.http_listen.clone(),
             self.tls_listen.clone(),
+            access_logs.clone(),
         );
         if let Some(restored) = config::restore_snapshot(&self.state_dir)? {
             state.apply(restored)?;
@@ -156,7 +163,13 @@ impl Runtime {
         let mut interval = Duration::from_millis(3000);
         loop {
             let authenticated = self.with_identity(&identity).await?;
-            if let Ok(response) = authenticated.heartbeat(&identity.node_id).await {
+            let heartbeat = authenticated
+                .heartbeat(
+                    &identity.node_id,
+                    state.current().map(|config| config.version),
+                )
+                .await;
+            if let Ok(response) = heartbeat {
                 if let Some(settings) = response.agent_settings {
                     interval = Duration::from_millis(settings.heartbeat_interval.max(100).into());
                 }
@@ -308,6 +321,7 @@ impl Runtime {
             http_listen: self.http_listen.clone(),
             tls_listen: self.tls_listen.clone(),
             client: self.client.clone(),
+            access_logs: self.access_logs.clone(),
         })
     }
 
@@ -327,6 +341,7 @@ impl Runtime {
             openresty_message: "Pingora default runtime",
             engine: "pingora",
             contract_version: 2,
+            access_logs: Vec::new(),
         });
         if let Some(registration_key) = registration_key {
             payload["registration_key"] = json!(registration_key);
@@ -342,26 +357,32 @@ impl Runtime {
         Ok(registration)
     }
 
-    async fn heartbeat(&self, node_id: &str) -> Result<Heartbeat> {
+    async fn heartbeat(&self, node_id: &str, current_version: Option<String>) -> Result<Heartbeat> {
+        const MAX_HEARTBEAT_ACCESS_LOGS: usize = 1024;
+        let logs = self.access_logs.peek(MAX_HEARTBEAT_ACCESS_LOGS);
+        let payload = NodePayload {
+            schema_version: 2,
+            node_id,
+            name: "openflare-edge",
+            version: env!("CARGO_PKG_VERSION"),
+            ext_version: "pingora",
+            current_version: current_version.as_deref().unwrap_or_default(),
+            openresty_status: "healthy",
+            openresty_message: "Pingora default runtime",
+            engine: "pingora",
+            contract_version: 2,
+            access_logs: logs.clone(),
+        };
         let response = self
             .client
             .post(format!("{}/api/v1/agent/nodes/heartbeat", self.base_url))
             .header("X-Agent-Token", &self.token)
-            .json(&json!(NodePayload {
-                schema_version: 2,
-                node_id,
-                name: "openflare-edge",
-                version: env!("CARGO_PKG_VERSION"),
-                ext_version: "pingora",
-                current_version: "",
-                openresty_status: "healthy",
-                openresty_message: "Pingora default runtime",
-                engine: "pingora",
-                contract_version: 2,
-            }))
+            .json(&payload)
             .send()
             .await?;
-        decode_response(response).await
+        let decoded = decode_response(response).await?;
+        self.access_logs.commit(logs.len());
+        Ok(decoded)
     }
 
     async fn fetch_active_config(&self) -> Result<ActiveConfig> {
@@ -426,15 +447,22 @@ pub struct SharedState {
     node_id: String,
     http_listen: String,
     tls_listen: Option<String>,
+    access_logs: AccessLogBuffer,
     inner: Arc<RwLock<Option<AppliedConfig>>>,
 }
 
 impl SharedState {
-    fn new(node_id: String, http_listen: String, tls_listen: Option<String>) -> Self {
+    fn new(
+        node_id: String,
+        http_listen: String,
+        tls_listen: Option<String>,
+        access_logs: AccessLogBuffer,
+    ) -> Self {
         Self {
             node_id,
             http_listen,
             tls_listen,
+            access_logs: access_logs.clone(),
             inner: Arc::new(RwLock::new(None)),
         }
     }
@@ -453,7 +481,12 @@ impl SharedState {
         };
         if was_empty {
             tracing::info!(http_listen = %self.http_listen, tls_listen = ?self.tls_listen, version = %config.version, "starting proxy listener");
-            proxy::spawn(self.clone(), &self.http_listen, self.tls_listen.as_deref())?;
+            proxy::spawn(
+                self.clone(),
+                &self.http_listen,
+                self.tls_listen.as_deref(),
+                self.access_logs.clone(),
+            )?;
         }
         let mut guard = self
             .inner
@@ -481,6 +514,7 @@ fn fallback_applied_config(meta: &ActiveConfigMeta) -> AppliedConfig {
             routes: vec![],
             waf: Default::default(),
             assets: crate::config::Assets::default(),
+            pow_page: Default::default(),
         },
         certificates: Default::default(),
     }

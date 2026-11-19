@@ -29,12 +29,13 @@ const (
 )
 
 type pingoraConfigPayload struct {
-	SchemaVersion        int                 `json:"schema_version"`
-	ContractVersion      int                 `json:"contract_version"`
-	RequiredCapabilities []string            `json:"required_capabilities"`
-	Routes               []pingoraRoute      `json:"routes"`
-	WAF                  snapshotWAFDocument `json:"waf"`
-	Assets               pingoraAssets       `json:"assets"`
+	SchemaVersion        int                           `json:"schema_version"`
+	ContractVersion      int                           `json:"contract_version"`
+	RequiredCapabilities []string                      `json:"required_capabilities"`
+	Routes               []pingoraRoute                `json:"routes"`
+	WAF                  snapshotWAFDocument           `json:"waf"`
+	Assets               pingoraAssets                 `json:"assets"`
+	PoWPage              openrestyrender.PoWPageConfig `json:"pow_page,omitempty"`
 }
 
 type pingoraRoute struct {
@@ -132,6 +133,7 @@ func buildPingoraConfigVersion(ctx context.Context, bundle *configBundle, openRe
 		Assets: pingoraAssets{
 			Certificates: certificates,
 		},
+		PoWPage: bundle.OpenRestyConfig.PoWPage,
 	}
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
