@@ -308,7 +308,7 @@ impl Runtime {
             openresty_status: "healthy",
             openresty_message: "Pingora default runtime",
             engine: "pingora",
-            contract_version: 1,
+            contract_version: 2,
         });
         if let Some(registration_key) = registration_key {
             payload["registration_key"] = json!(registration_key);
@@ -339,7 +339,7 @@ impl Runtime {
                 openresty_status: "healthy",
                 openresty_message: "Pingora default runtime",
                 engine: "pingora",
-                contract_version: 1,
+                contract_version: 2,
             }))
             .send()
             .await?;
@@ -458,7 +458,7 @@ fn fallback_applied_config(meta: &ActiveConfigMeta) -> AppliedConfig {
         payload_checksum: meta.payload_checksum.clone(),
         config: crate::config::Config {
             schema_version: 1,
-            contract_version: 1,
+            contract_version: 2,
             required_capabilities: vec![],
             routes: vec![],
             assets: crate::config::Assets::default(),

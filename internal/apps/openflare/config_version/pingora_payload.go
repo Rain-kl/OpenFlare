@@ -14,16 +14,18 @@ import (
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"gorm.io/gorm"
 )
 
 const (
-	pingoraEngineName         = "pingora"
-	pingoraContractVersion    = 1
-	pingoraVersionPrefix      = "pingora-"
-	pingoraRequiredCapability = "tls-sni-h2-v1"
-	pingoraVersionParts       = 2
+	pingoraEngineName       = "pingora"
+	pingoraContractVersion  = 2
+	pingoraVersionPrefix    = "pingora-"
+	pingoraBaseCapability   = "tls-sni-h2-v1"
+	pingoraPolicyCapability = "policy-runtime-v1"
+	pingoraVersionParts     = 2
 )
 
 type pingoraConfigPayload struct {
@@ -35,17 +37,34 @@ type pingoraConfigPayload struct {
 }
 
 type pingoraRoute struct {
-	ID            uint     `json:"id"`
-	SiteName      string   `json:"site_name"`
-	Domains       []string `json:"domains"`
-	DomainCertIDs []uint   `json:"domain_cert_ids"`
-	OriginURL     string   `json:"origin_url"`
-	OriginHost    string   `json:"origin_host,omitempty"`
-	Upstreams     []string `json:"upstreams"`
-	Enabled       bool     `json:"enabled"`
-	EnableHTTPS   bool     `json:"enable_https"`
-	EnableHTTP2   bool     `json:"enable_http2"`
-	RedirectHTTP  bool     `json:"redirect_http"`
+	ID                uint                             `json:"id"`
+	SiteName          string                           `json:"site_name"`
+	Domains           []string                         `json:"domains"`
+	DomainCertIDs     []uint                           `json:"domain_cert_ids"`
+	OriginURL         string                           `json:"origin_url"`
+	OriginHost        string                           `json:"origin_host,omitempty"`
+	Upstreams         []string                         `json:"upstreams"`
+	Enabled           bool                             `json:"enabled"`
+	EnableHTTPS       bool                             `json:"enable_https"`
+	EnableHTTP2       bool                             `json:"enable_http2"`
+	RedirectHTTP      bool                             `json:"redirect_http"`
+	Limit             pingoraLimitConfig               `json:"limit,omitempty"`
+	PoWEnabled        bool                             `json:"pow_enabled,omitempty"`
+	PoW               *openrestyrender.PoWConfig       `json:"pow,omitempty"`
+	BasicAuthEnabled  bool                             `json:"basic_auth_enabled,omitempty"`
+	BasicAuthUsername string                           `json:"basic_auth_username,omitempty"`
+	BasicAuthPassword string                           `json:"basic_auth_password,omitempty"`
+	SiteAuthTTLHours  int                              `json:"site_auth_ttl_hours,omitempty"`
+	SiteAuthKey       string                           `json:"site_auth_key,omitempty"`
+	UpstreamType      string                           `json:"upstream_type,omitempty"`
+	Pages             *openrestyrender.PagesDeployment `json:"pages,omitempty"`
+}
+
+type pingoraLimitConfig struct {
+	ConnPerServer int    `json:"conn_per_server,omitempty"`
+	ConnPerIP     int    `json:"conn_per_ip,omitempty"`
+	Rate          string `json:"rate,omitempty"`
+	ReqPerIP      string `json:"req_per_ip,omitempty"`
 }
 
 type pingoraAssets struct {
@@ -76,17 +95,27 @@ func buildPingoraConfigVersion(ctx context.Context, bundle *configBundle, openRe
 	routes := make([]pingoraRoute, 0, len(bundle.SnapshotRoutes))
 	for _, route := range bundle.SnapshotRoutes {
 		routes = append(routes, pingoraRoute{
-			ID:            route.ID,
-			SiteName:      route.SiteName,
-			Domains:       route.Domains,
-			DomainCertIDs: route.DomainCertIDs,
-			OriginURL:     route.OriginURL,
-			OriginHost:    route.OriginHost,
-			Upstreams:     route.Upstreams,
-			Enabled:       route.Enabled,
-			EnableHTTPS:   route.EnableHTTPS,
-			EnableHTTP2:   route.EnableHTTP2,
-			RedirectHTTP:  route.RedirectHTTP,
+			ID:                route.ID,
+			SiteName:          route.SiteName,
+			Domains:           route.Domains,
+			DomainCertIDs:     route.DomainCertIDs,
+			OriginURL:         route.OriginURL,
+			OriginHost:        route.OriginHost,
+			Upstreams:         route.Upstreams,
+			Enabled:           route.Enabled,
+			EnableHTTPS:       route.EnableHTTPS,
+			EnableHTTP2:       route.EnableHTTP2,
+			RedirectHTTP:      route.RedirectHTTP,
+			Limit:             mergePingoraLimitConfig(route, bundle.OpenRestyConfig),
+			PoWEnabled:        route.PoWEnabled,
+			PoW:               route.PoWConfig,
+			BasicAuthEnabled:  route.BasicAuthEnabled,
+			BasicAuthUsername: route.BasicAuthUsername,
+			BasicAuthPassword: route.BasicAuthPassword,
+			SiteAuthTTLHours:  route.SiteAuthTTLHours,
+			SiteAuthKey:       route.SiteAuthKey,
+			UpstreamType:      route.UpstreamType,
+			Pages:             route.PagesDeployment,
 		})
 	}
 	certificates, err := buildPingoraCertificateAssets(ctx, routes)
@@ -96,7 +125,7 @@ func buildPingoraConfigVersion(ctx context.Context, bundle *configBundle, openRe
 	payload := pingoraConfigPayload{
 		SchemaVersion:        1,
 		ContractVersion:      pingoraContractVersion,
-		RequiredCapabilities: []string{pingoraRequiredCapability},
+		RequiredCapabilities: []string{pingoraBaseCapability, pingoraPolicyCapability},
 		Routes:               routes,
 		Assets: pingoraAssets{
 			Certificates: certificates,
@@ -152,6 +181,36 @@ func buildPingoraCertificateAssets(ctx context.Context, routes []pingoraRoute) (
 		assets[strconv.FormatUint(uint64(certID), 10)] = pingoraCertificateAsset{CertPEM: cert, KeyPEM: key}
 	}
 	return assets, nil
+}
+
+func mergePingoraLimitConfig(route snapshotRoute, cfg openRestyConfigSnapshot) pingoraLimitConfig {
+	return pingoraLimitConfig{
+		ConnPerServer: mergePingoraLimitInt(route.LimitConnPerServer, cfg.DefaultLimitConnPerServer),
+		ConnPerIP:     mergePingoraLimitInt(route.LimitConnPerIP, cfg.DefaultLimitConnPerIP),
+		Rate:          mergePingoraLimitRate(route.LimitRate, cfg.DefaultLimitRate),
+		ReqPerIP:      mergePingoraLimitRate(route.LimitReqPerIP, cfg.DefaultLimitReqPerIP),
+	}
+}
+
+func mergePingoraLimitInt(route, def int) int {
+	if route == -1 || route == 0 {
+		if def > 0 {
+			return def
+		}
+		return 0
+	}
+	return route
+}
+
+func mergePingoraLimitRate(route, def string) string {
+	value := strings.ToLower(strings.TrimSpace(route))
+	if value == "" || value == "-1" || value == "0" {
+		value = strings.ToLower(strings.TrimSpace(def))
+	}
+	if value == "0" {
+		return ""
+	}
+	return value
 }
 
 func pingoraCertificatePair(files []SupportFile, certID uint) (string, string, error) {

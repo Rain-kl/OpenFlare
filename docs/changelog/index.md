@@ -21,6 +21,7 @@ sidebar: false
 
 - Zone 详情的「域名」标签页新增「清理未关联域名」按钮，支持确认后一键批量删除当前 Zone 下所有未关联代理路由的域名及对应 Cloudflare 指向记录，已关联路由的域名不受影响。
 - 新增 Pingora 边缘节点第二阶段能力：主控可从同一业务发布生成 Pingora 独立配置契约，Rust 节点按证书资产实现 TLS/SNI 动态证书选择，TLS 监听启用 HTTP/2，并在路由与证书更新时通过原子快照热生效；`pingora_enabled` 默认关闭，开启后不影响现有 OpenResty 节点发布。
+- Pingora 契约升级到 v2，同一业务发布会携带 Basic Auth、站点认证、PoW、限流和 Pages 部署参数；Rust 节点开始执行 Basic Auth 校验、站点认证签名与登录流程、PoW 路径策略判定、请求速率限制和 Pages 安全路径解析，行为基准与 OpenResty 保持一致。
 
 ### ⚡️ 优化与改进
 

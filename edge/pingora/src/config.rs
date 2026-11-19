@@ -7,8 +7,9 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::Path;
 
-const CONTRACT_VERSION: i64 = 1;
-const REQUIRED_CAPABILITY: &str = "tls-sni-h2-v1";
+const CONTRACT_VERSION: i64 = 2;
+const BASE_CAPABILITY: &str = "tls-sni-h2-v1";
+const POLICY_CAPABILITY: &str = "policy-runtime-v1";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
@@ -19,7 +20,7 @@ pub struct Config {
     pub assets: Assets,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Route {
     pub id: u64,
     pub site_name: String,
@@ -33,6 +34,133 @@ pub struct Route {
     pub enable_https: bool,
     pub enable_http2: bool,
     pub redirect_http: bool,
+    #[serde(default)]
+    pub limit: LimitConfig,
+    #[serde(default)]
+    pub pow_enabled: bool,
+    #[serde(default)]
+    pub pow: Option<PoWConfig>,
+    #[serde(default)]
+    pub basic_auth_enabled: bool,
+    #[serde(default)]
+    pub basic_auth_username: String,
+    #[serde(default)]
+    pub basic_auth_password: String,
+    #[serde(default)]
+    pub site_auth_ttl_hours: i64,
+    #[serde(default)]
+    pub site_auth_key: String,
+    #[serde(default)]
+    pub upstream_type: String,
+    #[serde(default)]
+    pub pages: Option<PagesDeployment>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct LimitConfig {
+    #[serde(default)]
+    pub conn_per_server: i64,
+    #[serde(default)]
+    pub conn_per_ip: i64,
+    #[serde(default)]
+    pub rate: String,
+    #[serde(default)]
+    pub req_per_ip: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct PoWConfig {
+    #[serde(default = "default_pow_difficulty")]
+    pub difficulty: u8,
+    #[serde(default = "default_pow_algorithm")]
+    pub algorithm: String,
+    #[serde(default = "default_pow_session_ttl")]
+    pub session_ttl: u64,
+    #[serde(default = "default_pow_challenge_ttl")]
+    pub challenge_ttl: u64,
+    #[serde(default)]
+    pub whitelist: PoWListConfig,
+    #[serde(default)]
+    pub blacklist: PoWListConfig,
+    #[serde(default)]
+    pub path_rules: Option<PoWPathRules>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct PoWListConfig {
+    #[serde(default)]
+    pub ips: Vec<String>,
+    #[serde(default)]
+    pub ip_cidrs: Vec<String>,
+    #[serde(default)]
+    pub paths: Vec<String>,
+    #[serde(default)]
+    pub path_regexes: Vec<String>,
+    #[serde(default)]
+    pub user_agents: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct PoWPathRules {
+    #[serde(default)]
+    pub mode: String,
+    #[serde(default)]
+    pub whitelist: Vec<PoWPathMatch>,
+    #[serde(default)]
+    pub blacklist: Vec<PoWPathMatch>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct PoWPathMatch {
+    #[serde(default)]
+    pub match_type: String,
+    #[serde(rename = "type", default)]
+    pub match_type_alias: String,
+    #[serde(default)]
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct PagesDeployment {
+    #[serde(default)]
+    pub project_id: u64,
+    #[serde(default)]
+    pub project_slug: String,
+    #[serde(default)]
+    pub deployment_id: u64,
+    #[serde(default)]
+    pub deployment_number: i64,
+    #[serde(default)]
+    pub checksum: String,
+    #[serde(default)]
+    pub entry_file: String,
+    #[serde(default)]
+    pub spa_fallback_enabled: bool,
+    #[serde(default)]
+    pub spa_fallback_path: String,
+    #[serde(default)]
+    pub api_proxy_enabled: bool,
+    #[serde(default)]
+    pub api_proxy_path: String,
+    #[serde(default)]
+    pub api_proxy_pass: String,
+    #[serde(default)]
+    pub api_proxy_rewrite: String,
+    #[serde(default)]
+    pub local_root: String,
+}
+
+fn default_pow_difficulty() -> u8 {
+    4
+}
+fn default_pow_algorithm() -> String {
+    "fast".to_owned()
+}
+fn default_pow_session_ttl() -> u64 {
+    600
+}
+fn default_pow_challenge_ttl() -> u64 {
+    300
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -125,9 +253,16 @@ fn validate(config: &Config) -> Result<()> {
     if !config
         .required_capabilities
         .iter()
-        .any(|capability| capability == REQUIRED_CAPABILITY)
+        .any(|capability| capability == BASE_CAPABILITY)
     {
-        bail!("configuration does not declare required capability {REQUIRED_CAPABILITY}");
+        bail!("configuration does not declare required capability {BASE_CAPABILITY}");
+    }
+    if !config
+        .required_capabilities
+        .iter()
+        .any(|capability| capability == POLICY_CAPABILITY)
+    {
+        bail!("configuration does not declare required capability {POLICY_CAPABILITY}");
     }
     if config.routes.is_empty() {
         bail!("configuration has no routes");
@@ -245,6 +380,10 @@ impl Route {
             .and_then(|index| self.domain_cert_ids.get(index).copied())
             .filter(|id| *id != 0)
     }
+
+    pub fn is_pages(&self) -> bool {
+        self.upstream_type == "pages" && self.pages.is_some()
+    }
 }
 
 pub fn persist_snapshot(state_dir: &Path, config: &AppliedConfig) -> Result<()> {
@@ -313,8 +452,8 @@ mod tests {
     fn checks_payload_digest_before_decoding() {
         let payload = r#"{
             "schema_version":1,
-            "contract_version":1,
-            "required_capabilities":["tls-sni-h2-v1"],
+            "contract_version":2,
+            "required_capabilities":["tls-sni-h2-v1","policy-runtime-v1"],
             "routes":[{"id":1,"site_name":"example","domains":["example.com"],"domain_cert_ids":[0],"origin_url":"http://127.0.0.1:9080","upstreams":[],"enabled":true,"enable_https":true,"enable_http2":true,"redirect_http":true}],
             "assets":{"certificates":{}}
         }"#;
@@ -338,6 +477,7 @@ mod tests {
                 enable_https: true,
                 enable_http2: true,
                 redirect_http: true,
+                ..Route::default()
             },
             Route {
                 id: 2,
@@ -351,6 +491,7 @@ mod tests {
                 enable_https: true,
                 enable_http2: true,
                 redirect_http: true,
+                ..Route::default()
             },
         ];
         let exact_first = [routes[1].clone(), routes[0].clone()];

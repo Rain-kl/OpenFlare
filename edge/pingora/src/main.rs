@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 mod config;
 mod control;
+mod policy;
 mod proxy;
 
 #[derive(Debug, Parser)]
