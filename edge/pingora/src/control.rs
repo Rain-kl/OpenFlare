@@ -154,12 +154,12 @@ impl Runtime {
         if let Some(restored) = config::restore_snapshot(&self.state_dir)? {
             state.set_config(restored)?;
         }
-        let data_plane = spawn_data_plane(
+        start_and_supervise_data_plane(
             self.state_dir.clone(),
             self.http_listen.clone(),
             self.tls_listen.clone(),
-        )?;
-        monitor_data_plane(self.state_dir.clone(), data_plane.id()).await?;
+        )
+        .await?;
 
         let mut interval = Duration::from_millis(3000);
         loop {
@@ -496,7 +496,36 @@ fn spawn_data_plane(
 }
 
 #[cfg(not(target_os = "windows"))]
-async fn monitor_data_plane(state_dir: PathBuf, launcher_pid: u32) -> Result<()> {
+#[cfg(not(target_os = "windows"))]
+fn data_plane_pid(state_dir: &Path) -> Option<u32> {
+    std::fs::read_to_string(state_dir.join("openflare-edge.pid"))
+        .ok()
+        .and_then(|content| content.trim().parse::<u32>().ok())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn process_running(pid: u32) -> bool {
+    pid != 0 && unsafe { libc::kill(pid as libc::pid_t, 0) == 0 }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn signal_process(pid: u32, signal: i32) -> bool {
+    pid != 0 && unsafe { libc::kill(pid as libc::pid_t, signal) == 0 }
+}
+
+#[cfg(not(target_os = "windows"))]
+async fn wait_for_process_exit(pid: u32) {
+    while process_running(pid) {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+async fn monitor_data_plane(
+    state_dir: PathBuf,
+    launcher_pid: u32,
+    previous_pid: Option<u32>,
+) -> Result<u32> {
     let pid_path = state_dir.join("openflare-edge.pid");
     let timeout = tokio::time::Instant::now() + Duration::from_secs(60);
     let mut ready_pid: Option<u32> = None;
@@ -509,8 +538,11 @@ async fn monitor_data_plane(state_dir: PathBuf, launcher_pid: u32) -> Result<()>
                 ready_pid = content.trim().parse::<u32>().ok();
             }
         }
-        if ready_pid.is_some() {
-            return Ok(());
+        if let Some(pid) = ready_pid {
+            if previous_pid.map(|old| pid != old).unwrap_or(true) {
+                return Ok(pid);
+            }
+            ready_pid = None;
         }
         let launcher_running =
             launcher_pid != 0 && unsafe { libc::kill(launcher_pid as libc::pid_t, 0) == 0 };
@@ -519,6 +551,104 @@ async fn monitor_data_plane(state_dir: PathBuf, launcher_pid: u32) -> Result<()>
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
+}
+
+#[cfg(not(target_os = "windows"))]
+async fn start_and_supervise_data_plane(
+    state_dir: PathBuf,
+    http_listen: String,
+    tls_listen: Option<String>,
+) -> Result<()> {
+    let child = spawn_data_plane(state_dir.clone(), http_listen.clone(), tls_listen.clone())?;
+    let initial_pid =
+        monitor_data_plane(state_dir.clone(), child.id(), data_plane_pid(&state_dir)).await?;
+    let supervisor_state_dir = state_dir.clone();
+    tokio::spawn(async move {
+        let mut quit_signal = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::quit())
+            .expect("failed to listen for SIGQUIT");
+        let mut terminate_signal =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                .expect("failed to listen for SIGTERM");
+        let mut interrupt_signal =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())
+                .expect("failed to listen for SIGINT");
+        let mut current_pid = initial_pid;
+        let shutting_down = false;
+        loop {
+            tokio::select! {
+                _ = quit_signal.recv() => {
+                    if shutting_down {
+                        continue;
+                    }
+                    if let Ok(child) = spawn_data_plane(
+                        supervisor_state_dir.clone(),
+                        http_listen.clone(),
+                        tls_listen.clone(),
+                    ) {
+                        match monitor_data_plane(
+                            supervisor_state_dir.clone(),
+                            child.id(),
+                            Some(current_pid),
+                        )
+                        .await
+                        {
+                            Ok(new_pid) => {
+                                if signal_process(current_pid, libc::SIGQUIT) {
+                                    wait_for_process_exit(current_pid).await;
+                                }
+                                current_pid = new_pid;
+                            }
+                            Err(error) => {
+                                tracing::error!(error = %error, "failed to start replacement data plane");
+                            }
+                        }
+                    }
+                }
+                _ = terminate_signal.recv() => {
+                    signal_process(current_pid, libc::SIGTERM);
+                    wait_for_process_exit(current_pid).await;
+                    std::process::exit(0);
+                }
+                _ = interrupt_signal.recv() => {
+                    signal_process(current_pid, libc::SIGINT);
+                    wait_for_process_exit(current_pid).await;
+                    std::process::exit(0);
+                }
+                _ = tokio::time::sleep(Duration::from_secs(1)) => {
+                    if shutting_down || process_running(current_pid) {
+                        continue;
+                    }
+                    tracing::warn!(pid = current_pid, "data plane exited; restarting");
+                    if let Ok(child) = spawn_data_plane(
+                        supervisor_state_dir.clone(),
+                        http_listen.clone(),
+                        tls_listen.clone(),
+                    ) {
+                        match monitor_data_plane(
+                            supervisor_state_dir.clone(),
+                            child.id(),
+                            Some(current_pid),
+                        )
+                        .await
+                        {
+                            Ok(new_pid) => current_pid = new_pid,
+                            Err(error) => tracing::error!(error = %error, "failed to restart data plane"),
+                        }
+                    }
+                }
+            }
+        }
+    });
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+async fn start_and_supervise_data_plane(
+    _state_dir: PathBuf,
+    _http_listen: String,
+    _tls_listen: Option<String>,
+) -> Result<()> {
+    anyhow::bail!("OpenFlare Edge data plane requires Unix signal and FD transfer support")
 }
 
 pub fn load_restored_state(
