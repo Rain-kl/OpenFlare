@@ -29,6 +29,7 @@ sidebar: false
 
 - 重组 Go 后端与边缘组件工程包结构：将控制面入口统一收敛至 `cmd/server/`，边缘运行时收敛至 `internal/edge/`、跨端共享协议与渲染包收敛至 `internal/openflare/`、ClickHouse 与主库分析存取统一归入 `internal/repository/logstore/`，并扁平化整理上传域、OpenFlare 路由注册及对应设计、部署与开发命令文档（源码启动命令调整为 `go run ./cmd/server ...`）。
 - Pingora 节点兼容主控下发的 PoW 空名单 `null` 值，修复启用 PoW 的业务配置无法解码导致节点无法进入反向代理服务的问题。
+- Pingora 节点下载 Pages ZIP 包时按实际文件数量校验元数据，忽略目录条目，修复包含目录条目的部署包重复下载和无法激活的问题。
 
 ## [v3.6.1] - 2026-11-18
 

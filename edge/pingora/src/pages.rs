@@ -346,12 +346,20 @@ fn extract_package(package: &Path, destination: &Path, latest: &PagesLatest) -> 
 fn extract_zip(package: &Path, destination: &Path, latest: &PagesLatest) -> Result<()> {
     let file = File::open(package)?;
     let mut archive = ZipArchive::new(file)?;
-    if archive.len() as i64 != latest.file_count {
-        bail!("Pages archive file count does not match metadata");
-    }
-    let mut names = Vec::with_capacity(archive.len());
+    let mut names = Vec::new();
     for index in 0..archive.len() {
-        names.push(archive.by_index(index)?.name().to_owned());
+        let entry = archive.by_index(index)?;
+        if !entry.is_dir() {
+            names.push(entry.name().to_owned());
+        }
+    }
+    let metadata_file_count = latest.file_count.unsigned_abs() as usize;
+    if names.len() != metadata_file_count {
+        bail!(
+            "Pages archive file count {} does not match metadata {}",
+            names.len(),
+            metadata_file_count
+        );
     }
     let common_root = common_root(&names)?;
     let mut measured = MeasuredFiles::default();
@@ -629,5 +637,34 @@ mod tests {
         };
         assert!(validate_latest(7, &latest).is_ok());
         assert!(validate_latest(8, &latest).is_err());
+    }
+
+    #[test]
+    fn extracts_zip_directories_without_counting_them_as_files() {
+        let root = tempfile::tempdir().unwrap();
+        let package = root.path().join("site.zip");
+        let destination = root.path().join("site");
+        fs::create_dir_all(&destination).unwrap();
+
+        let mut archive = zip::ZipWriter::new(File::create(&package).unwrap());
+        archive
+            .add_directory::<_, ()>("site/assets/", Default::default())
+            .unwrap();
+        archive
+            .start_file::<_, ()>("site/index.html", Default::default())
+            .unwrap();
+        archive.write_all(b"site").unwrap();
+        archive.finish().unwrap();
+
+        let latest = PagesLatest {
+            project_id: 7,
+            deployment_id: 1,
+            hash: "a".repeat(64),
+            package_size: 0,
+            file_count: 1,
+            total_size: 4,
+        };
+        extract_zip(&package, &destination, &latest).unwrap();
+        assert_eq!(fs::read(destination.join("index.html")).unwrap(), b"site");
     }
 }
