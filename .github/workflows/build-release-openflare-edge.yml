@@ -61,6 +61,12 @@ jobs:
           }
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
+      - name: Validate deployment scripts
+        run: |
+          bash -n scripts/install-openflare-edge.sh scripts/uninstall-openflare-edge.sh
+          grep -F 'ExecReload=/bin/kill -s QUIT \$MAINPID' scripts/install-openflare-edge.sh
+          ! grep -F 'ExecReload=/bin/kill -s QUIT $MAINPID' scripts/install-openflare-edge.sh
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
