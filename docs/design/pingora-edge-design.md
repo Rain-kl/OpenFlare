@@ -12,6 +12,8 @@
 
 Rust 节点主动连接主控。主控发布期望的配置版本，节点自行拉取、应用、回滚并上报结果。进程启停、崩溃恢复和监听套接字交接都在节点或部署环境本地完成。节点的业务监听使用 HTTP/1.1 和 HTTP/2，HTTP/3 不作为发布条件。缓存使用固定版本的 Pingora 缓存接口，随上游演进。 [Pingora 0.9.1 能力说明](https://github.com/cloudflare/pingora/tree/0.9.1#feature-highlights)
 
+首阶段以现有 Go Agent 与 OpenResty 的对外行为为基线。同一份业务配置在两个引擎上应产生一致的路由选择、回源行为、安全决策和客户端响应。线程数、连接池等性能参数沿用 Pingora 默认值，本阶段后置性能调优。影响客户端行为的产品默认值仍按功能契约实现，例如请求体超过默认限制时的响应。
+
 ```mermaid
 flowchart LR
     S["OpenFlare Server"]
@@ -68,15 +70,14 @@ Pingora 使用独立的版本化配置载荷。主控从同一份业务发布快
 
 ## 运行、恢复与二进制升级
 
-路由、证书与支持热更新的策略走进程内切换。监听地址、线程配置和二进制变化通过本地部署流程更换进程。单次替换保持一份发布包，计划内升级期间可短暂运行新旧两个进程。启用 Pingora 平滑升级时，由旧进程交接可复用的监听套接字，新进程完成快照准备后接受新连接，旧进程在排空期限内处理已有连接。升级包需预先验证，新进程就绪和回退条件由本地流程判断。 [Pingora 平滑升级](https://github.com/cloudflare/pingora/blob/0.9.1/docs/user_guide/graceful.md) · [Pingora 就绪示例](https://github.com/cloudflare/pingora/blob/0.9.1/pingora/examples/graceful_upgrade.rs)
+路由、证书与支持热更新的策略走进程内切换。监听地址或二进制变化通过本地部署流程更换进程。单次替换保持一份发布包，计划内升级期间可短暂运行新旧两个进程。启用 Pingora 平滑升级时，由旧进程交接可复用的监听套接字，新进程完成快照准备后接受新连接，旧进程在排空期限内处理已有连接。升级包需预先验证，新进程就绪和回退条件由本地流程判断。 [Pingora 平滑升级](https://github.com/cloudflare/pingora/blob/0.9.1/docs/user_guide/graceful.md) · [Pingora 就绪示例](https://github.com/cloudflare/pingora/blob/0.9.1/pingora/examples/graceful_upgrade.rs)
 
 原生部署可用 systemd 监督 Rust 进程，容器使用容器运行环境的重启策略。进程退出后以本地最后有效快照恢复，不等待主控。单进程致命故障会断开该实例的连接。要求节点故障期间继续接流量时，在入口部署多个独立实例并按健康状态摘除故障实例。
 
-## 请求处理与资源预算
+## 请求处理与功能边界
 
-在 Pingora 的请求处理阶段依次完成来访身份解析、路由匹配、WAF 与访问认证、上游选择及响应处理。每个请求复用归一化结果，规则、证书和 IP 匹配结构跨线程共享。请求完成后直接生成访问明细与策略命中事件，后台按现有观测模型汇报。 [Pingora 请求处理阶段](https://github.com/cloudflare/pingora/blob/0.9.1/docs/user_guide/phase.md) · [观测数据传输模型](./observability-transport-model.md)
+在 Pingora 的请求处理阶段执行路由、安全策略和响应处理。过滤器的执行顺序以 OpenResty 的现有结果为准，特别是同一路由同时启用 WAF、PoW、站点认证和 Pages API 代理时。请求完成后生成结构化访问明细，按现有观测模型上报。 [Pingora 请求处理阶段](https://github.com/cloudflare/pingora/blob/0.9.1/docs/user_guide/phase.md) · [观测数据传输模型](./observability-transport-model.md)
 
-- 代理请求和响应默认流式传输。要求在回源前完成请求体检查时，为该路由设定明确的检查上限和超限行为，并独立统计缓冲开销。
-- 为上游连接池、并发请求、限流条目、PoW 会话、规则编译、日志队列和本地缓冲设定节点级上限。配置构建预留新旧快照并存所需的容量，后台任务使用有界并发。
-- 访问明细批量写入有界本地缓冲后上报。队列满或缓冲不可写时按既定策略记录丢弃量，代理请求不等待上报链路。
+- 代理内部沿用框架默认 I/O 设置。流式上传、SSE、请求体检查和回源重试等涉及客户端或源站的行为，以现有功能结果为准。需要在回源前拒绝的请求应先完成必要检查。
+- 节点自行实现的配置下载、规则检查和遥测缓冲使用固定默认上限。这些边界用于确保配置失败或主控不可达时仍能继续代理，首版不提供性能调优入口。
 - 缓存策略由主控配置。Rust 节点通过独立适配层使用上游缓存接口，配置语义、容量和行为以该节点版本支持的 Pingora 能力为准。已启用但不支持的必需缓存策略在发布时拦截，避免生成行为不同的配置。
