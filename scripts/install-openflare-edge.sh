@@ -98,7 +98,7 @@ else
   RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/tags/${VERSION}")"
 fi
 VERSION="$(printf '%s' "$RELEASE_JSON" | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
-[[ -n "$VERSION" ]] || die "failed to resolve release version"
+[[ "$VERSION" =~ ^edge-v[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]] || die "invalid Edge release version"
 ASSET="openflare-edge_${VERSION}_linux_${ARCH}.tar.gz"
 DOWNLOAD_URL="$(printf '%s' "$RELEASE_JSON" | grep '"browser_download_url"' | grep "/${ASSET}\"" | sed -E 's/.*"browser_download_url"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' | head -n1)"
 [[ -n "$DOWNLOAD_URL" ]] || die "release asset not found: $ASSET"
@@ -130,7 +130,8 @@ ensure_runtime_user() {
 if [[ "$CREATE_SERVICE" == true ]]; then ensure_runtime_user; fi
 
 if [[ -n "$TOKEN_FILE" ]]; then
-  INSTALL_TOKEN_FILE="$TOKEN_FILE"
+  INSTALL_TOKEN_FILE="${STATE_DIR}/bootstrap-token"
+  install -m 0600 "$TOKEN_FILE" "$INSTALL_TOKEN_FILE"
 else
   INSTALL_TOKEN_FILE="${STATE_DIR}/bootstrap-token"
   printf '%s' "$TOKEN" > "$INSTALL_TOKEN_FILE"
@@ -146,17 +147,18 @@ if [[ -e "$CURRENT" || -L "$CURRENT" ]]; then
   [[ -n "$PREVIOUS_VERSION" ]] || PREVIOUS_VERSION="unknown"
   log "preserving rollback binary ${PREVIOUS_VERSION}"
 fi
-rm -rf "$RELEASE_DIR"
-mkdir -p "$RELEASE_DIR"
-install -m 0755 "$PACKAGE_DIR/openflare-edge" "$RELEASE_DIR/openflare-edge"
-ln -sfn "releases/${VERSION}/openflare-edge" "${INSTALL_DIR}/.current.tmp"
-mv -Tf "${INSTALL_DIR}/.current.tmp" "$CURRENT"
+if [[ -e "$RELEASE_DIR/openflare-edge" ]]; then
+  cmp -s "$PACKAGE_DIR/openflare-edge" "$RELEASE_DIR/openflare-edge" ||
+    die "a different binary is already installed for ${VERSION}"
+else
+  mkdir -p "$RELEASE_DIR"
+  install -m 0755 "$PACKAGE_DIR/openflare-edge" "$RELEASE_DIR/openflare-edge"
+fi
 
-mapfile -t releases < <(find "$INSTALL_DIR/releases" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -rV)
-for ((i=KEEP_RELEASES; i<${#releases[@]}; i++)); do
-  rm -rf "${INSTALL_DIR}/releases/${releases[i]}"
-done
-
+switch_release() {
+  ln -sfn "releases/$1/openflare-edge" "${INSTALL_DIR}/.current.tmp"
+  mv -Tf "${INSTALL_DIR}/.current.tmp" "$CURRENT"
+}
 for value in "$SERVER_URL" "$INSTALL_TOKEN_FILE" "$STATE_DIR" "$HTTP_LISTEN" "$TLS_LISTEN"; do
   [[ "$value" != *[[:space:]\'\"*?\[\]\{\}\$\`\;\&\|\<\>\#]* ]] || die "argument contains unsupported shell or systemd characters: $value"
 done
@@ -164,9 +166,13 @@ RUN_ARGS=(run --server-url "$SERVER_URL" --token-type "$TOKEN_TYPE" --token-file
 if [[ "$TLS_LISTEN" != "none" ]]; then RUN_ARGS+=(--tls-listen "$TLS_LISTEN"); fi
 
 if [[ "$CREATE_SERVICE" == true ]]; then
+  SERVICE_PATH="/etc/systemd/system/openflare-edge.service"
+  if [[ -f "$SERVICE_PATH" ]]; then
+    cp -- "$SERVICE_PATH" "$TMP_DIR/previous.service"
+  fi
   log "writing openflare-edge.service"
   exec_args="${RUN_ARGS[*]}"
-  cat > /etc/systemd/system/openflare-edge.service <<SERVICE_EOF
+  cat > "$SERVICE_PATH" <<SERVICE_EOF
 [Unit]
 Description=OpenFlare Edge (Pingora)
 After=network-online.target
@@ -175,7 +181,8 @@ StartLimitIntervalSec=60
 StartLimitBurst=5
 
 [Service]
-Type=simple
+Type=notify
+NotifyAccess=main
 User=openflare-edge
 Group=openflare-edge
 AmbientCapabilities=CAP_NET_BIND_SERVICE
@@ -193,7 +200,6 @@ MemoryDenyWriteExecute=true
 RestrictNamespaces=true
 SystemCallFilter=@system-service
 ReadWritePaths=$STATE_DIR
-ExecReload=/bin/kill -s QUIT \$MAINPID
 ExecStart=$INSTALL_DIR/current $exec_args
 WorkingDirectory=$STATE_DIR
 Restart=always
@@ -205,39 +211,57 @@ TimeoutStopSec=300
 [Install]
 WantedBy=multi-user.target
 SERVICE_EOF
-  systemctl daemon-reload
+  was_active=false
   if systemctl is-active --quiet openflare-edge; then
-    log "upgrading openflare-edge"
-    OLD_PID="$(systemctl show -p MainPID --value openflare-edge)"
-    systemctl reload openflare-edge
-    sleep 2
-    if systemctl is-active --quiet openflare-edge; then
-      log "service is active"
+    was_active=true
+  fi
+  switch_release "$VERSION"
+  systemctl daemon-reload
+  if [[ "$was_active" == true ]]; then
+    service_action=restart
+  else
+    service_action=start
+    systemctl enable openflare-edge
+  fi
+  if systemctl "$service_action" openflare-edge && systemctl is-active --quiet openflare-edge; then
+    new_pid="$(systemctl show -p MainPID --value openflare-edge)"
+    if [[ "$(readlink "/proc/$new_pid/exe" 2>/dev/null || true)" == "$RELEASE_DIR/openflare-edge" ]] &&
+       grep -Fq "\"binary_version\":\"${VERSION#edge-v}\"" "$STATE_DIR/ready.json"; then
+      log "new release is ready"
     else
-      log "new binary failed to start"
-      journalctl -u openflare-edge -n 50 --no-pager || true
-      if [[ "$PREVIOUS_VERSION" != "unknown" && -x "${INSTALL_DIR}/releases/${PREVIOUS_VERSION}/openflare-edge" ]]; then
-        log "rolling back to ${PREVIOUS_VERSION}"
-        ln -sfn "releases/${PREVIOUS_VERSION}/openflare-edge" "${INSTALL_DIR}/.current.tmp"
-        mv -Tf "${INSTALL_DIR}/.current.tmp" "$CURRENT"
-        systemctl restart openflare-edge
-        sleep 2
-        systemctl is-active --quiet openflare-edge || die "rollback service also failed; inspect journalctl -u openflare-edge"
-        die "upgrade failed and service was rolled back to ${PREVIOUS_VERSION}"
-      fi
-      die "service failed to start and no previous binary is available; inspect journalctl -u openflare-edge"
+      service_action=failed
     fi
   else
-    systemctl enable --now openflare-edge
-    sleep 2
-    systemctl is-active --quiet openflare-edge || die "service failed to start; inspect journalctl -u openflare-edge"
+    service_action=failed
+  fi
+  if [[ "$service_action" == failed ]]; then
+    journalctl -u openflare-edge -n 50 --no-pager || true
+    if [[ "$PREVIOUS_VERSION" == "unknown" || ! -x "${INSTALL_DIR}/releases/${PREVIOUS_VERSION}/openflare-edge" ]]; then
+      die "service failed to start and no previous binary is available"
+    fi
+    switch_release "$PREVIOUS_VERSION"
+    if [[ -f "$TMP_DIR/previous.service" ]]; then
+      install -m 0644 "$TMP_DIR/previous.service" "$SERVICE_PATH"
+    fi
+    systemctl daemon-reload
+    systemctl reset-failed openflare-edge
+    systemctl restart openflare-edge || die "rollback service also failed; inspect journalctl -u openflare-edge"
+    die "upgrade failed and service was rolled back to ${PREVIOUS_VERSION}"
   fi
 else
+  switch_release "$VERSION"
   log "manual start command:"
   printf '  %s/current' "$INSTALL_DIR"
   printf ' %q' "${RUN_ARGS[@]}"
   printf '\n'
 fi
+
+mapfile -t releases < <(find "$INSTALL_DIR/releases" -mindepth 1 -maxdepth 1 -type d -name 'edge-v*' -printf '%f\n' | sort -rV)
+for ((i=KEEP_RELEASES; i<${#releases[@]}; i++)); do
+  if [[ "${releases[i]}" != "$VERSION" && "${releases[i]}" != "$PREVIOUS_VERSION" ]]; then
+    rm -rf -- "$INSTALL_DIR/releases/${releases[i]}"
+  fi
+done
 
 log "installed ${VERSION} to ${INSTALL_DIR}/releases/${VERSION}"
 if [[ "$PREVIOUS_VERSION" != "unknown" ]]; then

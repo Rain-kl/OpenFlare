@@ -64,8 +64,7 @@ jobs:
       - name: Validate deployment scripts
         run: |
           bash -n scripts/install-openflare-edge.sh scripts/uninstall-openflare-edge.sh
-          grep -F 'ExecReload=/bin/kill -s QUIT \$MAINPID' scripts/install-openflare-edge.sh
-          ! grep -F 'ExecReload=/bin/kill -s QUIT $MAINPID' scripts/install-openflare-edge.sh
+          grep -Fx 'Type=notify' scripts/install-openflare-edge.sh
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -101,9 +100,15 @@ jobs:
           (cd "${staging_dir}" && sha256sum openflare-edge > SHA256SUMS)
           tar -C dist -czf "dist/${package_name}.tar.gz" "${package_name}"
 
+      - name: Test Edge runtime
+        env:
+          TARGET: ${{ matrix.target }}
+        run: python3 edge/pingora/tests/runtime_smoke.py "edge/pingora/target/${TARGET}/release/openflare-edge"
+
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
+          make_latest: false
           name: OpenFlare Edge ${{ steps.version.outputs.version }}
           files: dist/openflare-edge_${{ steps.version.outputs.version }}_linux_${{ matrix.arch }}.tar.gz

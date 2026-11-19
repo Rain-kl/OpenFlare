@@ -85,6 +85,7 @@ jobs:
 
           echo "=== Phase 2: Checking and cleaning dangling GitHub releases ==="
           for REL_TAG in "${GH_RELEASES[@]}"; do
+            [[ "$REL_TAG" != edge-v* ]] || continue
             if ! contains_element "$REL_TAG" "${GIT_TAGS[@]}"; then
               echo "Delete GitHub release not bound to any Git tag: $REL_TAG"
               gh release delete "$REL_TAG" --yes || true

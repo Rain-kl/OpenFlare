@@ -135,6 +135,19 @@ func CreateOpenFlareApplyLogAndUpdateNode(ctx context.Context, log *model.OpenFl
 		if err := tx.Create(log).Error; err != nil {
 			return err
 		}
+		if log.Engine == enginePingora {
+			var release model.ConfigVersion
+			err := tx.Where("engine = ? AND is_active = ? AND version = ? AND release_sequence = ? AND payload_checksum = ?",
+				log.Engine, true, version, log.ReleaseSequence, log.PayloadChecksum).
+				First(&release).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// Preserve audit history without changing the node state for stale targets.
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+		}
 		return updateOpenFlareNodeFromApplyResultTx(tx, log.NodeID, applyResult, version, message, now)
 	})
 }

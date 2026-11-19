@@ -1,257 +1,24 @@
-use crate::policy::PoWPageConfig;
+use crate::protocol::config::{Config, PoWPageConfig, Route, WafIPGroup};
 use anyhow::{bail, Context, Result};
 use pingora::tls::pkey::{PKey, Private};
 use pingora::tls::x509::X509;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::Path;
+use std::sync::{Arc, RwLock};
 
-const CONTRACT_VERSION: i64 = 2;
+pub const CONTRACT_VERSION: i64 = 3;
+const PROXY_CAPABILITY: &str = "shared-snapshot-v1";
 const BASE_CAPABILITY: &str = "tls-sni-h2-v1";
 const POLICY_CAPABILITY: &str = "policy-runtime-v1";
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Config {
-    pub schema_version: i64,
-    pub contract_version: i64,
-    pub required_capabilities: Vec<String>,
-    pub routes: Vec<Route>,
-    #[serde(default)]
-    pub waf: WafDocument,
-    pub assets: Assets,
-    #[serde(default)]
-    pub pow_page: PoWPageConfig,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct WafDocument {
-    #[serde(default)]
-    pub rule_groups: Vec<WafRuleGroup>,
-    #[serde(default)]
-    pub ip_groups: Vec<WafIPGroup>,
-    #[serde(default)]
-    pub bindings: Vec<WafBinding>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct WafRuleGroup {
-    pub id: u64,
-    #[serde(default)]
-    pub name: String,
-    pub enabled: bool,
-    pub is_global: bool,
-    pub graph: WafGraph,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct WafGraph {
-    #[serde(default)]
-    pub entry: String,
-    #[serde(default)]
-    pub nodes: HashMap<String, WafNode>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct WafNode {
-    #[serde(rename = "type", default)]
-    pub node_type: String,
-    #[serde(default)]
-    pub config: Value,
-    #[serde(default)]
-    pub next: HashMap<String, String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct WafIPGroup {
-    pub id: u64,
-    #[serde(default)]
-    pub name: String,
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default)]
-    pub ip_list: Vec<String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct WafBinding {
-    #[serde(default)]
-    pub route_id: u64,
-    #[serde(default)]
-    pub site_name: String,
-    #[serde(default)]
-    pub rule_group_ids: Vec<u64>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct Route {
-    pub id: u64,
-    pub site_name: String,
-    pub domains: Vec<String>,
-    pub domain_cert_ids: Vec<u64>,
-    pub origin_url: String,
-    #[serde(default)]
-    pub origin_host: String,
-    pub upstreams: Vec<String>,
-    pub enabled: bool,
-    pub enable_https: bool,
-    pub enable_http2: bool,
-    pub redirect_http: bool,
-    #[serde(default)]
-    pub limit: LimitConfig,
-    #[serde(default)]
-    pub pow_enabled: bool,
-    #[serde(default)]
-    pub pow: Option<PoWConfig>,
-    #[serde(default)]
-    pub basic_auth_enabled: bool,
-    #[serde(default)]
-    pub basic_auth_username: String,
-    #[serde(default)]
-    pub basic_auth_password: String,
-    #[serde(default)]
-    pub site_auth_ttl_hours: i64,
-    #[serde(default)]
-    pub site_auth_key: String,
-    #[serde(default)]
-    pub upstream_type: String,
-    #[serde(default)]
-    pub pages: Option<PagesDeployment>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct LimitConfig {
-    #[serde(default)]
-    pub conn_per_server: i64,
-    #[serde(default)]
-    pub conn_per_ip: i64,
-    #[serde(default)]
-    pub rate: String,
-    #[serde(default)]
-    pub req_per_ip: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct PoWConfig {
-    #[serde(default = "default_pow_difficulty")]
-    pub difficulty: u8,
-    #[serde(default = "default_pow_algorithm")]
-    pub algorithm: String,
-    #[serde(default = "default_pow_session_ttl")]
-    pub session_ttl: u64,
-    #[serde(default = "default_pow_challenge_ttl")]
-    pub challenge_ttl: u64,
-    #[serde(default)]
-    pub whitelist: PoWListConfig,
-    #[serde(default)]
-    pub blacklist: PoWListConfig,
-    #[serde(default)]
-    pub path_rules: Option<PoWPathRules>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct PoWListConfig {
-    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
-    pub ips: Vec<String>,
-    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
-    pub ip_cidrs: Vec<String>,
-    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
-    pub paths: Vec<String>,
-    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
-    pub path_regexes: Vec<String>,
-    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
-    pub user_agents: Vec<String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct PoWPathRules {
-    #[serde(default)]
-    pub mode: String,
-    #[serde(default)]
-    pub whitelist: Vec<PoWPathMatch>,
-    #[serde(default)]
-    pub blacklist: Vec<PoWPathMatch>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct PoWPathMatch {
-    #[serde(default)]
-    pub match_type: String,
-    #[serde(rename = "type", default)]
-    pub match_type_alias: String,
-    #[serde(default)]
-    pub value: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct PagesDeployment {
-    #[serde(default)]
-    pub project_id: u64,
-    #[serde(default)]
-    pub project_slug: String,
-    #[serde(default)]
-    pub deployment_id: u64,
-    #[serde(default)]
-    pub deployment_number: i64,
-    #[serde(default)]
-    pub checksum: String,
-    #[serde(default)]
-    pub entry_file: String,
-    #[serde(default)]
-    pub spa_fallback_enabled: bool,
-    #[serde(default)]
-    pub spa_fallback_path: String,
-    #[serde(default)]
-    pub api_proxy_enabled: bool,
-    #[serde(default)]
-    pub api_proxy_path: String,
-    #[serde(default)]
-    pub api_proxy_pass: String,
-    #[serde(default)]
-    pub api_proxy_rewrite: String,
-    #[serde(default)]
-    pub local_root: String,
-}
-
-fn default_pow_difficulty() -> u8 {
-    4
-}
-fn default_pow_algorithm() -> String {
-    "fast".to_owned()
-}
-fn default_pow_session_ttl() -> u64 {
-    600
-}
-fn default_pow_challenge_ttl() -> u64 {
-    300
-}
-
-fn deserialize_null_default_vec<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: serde::Deserialize<'de>,
-{
-    let value = Option::<Option<Vec<T>>>::deserialize(deserializer)?;
-    Ok(value.flatten().unwrap_or_default())
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct Assets {
-    #[serde(default)]
-    pub certificates: HashMap<String, CertificateAsset>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct CertificateAsset {
-    pub cert_pem: String,
-    pub key_pem: String,
-}
 
 #[derive(Debug, Clone)]
 pub struct LoadedCertificate {
     pub cert: X509,
     pub key: PKey<Private>,
+    pub chain: Vec<X509>,
 }
 
 #[derive(Debug, Clone)]
@@ -263,19 +30,54 @@ pub struct AppliedConfig {
     pub payload_json: String,
     pub config: Config,
     pub certificates: HashMap<u64, LoadedCertificate>,
+    pub pages_releases: HashMap<u64, String>,
+    upstream_cursors: Arc<HashMap<u64, std::sync::atomic::AtomicUsize>>,
 }
 
 impl AppliedConfig {
+    pub fn merge_ip_groups(&mut self, groups: &[WafIPGroup]) -> bool {
+        let mut changed = false;
+        for group in groups {
+            if let Some(existing) = self
+                .config
+                .waf
+                .ip_groups
+                .iter_mut()
+                .find(|existing| group.id == existing.id)
+            {
+                if existing.checksum != group.checksum {
+                    *existing = group.clone();
+                    changed = true;
+                }
+            }
+        }
+        changed
+    }
+
+    pub fn upstream_start(&self, route_id: u64) -> usize {
+        self.upstream_cursors.get(&route_id).map_or(0, |cursor| {
+            cursor.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        })
+    }
+
     pub fn routes(&self) -> impl Iterator<Item = &Route> {
         self.config.routes.iter().filter(|route| route.enabled)
     }
 
-    pub fn pow_page(&self) -> &crate::policy::PoWPageConfig {
+    pub fn pow_page(&self) -> &PoWPageConfig {
         &self.config.pow_page
+    }
+
+    pub fn allows_http2(&self, host: &str) -> bool {
+        self.route_for_host(host)
+            .is_some_and(|route| route.enable_https && route.enable_http2)
     }
 
     pub fn certificate_for_host(&self, host: &str) -> Option<&LoadedCertificate> {
         let route = self.route_for_host(host)?;
+        if !route.enable_https {
+            return None;
+        }
         let cert_id = route.certificate_id_for_host(host)?;
         self.certificates.get(&cert_id)
     }
@@ -306,12 +108,19 @@ pub fn decode(
     if !constant_time_equal(digest.as_bytes(), payload_checksum.trim().as_bytes()) {
         bail!("active configuration payload checksum mismatch");
     }
-    let config: Config = serde_json::from_str(payload_json).context(format!(
-        "failed to decode Pingora payload ({} bytes)",
-        payload_json.len()
-    ))?;
+    let envelope: crate::protocol::snapshot::SharedSnapshotEnvelope =
+        serde_json::from_str(payload_json).context("decode shared edge snapshot")?;
+    let config = envelope.compile()?;
     validate(&config)?;
     let certificates = load_certificates(&config)?;
+    let upstream_cursors = Arc::new(
+        config
+            .routes
+            .iter()
+            .filter(|route| route.upstreams.len() > 1)
+            .map(|route| (route.id, std::sync::atomic::AtomicUsize::new(0)))
+            .collect(),
+    );
     Ok(AppliedConfig {
         version: version.to_owned(),
         checksum: checksum.to_owned(),
@@ -320,6 +129,8 @@ pub fn decode(
         payload_json: payload_json.to_owned(),
         config,
         certificates,
+        pages_releases: HashMap::new(),
+        upstream_cursors,
     })
 }
 
@@ -330,6 +141,14 @@ fn validate(config: &Config) -> Result<()> {
             config.schema_version,
             config.contract_version
         );
+    }
+    for capability in &config.required_capabilities {
+        if !matches!(
+            capability.as_str(),
+            BASE_CAPABILITY | POLICY_CAPABILITY | PROXY_CAPABILITY
+        ) {
+            bail!("unsupported required capability {capability}");
+        }
     }
     if !config
         .required_capabilities
@@ -345,12 +164,57 @@ fn validate(config: &Config) -> Result<()> {
     {
         bail!("configuration does not declare required capability {POLICY_CAPABILITY}");
     }
+    if !config
+        .required_capabilities
+        .iter()
+        .any(|capability| capability == PROXY_CAPABILITY)
+    {
+        bail!("configuration does not declare required capability {PROXY_CAPABILITY}");
+    }
+    crate::policy::validate_waf(&config.waf)?;
+    if let Some(policy) = config.cache.as_ref() {
+        crate::proxy::cache::validate_policy(policy)?;
+    }
     if config.routes.is_empty() {
         bail!("configuration has no routes");
     }
     for route in &config.routes {
         if !route.enabled {
             continue;
+        }
+        if let Some(pow) = &route.pow {
+            crate::policy::validate_pow(pow)?;
+        }
+        if route.site_auth_ttl_hours != 0 {
+            let key = &route.site_auth_key;
+            if !route.enable_https
+                || route.site_auth_ttl_hours < 1
+                || route.site_auth_ttl_hours > 720
+                || key.len() != 64
+                || !key.bytes().all(|byte| byte.is_ascii_hexdigit())
+                || route.basic_auth_enabled
+                || route.basic_auth_username.is_empty()
+                || route.basic_auth_password.is_empty()
+            {
+                bail!(
+                    "site {} has invalid site authentication configuration",
+                    route.display_name()
+                );
+            }
+        }
+        for header in &route.custom_headers {
+            http::header::HeaderName::from_bytes(header.key.as_bytes())?;
+            http::header::HeaderValue::from_str(&header.value)?;
+        }
+        if let Some(deployment) = &route.pages {
+            crate::pages::validate(deployment)?;
+        } else if !route.is_pages() {
+            for upstream in route.upstreams() {
+                let url = url::Url::parse(&upstream).context("invalid upstream URL")?;
+                if !matches!(url.scheme(), "http" | "https") || url.host().is_none() {
+                    bail!("unsupported upstream transport on {}", route.display_name());
+                }
+            }
         }
         if route.domains.is_empty() {
             bail!("enabled route {} has no domains", route.display_name());
@@ -386,26 +250,36 @@ fn load_certificates(config: &Config) -> Result<HashMap<u64, LoadedCertificate>>
         let parsed_id = id
             .parse::<u64>()
             .with_context(|| format!("certificate asset has invalid identifier {id}"))?;
-        let cert = X509::from_pem(asset.cert_pem.as_bytes())
-            .with_context(|| format!("failed to decode certificate {id}"))?;
+        let mut chain = X509::stack_from_pem(asset.cert_pem.as_bytes())
+            .with_context(|| format!("failed to decode certificate {id}"))?
+            .into_iter();
+        let cert = chain
+            .next()
+            .with_context(|| format!("certificate {id} has no leaf"))?;
         let key = PKey::private_key_from_pem(asset.key_pem.as_bytes())
             .with_context(|| format!("failed to decode private key {id}"))?;
-        certificates.insert(parsed_id, LoadedCertificate { cert, key });
+        if !cert.public_key()?.public_eq(&key) {
+            bail!("certificate {id} does not match its private key");
+        }
+        certificates.insert(
+            parsed_id,
+            LoadedCertificate {
+                cert,
+                key,
+                chain: chain.collect(),
+            },
+        );
     }
     Ok(certificates)
 }
 
-pub fn find_route<'a>(
-    mut routes: impl Iterator<Item = &'a Route>,
-    host: &str,
-) -> Option<&'a Route> {
-    let normalized_host = normalize_host(host);
-    routes.find(|route| {
-        route
-            .domains
-            .iter()
-            .any(|domain| domain_matches(domain, &normalized_host))
-    })
+fn find_route<'a>(routes: impl Iterator<Item = &'a Route>, host: &str) -> Option<&'a Route> {
+    let host = normalize_host(host);
+    routes
+        .flat_map(|route| route.domains.iter().map(move |domain| (route, domain)))
+        .filter(|(_, domain)| domain_matches(domain, &host))
+        .max_by_key(|(_, domain)| !domain.starts_with("*."))
+        .map(|(route, _)| route)
 }
 
 fn domain_matches(domain: &str, host: &str) -> bool {
@@ -457,7 +331,10 @@ impl Route {
         let normalized_host = normalize_host(host);
         self.domains
             .iter()
-            .position(|domain| domain_matches(domain, &normalized_host))
+            .enumerate()
+            .filter(|(_, domain)| domain_matches(domain, &normalized_host))
+            .max_by_key(|(_, domain)| !domain.starts_with("*."))
+            .map(|(index, _)| index)
             .and_then(|index| self.domain_cert_ids.get(index).copied())
             .filter(|id| *id != 0)
     }
@@ -467,101 +344,199 @@ impl Route {
     }
 }
 
-pub fn persist_snapshot(state_dir: &Path, config: &AppliedConfig) -> Result<()> {
-    std::fs::create_dir_all(state_dir)?;
-    let temporary = state_dir.join("snapshot.json.tmp");
-    let final_path = state_dir.join("snapshot.json");
-    let document = serde_json::json!({
-        "version": config.version,
-        "checksum": config.checksum,
-        "release_sequence": config.release_sequence,
-        "payload_checksum": config.payload_checksum,
-        "payload_json": config.payload_json,
-    });
-    std::fs::write(&temporary, serde_json::to_vec_pretty(&document)?)?;
-    std::fs::rename(&temporary, &final_path)?;
+#[derive(Clone, Default)]
+pub struct SnapshotStore(Arc<RwLock<Option<Arc<AppliedConfig>>>>);
+
+impl SnapshotStore {
+    pub fn open(state_dir: &Path) -> Self {
+        let restored = ["snapshot.json", "snapshot.previous.json"]
+            .into_iter()
+            .find_map(|name| {
+                let path = state_dir.join(name);
+                match std::fs::read_to_string(&path) {
+                    Ok(data) => match restore_snapshot_from_str(&data) {
+                        Ok(snapshot) => snapshot.filter(|snapshot| {
+                            if crate::pages::resources_ready(snapshot, state_dir) {
+                                true
+                            } else {
+                                tracing::warn!(path = %path.display(), "saved snapshot references an unavailable Pages release");
+                                false
+                            }
+                        }),
+                        Err(error) => {
+                            tracing::warn!(path = %path.display(), %error, "snapshot rejected");
+                            None
+                        }
+                    },
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(error) => {
+                        tracing::warn!(path = %path.display(), %error, "snapshot unavailable");
+                        None
+                    }
+                }
+            });
+        Self(Arc::new(RwLock::new(restored.map(Arc::new))))
+    }
+
+    pub fn current(&self) -> Option<Arc<AppliedConfig>> {
+        self.0.read().expect("snapshot lock poisoned").clone()
+    }
+
+    pub fn recover_latest(&self, state_dir: &Path) {
+        let Some(recovered) = Self::open(state_dir).current() else {
+            return;
+        };
+        let mut current = self.0.write().expect("snapshot lock poisoned");
+        if current
+            .as_ref()
+            .is_none_or(|snapshot| recovered.release_sequence >= snapshot.release_sequence)
+        {
+            *current = Some(recovered);
+        }
+    }
+
+    pub fn commit(&self, state_dir: &Path, candidate: AppliedConfig) -> Result<()> {
+        if let Some(current) = self.current() {
+            if current.release_sequence != candidate.release_sequence {
+                persist_snapshot(&state_dir.join("snapshot.previous.json"), &current)?;
+            }
+        }
+        persist_snapshot(&state_dir.join("snapshot.json"), &candidate)?;
+        *self.0.write().expect("snapshot lock poisoned") = Some(Arc::new(candidate));
+        Ok(())
+    }
+
+    pub fn ip_group_checksums(&self) -> HashMap<String, String> {
+        self.current()
+            .map(|snapshot| {
+                snapshot
+                    .config
+                    .waf
+                    .ip_groups
+                    .iter()
+                    .map(|group| (group.id.to_string(), group.checksum.clone()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn apply_ip_groups(&self, state_dir: &Path, groups: &[WafIPGroup]) -> Result<()> {
+        if groups.is_empty() {
+            return Ok(());
+        }
+        if let Some(snapshot) = self.current() {
+            let mut candidate = (*snapshot).clone();
+            if candidate.merge_ip_groups(groups) {
+                self.commit(state_dir, candidate)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+pub fn persist_private_json<T: Serialize>(path: &Path, value: &T) -> Result<()> {
+    let parent = path
+        .parent()
+        .context("state file requires a parent directory")?;
+    std::fs::create_dir_all(parent)?;
+    let mut file = tempfile::NamedTempFile::new_in(parent)?;
+    serde_json::to_writer(file.as_file_mut(), value)?;
+    file.flush()?;
+    file.as_file().sync_all()?;
+    file.persist(path)?;
+    std::fs::File::open(parent)?.sync_all()?;
     Ok(())
 }
 
-pub fn restore_snapshot(state_dir: &Path) -> Result<Option<AppliedConfig>> {
-    let path = state_dir.join("snapshot.json");
-    if !path.exists() {
-        return Ok(None);
-    }
-    let document = std::fs::read_to_string(&path)?;
-    restore_snapshot_from_str(&document)
+#[derive(Serialize, Deserialize)]
+struct SnapshotDocument {
+    version: String,
+    checksum: String,
+    release_sequence: i64,
+    payload_checksum: String,
+    payload_json: String,
+    pages_releases: HashMap<u64, String>,
+    ip_groups: Vec<WafIPGroup>,
 }
 
-pub fn restore_snapshot_from_str(document: &str) -> Result<Option<AppliedConfig>> {
-    let document: Value = serde_json::from_str(document)?;
-    let version = document
-        .get("version")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let checksum = document
-        .get("checksum")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let release_sequence = document
-        .get("release_sequence")
-        .and_then(Value::as_i64)
-        .unwrap_or_default();
-    let payload_checksum = document
-        .get("payload_checksum")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let payload_json = document
-        .get("payload_json")
-        .and_then(Value::as_str)
-        .ok_or_else(|| anyhow::anyhow!("snapshot is missing payload_json"))?;
-    Ok(Some(decode(
-        version,
-        checksum,
-        release_sequence,
-        payload_checksum,
-        payload_json,
-    )?))
+fn persist_snapshot(path: &Path, config: &AppliedConfig) -> Result<()> {
+    persist_private_json(
+        path,
+        &SnapshotDocument {
+            version: config.version.clone(),
+            checksum: config.checksum.clone(),
+            release_sequence: config.release_sequence,
+            payload_checksum: config.payload_checksum.clone(),
+            payload_json: config.payload_json.clone(),
+            pages_releases: config.pages_releases.clone(),
+            ip_groups: config.config.waf.ip_groups.clone(),
+        },
+    )
+}
+
+fn restore_snapshot_from_str(document: &str) -> Result<Option<AppliedConfig>> {
+    let document: SnapshotDocument = serde_json::from_str(document)?;
+    let mut snapshot = decode(
+        &document.version,
+        &document.checksum,
+        document.release_sequence,
+        &document.payload_checksum,
+        &document.payload_json,
+    )?;
+    for hash in document.pages_releases.values() {
+        if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            bail!("invalid Pages release hash in saved snapshot");
+        }
+    }
+    snapshot.pages_releases = document.pages_releases;
+    snapshot.config.waf.ip_groups = document.ip_groups;
+    Ok(Some(snapshot))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn certificate_pem() -> (&'static str, &'static str) {
-        (
-            "-----BEGIN CERTIFICATE-----\ninvalid\n-----END CERTIFICATE-----\n",
-            "invalid",
-        )
+    fn payload(cert: u64) -> String {
+        serde_json::json!({
+            "schema_version": 1, "contract_version": CONTRACT_VERSION,
+            "required_capabilities": [BASE_CAPABILITY, POLICY_CAPABILITY, PROXY_CAPABILITY],
+            "snapshot": {
+                "routes": [{
+                    "id": 1, "site_name": "example", "domains": ["example.com"], "domain_cert_ids": [cert],
+                    "origin_url": "http://127.0.0.1:9080", "enabled": true,
+                    "enable_https": cert != 0, "enable_http2": cert != 0, "redirect_http": false
+                }],
+                "openresty_config": {}, "waf": {"rule_groups": [], "bindings": []}
+            },
+            "assets": { "certificates": {} }
+        }).to_string()
     }
 
     #[test]
     fn checks_payload_digest_before_decoding() {
-        let payload = r#"{
-            "schema_version":1,
-            "contract_version":2,
-            "required_capabilities":["tls-sni-h2-v1","policy-runtime-v1"],
-            "routes":[{"id":1,"site_name":"example","domains":["example.com"],"domain_cert_ids":[0],"origin_url":"http://127.0.0.1:9080","upstreams":[],"enabled":true,"enable_https":true,"enable_http2":true,"redirect_http":true}],
-            "assets":{"certificates":{}}
-        }"#;
+        let payload = payload(0);
         let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
-        assert!(decode("v1", "checksum", 1, &digest, payload).is_ok());
-        assert!(decode("v1", "checksum", 1, "bad", payload).is_err());
+        assert!(decode("v1", "checksum", 1, &digest, &payload).is_ok());
+        assert!(decode("v1", "checksum", 1, "bad", &payload).is_err());
     }
 
     #[test]
-    fn snapshot_round_trips_original_payload_bytes() {
-        let payload = r#"{"schema_version":1,"contract_version":2,"required_capabilities":["tls-sni-h2-v1","policy-runtime-v1"],"routes":[{"id":1,"site_name":"example","domains":["example.com"],"domain_cert_ids":[0],"origin_url":"http://127.0.0.1:9080","upstreams":[],"enabled":true,"enable_https":true,"enable_http2":true,"redirect_http":true}],"assets":{"certificates":{}}}"#;
+    fn snapshot_round_trips_and_restores_the_previous_snapshot() {
+        let payload = payload(0);
         let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
-        let applied = decode("v1", "checksum", 7, &digest, payload).unwrap();
+        let first = decode("v1", "checksum", 7, &digest, &payload).unwrap();
+        let second = decode("v2", "checksum", 8, &digest, &payload).unwrap();
         let state_dir = tempfile::tempdir().unwrap();
-        persist_snapshot(state_dir.path(), &applied).unwrap();
-        let restored = restore_snapshot(state_dir.path()).unwrap().unwrap();
-
-        assert_eq!(restored.version, applied.version);
-        assert_eq!(restored.checksum, applied.checksum);
-        assert_eq!(restored.release_sequence, applied.release_sequence);
-        assert_eq!(restored.payload_checksum, applied.payload_checksum);
+        let store = SnapshotStore::default();
+        store.commit(state_dir.path(), first).unwrap();
+        store.commit(state_dir.path(), second).unwrap();
+        let restored = SnapshotStore::open(state_dir.path()).current().unwrap();
+        assert_eq!(restored.release_sequence, 8);
         assert_eq!(restored.payload_json, payload);
+        std::fs::write(state_dir.path().join("snapshot.json"), "broken").unwrap();
+        let restored = SnapshotStore::open(state_dir.path()).current().unwrap();
+        assert_eq!(restored.release_sequence, 7);
     }
 
     #[test]
@@ -616,11 +591,7 @@ mod tests {
 
     #[test]
     fn rejects_missing_certificate_asset() {
-        let (cert, key) = certificate_pem();
-        let payload = format!(
-            r#"{{"schema_version":1,"contract_version":1,"required_capabilities":["tls-sni-h2-v1"],"routes":[{{"id":1,"site_name":"example","domains":["example.com"],"domain_cert_ids":[10],"origin_url":"http://127.0.0.1:9080","upstreams":[],"enabled":true,"enable_https":true,"enable_http2":true,"redirect_http":true}}],"assets":{{"certificates":{{"10":{{"cert_pem":{:?},"key_pem":{:?}}}}}}}}}"#,
-            cert, key
-        );
+        let payload = payload(10);
         let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
         assert!(decode("v1", "checksum", 1, &digest, &payload).is_err());
     }

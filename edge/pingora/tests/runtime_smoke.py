@@ -1,0 +1,329 @@
+"""Exercise the Edge public HTTP and enrollment interfaces against a local controller."""
+
+import hashlib
+import http.client
+import http.server
+import io
+import json
+import os
+from pathlib import Path
+import shutil
+import signal
+import socket
+import re
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import urllib.parse
+import zipfile
+
+
+def wait_for(check, *, seconds=12):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        try:
+            if result := check():
+                return result
+        except (OSError, http.client.HTTPException):
+            pass
+        time.sleep(0.1)
+    raise AssertionError(f"timed out waiting for {check.__name__}")
+
+
+def unused_port():
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        return listener.getsockname()[1]
+
+
+class Controller(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *_):
+        pass
+
+    def answer(self, body, status=200, headers=()):
+        self.send_response(status)
+        self.send_header("Content-Length", str(len(body)))
+        for name, value in headers:
+            self.send_header(name, value)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def data(self, data, status=200):
+        self.answer(json.dumps({"error_msg": "", "data": data}).encode(), status)
+
+    def do_POST(self):
+        payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path.endswith("/register"):
+            assert payload["engine"] == "pingora"
+            assert payload["registration_key"]
+            self.data({"node_id": "fixture", "agent_token": "node-credential"})
+        elif self.headers["X-Agent-Token"] != "node-credential":
+            self.data(None, 401)
+        elif self.path.endswith("/heartbeat"):
+            self.server.heartbeats.append(payload)
+            self.data({"active_config": self.server.active, "agent_settings": {"heartbeat_interval": 250},
+                       "waf_ip_groups": self.server.ip_groups})
+        elif self.path.endswith("/apply-logs"):
+            self.server.applies.append(payload)
+            self.data({"id": len(self.server.applies)})
+
+    def do_GET(self):
+        if self.path.endswith("/pingora/config-versions/active"):
+            assert self.headers["X-Agent-Token"] == "node-credential"
+            self.data(self.server.active)
+        elif self.path == "/api/v1/agent/pages/projects/10/latest/hash":
+            package, metadata = self.server.pages
+            self.data(metadata)
+        elif self.path == "/api/v1/agent/pages/projects/10/latest/package":
+            package, metadata = self.server.pages
+            self.answer(package)
+        elif self.path == "/api/v1/agent/ws":
+            self.send_error(404)
+        elif self.path == "/origin-error":
+            self.answer(b"original", 503)
+        else:
+            self.server.origins[self.path] = self.server.origins.get(self.path, 0) + 1
+            self.answer(f"{self.headers['Host']} {self.path}".encode(),
+                        headers=(("Content-Type", "text/plain"),))
+
+
+def route(origin, rid, host, **options):
+    value = dict(id=rid, site_name=host, domains=[host], enabled=True,
+                 origin_url=origin, upstreams=[origin], domain_cert_ids=[1],
+                 enable_https=True, enable_http2=True, redirect_http=True)
+    value.update(options)
+    return value
+
+
+def release(seq, origin, certificate, key):
+    shared = {
+        "routes": [
+            route(origin, 1, "edge.test", origin_host="origin.test"),
+            route(origin, 2, "h1.edge.test", enable_http2=False),
+            route(origin, 3, "login.edge.test", basic_auth_username="alice",
+                  basic_auth_password="fixture-password", site_auth_ttl_hours=1,
+                  site_auth_key="a" * 64),
+            route(origin, 4, "pow.edge.test", pow_enabled=True,
+                  pow_config={"difficulty": 1, "algorithm": "fast", "session_ttl": 600,
+                              "challenge_ttl": 300, "whitelist": {}, "blacklist": {}}),
+            route(origin, 5, "pages.edge.test", upstream_type="pages", basic_auth_enabled=True,
+                  basic_auth_username="alice", basic_auth_password="fixture-password",
+                  pages_deployment={"project_id": 10, "entry_file": "index.html",
+                                    "api_proxy_enabled": True, "api_proxy_path": "/api",
+                                    "api_proxy_pass": origin, "api_proxy_rewrite": "/v1"}),
+            route(origin, 6, "cache.edge.test", cache_enabled=True, cache_policy="all"),
+            route(origin, 7, "waf.edge.test"),
+        ],
+        "openresty_config": {
+            "origin_error_page_enabled": True,
+            "origin_error_page_status_codes": ["503"],
+            "client_max_body_size": "64m",
+            "websocket_enabled": True,
+            "gzip_enabled": False,
+            "cache_enabled": True,
+            "cache_lock_timeout": "5s",
+            "trusted_proxy_cidrs": [],
+            "site_auth_html": "<form>fixture sign-in {{login_error}}</form>",
+        },
+        "waf": {
+            "rule_groups": [{"id": 1, "enabled": True, "is_global": False,
+                             "graph": {"entry": "ip", "nodes": {
+                                 "ip": {"type": "ip_match", "config": {"ip_group_ids": [33]},
+                                        "next": {"true": "block", "false": "allow"}},
+                                 "block": {"type": "block", "config": {"status_code": 403}},
+                                 "allow": {"type": "allow"},
+                             }}}],
+            "ip_groups": [{"id": 33, "enabled": True, "ip_list": ["127.0.0.1"]}],
+            "bindings": [{"route_id": 7, "rule_group_ids": [1]}],
+        },
+    }
+    payload = json.dumps({
+        "schema_version": 1,
+        "contract_version": 3,
+        "required_capabilities": ["tls-sni-h2-v1", "policy-runtime-v1", "shared-snapshot-v1"],
+        "snapshot": shared,
+        "assets": {
+            "certificates": {"1": {"cert_pem": certificate, "key_pem": key}},
+            "origin_error_html": "<h1>{{host}} {{status}}</h1>",
+        },
+    })
+    return {
+        "engine": "pingora", "version": f"pingora-fixture-{seq}",
+        "checksum": "fixture-checksum", "release_sequence": seq,
+        "payload_json": payload,
+        "payload_checksum": hashlib.sha256(payload.encode()).hexdigest(),
+    }
+
+
+def make_pages(deployment, contents):
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("index.html", contents)
+    package = buffer.getvalue()
+    metadata = {
+        "project_id": 10, "deployment_id": deployment,
+        "hash": hashlib.sha256(package).hexdigest(), "package_size": len(package),
+        "file_count": 1, "total_size": len(contents),
+    }
+    return package, metadata
+
+
+def browser_proof(boot):
+    nonce = 0
+    while True:
+        digest = hashlib.sha256(f"{boot['randomData']}{nonce}".encode()).hexdigest()
+        if digest.startswith("0" * boot["difficulty"]):
+            return urllib.parse.urlencode({"id": boot["id"], "response": digest, "nonce": nonce})
+        nonce += 1
+
+
+def main(binary):
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Controller)
+    server.heartbeats = []
+    server.applies = []
+    server.ip_groups = []
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    control_url = f"http://127.0.0.1:{server.server_port}"
+    origin_server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Controller)
+    origin_server.origins = {}
+    threading.Thread(target=origin_server.serve_forever, daemon=True).start()
+    origin = f"http://127.0.0.1:{origin_server.server_port}"
+    http_port, tls_port = unused_port(), unused_port()
+    while tls_port == http_port:
+        tls_port = unused_port()
+
+    def request(host, path="/", *, use_http2=False, headers=(), data=None):
+        scheme = "https"
+        curl = os.environ.get("CURL", shutil.which("curl"))
+        args = [curl, "-kSs", "--max-time", "4", "--noproxy", "*",
+                "--resolve", f"{host}:{tls_port}:127.0.0.1",
+                "--http2" if use_http2 else "--http1.1",
+                "-w", "\n%{http_code}\n%{http_version}", "-D", "-"]
+        for header in headers:
+            args.extend(["-H", header])
+        if data is not None:
+            args.extend(["--data", data])
+        result = subprocess.run(args + [f"{scheme}://{host}:{tls_port}{path}"],
+                                check=True, capture_output=True, text=True)
+        head_body, status, version = result.stdout.rsplit("\n", 2)
+        head, body = head_body.split("\n\n", 1)
+        return int(status), version, head, body
+
+    def http_route():
+        conn = http.client.HTTPConnection("127.0.0.1", http_port, timeout=1)
+        try:
+            conn.request("GET", "/test?query=1", headers={"Host": "edge.test"})
+            response = conn.getresponse()
+            return response.status, response.getheader("Location")
+        finally:
+            conn.close()
+
+    with tempfile.TemporaryDirectory(prefix="openflare-edge-smoke-") as root:
+        path = Path(root)
+        certificate, key = path / "cert.pem", path / "key.pem"
+        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+                        "-subj", "/CN=edge.test", "-days", "1", "-out", str(certificate),
+                        "-keyout", str(key)], check=True, capture_output=True)
+        server.pages = make_pages(1, b"first page")
+        server.active = release(1, origin, certificate.read_text(), key.read_text())
+        token = path / "bootstrap"
+        token.write_text("discovery-credential")
+        ready = path / "ready.json"
+        args = [binary, "run", "--server-url", control_url, "--token-file", str(token),
+                "--state-dir", root, "--http-listen", f"127.0.0.1:{http_port}",
+                "--tls-listen", f"127.0.0.1:{tls_port}"]
+
+        with (path / "edge.log").open("w+") as log:
+            def launch(*options):
+                return subprocess.Popen(args + list(options), stdout=log, stderr=subprocess.STDOUT)
+
+            edge = launch()
+            try:
+                wait_for(lambda: ready.exists())
+                wait_for(lambda: any(item["result"] == "success" for item in server.applies))
+                assert json.loads((path / "identity.json").read_text())["agent_token"] == "node-credential"
+                assert http_route() == (301, "https://edge.test/test?query=1")
+                assert request("edge.test", "/test?query=1", use_http2=True)[::3] == (
+                    200, "origin.test /test?query=1")
+                assert request("edge.test", use_http2=True)[1] == "2"
+                assert request("h1.edge.test", use_http2=True)[1].startswith("1")
+                assert request("edge.test", "/origin-error")[::3] == (503, "<h1>edge.test 503</h1>")
+                assert request("login.edge.test", "/private")[0] == 303
+                assert "fixture sign-in" in request("login.edge.test", "/.openflare/site-auth")[3]
+                result = request("login.edge.test", "/.openflare/site-auth?next=%2Fprivate",
+                                 data="username=alice&password=fixture-password",
+                                 headers=(f"Origin: https://login.edge.test:{tls_port}",))
+                assert result[0] == 303 and "__Host-openflare_site_auth=" in result[2]
+                challenge = request("pow.edge.test")
+                boot = json.loads(re.search(r'id="openflare-pow-config" type="application/json">(.*?)</script>', challenge[3]).group(1))
+                proof = request("pow.edge.test", "/.within.website/x/cmd/anubis/api/pass-challenge?" + browser_proof(boot))
+                assert proof[0] == 200 and json.loads(proof[3]) == {"ok": True}
+                assert "__openflare_pow=" in proof[2]
+                assert request("pages.edge.test")[0] == 401
+                basic = ("Authorization: Basic YWxpY2U6Zml4dHVyZS1wYXNzd29yZA==",)
+                assert request("pages.edge.test", headers=basic)[3] == "first page"
+                assert request("pages.edge.test", headers=basic + ("Range: bytes=0-4",))[::3] == (206, "first")
+                assert request("pages.edge.test", "/api/users?page=1")[3].endswith(" /v1/users?page=1")
+                server.pages = make_pages(2, b"second page")
+                wait_for(lambda: request("pages.edge.test", headers=basic)[3] == "second page")
+                assert request("waf.edge.test")[0] == 403
+                server.ip_groups = [{"id": 33, "enabled": False, "ip_list": [], "checksum": "updated"}]
+                wait_for(lambda: request("waf.edge.test")[0] == 200)
+                assert request("cache.edge.test", "/cache-test")[0] == 200
+                assert request("cache.edge.test", "/cache-test")[0] == 200
+                assert origin_server.origins["/cache-test"] == 1
+                wait_for(lambda: any(h.get("current_version") == server.active["version"]
+                                     and "profile" in h and "host_metrics" in h and "edge_health" in h
+                                     for h in server.heartbeats))
+
+                server.active = release(2, origin, certificate.read_text(), key.read_text())
+                server.active["payload_checksum"] = "invalid candidate"
+                wait_for(lambda: any(log["release_sequence"] == 2 and log["result"] == "failed"
+                                     for log in server.applies))
+                assert request("edge.test", use_http2=True)[0] == 200
+                assert json.loads((path / "snapshot.json").read_text())["release_sequence"] == 1
+
+                edge.kill()
+                edge.wait(timeout=5)
+                token.unlink()
+                ready.unlink()
+                server.shutdown()
+                edge = launch()
+                wait_for(lambda: ready.exists())
+                assert http_route() == (301, "https://edge.test/test?query=1")
+                assert request("edge.test", use_http2=True)[0] == 200
+                if sys.platform == "linux":
+                    previous = edge
+                    replacement = launch("--upgrade")
+                    try:
+                        wait_for(lambda: (path / "openflare-edge-upgrade.sock").exists())
+                        previous.send_signal(signal.SIGQUIT)
+                        wait_for(lambda: json.loads(ready.read_text())["pid"] == replacement.pid)
+                        edge = replacement
+                        assert http_route() == (301, "https://edge.test/test?query=1")
+                        assert request("edge.test", use_http2=True)[0] == 200
+                    finally:
+                        for candidate in (previous, replacement):
+                            if candidate is not edge and candidate.poll() is None:
+                                candidate.kill()
+                                candidate.wait(timeout=5)
+
+            except Exception:
+                log.seek(0)
+                sys.stderr.write(log.read())
+                raise
+            finally:
+                if edge.poll() is None:
+                    edge.kill()
+                    edge.wait(timeout=5)
+                server.server_close()
+                origin_server.shutdown()
+                origin_server.server_close()
+    print("Edge runtime smoke passed")
+
+
+if __name__ == "__main__":
+    main(str(Path(sys.argv[1]).resolve()))

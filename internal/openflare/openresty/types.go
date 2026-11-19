@@ -333,6 +333,7 @@ type ConfigSnapshot struct {
 	CacheInactive              string   `json:"cache_inactive"`
 	CacheMaxSize               string   `json:"cache_max_size"`
 	CacheKeyTemplate           string   `json:"cache_key_template"`
+	CacheStaticExtensions      []string `json:"cache_static_extensions,omitempty"`
 	CacheLockEnabled           bool     `json:"cache_lock_enabled"`
 	CacheLockTimeout           string   `json:"cache_lock_timeout"`
 	CacheUseStale              string   `json:"cache_use_stale"`
@@ -390,9 +391,10 @@ type Result struct {
 }
 
 type routeCacheConfig struct {
-	Enabled bool
-	Policy  string
-	Rules   []string
+	StaticExtensions []string
+	Enabled          bool
+	Policy           string
+	Rules            []string
 }
 
 type routeLimitConfig struct {

@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"strconv"
 	"testing"
 
@@ -66,23 +67,19 @@ func TestPublishConfigVersionCreatesAlignedPingoraPayload(t *testing.T) {
 	require.Equal(t, "pingora-"+openRestyVersion.Version, pingoraVersion.Version)
 	require.Equal(t, int64(1), pingoraVersion.ReleaseSequence)
 
+	require.Equal(t, openRestyVersion.Version, pingoraVersion.SourceVersion)
+	require.Empty(t, pingoraVersion.SnapshotJSON)
+	payloadJSON, err := edgeconfig.Encode(openRestyVersion.SnapshotJSON, openRestyVersion.SupportFilesJSON)
+	require.NoError(t, err)
+	var payload edgeconfig.Envelope
+	require.NoError(t, json.Unmarshal([]byte(payloadJSON), &payload))
+	assert.JSONEq(t, openRestyVersion.SnapshotJSON, string(payload.Snapshot))
 	var snapshot snapshotDocument
-	require.NoError(t, json.Unmarshal([]byte(pingoraVersion.SnapshotJSON), &snapshot))
-	var payload pingoraConfigPayload
-	require.NoError(t, json.Unmarshal([]byte(pingoraVersion.PayloadJSON), &payload))
-	require.Len(t, payload.Routes, 1)
+	require.NoError(t, json.Unmarshal(payload.Snapshot, &snapshot))
 	require.Len(t, snapshot.Routes, 1)
-	assert.Equal(t, snapshot.Routes[0].SiteName, payload.Routes[0].SiteName)
-	assert.Equal(t, snapshot.Routes[0].Domains, payload.Routes[0].Domains)
-	assert.Equal(t, snapshot.Routes[0].DomainCertIDs, payload.Routes[0].DomainCertIDs)
-	assert.Equal(t, snapshot.Routes[0].Upstreams, payload.Routes[0].Upstreams)
-	assert.Equal(t, snapshot.Routes[0].EnableHTTPS, payload.Routes[0].EnableHTTPS)
-	assert.Equal(t, snapshot.Routes[0].EnableHTTP2, payload.Routes[0].EnableHTTP2)
-	assert.Equal(t, snapshot.Routes[0].RedirectHTTP, payload.Routes[0].RedirectHTTP)
-	assert.Equal(t, snapshot.WAF, payload.WAF)
-	assert.Equal(t, []string{"tls-sni-h2-v1", "policy-runtime-v1"}, payload.RequiredCapabilities)
-	assert.Equal(t, "shield", payload.PoWPage.Template)
-	assert.Equal(t, "turnstile", payload.PoWPage.Widget)
+	assert.Equal(t, []string{"tls-sni-h2-v1", "policy-runtime-v1", "shared-snapshot-v1"}, payload.RequiredCapabilities)
+	assert.Equal(t, "shield", snapshot.OpenRestyConfig.PoWPage.Template)
+	assert.Equal(t, "turnstile", snapshot.OpenRestyConfig.PoWPage.Widget)
 	var supportFiles []SupportFile
 	require.NoError(t, json.Unmarshal([]byte(openRestyVersion.SupportFilesJSON), &supportFiles))
 	var openRestyPoWPage openresty.PoWPageConfig
@@ -95,14 +92,33 @@ func TestPublishConfigVersionCreatesAlignedPingoraPayload(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(file.Content), &openRestyPoWPage))
 	}
 	require.True(t, found, "OpenResty PoW page support file was not rendered")
-	assert.Equal(t, openRestyPoWPage.Template, payload.PoWPage.Template)
-	assert.Equal(t, openRestyPoWPage.Widget, payload.PoWPage.Widget)
+	assert.Equal(t, openRestyPoWPage.Template, snapshot.OpenRestyConfig.PoWPage.Template)
+	assert.Equal(t, openRestyPoWPage.Widget, snapshot.OpenRestyConfig.PoWPage.Widget)
 	// Both engines resolve the built-in shield template locally; Pingora embeds the same source file.
-	assert.Equal(t, openresty.DefaultPoWPageHTML(payload.PoWPage.Template), openRestyPoWPage.HTML)
+	assert.Equal(t, openresty.DefaultPoWPageHTML(snapshot.OpenRestyConfig.PoWPage.Template), openRestyPoWPage.HTML)
 	assert.Contains(t, payload.Assets.Certificates, strconv.FormatUint(uint64(certificate.ID), 10))
 
-	digest := sha256.Sum256([]byte(pingoraVersion.PayloadJSON))
+	digest := sha256.Sum256([]byte(payloadJSON))
 	assert.Equal(t, hex.EncodeToString(digest[:]), pingoraVersion.PayloadChecksum)
+
+	next, err := PublishConfigVersion(ctx, "tester", true)
+	require.NoError(t, err)
+	nextEdge, err := repository.GetActivePingoraConfigVersion(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), nextEdge.ReleaseSequence)
+	rolledBack, err := ActivateConfigVersion(ctx, pingoraVersion.Version)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), rolledBack.ReleaseSequence)
+	assert.Equal(t, openRestyVersion.Version, rolledBack.SourceVersion)
+	assert.Equal(t, pingoraVersion.PayloadChecksum, rolledBack.PayloadChecksum)
+	currentOpenResty, err := repository.GetActiveConfigVersion(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, next.Version, currentOpenResty.Version)
+	_, err = repository.DeleteConfigVersionsByVersions(ctx, []string{openRestyVersion.Version, pingoraVersion.Version})
+	require.NoError(t, err)
+	_, err = repository.GetConfigVersionByVersion(ctx, openRestyVersion.Version)
+	require.NoError(t, err, "a retained Edge release protects its source snapshot")
+
 }
 
 func TestBuildPingoraConfigVersionRespectsEnabledSetting(t *testing.T) {
@@ -114,7 +130,7 @@ func TestBuildPingoraConfigVersionRespectsEnabledSetting(t *testing.T) {
 		Description: "Pingora 独立发布组开关",
 	}).Error)
 
-	version, err := buildPingoraConfigVersion(ctx, &configBundle{}, &model.ConfigVersion{
+	version, err := buildPingoraConfigVersion(ctx, &model.ConfigVersion{
 		Version: "20261119-001", Engine: "openresty", ReleaseSequence: 1,
 	})
 	require.NoError(t, err)

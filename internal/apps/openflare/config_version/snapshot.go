@@ -140,6 +140,7 @@ type openRestyConfigSnapshot struct {
 	CacheInactive              string   `json:"cache_inactive"`
 	CacheMaxSize               string   `json:"cache_max_size"`
 	CacheKeyTemplate           string   `json:"cache_key_template"`
+	CacheStaticExtensions      []string `json:"cache_static_extensions,omitempty"`
 	CacheLockEnabled           bool     `json:"cache_lock_enabled"`
 	CacheLockTimeout           string   `json:"cache_lock_timeout"`
 	CacheUseStale              string   `json:"cache_use_stale"`
@@ -604,6 +605,7 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		CacheInactive:              getStringConfig(model.ConfigKeyOpenRestyCacheInactive, "30m"),
 		CacheMaxSize:               getStringConfig(model.ConfigKeyOpenRestyCacheMaxSize, "1g"),
 		CacheKeyTemplate:           getStringConfig(model.ConfigKeyOpenRestyCacheKeyTemplate, "$scheme$host$request_uri"),
+		CacheStaticExtensions:      openrestyrender.DefaultStaticCacheExtensions,
 		CacheLockEnabled:           getBoolConfig(model.ConfigKeyOpenRestyCacheLockEnabled, true),
 		CacheLockTimeout:           getStringConfig(model.ConfigKeyOpenRestyCacheLockTimeout, "5s"),
 		CacheUseStale:              getStringConfig(model.ConfigKeyOpenRestyCacheUseStale, "error timeout updating http_500 http_502 http_503 http_504"),

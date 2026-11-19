@@ -92,10 +92,16 @@ func HeartbeatHandler(c *gin.Context) {
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "Token 无效"
 // @Param site_auth query bool false "Agent 支持站点身份验证"
+// @Failure 403 {object} response.Any "资源不在节点发布范围内"
 // @Router /api/v1/agent/config-versions/active [get]
 func GetActiveConfigHandler(c *gin.Context) {
-	if _, ok := NodeFromContext(c); !ok {
+	authNode, ok := NodeFromContext(c)
+	if !ok {
 		response.AbortUnauthorized(c, errNodeMissingFromContext)
+		return
+	}
+	if authNode.Engine == enginePingora {
+		response.AbortForbidden(c, errEdgeResourceOutsideRelease)
 		return
 	}
 	config, err := GetActiveConfig(c.Request.Context(), c.Query("site_auth") == "true")
@@ -176,6 +182,7 @@ func ReportApplyLogHandler(c *gin.Context) {
 	}
 	if authNode, ok := NodeFromContext(c); ok {
 		payload.NodeID = authNode.NodeID
+		payload.Engine = authNode.Engine
 	}
 	log, err := ReportApplyLog(c.Request.Context(), payload)
 	if httpx.AbortBadRequestOnError(c, err) {
@@ -194,8 +201,13 @@ func ReportApplyLogHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=protocol.PagesDeploymentHashResponse}
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "Token 无效"
+// @Failure 403 {object} response.Any "资源不在节点发布范围内"
 // @Router /api/v1/agent/pages/deployments/{deployment_id}/hash [get]
 func GetPagesDeploymentHashHandler(c *gin.Context) {
+	if node, ok := NodeFromContext(c); ok && node.Engine == enginePingora {
+		response.AbortForbidden(c, errEdgeResourceOutsideRelease)
+		return
+	}
 	deploymentID, ok := pagesUintParam(c, "deployment_id")
 	if !ok {
 		return
@@ -220,8 +232,13 @@ func GetPagesDeploymentHashHandler(c *gin.Context) {
 // @Success 200 {file} binary "部署包文件"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "Token 无效"
+// @Failure 403 {object} response.Any "资源不在节点发布范围内"
 // @Router /api/v1/agent/pages/deployments/{deployment_id}/package [get]
 func DownloadPagesPackageHandler(c *gin.Context) {
+	if node, ok := NodeFromContext(c); ok && node.Engine == enginePingora {
+		response.AbortForbidden(c, errEdgeResourceOutsideRelease)
+		return
+	}
 	deploymentID, ok := pagesUintParam(c, "deployment_id")
 	if !ok {
 		return
@@ -248,10 +265,15 @@ func DownloadPagesPackageHandler(c *gin.Context) {
 // @Success 200 {object} response.Any{data=protocol.PagesProjectLatestHashResponse}
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "Token 无效"
+// @Failure 403 {object} response.Any "资源不在节点发布范围内"
 // @Router /api/v1/agent/pages/projects/{project_id}/latest/hash [get]
 func GetPagesProjectLatestHashHandler(c *gin.Context) {
 	projectID, ok := pagesUintParam(c, "project_id")
 	if !ok {
+		return
+	}
+
+	if !allowPagesProject(c, projectID) {
 		return
 	}
 	metadata, err := pages.GetProjectLatestPackageMetadata(c.Request.Context(), projectID)
@@ -278,10 +300,15 @@ func GetPagesProjectLatestHashHandler(c *gin.Context) {
 // @Success 200 {file} binary "部署包文件"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "Token 无效"
+// @Failure 403 {object} response.Any "资源不在节点发布范围内"
 // @Router /api/v1/agent/pages/projects/{project_id}/latest/package [get]
 func DownloadPagesProjectLatestPackageHandler(c *gin.Context) {
 	projectID, ok := pagesUintParam(c, "project_id")
 	if !ok {
+		return
+	}
+
+	if !allowPagesProject(c, projectID) {
 		return
 	}
 	packageObj, err := pages.OpenProjectLatestPackage(c.Request.Context(), projectID)
@@ -294,6 +321,22 @@ func DownloadPagesProjectLatestPackageHandler(c *gin.Context) {
 		c.Header("Content-Type", packageObj.ContentType)
 	}
 	c.DataFromReader(http.StatusOK, packageObj.ContentLength, packageObj.ContentType, packageObj.Body, nil)
+}
+
+func allowPagesProject(c *gin.Context, projectID uint) bool {
+	node, ok := NodeFromContext(c)
+	if !ok || node.Engine != enginePingora {
+		return true
+	}
+	allowed, err := pingoraPagesProjectAllowed(c.Request.Context(), projectID)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return false
+	}
+	if !allowed {
+		response.AbortForbidden(c, errEdgeResourceOutsideRelease)
+		return false
+	}
+	return true
 }
 
 func pagesUintParam(c *gin.Context, name string) (uint, bool) {
@@ -323,5 +366,5 @@ func WebSocketHandler(c *gin.Context) {
 		response.AbortUnauthorized(c, errInvalidAgentToken)
 		return
 	}
-	websocket.ServeAgent(c, authNode.NodeID, HandleWSStatus)
+	websocket.ServeAgent(c, authNode.NodeID, normalizeEngine(authNode.Engine), HandleWSStatus)
 }

@@ -229,10 +229,18 @@ func (s *Service) getRelease(ctx context.Context, repo string, options UpdateOpt
 
 func (s *Service) getLatestStableRelease(ctx context.Context, repo string) (*githubRelease, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
-	return s.fetchReleaseFromURL(ctx, url)
+	release, err := s.fetchReleaseFromURL(ctx, url)
+	if err != nil || release == nil || !strings.HasPrefix(release.TagName, "edge-v") {
+		return release, err
+	}
+	return s.getReleaseFromList(ctx, repo, false)
 }
 
 func (s *Service) getLatestPreviewRelease(ctx context.Context, repo string) (*githubRelease, error) {
+	return s.getReleaseFromList(ctx, repo, true)
+}
+
+func (s *Service) getReleaseFromList(ctx context.Context, repo string, preRelease bool) (*githubRelease, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/releases?per_page=20", repo)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -255,7 +263,7 @@ func (s *Service) getLatestPreviewRelease(ctx context.Context, repo string) (*gi
 		return nil, err
 	}
 	for _, release := range releases {
-		if release.Draft || !release.Prerelease {
+		if release.Draft || release.Prerelease != preRelease || strings.HasPrefix(release.TagName, "edge-v") {
 			continue
 		}
 		releaseCopy := release

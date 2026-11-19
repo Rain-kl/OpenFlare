@@ -123,7 +123,7 @@ func RenderRouteConfig(doc Document, certificateFiles []SupportFile) (string, er
 		}
 		serverNames := renderServerNames(domains)
 		displayName := resolveRouteSiteName(route)
-		cacheConfig := routeCacheConfig{Enabled: route.CacheEnabled, Policy: route.CachePolicy, Rules: route.CacheRules}
+		cacheConfig := routeCacheConfig{Enabled: route.CacheEnabled, Policy: route.CachePolicy, Rules: route.CacheRules, StaticExtensions: doc.OpenRestyConfig.CacheStaticExtensions}
 		limitConfig := mergeRouteLimitConfig(route, doc.OpenRestyConfig)
 		powEnabled := route.PoWConfig != nil || getPoWConfigForRoute(route.ID, doc.WAF)
 		if normalizeRouteUpstreamType(route.UpstreamType) == routeUpstreamTypePages {
@@ -689,9 +689,13 @@ func mergeLimitRate(route, def string) string {
 
 func renderRouteCachePolicyCondition(cacheConfig routeCacheConfig) string {
 	policy := normalizeRenderCachePolicy(cacheConfig.Policy)
+	staticExtensions := cacheConfig.StaticExtensions
+	if len(staticExtensions) == 0 {
+		staticExtensions = DefaultStaticCacheExtensions
+	}
 	switch policy {
 	case cachePolicyStatic:
-		return fmt.Sprintf("        if ($uri !~* %s) {\n            set $openflare_skip_cache 1;\n        }\n", quoteNginxStringLiteral(buildSuffixMatchPattern(DefaultStaticCacheExtensions)))
+		return fmt.Sprintf("        if ($uri !~* %s) {\n            set $openflare_skip_cache 1;\n        }\n", quoteNginxStringLiteral(buildSuffixMatchPattern(staticExtensions)))
 	case cachePolicySuffix:
 		return fmt.Sprintf("        if ($uri !~* %s) {\n            set $openflare_skip_cache 1;\n        }\n", quoteNginxStringLiteral(buildSuffixMatchPattern(cacheConfig.Rules)))
 	case cachePolicyPathPrefix:
@@ -702,7 +706,7 @@ func renderRouteCachePolicyCondition(cacheConfig routeCacheConfig) string {
 		return ""
 	default:
 		// Unknown policy: treat as static for safety (do not cache everything).
-		return fmt.Sprintf("        if ($uri !~* %s) {\n            set $openflare_skip_cache 1;\n        }\n", quoteNginxStringLiteral(buildSuffixMatchPattern(DefaultStaticCacheExtensions)))
+		return fmt.Sprintf("        if ($uri !~* %s) {\n            set $openflare_skip_cache 1;\n        }\n", quoteNginxStringLiteral(buildSuffixMatchPattern(staticExtensions)))
 	}
 }
 

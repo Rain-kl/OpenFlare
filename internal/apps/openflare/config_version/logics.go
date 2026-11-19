@@ -83,7 +83,19 @@ func ListConfigVersions(ctx context.Context) ([]*model.ConfigVersionSummary, err
 
 // GetConfigVersionDetail returns a config version by version.
 func GetConfigVersionDetail(ctx context.Context, version string) (*model.ConfigVersion, error) {
-	return repository.GetConfigVersionByVersion(ctx, version)
+	release, err := repository.GetConfigVersionByVersion(ctx, version)
+	if err != nil || release.SourceVersion == "" {
+		return release, err
+	}
+	snapshot, err := repository.GetConfigVersionSource(ctx, release)
+	if err != nil {
+		return nil, err
+	}
+	release.SnapshotJSON = snapshot.SnapshotJSON
+	release.MainConfig = snapshot.MainConfig
+	release.RenderedConfig = snapshot.RenderedConfig
+	release.SupportFilesJSON = snapshot.SupportFilesJSON
+	return release, nil
 }
 
 // GetActiveConfigVersion returns the active config version.
@@ -231,47 +243,38 @@ func PublishConfigVersion(ctx context.Context, createdBy string, force bool) (*m
 		IsActive:         true,
 		CreatedBy:        createdBy,
 	}
-	if err = repository.PublishConfigVersionTx(ctx, record); err != nil {
+	pingoraRecord, err := buildPingoraConfigVersion(ctx, record)
+	if err != nil {
+		return nil, err
+	}
+	if err = repository.PublishConfigVersionTx(ctx, record, pingoraRecord); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errVersionConflict)
 		}
 		return nil, err
 	}
-	if pingoraRecord, pingoraErr := buildPingoraConfigVersion(ctx, bundle, record); pingoraErr != nil {
-		return nil, pingoraErr
-	} else if pingoraRecord != nil {
-		if err = repository.CreateConfigVersion(ctx, pingoraRecord); err != nil {
-			return nil, err
-		}
+	broadcastConfigVersion(record)
+	if pingoraRecord != nil {
+		broadcastConfigVersion(pingoraRecord)
 	}
-	websocket.BroadcastActiveConfig(pkgprotocol.ActiveConfigMeta{
-		Version:         record.Version,
-		Checksum:        record.Checksum,
-		Engine:          record.Engine,
-		ReleaseSequence: record.ReleaseSequence,
-		PayloadChecksum: record.PayloadChecksum,
-	})
 	return record, nil
 }
 
 // ActivateConfigVersion activates an existing config version.
 func ActivateConfigVersion(ctx context.Context, versionStr string) (*model.ConfigVersion, error) {
-	version, err := repository.GetConfigVersionByVersion(ctx, versionStr)
+	version, err := repository.ActivateConfigVersionTx(ctx, versionStr)
 	if err != nil {
 		return nil, err
 	}
-	if err = repository.ActivateConfigVersionTx(ctx, versionStr); err != nil {
-		return nil, err
-	}
-	version.IsActive = true
-	websocket.BroadcastActiveConfig(pkgprotocol.ActiveConfigMeta{
-		Version:         version.Version,
-		Checksum:        version.Checksum,
-		Engine:          version.Engine,
-		ReleaseSequence: version.ReleaseSequence,
-		PayloadChecksum: version.PayloadChecksum,
-	})
+	broadcastConfigVersion(version)
 	return version, nil
+}
+
+func broadcastConfigVersion(version *model.ConfigVersion) {
+	websocket.BroadcastActiveConfig(pkgprotocol.ActiveConfigMeta{
+		Version: version.Version, Checksum: version.Checksum, Engine: version.Engine,
+		ReleaseSequence: version.ReleaseSequence, PayloadChecksum: version.PayloadChecksum,
+	})
 }
 
 // CleanupConfigVersions removes old inactive config versions.

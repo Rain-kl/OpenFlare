@@ -20,17 +20,15 @@ sidebar: false
 ### ✨ 新功能
 
 - Zone 详情的「域名」标签页新增「清理未关联域名」按钮，支持确认后一键批量删除当前 Zone 下所有未关联代理路由的域名及对应 Cloudflare 指向记录，已关联路由的域名不受影响。
-- 新增 Pingora 边缘节点第二阶段能力：主控可从同一业务发布生成 Pingora 独立配置契约，Rust 节点按证书资产实现 TLS/SNI 动态证书选择，TLS 监听启用 HTTP/2，并在路由与证书更新时通过原子快照热生效；`pingora_enabled` 默认关闭，开启后不影响现有 OpenResty 节点发布。
-- Pingora 契约升级到 v2，同一业务发布会携带 Basic Auth、站点认证、PoW、限流和 Pages 部署参数；Rust 节点开始执行 Basic Auth 校验、站点认证签名与登录流程、PoW 路径策略判定、请求速率限制和 Pages 安全路径解析，行为基准与 OpenResty 保持一致。
-- Pingora 第三阶段新增 WAF 图执行、IP 组引用、GeoIP City/地区匹配、PoW HTML 挑战页与结构化访问明细上报；PoW 使用与 OpenResty 相同的模板配置、内建模板源文件、静态资源和配置契约，访问明细经节点心跳进入既有日志链路，继续与 OpenResty 使用同一配置对照。
-- Pingora 边缘节点新增独立 `edge-v` 版本发布和 Linux amd64/arm64 安装包，支持低权限 systemd 部署、GeoIP 数据库自动下载、进程异常自动恢复、监听 FD 平滑升级、历史版本保留和升级失败自动回滚，发布与 OpenResty 主线完全隔离。
+- Pingora 和现有 OpenResty Agent 共用一份发布快照。Edge 支持按引擎同步和回滚，报告实际生效的版本，并在主控不可达时恢复本地配置。
+- 修复 Pingora 注册、HTTPS 跳转和 HTTP/2 路由，接通站点登录、PoW 验证、WAF IP 组更新、Pages 部署同步、回源响应处理及节点指标上报。
+- Linux Edge 安装包等待新进程监听就绪，并在启动失败时恢复上一二进制。Edge 版本独立于 Go Agent 更新渠道。
 
 ### ⚡️ 优化与改进
 
 - 重组 Go 后端与边缘组件工程包结构：将控制面入口统一收敛至 `cmd/server/`，边缘运行时收敛至 `internal/edge/`、跨端共享协议与渲染包收敛至 `internal/openflare/`、ClickHouse 与主库分析存取统一归入 `internal/repository/logstore/`，并扁平化整理上传域、OpenFlare 路由注册及对应设计、部署与开发命令文档（源码启动命令调整为 `go run ./cmd/server ...`）。
 - Pingora 节点兼容主控下发的 PoW 空名单 `null` 值，修复启用 PoW 的业务配置无法解码导致节点无法进入反向代理服务的问题。
 - Pingora 节点下载 Pages ZIP 包时按实际文件数量校验元数据，忽略目录条目，修复包含目录条目的部署包重复下载和无法激活的问题。
-- Pingora 控制面持久化配置时保留主控下发的原始 JSON 字节，数据面独立进程自动监听并原子采纳配置快照，修复重启后校验不一致以及运行中无法热生效的问题。
 
 ## [v3.6.1] - 2026-11-18
 

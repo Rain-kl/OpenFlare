@@ -4,9 +4,13 @@ use std::path::PathBuf;
 
 mod config;
 mod control;
+mod geoip;
 mod pages;
 mod policy;
+mod protocol;
 mod proxy;
+mod runtime;
+mod telemetry;
 
 #[derive(Debug, Parser)]
 #[command(name = "openflare-edge", version)]
@@ -18,8 +22,8 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     Run {
-        #[arg(long, hide = true)]
-        data_plane: bool,
+        #[arg(long)]
+        upgrade: bool,
 
         #[arg(long)]
         server_url: String,
@@ -47,7 +51,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Run {
-            data_plane,
+            upgrade,
             server_url,
             token_type,
             token_file,
@@ -55,23 +59,32 @@ fn main() -> Result<()> {
             http_listen,
             tls_listen,
         } => {
-            if data_plane {
-                let state = control::load_restored_state(state_dir, http_listen, tls_listen)?;
-                proxy::run_server(state)
-            } else {
-                let tokio_runtime = tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()?;
-                let runtime = control::Runtime::new(
-                    server_url,
-                    token_type,
-                    token_file,
-                    state_dir,
-                    http_listen,
-                    tls_listen,
-                )?;
-                tokio_runtime.block_on(runtime.run())
+            std::fs::create_dir_all(&state_dir)?;
+            let shared = config::SnapshotStore::open(&state_dir);
+            if upgrade && state_dir.join("snapshot.json").exists() && shared.current().is_none() {
+                anyhow::bail!("cannot upgrade without restoring an active configuration");
             }
+            let listeners = runtime::Listeners::new(&http_listen, tls_listen.as_deref())?;
+            let access_logs = telemetry::AccessLogBuffer::persistent(&state_dir);
+            let control = control::Runtime::new(
+                server_url,
+                token_type,
+                token_file,
+                state_dir.clone(),
+                shared.clone(),
+                access_logs.clone(),
+                listeners.clone(),
+            )?;
+            proxy::run_server(
+                proxy::DataPlaneState {
+                    shared,
+                    state_dir,
+                    listeners,
+                    access_logs,
+                },
+                control,
+                upgrade,
+            )
         }
     }
 }

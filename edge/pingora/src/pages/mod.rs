@@ -1,4 +1,9 @@
-use crate::config::PagesDeployment;
+mod serving;
+#[cfg(test)]
+pub use serving::pages_resolve;
+pub use serving::{pages_api_target, resources_ready, serve_pages, validate};
+
+use crate::protocol::config::PagesDeployment;
 use anyhow::{bail, Context, Result};
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -48,14 +53,15 @@ impl PagesSyncer {
         }
     }
 
-    pub async fn ensure_project(&self, deployment: &PagesDeployment) -> Result<()> {
+    pub async fn ensure_project(&self, deployment: &PagesDeployment) -> Result<String> {
         let latest = self.fetch_latest(deployment.project_id).await?;
         validate_latest(deployment.project_id, &latest)?;
         let hash = latest.hash.trim().to_owned();
         let release = self.release_dir(deployment.project_id, &hash);
-        if release_ready(&release, &latest) {
-            self.switch_current(deployment.project_id, &release)?;
-            return cleanup_stale_releases(&release, &hash);
+        if release_ready(&release, &latest)
+            && release.join(serving::entry_file(deployment)).is_file()
+        {
+            return Ok(hash);
         }
 
         let package = self
@@ -70,8 +76,7 @@ impl PagesSyncer {
         let result = self.prepare_release(package.as_path(), &release, &latest, deployment);
         let _ = fs::remove_file(&package);
         result?;
-        self.switch_current(deployment.project_id, &release)?;
-        cleanup_stale_releases(&release, &hash)
+        Ok(hash)
     }
 
     fn prepare_release(
@@ -87,7 +92,7 @@ impl PagesSyncer {
             let _ = fs::remove_dir_all(&staging);
             return Err(error);
         }
-        if !staging.join(&deployment.entry_file).is_file() {
+        if !staging.join(serving::entry_file(deployment)).is_file() {
             let _ = fs::remove_dir_all(&staging);
             bail!("Pages package has no entry file {}", deployment.entry_file);
         }
@@ -124,6 +129,7 @@ impl PagesSyncer {
                 "{}/api/v1/agent/pages/projects/{project_id}/latest/package",
                 self.base_url
             ))
+            .timeout(std::time::Duration::from_secs(300))
             .header("X-Agent-Token", &self.token)
             .send()
             .await?;
@@ -169,37 +175,6 @@ impl PagesSyncer {
         }
         fs::create_dir_all(&staging)?;
         Ok(staging)
-    }
-
-    fn switch_current(&self, project_id: u64, release: &Path) -> Result<()> {
-        let project = self.pages_dir.join("projects").join(project_id.to_string());
-        let current = project.join("current");
-        fs::create_dir_all(&project)?;
-        let temporary = project.join(".current.tmp");
-        let _ = fs::remove_file(&temporary);
-        let target = path_relative(&project, release);
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(&target, &temporary)?;
-        #[cfg(not(unix))]
-        bail!("atomic Pages current switching requires Unix symlink support");
-        let verification = verify_current(&temporary, release);
-        if verification.is_err() {
-            let _ = fs::remove_file(&temporary);
-            return verification;
-        }
-        let previous = fs::read_link(&current).ok();
-        if let Err(error) = fs::rename(&temporary, &current) {
-            let _ = fs::remove_file(&temporary);
-            return Err(error)
-                .with_context(|| format!("switch Pages current to {}", release.display()));
-        }
-        if let Err(error) = verify_current(&current, release) {
-            if let Err(rollback_error) = rollback_current(&current, previous.as_deref(), &project) {
-                return Err(rollback_error).context(error);
-            }
-            return Err(error);
-        }
-        Ok(())
     }
 }
 
@@ -269,7 +244,9 @@ fn release_ready(release: &Path, latest: &PagesLatest) -> bool {
     let Ok(marker) = serde_json::from_str::<PagesLatest>(&marker) else {
         return false;
     };
-    marker == *latest
+    marker.hash == latest.hash
+        && marker.package_size == latest.package_size
+        && marker.file_count == latest.file_count
         && fs::read_dir(release).is_ok_and(|mut entries| {
             entries
                 .any(|entry| entry.is_ok_and(|entry| entry.file_name() != ".openflare-pages.json"))
@@ -323,19 +300,19 @@ fn detect_format(package: &Path) -> Result<ArchiveFormat> {
 fn extract_package(package: &Path, destination: &Path, latest: &PagesLatest) -> Result<()> {
     match detect_format(package)? {
         ArchiveFormat::Zip => extract_zip(package, destination, latest),
-        ArchiveFormat::Tar => extract_tar(File::open(package)?, destination, latest),
+        ArchiveFormat::Tar => extract_tar(|| File::open(package), destination, latest),
         ArchiveFormat::TarGz => extract_tar(
-            flate2::read::GzDecoder::new(File::open(package)?),
+            || File::open(package).map(flate2::read::GzDecoder::new),
             destination,
             latest,
         ),
         ArchiveFormat::TarXz => extract_tar(
-            xz2::read::XzDecoder::new(File::open(package)?),
+            || File::open(package).map(xz2::read::XzDecoder::new),
             destination,
             latest,
         ),
         ArchiveFormat::TarBz2 => extract_tar(
-            bzip2::read::BzDecoder::new(File::open(package)?),
+            || File::open(package).map(bzip2::read::BzDecoder::new),
             destination,
             latest,
         ),
@@ -349,6 +326,9 @@ fn extract_zip(package: &Path, destination: &Path, latest: &PagesLatest) -> Resu
     let mut names = Vec::new();
     for index in 0..archive.len() {
         let entry = archive.by_index(index)?;
+        if entry.is_symlink() {
+            bail!("Pages ZIP archive contains a symbolic link");
+        }
         if !entry.is_dir() {
             names.push(entry.name().to_owned());
         }
@@ -373,35 +353,66 @@ fn extract_zip(package: &Path, destination: &Path, latest: &PagesLatest) -> Resu
         if let Some(parent) = Path::new(&relative).parent() {
             fs::create_dir_all(destination.join(parent))?;
         }
-        let mut output = File::create(destination.join(&relative))?;
+        let mut output = File::options()
+            .write(true)
+            .create_new(true)
+            .open(destination.join(&relative))?;
         let written = copy_limited(&mut entry, &mut output, latest)?;
         measured.record(&relative, written)?;
     }
     measured.finish(latest)
 }
 
-fn extract_tar<R: Read>(reader: R, destination: &Path, latest: &PagesLatest) -> Result<()> {
-    let mut archive = tar::Archive::new(reader);
+fn extract_tar<R: Read>(
+    open: impl Fn() -> std::io::Result<R>,
+    destination: &Path,
+    latest: &PagesLatest,
+) -> Result<()> {
+    let mut names = Vec::new();
+    let mut scan = tar::Archive::new(open()?);
+    for entry in scan.entries()? {
+        let entry = entry?;
+        let kind = entry.header().entry_type();
+        if kind.is_dir() {
+            continue;
+        }
+        anyhow::ensure!(
+            kind.is_file(),
+            "Pages tar archive contains a non-regular file"
+        );
+        let name = entry
+            .path()?
+            .to_string_lossy()
+            .trim_start_matches("./")
+            .to_owned();
+        safe_relative(&name)?;
+        names.push(name);
+        anyhow::ensure!(
+            names.len() <= MAX_FILES,
+            "Pages archive exceeds file count limit"
+        );
+    }
+    let common_root = common_root(&names)?;
+    let mut archive = tar::Archive::new(open()?);
     let mut measured = MeasuredFiles::default();
     for entry in archive.entries()? {
         let mut entry = entry?;
         if entry.header().entry_type().is_dir() {
             continue;
         }
-        if !entry.header().entry_type().is_file() {
-            bail!("Pages tar archive contains a non-regular file");
-        }
         let name = entry
             .path()?
             .to_string_lossy()
-            .trim_start_matches('/')
+            .trim_start_matches("./")
             .to_owned();
-        let common_root = common_root(std::slice::from_ref(&name))?;
         let relative = strip_common_root(&name, &common_root)?;
         if let Some(parent) = Path::new(&relative).parent() {
             fs::create_dir_all(destination.join(parent))?;
         }
-        let mut output = File::create(destination.join(&relative))?;
+        let mut output = File::options()
+            .write(true)
+            .create_new(true)
+            .open(destination.join(&relative))?;
         let written = copy_limited(&mut entry, &mut output, latest)?;
         measured.record(&relative, written)?;
     }
@@ -415,7 +426,9 @@ fn extract_7z(package: &Path, destination: &Path, latest: &PagesLatest) -> Resul
     let mut names = Vec::new();
     let archive = reader.archive().clone();
     for entry in archive.files {
-        names.push(entry.name);
+        if !entry.is_directory() && !entry.is_anti_item {
+            names.push(entry.name);
+        }
     }
     let common_root = common_root(&names)?;
     reader
@@ -430,7 +443,10 @@ fn extract_7z(package: &Path, destination: &Path, latest: &PagesLatest) -> Resul
                         return Err(error.into());
                     }
                 }
-                let mut output = File::create(destination.join(&relative))?;
+                let mut output = File::options()
+                    .write(true)
+                    .create_new(true)
+                    .open(destination.join(&relative))?;
                 let written = copy_limited(input, &mut output, latest)?;
                 measured.record(&relative, written)?;
                 Ok(true)
@@ -499,13 +515,17 @@ fn copy_limited<R: Read + ?Sized, W: Write>(
 }
 
 fn common_root(names: &[String]) -> Result<String> {
-    let Some(first) = names.first().and_then(|name| name.split('/').next()) else {
+    let Some(first) = names
+        .first()
+        .and_then(|name| name.split_once('/').map(|(first, _)| first))
+    else {
         return Ok(String::new());
     };
     if first.is_empty()
-        || !names
-            .iter()
-            .all(|name| name.split('/').next() == Some(first))
+        || !names.iter().all(|name| {
+            name.split_once('/')
+                .is_some_and(|(prefix, _)| prefix == first)
+        })
     {
         return Ok(String::new());
     }
@@ -514,11 +534,10 @@ fn common_root(names: &[String]) -> Result<String> {
 
 fn strip_common_root(name: &str, common_root: &str) -> Result<String> {
     let value = if common_root.is_empty() {
-        name.trim_start_matches('/')
+        name
     } else {
         name.strip_prefix(common_root)
-            .unwrap_or("")
-            .trim_start_matches('/')
+            .context("archive path lost its common directory")?
     };
     let relative = safe_relative(value)?;
     if relative.is_empty() {
@@ -539,64 +558,6 @@ fn safe_relative(value: &str) -> Result<&str> {
     Ok(value)
 }
 
-fn path_relative(base: &Path, target: &Path) -> PathBuf {
-    let base_components: Vec<_> = base.components().collect();
-    let target_components: Vec<_> = target.components().collect();
-    let mut index = 0;
-    while index < base_components.len()
-        && index < target_components.len()
-        && base_components[index] == target_components[index]
-    {
-        index += 1;
-    }
-    let mut result = PathBuf::new();
-    for _ in index..base_components.len() {
-        result.push("..");
-    }
-    for component in &target_components[index..] {
-        result.push(component.as_os_str());
-    }
-    if result.as_os_str().is_empty() {
-        result.push(target);
-    }
-    result
-}
-
-fn verify_current(current: &Path, release: &Path) -> Result<()> {
-    if !same_file::is_same_file(current, release)
-        .with_context(|| format!("verify Pages current {}", current.display()))?
-    {
-        bail!(
-            "Pages current {} does not resolve to release {}",
-            current.display(),
-            release.display()
-        );
-    }
-    Ok(())
-}
-
-fn rollback_current(current: &Path, previous: Option<&Path>, base: &Path) -> Result<()> {
-    let _ = fs::remove_file(current);
-    if let Some(previous) = previous {
-        let rollback = base.join(".current.rollback.tmp");
-        let _ = fs::remove_file(&rollback);
-        std::os::unix::fs::symlink(previous, &rollback)?;
-        fs::rename(&rollback, current)?;
-    }
-    Ok(())
-}
-
-fn cleanup_stale_releases(release: &Path, keep: &str) -> Result<()> {
-    let parent = release.parent().context("release has a parent")?;
-    for entry in fs::read_dir(parent)? {
-        let entry = entry?;
-        if entry.file_name().to_string_lossy() != keep {
-            let _ = fs::remove_dir_all(entry.path());
-        }
-    }
-    Ok(())
-}
-
 fn unix_now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -614,26 +575,6 @@ mod tests {
         assert!(safe_relative("../escape").is_err());
         assert!(safe_relative("/etc/passwd").is_err());
         assert!(safe_relative("a\\b").is_err());
-    }
-
-    #[test]
-    fn switch_current_uses_relative_symlink_and_cleans_temporary() {
-        let root = tempfile::tempdir().unwrap();
-        let project = root.path().join("projects").join("7");
-        let release = project.join("releases").join("hash");
-        fs::create_dir_all(&release).unwrap();
-        fs::write(release.join("index.html"), b"new").unwrap();
-        let syncer = PagesSyncer::new(
-            String::new(),
-            String::new(),
-            Client::new(),
-            root.path().to_path_buf(),
-        );
-        syncer.switch_current(7, &release).unwrap();
-        let current = project.join("current");
-        assert_eq!(fs::read_link(&current).unwrap(), Path::new("releases/hash"));
-        assert_eq!(fs::read(current.join("index.html")).unwrap(), b"new");
-        assert!(!project.join(".current.tmp").exists());
     }
 
     #[test]

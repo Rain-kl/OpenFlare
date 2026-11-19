@@ -31,6 +31,9 @@ func RegisterWithAccessToken(ctx context.Context, authNode *model.OpenFlareNode,
 	if err := validateNodePayload(payload); err != nil {
 		return nil, err
 	}
+	if authNode.LastSeenAt != nil {
+		payload.Engine = normalizeEngine(authNode.Engine)
+	}
 	applyNodeRuntime(ctx, authNode, payload, true)
 	if err := repository.SaveOpenFlareNode(ctx, authNode); err != nil {
 		return nil, err
@@ -126,6 +129,7 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 	updateChannel := strings.TrimSpace(authNode.UpdateChannel)
 	updateTag := strings.TrimSpace(authNode.UpdateTag)
 
+	payload.Engine = normalizeEngine(authNode.Engine)
 	applyNodeRuntime(ctx, authNode, payload, true)
 	authNode.UpdateRequested = false
 	authNode.UpdateChannel = releaseChannelStable
@@ -161,7 +165,7 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 		return nil, err
 	}
 
-	wafIPGroups, err := ChangedWAFIPGroupsForAgent(ctx, nil, payload.WAFIPGroupChecksums)
+	wafIPGroups, err := changedWAFIPGroups(ctx, nil, payload.WAFIPGroupChecksums, normalizeEngine(authNode.Engine))
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +217,7 @@ func ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) (*mod
 	if err != nil {
 		return nil, err
 	}
-	if sameEngineApplyLog(latest, payload.Engine) &&
+	if payload.Engine != enginePingora && sameEngineApplyLog(latest, payload.Engine) &&
 		model.IsRepeatSuccessApplyLog(latest, payload.Version, payload.Checksum, payload.Result) {
 		if err := repository.UpdateOpenFlareNodeFromApplyResult(ctx, payload.NodeID, payload.Result, payload.Version, payload.Message, now); err != nil {
 			return nil, err

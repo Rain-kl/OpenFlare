@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,6 +32,7 @@ type AgentStatusHandler func(ctx context.Context, nodeID, remoteAddr string, pay
 type agentClient struct {
 	wsClientCore
 	remoteAddr string
+	engine     string
 	onStatus   AgentStatusHandler
 }
 
@@ -42,7 +44,7 @@ type agentHub struct {
 var defaultAgentHub = &agentHub{clients: make(map[string]*agentClient)}
 
 // ServeAgent handles an upgraded agent websocket connection.
-func ServeAgent(c *gin.Context, nodeID string, onStatus AgentStatusHandler) {
+func ServeAgent(c *gin.Context, nodeID, engine string, onStatus AgentStatusHandler) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		slog.Debug("agent ws upgrade failed", "node_id", nodeID, "error", err)
@@ -57,6 +59,7 @@ func ServeAgent(c *gin.Context, nodeID string, onStatus AgentStatusHandler) {
 			done:   make(chan struct{}),
 		},
 		remoteAddr: c.Request.RemoteAddr,
+		engine:     engine,
 		onStatus:   onStatus,
 	}
 	defaultAgentHub.register(client)
@@ -119,15 +122,16 @@ func SendAgentWAFIPGroups(nodeID string, payload any) bool {
 
 // BroadcastWAFIPGroups pushes changed WAF IP groups to all connected agents.
 func BroadcastWAFIPGroups(payload any) int {
-	return broadcastAgent(agentMessageTypeWAFIPGroups, payload)
+	return broadcastAgent(agentMessageTypeWAFIPGroups, "openresty", payload) +
+		broadcastAgent(agentMessageTypeWAFIPGroups, "pingora", struct{}{})
 }
 
-// BroadcastActiveConfig pushes active config metadata to all connected agents.
-func BroadcastActiveConfig(payload any) int {
-	return broadcastAgent(agentMessageTypeActiveConfig, payload)
+// BroadcastActiveConfig pushes active config metadata to its engine release group.
+func BroadcastActiveConfig(payload protocol.ActiveConfigMeta) int {
+	return broadcastAgent(agentMessageTypeActiveConfig, payload.Engine, payload)
 }
 
-func broadcastAgent(messageType string, payload any) int {
+func broadcastAgent(messageType, engine string, payload any) int {
 	if payload == nil {
 		return 0
 	}
@@ -135,7 +139,9 @@ func broadcastAgent(messageType string, payload any) int {
 	defaultAgentHub.mu.RLock()
 	clients := make([]*agentClient, 0, len(defaultAgentHub.clients))
 	for _, client := range defaultAgentHub.clients {
-		clients = append(clients, client)
+		if engine == "" || engine == client.engine {
+			clients = append(clients, client)
+		}
 	}
 	defaultAgentHub.mu.RUnlock()
 

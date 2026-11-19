@@ -5,8 +5,11 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
@@ -38,18 +41,45 @@ func GetActivePingoraConfig(ctx context.Context) (*PingoraConfigResponse, error)
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(version.PayloadJSON) == "" || strings.TrimSpace(version.PayloadChecksum) == "" {
+	if version.SourceVersion == "" || version.PayloadChecksum == "" {
 		return nil, errors.New(errNoActiveConfig)
+	}
+	source, err := repository.GetConfigVersionSource(ctx, version)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := edgeconfig.Encode(source.SnapshotJSON, source.SupportFilesJSON)
+	if err != nil {
+		return nil, err
+	}
+	digest := sha256.Sum256([]byte(payload))
+	if hex.EncodeToString(digest[:]) != version.PayloadChecksum {
+		return nil, errors.New(errInvalidEdgeSnapshotDigest)
 	}
 	return &PingoraConfigResponse{
 		Version:         version.Version,
 		Checksum:        version.Checksum,
 		Engine:          version.Engine,
 		ReleaseSequence: version.ReleaseSequence,
-		PayloadJSON:     version.PayloadJSON,
+		PayloadJSON:     payload,
 		PayloadChecksum: version.PayloadChecksum,
 		CreatedAt:       version.CreatedAt,
 	}, nil
+}
+
+func pingoraPagesProjectAllowed(ctx context.Context, projectID uint) (bool, error) {
+	release, err := repository.GetActivePingoraConfigVersion(ctx)
+	if isActiveConfigNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	source, err := repository.GetConfigVersionSource(ctx, release)
+	if err != nil {
+		return false, err
+	}
+	return edgeconfig.ContainsPagesProject(source.SnapshotJSON, projectID)
 }
 
 func getActiveConfigForAgent(ctx context.Context, siteAuthSupported bool) (*ConfigResponse, error) {

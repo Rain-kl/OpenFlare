@@ -35,12 +35,16 @@ type runtimeIPMatchConfig struct {
 
 // WAFIPGroupsForAgent builds agent-facing WAF IP group payloads for the given ids.
 func WAFIPGroupsForAgent(ctx context.Context, ids []uint) ([]protocol.WAFIPGroup, error) {
-	return validatedAgentWAFIPGroups(ctx, ids, false)
+	return validatedAgentWAFIPGroups(ctx, ids, false, engineOpenResty)
 }
 
 // ChangedWAFIPGroupsForAgent returns WAF IP groups whose checksums differ from the agent state.
 func ChangedWAFIPGroupsForAgent(ctx context.Context, ids []uint, checksums map[string]string) ([]protocol.WAFIPGroup, error) {
-	groups, err := validatedAgentWAFIPGroups(ctx, ids, true)
+	return changedWAFIPGroups(ctx, ids, checksums, engineOpenResty)
+}
+
+func changedWAFIPGroups(ctx context.Context, ids []uint, checksums map[string]string, engine string) ([]protocol.WAFIPGroup, error) {
+	groups, err := validatedAgentWAFIPGroups(ctx, ids, true, engine)
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +58,9 @@ func ChangedWAFIPGroupsForAgent(ctx context.Context, ids []uint, checksums map[s
 	return changed, nil
 }
 
-func validatedAgentWAFIPGroups(ctx context.Context, ids []uint, fallbackToActive bool) ([]protocol.WAFIPGroup, error) {
+func validatedAgentWAFIPGroups(ctx context.Context, ids []uint, fallbackToActive bool, engine string) ([]protocol.WAFIPGroup, error) {
 	targetIDs := uniqueUintIDs(ids)
-	activeIDs, err := activeConfigWAFIPGroupIDs(ctx)
+	activeIDs, err := activeConfigWAFIPGroupIDs(ctx, engine)
 	if err != nil {
 		return nil, err
 	}
@@ -160,15 +164,19 @@ func checksumAgentWAFIPGroup(group protocol.WAFIPGroup) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func activeConfigWAFIPGroupIDs(ctx context.Context) ([]uint, error) {
-	version, err := repository.GetActiveConfigVersion(ctx)
+func activeConfigWAFIPGroupIDs(ctx context.Context, engine string) ([]uint, error) {
+	version, err := repository.GetActiveConfigVersionByEngine(ctx, engine)
 	if err != nil {
 		if isActiveConfigNotFound(err) {
 			return []uint{}, nil
 		}
 		return nil, err
 	}
-	snapshot, err := parseActiveConfigSnapshot(version.SnapshotJSON)
+	source, err := repository.GetConfigVersionSource(ctx, version)
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := parseActiveConfigSnapshot(source.SnapshotJSON)
 	if err != nil {
 		return nil, err
 	}

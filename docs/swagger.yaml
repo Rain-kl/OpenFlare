@@ -3894,13 +3894,13 @@ definitions:
         type: string
       payload_checksum:
         type: string
-      payload_json:
-        type: string
       release_sequence:
         type: integer
       rendered_config:
         type: string
       snapshot_json:
+        type: string
+      source_version:
         type: string
       support_files_json:
         type: string
@@ -7175,6 +7175,10 @@ paths:
           description: Token 无效
           schema:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: 资源不在节点发布范围内
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
       security:
       - AgentTokenAuth: []
       summary: 获取活跃配置版本
@@ -7283,6 +7287,10 @@ paths:
           description: Token 无效
           schema:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: 资源不在节点发布范围内
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
       security:
       - AgentTokenAuth: []
       summary: 查询 Pages 部署包哈希
@@ -7310,6 +7318,10 @@ paths:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
         "401":
           description: Token 无效
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: 资源不在节点发布范围内
           schema:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
       security:
@@ -7346,6 +7358,10 @@ paths:
           description: Token 无效
           schema:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: 资源不在节点发布范围内
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
       security:
       - AgentTokenAuth: []
       summary: 查询 Pages 项目最新激活部署哈希
@@ -7373,6 +7389,10 @@ paths:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
         "401":
           description: Token 无效
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: 资源不在节点发布范围内
           schema:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
       security:

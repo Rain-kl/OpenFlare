@@ -30,6 +30,7 @@ func (cvs *ConfigVersionSummary) AfterFind(_ *gorm.DB) (err error) {
 type ConfigVersion struct {
 	ID               string    `json:"id" gorm:"-"`
 	Version          string    `json:"version" gorm:"primaryKey;size:32;not null"`
+	SourceVersion    string    `json:"source_version,omitempty" gorm:"size:32;not null;default:'';index"`
 	SnapshotJSON     string    `json:"snapshot_json" gorm:"type:text;not null"`
 	MainConfig       string    `json:"main_config" gorm:"type:text;not null;default:''"`
 	RenderedConfig   string    `json:"rendered_config" gorm:"type:text;not null"`
@@ -38,7 +39,6 @@ type ConfigVersion struct {
 	IsActive         bool      `json:"is_active" gorm:"not null;default:false;index"`
 	Engine           string    `json:"engine" gorm:"size:32;not null;default:'openresty';index:idx_of_config_versions_engine_active"`
 	ReleaseSequence  int64     `json:"release_sequence" gorm:"not null;default:0"`
-	PayloadJSON      string    `json:"payload_json" gorm:"type:text;not null;default:''"`
 	PayloadChecksum  string    `json:"payload_checksum" gorm:"size:64;not null;default:''"`
 	CreatedBy        string    `json:"created_by" gorm:"size:64;not null"`
 	CreatedAt        time.Time `json:"created_at" gorm:"autoCreateTime"`

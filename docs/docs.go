@@ -4364,6 +4364,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
+                    },
+                    "403": {
+                        "description": "资源不在节点发布范围内",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
                     }
                 }
             }
@@ -4548,6 +4554,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
+                    },
+                    "403": {
+                        "description": "资源不在节点发布范围内",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
                     }
                 }
             }
@@ -4591,6 +4603,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "资源不在节点发布范围内",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -4652,6 +4670,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
+                    },
+                    "403": {
+                        "description": "资源不在节点发布范围内",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
                     }
                 }
             }
@@ -4695,6 +4719,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "资源不在节点发布范围内",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -21142,9 +21172,6 @@ const docTemplate = `{
                 "payload_checksum": {
                     "type": "string"
                 },
-                "payload_json": {
-                    "type": "string"
-                },
                 "release_sequence": {
                     "type": "integer"
                 },
@@ -21152,6 +21179,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "snapshot_json": {
+                    "type": "string"
+                },
+                "source_version": {
                     "type": "string"
                 },
                 "support_files_json": {

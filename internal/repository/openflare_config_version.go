@@ -6,6 +6,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -40,6 +42,14 @@ func GetConfigVersionByVersion(ctx context.Context, version string) (*model.Conf
 	return &cv, nil
 }
 
+// GetConfigVersionSource resolves the shared snapshot referenced by a release.
+func GetConfigVersionSource(ctx context.Context, version *model.ConfigVersion) (*model.ConfigVersion, error) {
+	if version.SourceVersion == "" {
+		return version, nil
+	}
+	return GetConfigVersionByVersion(ctx, version.SourceVersion)
+}
+
 // GetActiveConfigVersion returns the currently active config version.
 func GetActiveConfigVersion(ctx context.Context) (*model.ConfigVersion, error) {
 	return GetActiveConfigVersionByEngine(ctx, engineOpenResty)
@@ -54,7 +64,7 @@ func GetActiveConfigVersionByEngine(ctx context.Context, engine string) (*model.
 	var version model.ConfigVersion
 	if err := conn.
 		Where("is_active = ? AND engine = ?", true, engine).
-		Order("version desc").
+		Order("release_sequence desc, version desc").
 		First(&version).Error; err != nil {
 		return nil, err
 	}
@@ -86,49 +96,86 @@ func GetLatestConfigVersionByPrefix(ctx context.Context, prefix string) (string,
 	return version.Version, nil
 }
 
-// CreateConfigVersion inserts a new config version record.
-func CreateConfigVersion(ctx context.Context, version *model.ConfigVersion) error {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return errors.New(errDatabaseNotInitialized)
-	}
-	return conn.Create(version).Error
-}
-
-// PublishConfigVersionTx deactivates all versions and creates a new active version.
-func PublishConfigVersionTx(ctx context.Context, version *model.ConfigVersion) error {
+// PublishConfigVersionTx atomically advances the supplied engine release groups.
+func PublishConfigVersionTx(ctx context.Context, versions ...*model.ConfigVersion) error {
 	conn := db.DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
 	return conn.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.ConfigVersion{}).
-			Where("is_active = ? AND engine = ?", true, version.Engine).
-			Update("is_active", false).Error; err != nil {
-			return err
+		for _, version := range versions {
+			if version == nil {
+				continue
+			}
+			if version.Engine == "" {
+				version.Engine = engineOpenResty
+			}
+			if err := deactivateActiveConfigVersion(tx, version.Engine); err != nil {
+				return err
+			}
+			if version.Engine == enginePingora {
+				if err := assignPingoraReleaseSequence(tx, version); err != nil {
+					return err
+				}
+			}
+			if err := tx.Create(version).Error; err != nil {
+				return err
+			}
 		}
-		return tx.Create(version).Error
+		return nil
 	})
 }
 
-// ActivateConfigVersionTx marks the given version active and deactivates others.
-func ActivateConfigVersionTx(ctx context.Context, version string) error {
+const enginePingora = "pingora"
+
+func deactivateActiveConfigVersion(tx *gorm.DB, engine string) error {
+	return tx.Model(&model.ConfigVersion{}).
+		Where("is_active = ? AND engine = ?", true, engine).
+		Update("is_active", false).Error
+}
+
+func assignPingoraReleaseSequence(tx *gorm.DB, version *model.ConfigVersion) error {
+	var latest int64
+	if err := tx.Model(&model.ConfigVersion{}).Where("engine = ?", enginePingora).
+		Select("COALESCE(MAX(release_sequence), 0)").Scan(&latest).Error; err != nil {
+		return err
+	}
+	version.ReleaseSequence = latest + 1
+	return nil
+}
+
+// ActivateConfigVersionTx restores an existing snapshot. Pingora rollbacks are new releases.
+func ActivateConfigVersionTx(ctx context.Context, version string) (*model.ConfigVersion, error) {
 	conn := db.DB(ctx)
 	if conn == nil {
-		return errors.New(errDatabaseNotInitialized)
+		return nil, errors.New(errDatabaseNotInitialized)
 	}
-	return conn.Transaction(func(tx *gorm.DB) error {
-		target, err := GetConfigVersionByVersion(ctx, version)
-		if err != nil {
+	var target model.ConfigVersion
+	err := conn.Transaction(func(tx *gorm.DB) error {
+		if err := tx.First(&target, "version = ?", version).Error; err != nil {
 			return err
 		}
-		if err := tx.Model(&model.ConfigVersion{}).
-			Where("is_active = ? AND engine = ?", true, target.Engine).
-			Update("is_active", false).Error; err != nil {
+		if target.Engine == enginePingora && target.SourceVersion == "" {
+			return errors.New("the Edge release does not reference a shared snapshot")
+		}
+		if err := deactivateActiveConfigVersion(tx, target.Engine); err != nil {
 			return err
 		}
-		return tx.Model(&model.ConfigVersion{}).Where("version = ?", version).Update("is_active", true).Error
+		target.IsActive = true
+		if target.Engine != enginePingora {
+			return tx.Model(&model.ConfigVersion{}).Where("version = ?", version).Update("is_active", true).Error
+		}
+		if err := assignPingoraReleaseSequence(tx, &target); err != nil {
+			return err
+		}
+		target.Version = fmt.Sprintf("pingora-r%d", target.ReleaseSequence)
+		target.CreatedAt = time.Time{}
+		return tx.Create(&target).Error
 	})
+	if err != nil {
+		return nil, err
+	}
+	return &target, nil
 }
 
 // DeleteConfigVersionsByVersions removes config versions by versions.
@@ -140,8 +187,17 @@ func DeleteConfigVersionsByVersions(ctx context.Context, versions []string) (int
 	if conn == nil {
 		return 0, errors.New(errDatabaseNotInitialized)
 	}
-	result := conn.Where("version IN ?", versions).Delete(&model.ConfigVersion{})
-	return result.RowsAffected, result.Error
+	// Delete release records before considering their snapshots. A retained
+	// release owns a reference even when its source is older than keepCount.
+	var deleted int64
+	err := conn.Transaction(func(tx *gorm.DB) error {
+		references := tx.Model(&model.ConfigVersion{}).Select("source_version").Where("source_version <> ''")
+		result := tx.Where("version IN ? AND is_active = ? AND version NOT IN (?)", versions, false, references).
+			Delete(&model.ConfigVersion{})
+		deleted = result.RowsAffected
+		return result.Error
+	})
+	return deleted, err
 }
 
 // ListEnabledProxyRoutes returns enabled proxy routes ordered by id asc.

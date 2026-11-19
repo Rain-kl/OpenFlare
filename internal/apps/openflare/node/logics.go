@@ -360,7 +360,11 @@ func RequestForceSync(ctx context.Context, id uint) (*View, error) {
 	if err != nil {
 		return nil, err
 	}
-	activeConfig, err := repository.GetActiveConfigVersion(ctx)
+	engine := node.Engine
+	if engine == "" {
+		engine = "openresty"
+	}
+	activeConfig, err := repository.GetActiveConfigVersionByEngine(ctx, engine)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("unable to get the currently active configuration version: %s", errNoActiveConfigVersion)
