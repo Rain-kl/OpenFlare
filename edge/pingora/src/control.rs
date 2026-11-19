@@ -1,13 +1,14 @@
 use crate::config::{self, AppliedConfig};
 use crate::pages::PagesSyncer;
 use crate::policy::{AccessLogBuffer, NodeAccessLog};
-use crate::proxy;
+use crate::proxy::DataPlaneState;
 use anyhow::{Context, Result};
 use rand::RngCore;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -139,26 +140,26 @@ impl Runtime {
             base_url,
             token_type,
             token,
-            state_dir,
+            state_dir: state_dir.clone(),
             http_listen,
             tls_listen,
             client,
-            access_logs: AccessLogBuffer::default(),
+            access_logs: AccessLogBuffer::persistent(state_dir),
         })
     }
 
     pub async fn run(self) -> Result<()> {
         let identity = self.ensure_identity().await?;
-        let access_logs = AccessLogBuffer::default();
-        let state = SharedState::new(
-            identity.node_id.clone(),
+        let state = SharedState::new();
+        if let Some(restored) = config::restore_snapshot(&self.state_dir)? {
+            state.set_config(restored)?;
+        }
+        let data_plane = spawn_data_plane(
+            self.state_dir.clone(),
             self.http_listen.clone(),
             self.tls_listen.clone(),
-            access_logs.clone(),
-        );
-        if let Some(restored) = config::restore_snapshot(&self.state_dir)? {
-            state.apply(restored)?;
-        }
+        )?;
+        monitor_data_plane(self.state_dir.clone(), data_plane.id()).await?;
 
         let mut interval = Duration::from_millis(3000);
         loop {
@@ -193,7 +194,7 @@ impl Runtime {
                                     &remote.payload_json,
                                 ) {
                                     Ok(applied) => {
-                                        if let Err(error) = state.apply(applied.clone()) {
+                                        if let Err(error) = state.set_config(applied.clone()) {
                                             tracing::error!(version = %remote.version, error = %error, "failed to apply configuration");
                                             let _ = authenticated
                                                 .report_apply(
@@ -443,26 +444,12 @@ async fn decode_response<T: for<'de> Deserialize<'de>>(response: reqwest::Respon
 
 #[derive(Clone, Debug)]
 pub struct SharedState {
-    #[allow(dead_code)]
-    node_id: String,
-    http_listen: String,
-    tls_listen: Option<String>,
-    access_logs: AccessLogBuffer,
     inner: Arc<RwLock<Option<AppliedConfig>>>,
 }
 
 impl SharedState {
-    fn new(
-        node_id: String,
-        http_listen: String,
-        tls_listen: Option<String>,
-        access_logs: AccessLogBuffer,
-    ) -> Self {
+    fn new() -> Self {
         Self {
-            node_id,
-            http_listen,
-            tls_listen,
-            access_logs: access_logs.clone(),
             inner: Arc::new(RwLock::new(None)),
         }
     }
@@ -471,23 +458,7 @@ impl SharedState {
         self.inner.read().ok().and_then(|guard| guard.clone())
     }
 
-    pub fn apply(&self, config: AppliedConfig) -> Result<()> {
-        let was_empty = {
-            let guard = self
-                .inner
-                .read()
-                .map_err(|error| anyhow::anyhow!(error.to_string()))?;
-            guard.is_none()
-        };
-        if was_empty {
-            tracing::info!(http_listen = %self.http_listen, tls_listen = ?self.tls_listen, version = %config.version, "starting proxy listener");
-            proxy::spawn(
-                self.clone(),
-                &self.http_listen,
-                self.tls_listen.as_deref(),
-                self.access_logs.clone(),
-            )?;
-        }
+    pub fn set_config(&self, config: AppliedConfig) -> Result<()> {
         let mut guard = self
             .inner
             .write()
@@ -495,6 +466,78 @@ impl SharedState {
         *guard = Some(config);
         Ok(())
     }
+}
+
+fn spawn_data_plane(
+    state_dir: PathBuf,
+    http_listen: String,
+    tls_listen: Option<String>,
+) -> Result<std::process::Child> {
+    let mut command = Command::new(std::env::current_exe()?);
+    command
+        .arg("run")
+        .arg("--data-plane")
+        .arg("--server-url")
+        .arg("local://data-plane")
+        .arg("--token-type")
+        .arg("node")
+        .arg("--token-file")
+        .arg(identity_path(&state_dir))
+        .arg("--state-dir")
+        .arg(&state_dir)
+        .arg("--http-listen")
+        .arg(&http_listen);
+    if let Some(listen) = tls_listen.as_ref() {
+        command.arg("--tls-listen").arg(listen);
+    }
+    command
+        .spawn()
+        .with_context(|| "failed to start OpenFlare Edge data plane")
+}
+
+#[cfg(not(target_os = "windows"))]
+async fn monitor_data_plane(state_dir: PathBuf, launcher_pid: u32) -> Result<()> {
+    let pid_path = state_dir.join("openflare-edge.pid");
+    let timeout = tokio::time::Instant::now() + Duration::from_secs(60);
+    let mut ready_pid: Option<u32> = None;
+    loop {
+        if tokio::time::Instant::now() >= timeout {
+            anyhow::bail!("data plane did not report a ready pid within 60 seconds");
+        }
+        if ready_pid.is_none() {
+            if let Ok(content) = std::fs::read_to_string(&pid_path) {
+                ready_pid = content.trim().parse::<u32>().ok();
+            }
+        }
+        if ready_pid.is_some() {
+            return Ok(());
+        }
+        let launcher_running =
+            launcher_pid != 0 && unsafe { libc::kill(launcher_pid as libc::pid_t, 0) == 0 };
+        if !launcher_running {
+            anyhow::bail!("data plane launcher exited before reporting readiness");
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+pub fn load_restored_state(
+    state_dir: PathBuf,
+    http_listen: String,
+    tls_listen: Option<String>,
+) -> Result<DataPlaneState> {
+    let access_logs = AccessLogBuffer::persistent(&state_dir);
+    let shared = SharedState::new();
+    if let Some(restored) = config::restore_snapshot(&state_dir)? {
+        shared.set_config(restored)?;
+    }
+    Ok(DataPlaneState {
+        shared,
+        state_dir,
+        http_listen,
+        tls_listen,
+        access_logs,
+    })
 }
 
 fn identity_path(state_dir: &Path) -> PathBuf {

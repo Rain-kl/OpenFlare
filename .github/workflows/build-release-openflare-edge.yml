@@ -1,0 +1,103 @@
+name: Build OpenFlare Edge Release
+
+on:
+  push:
+    tags: ["edge-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Edge release version/tag, for example edge-v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  CARGO_MANIFEST: edge/pingora/Cargo.toml
+
+jobs:
+  build:
+    name: Build edge ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+          input_version="${INPUT_VERSION//[[:space:]]/}"
+          if [[ "${GITHUB_REF}" == refs/tags/edge-v* ]]; then
+            version="${GITHUB_REF_NAME}"
+          elif [[ -n "${input_version}" ]]; then
+            version="${input_version}"
+          else
+            echo "workflow_dispatch requires an edge-v version input" >&2
+            exit 1
+          fi
+          [[ "${version}" =~ ^edge-v[0-9]+(\.[0-9]+)*(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "invalid edge version: ${version}" >&2
+            exit 1
+          }
+          cargo_version="$(sed -nE 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "$CARGO_MANIFEST")"
+          [[ "${version}" == "edge-v${cargo_version}" ]] || {
+            echo "edge release ${version} does not match Cargo version ${cargo_version}" >&2
+            exit 1
+          }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: edge/pingora
+          key: ${{ matrix.arch }}
+
+      - name: Test
+        run: cargo test --locked --manifest-path "$CARGO_MANIFEST"
+
+      - name: Build and package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          cargo build --locked --release --manifest-path "$CARGO_MANIFEST" --target "$TARGET"
+          package_name="openflare-edge_${VERSION}_linux_${ARCH}"
+          staging_dir="dist/${package_name}"
+          mkdir -p "${staging_dir}/scripts"
+          cp "edge/pingora/target/${TARGET}/release/openflare-edge" "${staging_dir}/"
+          cp LICENSE "${staging_dir}/"
+          cp scripts/install-openflare-edge.sh "${staging_dir}/scripts/"
+          cp scripts/uninstall-openflare-edge.sh "${staging_dir}/scripts/"
+          cp scripts/fetch-agent-geoip-mmdb.sh "${staging_dir}/scripts/"
+          printf '%s\n' "$VERSION" > "${staging_dir}/VERSION"
+          (cd "${staging_dir}" && sha256sum openflare-edge > SHA256SUMS)
+          tar -C dist -czf "dist/${package_name}.tar.gz" "${package_name}"
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: OpenFlare Edge ${{ steps.version.outputs.version }}
+          files: dist/openflare-edge_${{ steps.version.outputs.version }}_linux_${{ matrix.arch }}.tar.gz

@@ -11,6 +11,7 @@ use pingora::listeners::TlsAccept;
 use pingora::proxy::http_proxy_service;
 use pingora::proxy::{ProxyHttp, Session};
 use pingora::server::configuration::Opt;
+use pingora::server::configuration::ServerConf;
 use pingora::server::Server;
 use pingora::tls::ext;
 use pingora::tls::ssl::{NameType, SslRef};
@@ -18,6 +19,7 @@ use pingora::upstreams::peer::HttpPeer;
 use pingora::{Error, Result};
 use pingora_error::ErrorType::*;
 use pingora_http::ResponseHeader;
+use std::num::NonZeroU64;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -60,6 +62,14 @@ impl RequestLogContext {
                 .to_owned(),
         }
     }
+}
+
+pub struct DataPlaneState {
+    pub shared: SharedState,
+    pub state_dir: PathBuf,
+    pub http_listen: String,
+    pub tls_listen: Option<String>,
+    pub access_logs: AccessLogBuffer,
 }
 
 pub struct ProxyService {
@@ -716,42 +726,62 @@ fn normalize_upstream(value: &str) -> AnyhowResult<NormalizedUpstream> {
     })
 }
 
-pub fn spawn(
-    state: SharedState,
-    http_listen: &str,
-    tls_listen: Option<&str>,
-    access_logs: AccessLogBuffer,
-) -> anyhow::Result<()> {
-    std::net::TcpListener::bind(http_listen)?;
-    if let Some(listen) = tls_listen {
-        std::net::TcpListener::bind(listen)?;
-    }
-    let mut server = Server::new(Some(Opt::default()))?;
-    server.bootstrap();
+pub fn run_server(state: DataPlaneState) -> anyhow::Result<()> {
+    let DataPlaneState {
+        shared,
+        state_dir,
+        http_listen,
+        tls_listen,
+        access_logs,
+    } = state;
+    STATE_DIR
+        .set(state_dir.to_string_lossy().into_owned())
+        .map_err(|_| anyhow::anyhow!("proxy state directory was already initialized"))?;
+    let conf = ServerConf {
+        daemon: true,
+        daemon_wait_for_ready: true,
+        daemon_ready_timeout_seconds: NonZeroU64::new(60),
+        daemon_notify_timeout_seconds: NonZeroU64::new(60),
+        working_directory: Some(state_dir.clone()),
+        error_log: Some(
+            state_dir
+                .join("openflare-edge.log")
+                .to_string_lossy()
+                .into_owned(),
+        ),
+        pid_file: state_dir
+            .join("openflare-edge.pid")
+            .to_string_lossy()
+            .into_owned(),
+        upgrade_sock: state_dir
+            .join("openflare-edge-upgrade.sock")
+            .to_string_lossy()
+            .into_owned(),
+        ..ServerConf::default()
+    };
+    let mut server = Server::new_with_opt_and_conf(Some(Opt::default()), conf);
+    let bootstrap = server.bootstrap_as_a_service();
     let mut service = http_proxy_service(
         &Arc::clone(&server.configuration),
         ProxyService {
-            state: state.clone(),
+            state: shared.clone(),
             rate_limiter: global_rate_limiter(),
             state_dir: global_state_dir(),
             pow: global_pow_state(),
             access_logs,
         },
     );
-    service.add_tcp(http_listen);
-    if let Some(listen) = tls_listen {
+    service.add_tcp(&http_listen);
+    if let Some(listen) = tls_listen.as_deref() {
         let mut settings = TlsSettings::with_callbacks(Box::new(DynamicCertificateCallback {
-            state: state.clone(),
+            state: shared.clone(),
         }))?;
         settings.enable_h2();
         service.add_tls_with_settings(listen, None, settings);
     }
-    server.add_service(service);
-    std::thread::spawn(move || {
-        tracing::info!("proxy server stopped");
-        server.run_forever();
-    });
-    Ok(())
+    let proxy = server.add_service(service);
+    proxy.add_dependency(&bootstrap);
+    server.run_forever()
 }
 
 #[cfg(test)]

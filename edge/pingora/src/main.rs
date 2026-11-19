@@ -18,6 +18,9 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     Run {
+        #[arg(long, hide = true)]
+        data_plane: bool,
+
         #[arg(long)]
         server_url: String,
         #[arg(long, default_value = "discovery")]
@@ -52,18 +55,24 @@ fn main() -> Result<()> {
                 token_type,
                 token_file,
                 state_dir,
+                data_plane,
                 http_listen,
                 tls_listen,
             } => {
-                let runtime = control::Runtime::new(
-                    server_url,
-                    token_type,
-                    token_file,
-                    state_dir,
-                    http_listen,
-                    tls_listen,
-                )?;
-                runtime.run().await
+                if data_plane {
+                    let state = control::load_restored_state(state_dir, http_listen, tls_listen)?;
+                    proxy::run_server(state)
+                } else {
+                    let runtime = control::Runtime::new(
+                        server_url,
+                        token_type,
+                        token_file,
+                        state_dir,
+                        http_listen,
+                        tls_listen,
+                    )?;
+                    runtime.run().await
+                }
             }
         }
     })

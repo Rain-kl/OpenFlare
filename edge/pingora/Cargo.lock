@@ -1451,6 +1451,7 @@ dependencies = [
  "hmac",
  "http",
  "include_dir",
+ "libc",
  "maxminddb",
  "pingora",
  "pingora-error",

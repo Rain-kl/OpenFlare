@@ -7,10 +7,11 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha1::Sha1 as Sha1Digest;
 use sha2::{Digest, Sha256};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
+use std::io::Write;
 use std::net::IpAddr;
+use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -69,9 +70,7 @@ const POW_CHALLENGE_EN: &str =
 const POW_CHALLENGE_ZH_CN: &str =
     include_str!("../../../internal/edge/agent/nginx/pow_static/locales/challenge.zh-CN.json");
 
-pub const MAX_ACCESS_LOG_BUFFER: usize = 2048;
-
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeAccessLog {
     pub logged_at_unix: i64,
     pub remote_addr: String,
@@ -87,53 +86,141 @@ pub struct NodeAccessLog {
 
 #[derive(Clone, Default)]
 pub struct AccessLogBuffer {
-    inner: Arc<Mutex<AccessLogBufferInner>>,
+    queue: Option<AccessLogQueue>,
 }
 
-impl std::fmt::Debug for AccessLogBuffer {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let len = self
-            .inner
-            .lock()
-            .map(|inner| inner.logs.len())
-            .unwrap_or_default();
-        formatter
-            .debug_struct("AccessLogBuffer")
-            .field("len", &len)
-            .finish()
+#[derive(Clone)]
+pub struct AccessLogQueue {
+    state_dir: PathBuf,
+}
+
+const MAX_ACCESS_LOG_QUEUE: usize = 2048;
+const MAX_ACCESS_LOG_FILE_BYTES: u64 = 4 * 1024 * 1024;
+
+impl AccessLogQueue {
+    pub fn new(state_dir: impl Into<PathBuf>) -> Self {
+        Self {
+            state_dir: state_dir.into(),
+        }
     }
-}
 
-#[derive(Default)]
-struct AccessLogBufferInner {
-    logs: VecDeque<NodeAccessLog>,
-}
+    fn lock(&self) -> Option<std::fs::File> {
+        let path = self.state_dir.join("access-logs.lock");
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(path)
+            .ok()?;
+        unsafe {
+            if libc::flock(file.as_raw_fd(), libc::LOCK_EX) != 0 {
+                return None;
+            }
+        }
+        Some(file)
+    }
 
-impl AccessLogBuffer {
+    fn path(&self) -> PathBuf {
+        self.state_dir.join("access-logs.jsonl")
+    }
+
+    fn lines(&self) -> Vec<String> {
+        std::fs::read_to_string(self.path())
+            .map(|content| content.lines().map(str::to_owned).collect())
+            .unwrap_or_default()
+    }
+
+    fn write_lines(&self, lines: &[String]) {
+        let temporary = self.state_dir.join("access-logs.new.tmp");
+        let mut content = String::new();
+        for line in lines {
+            content.push_str(line);
+            content.push('\n');
+        }
+        if std::fs::write(&temporary, content).is_ok() {
+            let _ = std::fs::rename(&temporary, self.path());
+        }
+    }
+
     pub fn push(&self, log: NodeAccessLog) {
-        let Ok(mut inner) = self.inner.lock() else {
+        let _lock = self.lock();
+        let path = self.path();
+        let mut line = serde_json::to_vec(&log).unwrap_or_default();
+        line.push(b'\n');
+        let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+        else {
             return;
         };
-        inner.logs.push_back(log);
-        while inner.logs.len() > MAX_ACCESS_LOG_BUFFER {
-            inner.logs.pop_front();
+        let _ = file.write_all(&line);
+        let _ = file.sync_data();
+        if file
+            .metadata()
+            .map(|metadata| metadata.len() > MAX_ACCESS_LOG_FILE_BYTES)
+            .unwrap_or(false)
+        {
+            let lines = self.lines();
+            if lines.len() > MAX_ACCESS_LOG_QUEUE {
+                self.write_lines(&lines[lines.len() - MAX_ACCESS_LOG_QUEUE..]);
+            }
         }
     }
 
     pub fn peek(&self, limit: usize) -> Vec<NodeAccessLog> {
-        let Ok(inner) = self.inner.lock() else {
-            return Vec::new();
-        };
-        inner.logs.iter().take(limit).cloned().collect()
+        let _lock = self.lock();
+        self.lines()
+            .iter()
+            .take(limit)
+            .filter_map(|line| serde_json::from_str(line).ok())
+            .collect()
     }
 
     pub fn commit(&self, count: usize) {
-        let Ok(mut inner) = self.inner.lock() else {
+        let _lock = self.lock();
+        let lines = self.lines();
+        if count >= lines.len() {
+            let _ = std::fs::remove_file(self.path());
             return;
-        };
-        let count = count.min(inner.logs.len());
-        for _ in 0..count {
-            inner.logs.pop_front();
+        }
+        self.write_lines(&lines[count..]);
+    }
+}
+
+impl std::fmt::Debug for AccessLogBuffer {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("AccessLogBuffer")
+            .field("persistent", &self.queue.is_some())
+            .finish()
+    }
+}
+
+impl AccessLogBuffer {
+    pub fn persistent(state_dir: impl Into<PathBuf>) -> Self {
+        Self {
+            queue: Some(AccessLogQueue::new(state_dir)),
+        }
+    }
+
+    pub fn push(&self, log: NodeAccessLog) {
+        if let Some(queue) = self.queue.as_ref() {
+            queue.push(log);
+        }
+    }
+
+    pub fn peek(&self, limit: usize) -> Vec<NodeAccessLog> {
+        self.queue
+            .as_ref()
+            .map(|queue| queue.peek(limit))
+            .unwrap_or_default()
+    }
+
+    pub fn commit(&self, count: usize) {
+        if let Some(queue) = self.queue.as_ref() {
+            queue.commit(count);
         }
     }
 }
@@ -1646,8 +1733,9 @@ mod tests {
     }
 
     #[test]
-    fn access_log_buffer_is_bounded_and_commits_only_reported_entries() {
-        let buffer = AccessLogBuffer::default();
+    fn access_log_queue_persists_and_drains_atomically() {
+        let state_dir = tempfile::tempdir().expect("tempdir");
+        let buffer = AccessLogBuffer::persistent(state_dir.path());
         let log = NodeAccessLog {
             logged_at_unix: 100,
             remote_addr: "192.0.2.1".into(),
@@ -1665,28 +1753,15 @@ mod tests {
             path: "/second".into(),
             ..log.clone()
         });
-        let reported = buffer.peek(1);
-        assert_eq!(reported.len(), 1);
-        assert_eq!(reported[0].path, "/");
-        buffer.commit(reported.len());
-        assert_eq!(buffer.peek(10).len(), 1);
-        assert_eq!(buffer.peek(10)[0].path, "/second");
-        for i in 0..(MAX_ACCESS_LOG_BUFFER + 10) {
-            buffer.push(NodeAccessLog {
-                path: format!("/{i}"),
-                ..log.clone()
-            });
-        }
-        assert_eq!(
-            buffer.peek(MAX_ACCESS_LOG_BUFFER).len(),
-            MAX_ACCESS_LOG_BUFFER
-        );
-        let oldest = buffer.peek(MAX_ACCESS_LOG_BUFFER)[0]
-            .path
-            .trim_start_matches('/')
-            .parse::<usize>()
-            .unwrap();
-        assert!(oldest > 0 && oldest <= 10);
+        let drained = buffer.peek(1);
+        assert_eq!(drained.len(), 1);
+        assert_eq!(drained[0].path, "/");
+        buffer.commit(drained.len());
+        let remaining = buffer.peek(10);
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].path, "/second");
+        buffer.commit(remaining.len());
+        assert!(buffer.peek(10).is_empty());
     }
 
     #[test]

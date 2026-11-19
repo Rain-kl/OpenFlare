@@ -23,6 +23,7 @@ sidebar: false
 - 新增 Pingora 边缘节点第二阶段能力：主控可从同一业务发布生成 Pingora 独立配置契约，Rust 节点按证书资产实现 TLS/SNI 动态证书选择，TLS 监听启用 HTTP/2，并在路由与证书更新时通过原子快照热生效；`pingora_enabled` 默认关闭，开启后不影响现有 OpenResty 节点发布。
 - Pingora 契约升级到 v2，同一业务发布会携带 Basic Auth、站点认证、PoW、限流和 Pages 部署参数；Rust 节点开始执行 Basic Auth 校验、站点认证签名与登录流程、PoW 路径策略判定、请求速率限制和 Pages 安全路径解析，行为基准与 OpenResty 保持一致。
 - Pingora 第三阶段新增 WAF 图执行、IP 组引用、GeoIP City/地区匹配、PoW HTML 挑战页与结构化访问明细上报；PoW 使用与 OpenResty 相同的模板配置、内建模板源文件、静态资源和配置契约，访问明细经节点心跳进入既有日志链路，继续与 OpenResty 使用同一配置对照。
+- Pingora 边缘节点新增独立 `edge-v` 版本发布和 Linux amd64/arm64 安装包，支持低权限 systemd 部署、GeoIP 数据库自动下载、进程异常自动恢复、监听 FD 平滑升级、历史版本保留和升级失败自动回滚，发布与 OpenResty 主线完全隔离。
 
 ### ⚡️ 优化与改进
 
