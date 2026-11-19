@@ -574,6 +574,13 @@ async fn monitor_data_plane(
     previous_pid: Option<u32>,
 ) -> Result<u32> {
     let pid_path = state_dir.join("openflare-edge.pid");
+    let previous_pid = previous_pid.filter(|pid| *pid != 0);
+    let existing_pid = previous_pid
+        .and_then(|_| data_plane_pid(&state_dir))
+        .filter(|pid| Some(*pid) != previous_pid);
+    if let Some(pid) = existing_pid {
+        return Ok(pid);
+    }
     let timeout = tokio::time::Instant::now() + Duration::from_secs(60);
     let mut ready_pid: Option<u32> = None;
     loop {
