@@ -18,14 +18,37 @@ import (
 	"gorm.io/gorm"
 )
 
-func getActiveConfigMeta(ctx context.Context) (*protocol.ActiveConfigMeta, error) {
-	version, err := repository.GetActiveConfigVersion(ctx)
+func getActiveConfigMetaByEngine(ctx context.Context, engine string) (*protocol.ActiveConfigMeta, error) {
+	version, err := repository.GetActiveConfigVersionByEngine(ctx, engine)
 	if err != nil {
 		return nil, err
 	}
 	return &protocol.ActiveConfigMeta{
-		Version:  version.Version,
-		Checksum: version.Checksum,
+		Version:         version.Version,
+		Checksum:        version.Checksum,
+		Engine:          version.Engine,
+		ReleaseSequence: version.ReleaseSequence,
+		PayloadChecksum: version.PayloadChecksum,
+	}, nil
+}
+
+// GetActivePingoraConfig returns the dedicated active Pingora configuration.
+func GetActivePingoraConfig(ctx context.Context) (*PingoraConfigResponse, error) {
+	version, err := repository.GetActivePingoraConfigVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(version.PayloadJSON) == "" || strings.TrimSpace(version.PayloadChecksum) == "" {
+		return nil, errors.New(errNoActiveConfig)
+	}
+	return &PingoraConfigResponse{
+		Version:         version.Version,
+		Checksum:        version.Checksum,
+		Engine:          version.Engine,
+		ReleaseSequence: version.ReleaseSequence,
+		PayloadJSON:     version.PayloadJSON,
+		PayloadChecksum: version.PayloadChecksum,
+		CreatedAt:       version.CreatedAt,
 	}, nil
 }
 

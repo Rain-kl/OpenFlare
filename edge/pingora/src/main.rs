@@ -25,7 +25,9 @@ enum Command {
         #[arg(long)]
         state_dir: PathBuf,
         #[arg(long, default_value = "127.0.0.1:8080")]
-        listen: String,
+        http_listen: String,
+        #[arg(long)]
+        tls_listen: Option<String>,
     },
 }
 
@@ -48,10 +50,17 @@ fn main() -> Result<()> {
                 token_type,
                 token_file,
                 state_dir,
-                listen,
+                http_listen,
+                tls_listen,
             } => {
-                let runtime =
-                    control::Runtime::new(server_url, token_type, token_file, state_dir, listen)?;
+                let runtime = control::Runtime::new(
+                    server_url,
+                    token_type,
+                    token_file,
+                    state_dir,
+                    http_listen,
+                    tls_listen,
+                )?;
                 runtime.run().await
             }
         }

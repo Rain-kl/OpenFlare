@@ -23,6 +23,9 @@ type OpenFlareApplyLog struct {
 	Result              string    `json:"result" gorm:"size:32;not null"`
 	Message             string    `json:"message" gorm:"type:text"`
 	Checksum            string    `json:"checksum" gorm:"size:64;not null;default:''"`
+	Engine              string    `json:"engine" gorm:"size:32;not null;default:'openresty'"`
+	ReleaseSequence     int64     `json:"release_sequence" gorm:"not null;default:0"`
+	PayloadChecksum     string    `json:"payload_checksum" gorm:"size:64;not null;default:''"`
 	MainConfigChecksum  string    `json:"main_config_checksum" gorm:"size:64;not null;default:''"`
 	RouteConfigChecksum string    `json:"route_config_checksum" gorm:"size:64;not null;default:''"`
 	SupportFileCount    int       `json:"support_file_count" gorm:"not null;default:0"`

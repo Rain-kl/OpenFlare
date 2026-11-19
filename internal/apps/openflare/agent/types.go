@@ -36,6 +36,17 @@ type ConfigResponse struct {
 	CreatedAt        time.Time              `json:"created_at"`
 }
 
+// PingoraConfigResponse is the dedicated configuration contract for Pingora nodes.
+type PingoraConfigResponse struct {
+	Version         string    `json:"version"`
+	Checksum        string    `json:"checksum"`
+	Engine          string    `json:"engine"`
+	ReleaseSequence int64     `json:"release_sequence"`
+	PayloadJSON     string    `json:"payload_json"`
+	PayloadChecksum string    `json:"payload_checksum"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
 // HeartbeatResponse is the heartbeat handler result.
 type HeartbeatResponse struct {
 	Node          *model.OpenFlareNode       `json:"node"`

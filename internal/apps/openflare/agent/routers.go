@@ -105,6 +105,34 @@ func GetActiveConfigHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(config))
 }
 
+// GetActivePingoraConfigHandler returns the dedicated Pingora configuration.
+// @Summary 获取 Pingora 活跃配置
+// @Description 返回 Pingora 独立发布组的契约版本、发布序号与配置载荷
+// @Tags openflare-agent
+// @Produce json
+// @Security AgentTokenAuth
+// @Success 200 {object} response.Any{data=agent.PingoraConfigResponse} "Pingora 活跃配置"
+// @Failure 400 {object} response.Any "配置不存在"
+// @Failure 401 {object} response.Any "Token 无效"
+// @Failure 403 {object} response.Any "节点不是 Pingora 引擎"
+// @Router /api/v1/agent/pingora/config-versions/active [get]
+func GetActivePingoraConfigHandler(c *gin.Context) {
+	authNode, ok := NodeFromContext(c)
+	if !ok {
+		response.AbortUnauthorized(c, errNodeMissingFromContext)
+		return
+	}
+	if authNode.Engine != enginePingora {
+		response.AbortForbidden(c, errPingoraNodeRequired)
+		return
+	}
+	config, err := GetActivePingoraConfig(c.Request.Context())
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(config))
+}
+
 // SyncWAFIPGroupsHandler syncs WAF IP groups for an agent.
 // @Summary 同步 WAF IP 组
 // @Description 按 ID 与校验和增量同步 WAF IP 组定义

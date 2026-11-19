@@ -15,6 +15,7 @@ type ConfigVersionSummary struct {
 	Version   string    `json:"version" gorm:"primaryKey;column:version"`
 	Checksum  string    `json:"checksum"`
 	IsActive  bool      `json:"is_active"`
+	Engine    string    `json:"engine"`
 	CreatedBy string    `json:"created_by"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -35,6 +36,10 @@ type ConfigVersion struct {
 	SupportFilesJSON string    `json:"support_files_json" gorm:"type:text;not null;default:'[]'"`
 	Checksum         string    `json:"checksum" gorm:"size:64;not null"`
 	IsActive         bool      `json:"is_active" gorm:"not null;default:false;index"`
+	Engine           string    `json:"engine" gorm:"size:32;not null;default:'openresty';index:idx_of_config_versions_engine_active"`
+	ReleaseSequence  int64     `json:"release_sequence" gorm:"not null;default:0"`
+	PayloadJSON      string    `json:"payload_json" gorm:"type:text;not null;default:''"`
+	PayloadChecksum  string    `json:"payload_checksum" gorm:"size:64;not null;default:''"`
 	CreatedBy        string    `json:"created_by" gorm:"size:64;not null"`
 	CreatedAt        time.Time `json:"created_at" gorm:"autoCreateTime"`
 }

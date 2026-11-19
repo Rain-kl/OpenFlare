@@ -46,6 +46,7 @@ const (
 	ConfigKeyAgentWebsocketUpgradeEnabled = "agent_websocket_upgrade_enabled" // Agent WebSocket 升级开关
 	ConfigKeyNodeOfflineThreshold         = "node_offline_threshold"          // 节点离线阈值（毫秒）
 	ConfigKeyAgentUpdateRepo              = "agent_update_repo"               // Agent 更新仓库
+	ConfigKeyPingoraEnabled               = "pingora_enabled"                 // Pingora 独立发布组开关
 	ConfigKeyGeoIPProvider                = "geoip_provider"                  // GeoIP 服务商
 
 	// Pages 静态托管配置

@@ -28,6 +28,8 @@ const (
 
 	defaultAgentHeartbeatInterval = 3000 // 默认心跳间隔 3 秒（毫秒）
 	defaultAgentUpdateRepo        = "Rain-kl/OpenFlare"
+	enginePingora                 = "pingora"
+	engineOpenResty               = "openresty"
 )
 
 func newRandomToken() (string, error) {
@@ -66,6 +68,10 @@ func normalizeNodePayload(payload protocol.NodePayload) protocol.NodePayload {
 	payload.LastError = truncateForDatabase(payload.LastError, maxDatabaseTextLength)
 	payload.OpenrestyStatus = normalizeOpenrestyStatus(payload.OpenrestyStatus)
 	payload.OpenrestyMessage = truncateForDatabase(payload.OpenrestyMessage, maxDatabaseTextLength)
+	payload.Engine = normalizeEngine(payload.Engine)
+	if payload.ContractVersion < 0 {
+		payload.ContractVersion = 0
+	}
 	// Align L2 edge_health with top-level status/message (PG is latest-state authority).
 	if payload.EdgeHealth != nil {
 		if s := strings.TrimSpace(payload.EdgeHealth.Status); s != "" {
@@ -81,6 +87,15 @@ func normalizeNodePayload(payload protocol.NodePayload) protocol.NodePayload {
 		payload.EdgeHealth.Message = payload.OpenrestyMessage
 	}
 	return payload
+}
+
+func normalizeEngine(engine string) string {
+	switch strings.ToLower(strings.TrimSpace(engine)) {
+	case enginePingora:
+		return enginePingora
+	default:
+		return engineOpenResty
+	}
 }
 
 func validateNodePayload(payload protocol.NodePayload) error {
@@ -113,6 +128,8 @@ func applyNodeRuntime(ctx context.Context, node *model.OpenFlareNode, payload pr
 	}
 	node.Version = strings.TrimSpace(payload.Version)
 	node.ExtVersion = strings.TrimSpace(payload.ExtVersion)
+	node.Engine = normalizeEngine(payload.Engine)
+	node.ContractVersion = payload.ContractVersion
 	node.OpenrestyStatus = normalizeOpenrestyStatus(payload.OpenrestyStatus)
 	node.OpenrestyMessage = truncateForDatabase(payload.OpenrestyMessage, maxDatabaseTextLength)
 	node.Status = nodeStatusOnline
@@ -240,6 +257,8 @@ func collectHeartbeatChanges(previous *model.OpenFlareNode, current *model.OpenF
 	appendIfChanged("geo_name", previous.GeoName, current.GeoName)
 	appendIfChanged("version", previous.Version, current.Version)
 	appendIfChanged("ext_version", previous.ExtVersion, current.ExtVersion)
+	appendIfChanged("engine", previous.Engine, current.Engine)
+	appendIfChanged("contract_version", previous.ContractVersion, current.ContractVersion)
 	appendIfChanged("openresty_status", previous.OpenrestyStatus, current.OpenrestyStatus)
 	appendIfChanged("openresty_message", previous.OpenrestyMessage, current.OpenrestyMessage)
 	appendIfChanged("status", previous.Status, current.Status)
@@ -283,7 +302,16 @@ func normalizeApplyLogPayload(payload protocol.ApplyLogPayload) protocol.ApplyLo
 	payload.Checksum = strings.TrimSpace(payload.Checksum)
 	payload.MainConfigChecksum = strings.TrimSpace(payload.MainConfigChecksum)
 	payload.RouteConfigChecksum = strings.TrimSpace(payload.RouteConfigChecksum)
+	payload.Engine = normalizeEngine(payload.Engine)
+	payload.PayloadChecksum = strings.TrimSpace(payload.PayloadChecksum)
+	if payload.ReleaseSequence < 0 {
+		payload.ReleaseSequence = 0
+	}
 	return payload
+}
+
+func sameEngineApplyLog(latest *model.OpenFlareApplyLog, engine string) bool {
+	return latest != nil && strings.EqualFold(strings.TrimSpace(latest.Engine), engine)
 }
 
 func isUniqueConstraintError(err error) bool {

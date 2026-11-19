@@ -102,6 +102,8 @@ type NodePayload struct {
 	Buffered            []BufferedObservabilityRecord `json:"buffered,omitempty"`
 	HealthEvents        []NodeHealthEvent             `json:"health_events"`
 	WAFIPGroupChecksums map[string]string             `json:"waf_ip_group_checksums,omitempty"`
+	Engine              string                        `json:"engine,omitempty"`
+	ContractVersion     int                           `json:"contract_version,omitempty"`
 }
 
 // NodeEdgeHealth is an instantaneous OpenResty health snapshot (L2).

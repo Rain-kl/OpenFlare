@@ -68,8 +68,11 @@ type RelayHeartbeatResponse struct {
 
 // ActiveConfigMeta holds active configuration metadata.
 type ActiveConfigMeta struct {
-	Version  string `json:"version"`
-	Checksum string `json:"checksum"`
+	Version         string `json:"version"`
+	Checksum        string `json:"checksum"`
+	Engine          string `json:"engine,omitempty"`
+	ReleaseSequence int64  `json:"release_sequence,omitempty"`
+	PayloadChecksum string `json:"payload_checksum,omitempty"`
 }
 
 // FlaredConnectedRelay describes a connected relay info for flared.
@@ -131,4 +134,7 @@ type ApplyLogPayload struct {
 	MainConfigChecksum  string `json:"main_config_checksum"`
 	RouteConfigChecksum string `json:"route_config_checksum"`
 	SupportFileCount    int    `json:"support_file_count"`
+	Engine              string `json:"engine,omitempty"`
+	ReleaseSequence     int64  `json:"release_sequence,omitempty"`
+	PayloadChecksum     string `json:"payload_checksum,omitempty"`
 }

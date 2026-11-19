@@ -15,7 +15,8 @@ pub struct Runtime {
     token_type: TokenType,
     token: String,
     state_dir: PathBuf,
-    listen: String,
+    http_listen: String,
+    tls_listen: Option<String>,
     client: Client,
 }
 
@@ -35,6 +36,8 @@ struct NodePayload<'a> {
     current_version: &'a str,
     openresty_status: &'a str,
     openresty_message: &'a str,
+    engine: &'a str,
+    contract_version: u8,
 }
 
 #[derive(Debug, Deserialize)]
@@ -77,17 +80,29 @@ struct AgentSettings {
 struct ActiveConfigMeta {
     version: String,
     checksum: String,
+    #[serde(default)]
+    engine: String,
+    #[serde(default)]
+    release_sequence: i64,
+    #[serde(default)]
+    payload_checksum: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 struct ActiveConfig {
     version: String,
     checksum: String,
-    source_config_json: String,
+    #[serde(default)]
+    #[allow(dead_code)]
+    engine: String,
+    #[serde(default)]
+    release_sequence: i64,
+    payload_json: String,
+    payload_checksum: String,
 }
 
 fn default_heartbeat_interval() -> u32 {
-    30
+    3000
 }
 
 impl Runtime {
@@ -96,7 +111,8 @@ impl Runtime {
         token_type: String,
         token_file: PathBuf,
         state_dir: PathBuf,
-        listen: String,
+        http_listen: String,
+        tls_listen: Option<String>,
     ) -> Result<Self> {
         let token = std::fs::read_to_string(&token_file)
             .with_context(|| format!("failed to read token file {}", token_file.display()))?;
@@ -119,29 +135,38 @@ impl Runtime {
             token_type,
             token,
             state_dir,
-            listen,
+            http_listen,
+            tls_listen,
             client,
         })
     }
 
     pub async fn run(self) -> Result<()> {
         let identity = self.ensure_identity().await?;
-        let state = SharedState::new(identity.node_id.clone(), self.listen.clone());
+        let state = SharedState::new(
+            identity.node_id.clone(),
+            self.http_listen.clone(),
+            self.tls_listen.clone(),
+        );
         if let Some(restored) = config::restore_snapshot(&self.state_dir)? {
             state.apply(restored)?;
         }
 
-        let mut interval = Duration::from_secs(30);
+        let mut interval = Duration::from_millis(3000);
         loop {
             let authenticated = self.with_identity(&identity).await?;
-            if let Ok(response) = authenticated.heartbeat(&identity.node_id, &interval).await {
+            if let Ok(response) = authenticated.heartbeat(&identity.node_id).await {
                 if let Some(settings) = response.agent_settings {
-                    interval = Duration::from_secs(settings.heartbeat_interval.max(5).into());
+                    interval = Duration::from_millis(settings.heartbeat_interval.max(100).into());
                 }
-                if let Some(meta) = response.active_config {
+                if let Some(meta) = response
+                    .active_config
+                    .filter(|meta| meta.engine == "pingora")
+                {
                     let current = state.current();
                     let unchanged = current.is_some_and(|config| {
-                        config.version == meta.version && config.checksum == meta.checksum
+                        config.version == meta.version
+                            && config.payload_checksum == meta.payload_checksum
                     });
                     if !unchanged {
                         match authenticated.fetch_active_config().await {
@@ -149,7 +174,9 @@ impl Runtime {
                                 match config::decode(
                                     &remote.version,
                                     &remote.checksum,
-                                    &remote.source_config_json,
+                                    remote.release_sequence,
+                                    &remote.payload_checksum,
+                                    &remote.payload_json,
                                 ) {
                                     Ok(applied) => {
                                         if let Err(error) = state.apply(applied.clone()) {
@@ -157,8 +184,7 @@ impl Runtime {
                                             let _ = authenticated
                                                 .report_apply(
                                                     &identity.node_id,
-                                                    &remote.version,
-                                                    &remote.checksum,
+                                                    &applied,
                                                     "failed",
                                                     &error.to_string(),
                                                 )
@@ -168,8 +194,7 @@ impl Runtime {
                                             let _ = authenticated
                                                 .report_apply(
                                                     &identity.node_id,
-                                                    &remote.version,
-                                                    &remote.checksum,
+                                                    &applied,
                                                     "success",
                                                     "configuration applied",
                                                 )
@@ -180,8 +205,7 @@ impl Runtime {
                                         let _ = authenticated
                                             .report_apply(
                                                 &identity.node_id,
-                                                &meta.version,
-                                                &meta.checksum,
+                                                &fallback_applied_config(&meta),
                                                 "failed",
                                                 &error.to_string(),
                                             )
@@ -263,7 +287,8 @@ impl Runtime {
             token_type: TokenType::Node,
             token: identity.agent_token.clone(),
             state_dir: self.state_dir.clone(),
-            listen: self.listen.clone(),
+            http_listen: self.http_listen.clone(),
+            tls_listen: self.tls_listen.clone(),
             client: self.client.clone(),
         })
     }
@@ -282,6 +307,8 @@ impl Runtime {
             current_version: "",
             openresty_status: "healthy",
             openresty_message: "Pingora default runtime",
+            engine: "pingora",
+            contract_version: 1,
         });
         if let Some(registration_key) = registration_key {
             payload["registration_key"] = json!(registration_key);
@@ -297,7 +324,7 @@ impl Runtime {
         Ok(registration)
     }
 
-    async fn heartbeat(&self, node_id: &str, _interval: &Duration) -> Result<Heartbeat> {
+    async fn heartbeat(&self, node_id: &str) -> Result<Heartbeat> {
         let response = self
             .client
             .post(format!("{}/api/v1/agent/nodes/heartbeat", self.base_url))
@@ -311,6 +338,8 @@ impl Runtime {
                 current_version: "",
                 openresty_status: "healthy",
                 openresty_message: "Pingora default runtime",
+                engine: "pingora",
+                contract_version: 1,
             }))
             .send()
             .await?;
@@ -321,11 +350,10 @@ impl Runtime {
         let response = self
             .client
             .get(format!(
-                "{}/api/v1/agent/config-versions/active",
+                "{}/api/v1/agent/pingora/config-versions/active",
                 self.base_url
             ))
             .header("X-Agent-Token", &self.token)
-            .query(&[("site_auth", "true")])
             .send()
             .await?;
         decode_response(response).await
@@ -334,8 +362,7 @@ impl Runtime {
     async fn report_apply(
         &self,
         node_id: &str,
-        version: &str,
-        checksum: &str,
+        config: &AppliedConfig,
         result: &str,
         message: &str,
     ) -> Result<()> {
@@ -345,10 +372,13 @@ impl Runtime {
             .header("X-Agent-Token", &self.token)
             .json(&json!({
                 "node_id": node_id,
-                "version": version,
+                "version": config.version,
                 "result": result,
                 "message": message,
-                "checksum": checksum,
+                "checksum": config.checksum,
+                "engine": "pingora",
+                "release_sequence": config.release_sequence,
+                "payload_checksum": config.payload_checksum,
             }))
             .send()
             .await?;
@@ -372,19 +402,21 @@ async fn decode_response<T: for<'de> Deserialize<'de>>(response: reqwest::Respon
         .ok_or_else(|| anyhow::anyhow!("server response has no data"))
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SharedState {
     #[allow(dead_code)]
     node_id: String,
-    listen: String,
+    http_listen: String,
+    tls_listen: Option<String>,
     inner: Arc<RwLock<Option<AppliedConfig>>>,
 }
 
 impl SharedState {
-    fn new(node_id: String, listen: String) -> Self {
+    fn new(node_id: String, http_listen: String, tls_listen: Option<String>) -> Self {
         Self {
             node_id,
-            listen,
+            http_listen,
+            tls_listen,
             inner: Arc::new(RwLock::new(None)),
         }
     }
@@ -402,8 +434,8 @@ impl SharedState {
             guard.is_none()
         };
         if was_empty {
-            tracing::info!(listen = %self.listen, version = %config.version, "starting proxy listener");
-            proxy::spawn(self.clone(), &self.listen)?;
+            tracing::info!(http_listen = %self.http_listen, tls_listen = ?self.tls_listen, version = %config.version, "starting proxy listener");
+            proxy::spawn(self.clone(), &self.http_listen, self.tls_listen.as_deref())?;
         }
         let mut guard = self
             .inner
@@ -416,6 +448,23 @@ impl SharedState {
 
 fn identity_path(state_dir: &Path) -> PathBuf {
     state_dir.join("identity.json")
+}
+
+fn fallback_applied_config(meta: &ActiveConfigMeta) -> AppliedConfig {
+    AppliedConfig {
+        version: meta.version.clone(),
+        checksum: meta.checksum.clone(),
+        release_sequence: meta.release_sequence,
+        payload_checksum: meta.payload_checksum.clone(),
+        config: crate::config::Config {
+            schema_version: 1,
+            contract_version: 1,
+            required_capabilities: vec![],
+            routes: vec![],
+            assets: crate::config::Assets::default(),
+        },
+        certificates: Default::default(),
+    }
 }
 
 fn load_identity(state_dir: &Path) -> Result<Option<PersistedIdentity>> {

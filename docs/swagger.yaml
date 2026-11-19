@@ -854,6 +854,23 @@ definitions:
           $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroup'
         type: array
     type: object
+  apps_openflare_agent.PingoraConfigResponse:
+    properties:
+      checksum:
+        type: string
+      created_at:
+        type: string
+      engine:
+        type: string
+      payload_checksum:
+        type: string
+      payload_json:
+        type: string
+      release_sequence:
+        type: integer
+      version:
+        type: string
+    type: object
   apps_openflare_agent.RegistrationResponseDocs:
     properties:
       access_token:
@@ -3237,6 +3254,12 @@ definitions:
     properties:
       checksum:
         type: string
+      engine:
+        type: string
+      payload_checksum:
+        type: string
+      release_sequence:
+        type: integer
       version:
         type: string
     type: object
@@ -3322,12 +3345,18 @@ definitions:
     properties:
       checksum:
         type: string
+      engine:
+        type: string
       main_config_checksum:
         type: string
       message:
         type: string
       node_id:
         type: string
+      payload_checksum:
+        type: string
+      release_sequence:
+        type: integer
       result:
         type: string
       route_config_checksum:
@@ -3508,10 +3537,14 @@ definitions:
         items:
           $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.BufferedObservabilityRecord'
         type: array
+      contract_version:
+        type: integer
       current_version:
         type: string
       edge_health:
         $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth'
+      engine:
+        type: string
       ext_version:
         type: string
       health_events:
@@ -3600,10 +3633,14 @@ definitions:
         items:
           $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.BufferedObservabilityRecord'
         type: array
+      contract_version:
+        type: integer
       current_version:
         type: string
       edge_health:
         $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth'
+      engine:
+        type: string
       ext_version:
         type: string
       health_events:
@@ -3847,12 +3884,20 @@ definitions:
         type: string
       created_by:
         type: string
+      engine:
+        type: string
       id:
         type: string
       is_active:
         type: boolean
       main_config:
         type: string
+      payload_checksum:
+        type: string
+      payload_json:
+        type: string
+      release_sequence:
+        type: integer
       rendered_config:
         type: string
       snapshot_json:
@@ -3869,6 +3914,8 @@ definitions:
       created_at:
         type: string
       created_by:
+        type: string
+      engine:
         type: string
       id:
         type: string
@@ -3915,6 +3962,8 @@ definitions:
         type: string
       created_at:
         type: string
+      engine:
+        type: string
       id:
         type: integer
       main_config_checksum:
@@ -3923,6 +3972,10 @@ definitions:
         type: string
       node_id:
         type: string
+      payload_checksum:
+        type: string
+      release_sequence:
+        type: integer
       result:
         type: string
       route_config_checksum:
@@ -3967,9 +4020,13 @@ definitions:
         type: boolean
       capabilities_json:
         type: string
+      contract_version:
+        type: integer
       created_at:
         type: string
       current_version:
+        type: string
+      engine:
         type: string
       ext_version:
         type: string
@@ -7321,6 +7378,38 @@ paths:
       security:
       - AgentTokenAuth: []
       summary: 下载 Pages 项目最新激活部署包
+      tags:
+      - openflare-agent
+  /api/v1/agent/pingora/config-versions/active:
+    get:
+      description: 返回 Pingora 独立发布组的契约版本、发布序号与配置载荷
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Pingora 活跃配置
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_agent.PingoraConfigResponse'
+              type: object
+        "400":
+          description: 配置不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Token 无效
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: 节点不是 Pingora 引擎
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - AgentTokenAuth: []
+      summary: 获取 Pingora 活跃配置
       tags:
       - openflare-agent
   /api/v1/agent/waf/ip-groups/sync:

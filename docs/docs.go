@@ -4702,6 +4702,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/agent/pingora/config-versions/active": {
+            "get": {
+                "security": [
+                    {
+                        "AgentTokenAuth": []
+                    }
+                ],
+                "description": "返回 Pingora 独立发布组的契约版本、发布序号与配置载荷",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-agent"
+                ],
+                "summary": "获取 Pingora 活跃配置",
+                "responses": {
+                    "200": {
+                        "description": "Pingora 活跃配置",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_agent.PingoraConfigResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "配置不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "节点不是 Pingora 引擎",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/agent/waf/ip-groups/sync": {
             "post": {
                 "security": [
@@ -16466,6 +16521,32 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_agent.PingoraConfigResponse": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "engine": {
+                    "type": "string"
+                },
+                "payload_checksum": {
+                    "type": "string"
+                },
+                "payload_json": {
+                    "type": "string"
+                },
+                "release_sequence": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
         "apps_openflare_agent.RegistrationResponseDocs": {
             "type": "object",
             "properties": {
@@ -20087,6 +20168,15 @@ const docTemplate = `{
                 "checksum": {
                     "type": "string"
                 },
+                "engine": {
+                    "type": "string"
+                },
+                "payload_checksum": {
+                    "type": "string"
+                },
+                "release_sequence": {
+                    "type": "integer"
+                },
                 "version": {
                     "type": "string"
                 }
@@ -20217,6 +20307,9 @@ const docTemplate = `{
                 "checksum": {
                     "type": "string"
                 },
+                "engine": {
+                    "type": "string"
+                },
                 "main_config_checksum": {
                     "type": "string"
                 },
@@ -20225,6 +20318,12 @@ const docTemplate = `{
                 },
                 "node_id": {
                     "type": "string"
+                },
+                "payload_checksum": {
+                    "type": "string"
+                },
+                "release_sequence": {
+                    "type": "integer"
                 },
                 "result": {
                     "type": "string"
@@ -20500,11 +20599,17 @@ const docTemplate = `{
                         "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.BufferedObservabilityRecord"
                     }
                 },
+                "contract_version": {
+                    "type": "integer"
+                },
                 "current_version": {
                     "type": "string"
                 },
                 "edge_health": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth"
+                },
+                "engine": {
+                    "type": "string"
                 },
                 "ext_version": {
                     "type": "string"
@@ -20640,11 +20745,17 @@ const docTemplate = `{
                         "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.BufferedObservabilityRecord"
                     }
                 },
+                "contract_version": {
+                    "type": "integer"
+                },
                 "current_version": {
                     "type": "string"
                 },
                 "edge_health": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth"
+                },
+                "engine": {
+                    "type": "string"
                 },
                 "ext_version": {
                     "type": "string"
@@ -21016,6 +21127,9 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
+                "engine": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -21024,6 +21138,15 @@ const docTemplate = `{
                 },
                 "main_config": {
                     "type": "string"
+                },
+                "payload_checksum": {
+                    "type": "string"
+                },
+                "payload_json": {
+                    "type": "string"
+                },
+                "release_sequence": {
+                    "type": "integer"
                 },
                 "rendered_config": {
                     "type": "string"
@@ -21049,6 +21172,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "created_by": {
+                    "type": "string"
+                },
+                "engine": {
                     "type": "string"
                 },
                 "id": {
@@ -21120,6 +21246,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "engine": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -21131,6 +21260,12 @@ const docTemplate = `{
                 },
                 "node_id": {
                     "type": "string"
+                },
+                "payload_checksum": {
+                    "type": "string"
+                },
+                "release_sequence": {
+                    "type": "integer"
                 },
                 "result": {
                     "type": "string"
@@ -21199,10 +21334,16 @@ const docTemplate = `{
                 "capabilities_json": {
                     "type": "string"
                 },
+                "contract_version": {
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },
                 "current_version": {
+                    "type": "string"
+                },
+                "engine": {
                     "type": "string"
                 },
                 "ext_version": {

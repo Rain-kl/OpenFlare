@@ -237,9 +237,19 @@ func PublishConfigVersion(ctx context.Context, createdBy string, force bool) (*m
 		}
 		return nil, err
 	}
+	if pingoraRecord, pingoraErr := buildPingoraConfigVersion(ctx, bundle, record); pingoraErr != nil {
+		return nil, pingoraErr
+	} else if pingoraRecord != nil {
+		if err = repository.CreateConfigVersion(ctx, pingoraRecord); err != nil {
+			return nil, err
+		}
+	}
 	websocket.BroadcastActiveConfig(pkgprotocol.ActiveConfigMeta{
-		Version:  record.Version,
-		Checksum: record.Checksum,
+		Version:         record.Version,
+		Checksum:        record.Checksum,
+		Engine:          record.Engine,
+		ReleaseSequence: record.ReleaseSequence,
+		PayloadChecksum: record.PayloadChecksum,
 	})
 	return record, nil
 }
@@ -255,8 +265,11 @@ func ActivateConfigVersion(ctx context.Context, versionStr string) (*model.Confi
 	}
 	version.IsActive = true
 	websocket.BroadcastActiveConfig(pkgprotocol.ActiveConfigMeta{
-		Version:  version.Version,
-		Checksum: version.Checksum,
+		Version:         version.Version,
+		Checksum:        version.Checksum,
+		Engine:          version.Engine,
+		ReleaseSequence: version.ReleaseSequence,
+		PayloadChecksum: version.PayloadChecksum,
 	})
 	return version, nil
 }

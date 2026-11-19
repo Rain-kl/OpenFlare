@@ -69,6 +69,8 @@ func RegisterWithDiscovery(ctx context.Context, payload protocol.NodePayload, re
 		NodeType:         "edge_node",
 		CapabilitiesJSON: "[]",
 		UpdateChannel:    releaseChannelStable,
+		Engine:           normalizeEngine(payload.Engine),
+		ContractVersion:  payload.ContractVersion,
 	}
 	applyNodeRuntime(ctx, record, payload, false)
 
@@ -154,7 +156,7 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 	}
 	PersistHeartbeatObservability(ctx, authNode.NodeID, payload, reportedAt)
 
-	activeConfig, err := getActiveConfigMeta(ctx)
+	activeConfig, err := getActiveConfigMetaByEngine(ctx, authNode.Engine)
 	if err != nil && !isActiveConfigNotFound(err) {
 		return nil, err
 	}
@@ -211,7 +213,8 @@ func ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) (*mod
 	if err != nil {
 		return nil, err
 	}
-	if model.IsRepeatSuccessApplyLog(latest, payload.Version, payload.Checksum, payload.Result) {
+	if sameEngineApplyLog(latest, payload.Engine) &&
+		model.IsRepeatSuccessApplyLog(latest, payload.Version, payload.Checksum, payload.Result) {
 		if err := repository.UpdateOpenFlareNodeFromApplyResult(ctx, payload.NodeID, payload.Result, payload.Version, payload.Message, now); err != nil {
 			return nil, err
 		}
@@ -227,6 +230,9 @@ func ReportApplyLog(ctx context.Context, payload protocol.ApplyLogPayload) (*mod
 		MainConfigChecksum:  payload.MainConfigChecksum,
 		RouteConfigChecksum: payload.RouteConfigChecksum,
 		SupportFileCount:    payload.SupportFileCount,
+		Engine:              payload.Engine,
+		ReleaseSequence:     payload.ReleaseSequence,
+		PayloadChecksum:     payload.PayloadChecksum,
 		CreatedAt:           now,
 	}
 

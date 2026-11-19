@@ -21,7 +21,7 @@ func ListConfigVersionSummaries(ctx context.Context) ([]*model.ConfigVersionSumm
 	}
 	var versions []*model.ConfigVersionSummary
 	err := conn.Model(&model.ConfigVersion{}).
-		Select("version", "checksum", "is_active", "created_by", "created_at").
+		Select("version", "checksum", "is_active", "engine", "created_by", "created_at").
 		Order("created_at desc, version desc").
 		Find(&versions).Error
 	return versions, err
@@ -42,15 +42,30 @@ func GetConfigVersionByVersion(ctx context.Context, version string) (*model.Conf
 
 // GetActiveConfigVersion returns the currently active config version.
 func GetActiveConfigVersion(ctx context.Context) (*model.ConfigVersion, error) {
+	return GetActiveConfigVersionByEngine(ctx, engineOpenResty)
+}
+
+// GetActiveConfigVersionByEngine returns the active version for one release engine.
+func GetActiveConfigVersionByEngine(ctx context.Context, engine string) (*model.ConfigVersion, error) {
 	conn := db.DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
 	var version model.ConfigVersion
-	if err := conn.Where("is_active = ?", true).Order("version desc").First(&version).Error; err != nil {
+	if err := conn.
+		Where("is_active = ? AND engine = ?", true, engine).
+		Order("version desc").
+		First(&version).Error; err != nil {
 		return nil, err
 	}
 	return &version, nil
+}
+
+const engineOpenResty = "openresty"
+
+// GetActivePingoraConfigVersion returns the active Pingora release.
+func GetActivePingoraConfigVersion(ctx context.Context) (*model.ConfigVersion, error) {
+	return GetActiveConfigVersionByEngine(ctx, "pingora")
 }
 
 // GetLatestConfigVersionByPrefix returns the latest version string matching a date prefix.
@@ -87,7 +102,9 @@ func PublishConfigVersionTx(ctx context.Context, version *model.ConfigVersion) e
 		return errors.New(errDatabaseNotInitialized)
 	}
 	return conn.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.ConfigVersion{}).Where("is_active = ?", true).Update("is_active", false).Error; err != nil {
+		if err := tx.Model(&model.ConfigVersion{}).
+			Where("is_active = ? AND engine = ?", true, version.Engine).
+			Update("is_active", false).Error; err != nil {
 			return err
 		}
 		return tx.Create(version).Error
@@ -101,7 +118,13 @@ func ActivateConfigVersionTx(ctx context.Context, version string) error {
 		return errors.New(errDatabaseNotInitialized)
 	}
 	return conn.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.ConfigVersion{}).Where("is_active = ?", true).Update("is_active", false).Error; err != nil {
+		target, err := GetConfigVersionByVersion(ctx, version)
+		if err != nil {
+			return err
+		}
+		if err := tx.Model(&model.ConfigVersion{}).
+			Where("is_active = ? AND engine = ?", true, target.Engine).
+			Update("is_active", false).Error; err != nil {
 			return err
 		}
 		return tx.Model(&model.ConfigVersion{}).Where("version = ?", version).Update("is_active", true).Error

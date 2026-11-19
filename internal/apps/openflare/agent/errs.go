@@ -9,6 +9,7 @@ const (
 	errInvalidDiscoveryToken         = "Operation not authorized: invalid registration token" //nolint:gosec // false positive: this is an error message, not hardcoded credentials
 	errNodeMissingFromContext        = "Node object missing from context"
 	errNoActiveConfig                = "no active configuration version"
+	errPingoraNodeRequired           = "node engine must be Pingora"
 	errNodeNotFound                  = "node was not found"
 	errNodeIDRequired                = "node_id must not be empty"
 	errVersionRequired               = "version must not be empty"
