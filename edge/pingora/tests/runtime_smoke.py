@@ -57,7 +57,13 @@ class Controller(http.server.BaseHTTPRequestHandler):
         payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if self.path.endswith("/register"):
             assert payload["engine"] == "pingora"
-            assert payload["registration_key"]
+            assert payload["contract_version"] == 3
+            if self.headers["X-Agent-Token"] == "discovery-credential":
+                assert payload["registration_key"]
+            else:
+                assert self.headers["X-Agent-Token"] == "node-credential"
+                assert "registration_key" not in payload
+                self.server.registered_with_node_token = True
             self.data({"node_id": "fixture", "agent_token": "node-credential"})
         elif self.headers["X-Agent-Token"] != "node-credential":
             self.data(None, 401)
@@ -183,6 +189,7 @@ def main(binary):
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Controller)
     server.heartbeats = []
     server.applies = []
+    server.registered_with_node_token = False
     server.ip_groups = []
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -237,10 +244,25 @@ def main(binary):
                 "--tls-listen", f"127.0.0.1:{tls_port}"]
 
         with (path / "edge.log").open("w+") as log:
-            def launch(*options):
-                return subprocess.Popen(args + list(options), stdout=log, stderr=subprocess.STDOUT)
+            def launch(*options, env=None):
+                return subprocess.Popen(args + list(options), env=env, stdout=log, stderr=subprocess.STDOUT)
 
-            edge = launch()
+            with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as notify:
+                if sys.platform == "linux":
+                    address = str(path / "notify.sock")
+                    notify.bind(address)
+                    notify.settimeout(12)
+                    edge = launch(env={**os.environ, "NOTIFY_SOCKET": address})
+                    try:
+                        assert notify.recv(4096).startswith(b"READY=1\n")
+                    except Exception:
+                        edge.kill()
+                        edge.wait(timeout=5)
+                        log.seek(0)
+                        sys.stderr.write(log.read())
+                        raise
+                else:
+                    edge = launch()
             try:
                 wait_for(lambda: ready.exists())
                 wait_for(lambda: any(item["result"] == "success" for item in server.applies))
@@ -285,6 +307,12 @@ def main(binary):
                                      for log in server.applies))
                 assert request("edge.test", use_http2=True)[0] == 200
                 assert json.loads((path / "snapshot.json").read_text())["release_sequence"] == 1
+
+                edge.kill()
+                edge.wait(timeout=5)
+                edge = launch()
+                wait_for(lambda: server.registered_with_node_token)
+                assert request("edge.test", use_http2=True)[0] == 200
 
                 edge.kill()
                 edge.wait(timeout=5)

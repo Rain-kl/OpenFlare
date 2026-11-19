@@ -22,4 +22,7 @@ const (
 	errNodeIDConflict                = "node identifier conflict; please try again"
 	errRegistrationKeyInvalid        = "invalid discovery registration key"
 	errRegistrationCredentialChanged = "discovery enrollment credential has changed; use the assigned agent token"
+	errNodeEngineChanged             = "node engine differs from the reporting agent; register with the active agent"
+	errPingoraReleaseRequired        = "publish a Pingora configuration before migrating the node"
+	errPingoraContractUnsupported    = "unsupported Pingora configuration contract; upgrade the Edge binary"
 )

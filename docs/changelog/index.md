@@ -25,6 +25,9 @@ sidebar: false
 - Linux Edge 安装包等待新进程监听就绪，并在启动失败时恢复上一二进制。Edge 版本独立于 Go Agent 更新渠道。
 - Pingora 支持代理缓存键模板中的 `$proxy_host`，可直接应用使用该变量的 OpenResty 配置快照。
 - Edge 安装脚本在新版本通过启动验证后，仅保留当前发行版和上一个通过验证的发行版。
+- 边缘节点详情新增 Pingora 本地部署命令，可复制带有节点专属令牌和控制端地址的 Linux 安装命令。
+- Edge 安装器提前识别不支持 v3 配置和 systemd 就绪通知的旧发行包，避免等待服务启动超时。
+- 已登记的 OpenResty 节点可使用原 Agent Token 自动迁移到 Pingora，保留节点 ID 和业务绑定。迁移要求已有生效的 Pingora 发布。
 
 ### ⚡️ 优化与改进
 

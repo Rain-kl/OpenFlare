@@ -151,6 +151,17 @@ export function getImageTag(version?: string): string {
   return 'latest';
 }
 
+export function buildEdgeInstallCommand(serverUrl: string, agentToken: string) {
+  const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
+  return [
+    'curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-edge.sh -o install-openflare-edge.sh && \\',
+    'sudo bash install-openflare-edge.sh \\',
+    `  --server-url ${quote(serverUrl)} \\`,
+    '  --token-type node \\',
+    `  --token ${quote(agentToken)}`,
+  ].join('\n');
+}
+
 export function buildEdgeDockerInstallCommand(
   serverUrl: string,
   agentToken: string,

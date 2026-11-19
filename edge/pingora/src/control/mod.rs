@@ -367,51 +367,42 @@ impl Runtime {
     }
 
     async fn ensure_identity(&self) -> Result<Registration> {
-        if let Some(identity) = load_identity(&self.state_dir)? {
-            if !identity.node_id.is_empty() && !identity.agent_token.is_empty() {
-                return Ok(Registration {
-                    node_id: identity.node_id,
-                    agent_token: identity.agent_token,
-                });
+        let saved = load_identity(&self.state_dir)?;
+        let node_token = match self.token_type {
+            TokenType::Node => Some(self.token.as_str()),
+            TokenType::Discovery => saved
+                .as_ref()
+                .filter(|identity| !identity.node_id.is_empty() && !identity.agent_token.is_empty())
+                .map(|identity| identity.agent_token.as_str()),
+        };
+        let (registration, registration_key) = if let Some(token) = node_token {
+            (
+                self.register(token, None).await?,
+                saved.and_then(|identity| identity.registration_key),
+            )
+        } else {
+            let mut key = saved
+                .and_then(|identity| identity.registration_key)
+                .unwrap_or_default();
+            if key.is_empty() {
+                let mut bytes = [0u8; 32];
+                rand::thread_rng().fill_bytes(&mut bytes);
+                key = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+                save_identity(
+                    &self.state_dir,
+                    &PersistedIdentity {
+                        node_id: String::new(),
+                        agent_token: String::new(),
+                        registration_key: Some(key.clone()),
+                    },
+                )?;
             }
-        }
-        if self.token_type == TokenType::Node {
-            let registration = self.register(&self.token, None).await?;
-            save_identity(
-                &self.state_dir,
-                &PersistedIdentity {
-                    node_id: registration.node_id.clone(),
-                    agent_token: registration.agent_token.clone(),
-                    registration_key: None,
-                },
-            )?;
-            return Ok(Registration {
-                node_id: registration.node_id,
-                agent_token: registration.agent_token,
-            });
-        }
-
-        let mut registration_key = load_identity(&self.state_dir)?
-            .and_then(|identity| identity.registration_key)
-            .unwrap_or_else(String::new);
-        if registration_key.is_empty() {
-            let mut bytes = [0u8; 32];
-            rand::thread_rng().fill_bytes(&mut bytes);
-            registration_key = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
-            save_identity(
-                &self.state_dir,
-                &PersistedIdentity {
-                    node_id: String::new(),
-                    agent_token: String::new(),
-                    registration_key: Some(registration_key.clone()),
-                },
-            )?;
-        }
-        let registration = self.register(&self.token, Some(&registration_key)).await?;
+            (self.register(&self.token, Some(&key)).await?, Some(key))
+        };
         let identity = PersistedIdentity {
             node_id: registration.node_id.clone(),
             agent_token: registration.agent_token.clone(),
-            registration_key: Some(registration_key),
+            registration_key,
         };
         save_identity(&self.state_dir, &identity)?;
         Ok(Registration {
@@ -431,7 +422,11 @@ impl Runtime {
             name: "openflare-edge",
             version: env!("CARGO_PKG_VERSION"),
             ext_version: "pingora",
-            current_version: "",
+            current_version: self
+                .state
+                .current()
+                .as_ref()
+                .map_or("", |config| config.version.as_str()),
             openresty_status: "unknown",
             openresty_message: "Pingora enrollment",
             engine: "pingora",

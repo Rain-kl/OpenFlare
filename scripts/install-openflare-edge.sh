@@ -12,6 +12,7 @@ HTTP_LISTEN="0.0.0.0:80"
 TLS_LISTEN="0.0.0.0:443"
 REPO="Rain-kl/OpenFlare"
 CREATE_SERVICE=true
+MIN_RELEASE="edge-v0.1.1"
 
 log() { printf '[openflare-edge] %s\n' "$*"; }
 die() { printf '[openflare-edge] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -100,6 +101,9 @@ else
 fi
 VERSION="$(printf '%s' "$RELEASE_JSON" | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
 is_release_tag "$VERSION" || die "invalid Edge release version"
+if [[ "$(printf '%s\n' "$MIN_RELEASE" "$VERSION" | sort -V | head -n1)" != "$MIN_RELEASE" ]]; then
+  die "${VERSION} is incompatible with systemd readiness and configuration contract v3; install ${MIN_RELEASE} or later"
+fi
 ASSET="openflare-edge_${VERSION}_linux_${ARCH}.tar.gz"
 DOWNLOAD_URL="$(printf '%s' "$RELEASE_JSON" | grep '"browser_download_url"' | grep "/${ASSET}\"" | sed -E 's/.*"browser_download_url"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' | head -n1)"
 [[ -n "$DOWNLOAD_URL" ]] || die "release asset not found: $ASSET"
@@ -271,6 +275,7 @@ SERVICE_EOF
     service_action=start
     systemctl enable openflare-edge
   fi
+  log "waiting for systemd readiness (startup timeout: 90 seconds)"
   if ! systemctl "$service_action" openflare-edge || ! service_ready "$VERSION"; then
     journalctl -u openflare-edge -n 50 --no-pager || true
     systemctl stop openflare-edge || die "could not stop the failed release"

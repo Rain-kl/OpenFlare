@@ -274,6 +274,9 @@
     "install": {
       "edgeTitle": "边缘节点部署",
       "edgeDesc": "使用 Agent Token 将边缘节点接入控制端。",
+      "edgeScriptLabel": "本地部署（Pingora / Linux）",
+      "edgeScriptHint": "迁移现有 OpenResty 节点时，先发布 Pingora 配置并停止旧服务。使用原 Agent Token 安装后，控制端会自动切换节点引擎。",
+      "edgeDockerLabel": "Docker 容器部署（OpenResty）",
       "relayTitle": "中继部署命令",
       "relayDesc": "使用 Discovery Token 将 frps 中继节点接入控制端。",
       "tunnelTitle": "隧道部署命令",

@@ -6,12 +6,16 @@ OpenFlare Edge 是独立的 Pingora 边缘节点二进制。节点启动后直�
 
 OpenFlare Edge 使用独立的 `edge-v*` 版本标签，与主控和 Go Agent 的 `v*` 发布隔离。发布工作流同时构建 Linux `amd64` 和 `arm64`：
 
-- `openflare-edge_edge-v0.1.0_linux_amd64.tar.gz`
-- `openflare-edge_edge-v0.1.0_linux_arm64.tar.gz`
+- `openflare-edge_edge-v0.1.1_linux_amd64.tar.gz`
+- `openflare-edge_edge-v0.1.1_linux_arm64.tar.gz`
 
 归档内包含 `openflare-edge` 二进制、`VERSION`、`SHA256SUMS`、许可证、安装、卸载和 GeoIP 下载脚本。CI 会校验 `edge-v` 标签必须与 Rust 包版本一致，避免下载页与 `--version` 展示不同版本。
 
 ## 安装
+
+使用共享配置契约 v3 的控制端要求 Edge `edge-v0.1.1` 或更新版本。安装器会在修改本地服务前拒绝旧发行包。
+
+节点详情的「边缘节点部署」提供 Linux 本地部署命令，自动填入控制端 URL 和该节点的 Agent Token。Docker 命令用于部署 OpenResty Agent。迁移现有 OpenResty 节点时，先发布 Pingora 配置并停止旧服务。新版 Edge 使用原节点的 Agent Token 注册时，控制端自动切换该节点的引擎，保留节点 ID 和业务绑定。
 
 在 Linux 节点执行：
 
@@ -19,7 +23,8 @@ OpenFlare Edge 使用独立的 `edge-v*` 版本标签，与主控和 Go Agent �
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-edge.sh -o install-openflare-edge.sh
 sudo bash install-openflare-edge.sh \
   --server-url https://control.example.com \
-  --token <discovery-or-node-token> \
+  --token-type node \
+  --token <agent-token> \
   --http-listen 0.0.0.0:80 \
   --tls-listen 0.0.0.0:443
 ```
@@ -42,7 +47,7 @@ sudo bash install-openflare-edge.sh \
 指定版本安装：
 
 ```bash
-sudo bash install-openflare-edge.sh --version edge-v0.1.0 ...
+sudo bash install-openflare-edge.sh --version edge-v0.1.1 ...
 ```
 
 ## 低权限运行
@@ -81,7 +86,7 @@ systemd 对控制面设置 `Restart=always` 与 `RestartSec=5`。控制面每秒
 手动回滚：
 
 ```bash
-sudo bash install-openflare-edge.sh --version edge-v0.1.0 ...
+sudo bash install-openflare-edge.sh --version <retained-edge-version> ...
 ```
 
 卸载：
@@ -94,4 +99,4 @@ sudo bash uninstall-openflare-edge.sh
 
 ## 与 OpenResty 线并行
 
-OpenFlare Edge 的发布组、版本号和安装目录与 Go Agent / OpenResty 主线完全隔离。`pingora_enabled` 只影响 Pingora 发布组，不改变现有 OpenResty 节点的目标版本。同一台节点切换引擎时，应先停止旧服务并避免两个引擎同时监听 80/443；建议在灰度节点上先部署 OpenFlare Edge，再下线旧 OpenResty 部署。
+OpenFlare Edge 的发布组、版本号和安装目录与 Go Agent / OpenResty 主线完全隔离。`pingora_enabled` 控制 Pingora 发布组，其余 OpenResty 节点继续使用原发布组。同一台节点迁移时，应先停止旧服务并释放 80/443，再安装 OpenFlare Edge。

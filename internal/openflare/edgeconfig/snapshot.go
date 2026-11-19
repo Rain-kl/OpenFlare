@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	pingoraContractVersion    = 3
+	// ContractVersion is the Edge configuration contract supported by this controller.
+	ContractVersion           = 3
 	pingoraBaseCapability     = "tls-sni-h2-v1"
 	pingoraPolicyCapability   = "policy-runtime-v1"
 	pingoraSnapshotCapability = "shared-snapshot-v1"
@@ -60,7 +61,7 @@ func Encode(snapshotJSON, supportFilesJSON string) (string, error) {
 		return "", err
 	}
 	data, err := json.Marshal(Envelope{
-		SchemaVersion: 1, ContractVersion: pingoraContractVersion,
+		SchemaVersion: 1, ContractVersion: ContractVersion,
 		RequiredCapabilities: []string{pingoraBaseCapability, pingoraPolicyCapability, pingoraSnapshotCapability},
 		Snapshot:             json.RawMessage(snapshotJSON), Assets: assets,
 	})

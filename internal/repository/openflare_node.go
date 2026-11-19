@@ -130,6 +130,22 @@ func UpdateOpenFlareNodeColumns(ctx context.Context, node *model.OpenFlareNode, 
 	return conn.Model(node).Updates(changes).Error
 }
 
+// UpdateOpenFlareNodeRuntime guards agent reports against a concurrent engine change or token rotation.
+func UpdateOpenFlareNodeRuntime(ctx context.Context, node *model.OpenFlareNode, engine string, changes map[string]any) error {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return errors.New(errDatabaseNotInitialized)
+	}
+	result := conn.Model(node).Where("engine = ? AND access_token = ?", engine, node.AccessToken).Updates(changes)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 // UpdateOpenFlareNodeFromApplyResult updates node status, last_seen, version and last_error after an apply report.
 // When applyResult is "success", current_version is set and last_error is cleared; otherwise last_error is set to message.
 func UpdateOpenFlareNodeFromApplyResult(ctx context.Context, nodeID, applyResult, version, message string, now time.Time) error {

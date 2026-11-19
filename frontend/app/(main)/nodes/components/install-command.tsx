@@ -20,6 +20,7 @@ import { type NodeItem, StatusService } from '@/lib/services/openflare';
 
 import {
   buildEdgeDockerInstallCommand,
+  buildEdgeInstallCommand,
   buildRelayDockerInstallCommand,
   buildRelayInstallCommand,
   buildTunnelDockerInstallCommand,
@@ -53,7 +54,8 @@ export function InstallCommand({
       title: t('edgeTitle'),
       description: t('edgeDesc'),
       tokenLabel: t('agentToken'),
-      dockerLabel: t('dockerLabel'),
+      scriptLabel: t('edgeScriptLabel'),
+      dockerLabel: t('edgeDockerLabel'),
     },
     relay: {
       title: t('relayTitle'),
@@ -88,8 +90,11 @@ export function InstallCommand({
 
   const normalizedServerUrl = getServerUrl(serverUrl);
   const scriptCommand = useMemo(() => {
-    if (!normalizedServerUrl || !node.access_token || variant === 'edge') {
+    if (!normalizedServerUrl || !node.access_token) {
       return '';
+    }
+    if (variant === 'edge') {
+      return buildEdgeInstallCommand(normalizedServerUrl, node.access_token);
     }
     return variant === 'relay'
       ? buildRelayInstallCommand(normalizedServerUrl, node.access_token)
@@ -197,6 +202,11 @@ export function InstallCommand({
             {scriptCommand && meta.scriptLabel ? (
               <div className='space-y-2'>
                 <p className='text-sm font-medium'>{meta.scriptLabel}</p>
+                {variant === 'edge' ? (
+                  <p className='text-xs text-muted-foreground'>
+                    {t('edgeScriptHint')}
+                  </p>
+                ) : null}
                 <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs whitespace-pre-wrap'>
                   {scriptCommand}
                 </pre>

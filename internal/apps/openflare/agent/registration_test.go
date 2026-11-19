@@ -16,10 +16,57 @@ import (
 	agentclient "github.com/Rain-kl/Wavelet/internal/edge/agent/httpclient"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 )
+
+func TestRegisterWithAccessTokenMigratesAnExistingEdge(t *testing.T) {
+	t.Cleanup(setupAgentAuthTestDB(t))
+	ctx := context.Background()
+	if err := db.DB(ctx).AutoMigrate(&model.ConfigVersion{}); err != nil {
+		t.Fatal(err)
+	}
+	seen := time.Now()
+	node := model.OpenFlareNode{
+		NodeID: "existing-edge", NodeType: "edge_node", Name: "managed edge", IP: "192.0.2.2",
+		IPManualOverride: true, AccessToken: "fixture-credential", Engine: engineOpenResty, LastSeenAt: &seen,
+	}
+	if err := repository.CreateOpenFlareNode(ctx, &node); err != nil {
+		t.Fatal(err)
+	}
+	pingora := protocol.NodePayload{Engine: enginePingora, ContractVersion: edgeconfig.ContractVersion, IP: "192.0.2.3", Version: "test"}
+	if _, err := RegisterWithAccessToken(ctx, &node, pingora); err == nil || err.Error() != errPingoraReleaseRequired {
+		t.Fatalf("migration without a release: %v", err)
+	}
+	release := model.ConfigVersion{
+		Version: "pingora-test", Engine: enginePingora, IsActive: true,
+		SourceVersion: "shared-test", PayloadChecksum: "fixture-digest",
+	}
+	if err := db.DB(ctx).Create(&release).Error; err != nil {
+		t.Fatal(err)
+	}
+	result, err := RegisterWithAccessToken(ctx, &node, pingora)
+	if err != nil || result.NodeID != node.NodeID || result.AccessToken != node.AccessToken {
+		t.Fatalf("migration changed identity or failed: %v", err)
+	}
+	oldAgent := protocol.NodePayload{IP: "192.0.2.2", Version: "legacy"}
+	if _, err := HeartbeatNode(ctx, &node, oldAgent); err == nil || err.Error() != errNodeEngineChanged {
+		t.Fatalf("stale OpenResty heartbeat: %v", err)
+	}
+	if _, err := RegisterWithAccessToken(ctx, &node, oldAgent); err == nil || err.Error() != errNodeEngineChanged {
+		t.Fatalf("OpenResty registration after migration: %v", err)
+	}
+	stored, err := repository.GetOpenFlareNodeByNodeID(ctx, node.NodeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Engine != enginePingora || stored.ContractVersion != pingora.ContractVersion ||
+		stored.Name != node.Name || stored.IP != node.IP || !stored.IPManualOverride || stored.Version != pingora.Version {
+		t.Fatal("migration did not preserve node metadata or rejected reports changed the node")
+	}
+}
 
 func TestRegistrationResponseServerClientContract(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

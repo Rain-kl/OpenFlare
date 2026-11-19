@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
@@ -30,6 +31,7 @@ const (
 	defaultAgentUpdateRepo        = "Rain-kl/OpenFlare"
 	enginePingora                 = "pingora"
 	engineOpenResty               = "openresty"
+	nodeTypeEdge                  = "edge_node"
 )
 
 func newRandomToken() (string, error) {
@@ -107,6 +109,9 @@ func validateNodePayload(payload protocol.NodePayload) error {
 	}
 	if payload.Version == "" {
 		return errPayload(errAgentVersionRequired)
+	}
+	if payload.Engine == enginePingora && payload.ContractVersion != edgeconfig.ContractVersion {
+		return errPayload(errPingoraContractUnsupported)
 	}
 	return nil
 }

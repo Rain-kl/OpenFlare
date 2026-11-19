@@ -19,6 +19,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
+	"gorm.io/gorm"
 )
 
 // RegisterWithAccessToken registers an agent on a reserved node token.
@@ -31,19 +32,51 @@ func RegisterWithAccessToken(ctx context.Context, authNode *model.OpenFlareNode,
 	if err := validateNodePayload(payload); err != nil {
 		return nil, err
 	}
-	if authNode.LastSeenAt != nil {
-		payload.Engine = normalizeEngine(authNode.Engine)
-	}
-	applyNodeRuntime(ctx, authNode, payload, true)
-	if err := repository.SaveOpenFlareNode(ctx, authNode); err != nil {
+	record, err := repository.GetOpenFlareNodeByAccessToken(ctx, authNode.AccessToken)
+	if err != nil {
 		return nil, err
 	}
-	RefreshAccessTokenCache(ctx, authNode)
+	if payload.Engine == enginePingora && record.NodeType != nodeTypeEdge {
+		return nil, errors.New(errNodeEngineChanged)
+	}
+	previous := *record
+	migrating := previous.LastSeenAt != nil && previous.Engine != payload.Engine
+	if migrating {
+		if previous.Engine != engineOpenResty || payload.Engine != enginePingora {
+			return nil, errors.New(errNodeEngineChanged)
+		}
+		release, releaseErr := repository.GetActivePingoraConfigVersion(ctx)
+		if releaseErr != nil && !isActiveConfigNotFound(releaseErr) {
+			return nil, releaseErr
+		}
+		if release == nil || release.SourceVersion == "" || release.PayloadChecksum == "" {
+			return nil, errors.New(errPingoraReleaseRequired)
+		}
+	}
+	applyNodeRuntime(ctx, record, payload, true)
+	if err = persistNodeRuntime(ctx, &previous, record); err != nil {
+		return nil, err
+	}
 	return &protocol.RegisterNodeResponse{
-		NodeID:      authNode.NodeID,
-		AccessToken: authNode.AccessToken,
-		Name:        authNode.Name,
+		NodeID:      record.NodeID,
+		AccessToken: record.AccessToken,
+		Name:        record.Name,
 	}, nil
+}
+
+func persistNodeRuntime(ctx context.Context, previous, current *model.OpenFlareNode) error {
+	changes := collectHeartbeatChanges(previous, current)
+	if len(changes) > 0 {
+		err := repository.UpdateOpenFlareNodeRuntime(ctx, current, previous.Engine, changes)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New(errNodeEngineChanged)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	RefreshAccessTokenCache(ctx, current)
+	return nil
 }
 
 // RegisterWithDiscovery registers a new node using the global discovery token.
@@ -69,7 +102,7 @@ func RegisterWithDiscovery(ctx context.Context, payload protocol.NodePayload, re
 		Name:             nodeName,
 		AccessToken:      accessToken,
 		Status:           nodeStatusOnline,
-		NodeType:         "edge_node",
+		NodeType:         nodeTypeEdge,
 		CapabilitiesJSON: "[]",
 		UpdateChannel:    releaseChannelStable,
 		Engine:           normalizeEngine(payload.Engine),
@@ -79,7 +112,7 @@ func RegisterWithDiscovery(ctx context.Context, payload protocol.NodePayload, re
 
 	if registrationKey != "" {
 		record, err = repository.CreateOrGetOpenFlareDiscoveryNode(ctx, record)
-		if err == nil && (record.NodeType != "edge_node" || subtle.ConstantTimeCompare([]byte(record.AccessToken), []byte(accessToken)) != 1) {
+		if err == nil && (record.NodeType != nodeTypeEdge || subtle.ConstantTimeCompare([]byte(record.AccessToken), []byte(accessToken)) != 1) {
 			return nil, errors.New(errRegistrationCredentialChanged)
 		}
 	} else {
@@ -123,6 +156,16 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 		return nil, err
 	}
 
+	if payload.Engine != normalizeEngine(authNode.Engine) {
+		fresh, err := repository.GetOpenFlareNodeByAccessToken(ctx, authNode.AccessToken)
+		if err != nil {
+			return nil, err
+		}
+		if payload.Engine != normalizeEngine(fresh.Engine) {
+			return nil, errors.New(errNodeEngineChanged)
+		}
+		authNode = fresh
+	}
 	previous := *authNode
 	updateNow := authNode.UpdateRequested
 	restartOpenrestyNow := authNode.RestartOpenrestyRequested
@@ -136,23 +179,14 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 	authNode.UpdateTag = ""
 	authNode.RestartOpenrestyRequested = false
 
-	changes := collectHeartbeatChanges(&previous, authNode)
-	if len(changes) > 0 {
-		fields := make([]string, 0, len(changes))
-		for field := range changes {
-			fields = append(fields, field)
-		}
-		if err := repository.UpdateOpenFlareNodeFields(ctx, authNode, fields...); err != nil {
-			return nil, err
-		}
-		if previous.IP != authNode.IP {
-			if _, dispatchErr := cf.DispatchNodeSync(ctx, authNode.ID, "cloudflare_agent_ip_update"); dispatchErr != nil {
-				logger.ErrorF(ctx, "[Cloudflare] enqueue heartbeat node sync failed: node_id=%d error=%v", authNode.ID, dispatchErr)
-			}
+	if err := persistNodeRuntime(ctx, &previous, authNode); err != nil {
+		return nil, err
+	}
+	if previous.IP != authNode.IP {
+		if _, dispatchErr := cf.DispatchNodeSync(ctx, authNode.ID, "cloudflare_agent_ip_update"); dispatchErr != nil {
+			logger.ErrorF(ctx, "[Cloudflare] enqueue heartbeat node sync failed: node_id=%d error=%v", authNode.ID, dispatchErr)
 		}
 	}
-
-	RefreshAccessTokenCache(ctx, authNode)
 
 	reportedAt := time.Now()
 	if authNode.LastSeenAt != nil {
