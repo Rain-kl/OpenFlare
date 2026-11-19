@@ -370,6 +370,9 @@ fn extract_zip(package: &Path, destination: &Path, latest: &PagesLatest) -> Resu
         }
         let name = entry.name().to_owned();
         let relative = strip_common_root(&name, &common_root)?;
+        if let Some(parent) = Path::new(&relative).parent() {
+            fs::create_dir_all(destination.join(parent))?;
+        }
         let mut output = File::create(destination.join(&relative))?;
         let written = copy_limited(&mut entry, &mut output, latest)?;
         measured.record(&relative, written)?;
@@ -395,6 +398,9 @@ fn extract_tar<R: Read>(reader: R, destination: &Path, latest: &PagesLatest) -> 
             .to_owned();
         let common_root = common_root(std::slice::from_ref(&name))?;
         let relative = strip_common_root(&name, &common_root)?;
+        if let Some(parent) = Path::new(&relative).parent() {
+            fs::create_dir_all(destination.join(parent))?;
+        }
         let mut output = File::create(destination.join(&relative))?;
         let written = copy_limited(&mut entry, &mut output, latest)?;
         measured.record(&relative, written)?;
@@ -419,6 +425,11 @@ fn extract_7z(package: &Path, destination: &Path, latest: &PagesLatest) -> Resul
                     return Ok(true);
                 }
                 let relative = strip_common_root(&entry.name, &common_root)?;
+                if let Some(parent) = Path::new(&relative).parent() {
+                    if let Err(error) = fs::create_dir_all(destination.join(parent)) {
+                        return Err(error.into());
+                    }
+                }
                 let mut output = File::create(destination.join(&relative))?;
                 let written = copy_limited(input, &mut output, latest)?;
                 measured.record(&relative, written)?;
