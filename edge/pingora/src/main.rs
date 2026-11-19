@@ -45,35 +45,33 @@ fn main() -> Result<()> {
         .init();
 
     let cli = Cli::parse();
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
-    runtime.block_on(async move {
-        match cli.command {
-            Command::Run {
-                server_url,
-                token_type,
-                token_file,
-                state_dir,
-                data_plane,
-                http_listen,
-                tls_listen,
-            } => {
-                if data_plane {
-                    let state = control::load_restored_state(state_dir, http_listen, tls_listen)?;
-                    proxy::run_server(state)
-                } else {
-                    let runtime = control::Runtime::new(
-                        server_url,
-                        token_type,
-                        token_file,
-                        state_dir,
-                        http_listen,
-                        tls_listen,
-                    )?;
-                    runtime.run().await
-                }
+    match cli.command {
+        Command::Run {
+            data_plane,
+            server_url,
+            token_type,
+            token_file,
+            state_dir,
+            http_listen,
+            tls_listen,
+        } => {
+            if data_plane {
+                let state = control::load_restored_state(state_dir, http_listen, tls_listen)?;
+                proxy::run_server(state)
+            } else {
+                let tokio_runtime = tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()?;
+                let runtime = control::Runtime::new(
+                    server_url,
+                    token_type,
+                    token_file,
+                    state_dir,
+                    http_listen,
+                    tls_listen,
+                )?;
+                tokio_runtime.block_on(runtime.run())
             }
         }
-    })
+    }
 }
