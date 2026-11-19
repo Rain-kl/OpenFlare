@@ -56,9 +56,52 @@ struct ApiResponse<T> {
 #[derive(Debug, Deserialize)]
 struct Registration {
     node_id: String,
-    #[allow(dead_code)]
-    #[serde(alias = "agent_token", alias = "access_token")]
+    #[serde(flatten, deserialize_with = "deserialize_registration_token")]
+    token: RegistrationToken,
+}
+
+#[derive(Debug, Deserialize)]
+struct RegistrationToken {
     agent_token: String,
+}
+
+fn deserialize_registration_token<'de, D>(deserializer: D) -> Result<RegistrationToken, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Error;
+
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let object = value
+        .as_object()
+        .ok_or_else(|| D::Error::custom("registration token payload is not an object"))?;
+    let canonical = object
+        .get("agent_token")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim);
+    let legacy = object
+        .get("access_token")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim);
+    let token = match (canonical, legacy) {
+        (Some(canonical), Some(legacy)) => {
+            if canonical != legacy {
+                return Err(D::Error::custom(
+                    "registration response contains conflicting agent tokens",
+                ));
+            }
+            canonical
+        }
+        (Some(canonical), None) => canonical,
+        (None, Some(legacy)) => legacy,
+        (None, None) => return Err(D::Error::custom("registration response has no agent token")),
+    };
+    if token.is_empty() {
+        return Err(D::Error::custom("registration token is empty"));
+    }
+    Ok(RegistrationToken {
+        agent_token: token.to_owned(),
+    })
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -263,8 +306,10 @@ impl Runtime {
                 identity.node_id = registration.node_id;
                 save_identity(&self.state_dir, &identity)?;
                 return Ok(Registration {
-                    node_id: identity.node_id,
-                    agent_token: identity.agent_token,
+                    node_id: identity.node_id.clone(),
+                    token: RegistrationToken {
+                        agent_token: identity.agent_token,
+                    },
                 });
             }
         }
@@ -274,13 +319,13 @@ impl Runtime {
                 &self.state_dir,
                 &PersistedIdentity {
                     node_id: registration.node_id.clone(),
-                    agent_token: registration.agent_token.clone(),
+                    agent_token: registration.token.agent_token.clone(),
                     registration_key: None,
                 },
             )?;
             return Ok(Registration {
                 node_id: registration.node_id,
-                agent_token: registration.agent_token,
+                token: registration.token,
             });
         }
 
@@ -303,13 +348,15 @@ impl Runtime {
         let registration = self.register(&self.token, Some(&registration_key)).await?;
         let identity = PersistedIdentity {
             node_id: registration.node_id.clone(),
-            agent_token: registration.agent_token.clone(),
+            agent_token: registration.token.agent_token.clone(),
             registration_key: Some(registration_key),
         };
         save_identity(&self.state_dir, &identity)?;
         Ok(Registration {
             node_id: identity.node_id,
-            agent_token: identity.agent_token,
+            token: RegistrationToken {
+                agent_token: identity.agent_token,
+            },
         })
     }
 
@@ -317,7 +364,7 @@ impl Runtime {
         Ok(Self {
             base_url: self.base_url.clone(),
             token_type: TokenType::Node,
-            token: identity.agent_token.clone(),
+            token: identity.token.agent_token.clone(),
             state_dir: self.state_dir.clone(),
             http_listen: self.http_listen.clone(),
             tls_listen: self.tls_listen.clone(),
@@ -710,4 +757,16 @@ fn save_identity(state_dir: &Path, identity: &PersistedIdentity) -> Result<()> {
     std::fs::write(&temporary, serde_json::to_vec_pretty(identity)?)?;
     std::fs::rename(&temporary, &final_path)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn registration_accepts_matching_duplicate_token_aliases() {
+        let payload = r#"{"node_id":"node-1","agent_token":"issued","access_token":"issued"}"#;
+        let registration: Registration = serde_json::from_str(payload).expect("registration");
+        assert_eq!(registration.token.agent_token, "issued");
+    }
 }
