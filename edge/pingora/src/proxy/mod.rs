@@ -237,9 +237,13 @@ impl ProxyHttp for ProxyService {
                     .map(|policy| (snapshot, policy))
             })
             .ok_or_else(|| Error::explain(InternalError, "cache policy disappeared"))?;
+        let route = snapshot
+            .route_for_host(&ctx.host)
+            .ok_or_else(|| Error::explain(InternalError, "cache route disappeared"))?;
         Ok(cache::key(
             session.req_header(),
             policy,
+            route,
             if ctx.https { "https" } else { "http" },
             &ctx.host,
             &snapshot.payload_checksum,

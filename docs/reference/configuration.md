@@ -254,7 +254,7 @@ Server、Agent、调度器、任务框架及存储维护等运行时日志的固
 | `openresty_cache_levels` | `string` | 代理缓存的存储目录树层级分配设置 | `1:2` |
 | `openresty_cache_inactive` | `string` | 缓存文件多长时间无人访问后将自动从磁盘上失效抹除的时间时长 | `30m` (30分钟) |
 | `openresty_cache_max_size` | `string` | 代理缓存区域在节点上占用的最大可用物理磁盘额度 | `1g` (1GB) |
-| `openresty_cache_key_template` | `string` | 默认生成代理缓存键的识别模板 | `$scheme$host$request_uri` |
+| `openresty_cache_key_template` | `string` | 代理缓存键模板。Pingora 支持 `$proxy_host`，取值为 OpenResty `proxy_pass` 使用的上游组名或上游地址。 | `$scheme$host$request_uri` |
 | `openresty_cache_lock_enabled` | `bool` | 遭遇高并发请求击穿同一失效资源时是否对向源站发起建连排队加锁 | `true` |
 | `openresty_cache_lock_timeout` | `string` | 抢夺代理缓存锁排队建连时排队等待的最长等待耗时限制 | `5s` |
 | `openresty_cache_use_stale` | `string` | 当源站遇到特定报错（如500/502/504等）时是否直接向用户投递过期缓存 | `error timeout updating http_500 http_502 http_503 http_504` |

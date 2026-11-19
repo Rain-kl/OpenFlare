@@ -23,6 +23,7 @@ sidebar: false
 - Pingora 和现有 OpenResty Agent 共用一份发布快照。Edge 支持按引擎同步和回滚，报告实际生效的版本，并在主控不可达时恢复本地配置。
 - 修复 Pingora 注册、HTTPS 跳转和 HTTP/2 路由，接通站点登录、PoW 验证、WAF IP 组更新、Pages 部署同步、回源响应处理及节点指标上报。
 - Linux Edge 安装包等待新进程监听就绪，并在启动失败时恢复上一二进制。Edge 版本独立于 Go Agent 更新渠道。
+- Pingora 支持代理缓存键模板中的 `$proxy_host`，可直接应用使用该变量的 OpenResty 配置快照。
 
 ### ⚡️ 优化与改进
 

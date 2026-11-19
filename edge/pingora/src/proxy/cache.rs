@@ -1,4 +1,4 @@
-use crate::protocol::config::{CachePolicy, RouteCache};
+use crate::protocol::config::{CachePolicy, Route, RouteCache};
 use pingora::{
     cache::{
         cache_control::CacheControl, eviction::simple_lru::Manager, filters, key::HashBinary,
@@ -62,6 +62,7 @@ fn path_matches(route: &RouteCache, static_extensions: &[String], path: &str) ->
 pub(super) fn key(
     request: &RequestHeader,
     policy: &CachePolicy,
+    route: &Route,
     scheme: &str,
     host: &str,
     digest: &str,
@@ -77,6 +78,7 @@ pub(super) fn key(
         format!("{scheme}|{host}|{request_uri}")
     } else {
         let mut rendered = String::new();
+        let mut proxy_host = None;
         let mut parts = policy.key_template.split('$');
         rendered.push_str(parts.next().unwrap_or_default());
         for part in parts {
@@ -87,6 +89,7 @@ pub(super) fn key(
             rendered.push_str(match variable {
                 "scheme" => scheme,
                 "host" => host,
+                "proxy_host" => proxy_host.get_or_insert_with(|| proxy_pass_host(route)),
                 "request_uri" => request_uri,
                 "uri" => path,
                 "args" | "query_string" => args,
@@ -101,6 +104,50 @@ pub(super) fn key(
     CacheKey::new(format!("{digest}|{scheme}|{host}|{key}"), "")
 }
 
+fn proxy_pass_host(route: &Route) -> String {
+    use url::{Position, Url};
+
+    let Ok(origin) = Url::parse(&route.origin_url) else {
+        return String::new();
+    };
+    // Match the named upstream used by the OpenResty proxy_pass renderer.
+    let mut scheme = None;
+    let named = route.upstreams.len() <= 1
+        || route.upstreams.iter().all(|value| {
+            Url::parse(value).is_ok_and(|url| {
+                url.path() == "/"
+                    && url.query().is_none()
+                    && scheme.get_or_insert_with(|| url.scheme().to_owned()) == url.scheme()
+            })
+        });
+    if !named {
+        return origin[Position::BeforeHost..Position::AfterPort].to_owned();
+    }
+    let name = route.site_name.trim();
+    let identity = if name.is_empty() {
+        route.domains.first().map_or("", String::as_str)
+    } else {
+        name
+    };
+    let sanitized: String = identity
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let sanitized = sanitized.trim_matches('_');
+    let name = if sanitized.is_empty() {
+        "backend"
+    } else {
+        sanitized
+    };
+    format!("backend_{name}_{}", route.id)
+}
+
 pub(crate) fn validate_policy(policy: &CachePolicy) -> anyhow::Result<()> {
     for fragment in policy.key_template.split('$').skip(1) {
         let variable = fragment
@@ -111,6 +158,7 @@ pub(crate) fn validate_policy(policy: &CachePolicy) -> anyhow::Result<()> {
             variable,
             "scheme"
                 | "host"
+                | "proxy_host"
                 | "request_uri"
                 | "uri"
                 | "args"
@@ -122,6 +170,48 @@ pub(crate) fn validate_policy(policy: &CachePolicy) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openresty_proxy_host_template_uses_the_named_upstream() {
+        let request = RequestHeader::build("GET", b"/path?q=1", None).unwrap();
+        let policy = CachePolicy {
+            key_template: "$scheme$proxy_host$request_uri".into(),
+            lock_enabled: false,
+            lock_timeout_ms: 0,
+            stale_on_error: false,
+            stale_updating: false,
+            static_extensions: vec![],
+        };
+        let route = Route {
+            id: 42,
+            site_name: "Example Site".into(),
+            origin_url: "https://origin.test:9443".into(),
+            origin_host: "overridden.test".into(),
+            upstreams: vec![
+                "https://origin.test:9443".into(),
+                "https://backup.test".into(),
+            ],
+            ..Route::default()
+        };
+        validate_policy(&policy).unwrap();
+        assert_eq!(
+            key(&request, &policy, &route, "https", "example.test", "digest").primary_key_str(),
+            Some("digest|https|example.test|httpsbackend_example_site_42/path?q=1"),
+        );
+        let route = Route {
+            upstreams: vec![
+                "https://origin.test:9443".into(),
+                "http://backup.test".into(),
+            ],
+            ..route
+        };
+        assert_eq!(proxy_pass_host(&route), "origin.test:9443");
+    }
 }
 
 pub(super) fn response(
