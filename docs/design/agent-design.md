@@ -1,5 +1,7 @@
 # Agent 设计文档
 
+本文描述 Go Agent 与 OpenResty 架构。另一条独立开发线见 [Pingora 边缘节点设计](./pingora-edge-design.md)。
+
 你会学到：Agent 的设计原则、核心功能模块、与 Server 的交互链路，以及如何通过不可变版本模型与三阶段容灾机制来保证配置应用的安全性和可靠性。
 
 ---

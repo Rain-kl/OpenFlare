@@ -4,6 +4,8 @@
 
 OpenFlare 是一套自托管的 OpenResty 控制面。它在物理上由 Server（控制面）、Agent（配置落地端）、节点本地 OpenResty（数据面）、内网穿透组件（Relay 与 OpenFlared，数据面扩展）以及管理端前端组成。
 
+现有 Go Agent 与 OpenResty 继续维护和发布。新增的 Rust/Pingora 边缘节点采用独立版本和二进制，接入同一个 Server。开发计划与接入边界见 [Pingora 边缘节点设计](./pingora-edge-design.md) 和 [开发说明](./pingora-edge-development.md)。
+
 ---
 
 ## 流量路径概览
