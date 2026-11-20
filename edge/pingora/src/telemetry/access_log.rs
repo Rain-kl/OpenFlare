@@ -23,6 +23,8 @@ pub struct NodeAccessLog {
     pub bytes_sent: i64,
     pub request_length: i64,
     pub request_time_ms: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub waf: Option<crate::policy::WafAudit>,
 }
 
 #[derive(Clone, Debug)]

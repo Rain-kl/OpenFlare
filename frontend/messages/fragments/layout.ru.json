@@ -25,6 +25,8 @@
       "origins": "Серверы-источники",
       "responses": "Страницы ответов",
       "waf": "WAF",
+      "attackProtection": "Защита от атак",
+      "attackLogs": "Журнал атак",
       "ipGroups": "IP-группы",
       "securitySettings": "Глобальные настройки",
       "pages": "Страницы",

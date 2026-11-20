@@ -6,6 +6,7 @@ package config_version
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -154,4 +155,36 @@ func snapshotPoWGraph() waf.RuleGraph {
 		{ID: "e1", Source: "start", SourceHandle: "next", Target: "pow"},
 		{ID: "e2", Source: "pow", SourceHandle: "next", Target: "allow"},
 	}}
+}
+
+func TestWAFSnapshotResolvesCurrentAttackGroupLevels(t *testing.T) {
+	cleanup := setupConfigVersionTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	group := model.OpenFlareAttackGroup{Name: "Ruleset", Levels: map[string]string{"sql_injection": "observe"}}
+	require.NoError(t, repository.SaveOpenFlareAttackGroup(ctx, &group))
+	graph := waf.DefaultRuleGraph()
+	graph.Nodes = append(graph.Nodes, waf.RuleNode{
+		ID: "inspect", Type: waf.RuleNodeSecurityCheck,
+		Config: json.RawMessage(fmt.Sprintf(`{"attack_group_id":%d}`, group.ID)),
+	}, waf.RuleNode{Type: waf.RuleNodeBlock, ID: "block", Config: json.RawMessage(`{"status_code":403}`)})
+	graph.Edges = []waf.RuleEdge{
+		{ID: "start", Source: "start", Target: "inspect", SourceHandle: "next"},
+		{ID: "pass", Source: "inspect", Target: "allow", SourceHandle: "true"},
+		{ID: "deny", Source: "inspect", Target: "block", SourceHandle: "false"},
+	}
+	createSnapshotRule(t, ctx, "ruleset fixture", graph)
+	for _, level := range []string{"observe", "strict"} {
+		group.Levels["sql_injection"] = level
+		require.NoError(t, repository.SaveOpenFlareAttackGroup(ctx, &group))
+		snapshot, err := buildSnapshotWAFDocument(ctx, nil)
+		require.NoError(t, err)
+		require.Len(t, snapshot.RuleGroups, 1)
+		node := snapshot.RuleGroups[0].Graph.Nodes["inspect"]
+		require.Equal(t, waf.RuleNodeType("attack_protection"), node.Type)
+		compiled, err := json.Marshal(node.Config)
+		require.NoError(t, err)
+		require.JSONEq(t, fmt.Sprintf(`{"id":%d,"name":"Ruleset","levels":{"sql_injection":%q}}`, group.ID, level), string(compiled))
+	}
 }

@@ -22,10 +22,10 @@ func (s *clickhouseLogStore) List(ctx context.Context, query model.OpenFlareAcce
 	filter := toNodeAccessLogFilter(query)
 	clause, args := buildCHNodeAccessLogFilterClause(filter)
 	sql := fmt.Sprintf(`
-SELECT id, node_id, logged_at, remote_addr, region, host, path, user_agent, cache_status, status_code, bytes_sent, request_length, request_time_ms, created_at
+SELECT %s
 FROM %s
 WHERE %s
-ORDER BY %s`, chNodeAccessLogTableName(), clause, chNodeAccessLogOrderClause(filter.SortBy, filter.SortOrder))
+ORDER BY %s`, (analyticsmodel.NodeAccessLog{}).InsertColumns(), chNodeAccessLogTableName(), clause, chNodeAccessLogOrderClause(filter.SortBy, filter.SortOrder))
 	if filter.PageSize > 0 {
 		if filter.Page < 0 {
 			filter.Page = 0
@@ -65,6 +65,8 @@ func scanNodeAccessLogRows(rows driver.Rows) ([]analyticsmodel.NodeAccessLog, er
 			&item.RequestLength,
 			&item.RequestTimeMs,
 			&item.CreatedAt,
+			&item.WAFAction,
+			&item.WAFAudit,
 		); err != nil {
 			return nil, fmt.Errorf("scan node access log row: %w", err)
 		}

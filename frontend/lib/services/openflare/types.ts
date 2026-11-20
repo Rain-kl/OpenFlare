@@ -869,15 +869,16 @@ export interface UACheckConfig {
 }
 
 export interface SecurityCheckConfig {
-  sql_injection: boolean;
-  path_traversal: boolean;
-  command_injection: boolean;
-  xss: boolean;
-  ssrf: boolean;
-  file_inclusion: boolean;
-  malicious_upload: boolean;
-  xxe: boolean;
-  crlf_injection: boolean;
+  attack_group_id?: number;
+  sql_injection?: boolean;
+  path_traversal?: boolean;
+  command_injection?: boolean;
+  xss?: boolean;
+  ssrf?: boolean;
+  file_inclusion?: boolean;
+  malicious_upload?: boolean;
+  xxe?: boolean;
+  crlf_injection?: boolean;
 }
 
 export type WAFRuleNode =

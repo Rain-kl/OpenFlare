@@ -1,3 +1,4 @@
+mod attack;
 mod auth;
 mod limits;
 mod pow;
@@ -15,8 +16,8 @@ pub use pow::{
     POW_STATIC_PREFIX,
 };
 pub(crate) use service_worker::select as service_worker;
-pub(crate) use waf::validate as validate_waf;
-pub use waf::{execute_waf, has_waf_pow, waf_inspects_body, WafDecision, SECURITY_HEADERS};
+pub(crate) use waf::compile as compile_waf;
+pub use waf::{has_waf_pow, CompiledWaf, WafAudit, WafDecision, WafRequest};
 
 use crate::geoip::GeoResult;
 use std::{
@@ -39,7 +40,6 @@ pub struct RequestContext {
     pub body: Vec<u8>,
     pub origin_header: Option<String>,
     pub accept_language: String,
-    pub sensitive_headers: Vec<String>,
     pub authority: String,
     pub geo: Option<GeoResult>,
 }
@@ -226,7 +226,6 @@ mod tests {
             body: Vec::new(),
             origin_header: None,
             accept_language: String::new(),
-            sensitive_headers: vec![],
             authority: "example.com".into(),
             geo: None,
         }
@@ -350,8 +349,28 @@ mod tests {
                 rule_group_ids: vec![],
             }],
         };
+        let waf = compile_waf(&document).unwrap();
+        let evaluate = |context: &RequestContext, route: &Route| {
+            waf.execute(
+                &document,
+                route,
+                WafRequest {
+                    context,
+                    headers: &http::HeaderMap::new(),
+                    version: http::Version::HTTP_11,
+                    https: true,
+                },
+                false,
+            )
+            .unwrap()
+        };
+        let (decision, audit) = evaluate(&context, &route);
+        let audit = audit.unwrap();
+        assert_eq!(audit.flow_id, 7);
+        assert_eq!(audit.flow_node_id, "ip");
+        assert_eq!(audit.reason, "ip_match");
         assert_eq!(
-            execute_waf(&document, &route, &context, false).unwrap(),
+            decision,
             WafDecision::Block {
                 status: 403,
                 body: "blocked".into()
@@ -362,10 +381,7 @@ mod tests {
             remote_addr: "198.51.100.1".into(),
             ..context
         };
-        assert_eq!(
-            execute_waf(&document, &route, &other, false).unwrap(),
-            WafDecision::Allow
-        );
+        assert_eq!(evaluate(&other, &route).0, WafDecision::Allow);
     }
     #[test]
     fn geo_region_matches_openresty_country_subdivision_format() {
@@ -393,6 +409,7 @@ mod tests {
             bytes_sent: 123,
             request_length: 45,
             request_time_ms: 6,
+            waf: None,
         };
         buffer.push(log.clone()).unwrap();
         buffer

@@ -1,3 +1,11 @@
+import type {
+  AttackGroup,
+  AttackGroupInput,
+  AttackEvent,
+  AttackLog,
+  AttackLogFilter,
+  AttackLogPage,
+} from './attack-types';
 import { OpenFlareBaseService } from './base.service';
 import type {
   WAFIPGroup,
@@ -12,8 +20,40 @@ import type {
   WAFUpdateRuleMetaPayload,
 } from './types';
 
+export const attackGroupsQueryKey = [
+  'openflare',
+  'waf',
+  'attack-groups',
+] as const;
+
 export class WafService extends OpenFlareBaseService {
   protected static override readonly basePath: string = '/api/v1/d/waf';
+
+  static async listAttackGroups(): Promise<AttackGroup[]> {
+    return this.get<AttackGroup[]>('/attack-groups');
+  }
+
+  static async saveAttackGroup(
+    input: AttackGroupInput,
+    id?: number,
+  ): Promise<AttackGroup> {
+    return this.post<AttackGroup>(
+      id ? `/attack-groups/${id}/update` : '/attack-groups',
+      input,
+    );
+  }
+
+  static async listAttackLogs(
+    filter: AttackLogFilter,
+  ): Promise<AttackLogPage<AttackLog>> {
+    return this.get<AttackLogPage<AttackLog>>('/attack-logs', filter);
+  }
+
+  static async listAttackEvents(
+    filter: AttackLogFilter,
+  ): Promise<AttackLogPage<AttackEvent>> {
+    return this.get<AttackLogPage<AttackEvent>>('/attack-events', filter);
+  }
 
   static async listRuleGroups(): Promise<WAFRule[]> {
     return this.get<WAFRule[]>('/rule-groups');

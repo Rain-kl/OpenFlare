@@ -170,8 +170,16 @@ func buildNodeAccessLogRecords(ctx context.Context, nodeID string, direct []prot
 	}
 
 	records := make([]*model.OpenFlareAccessLog, 0, total)
-	appendLogs := func(logs []protocol.NodeAccessLog) {
+	appendLogs := func(logs []protocol.NodeAccessLog) error {
 		for _, item := range logs {
+			wafAction, wafAudit, err := serializeWAFAudit(item.WAF)
+			if err != nil {
+				return err
+			}
+			path := truncateForDatabase(strings.TrimSpace(item.Path), accessLogPathMaxLength)
+			if wafAction != "" {
+				path = attackRequestPath(item.Path)
+			}
 			bytesSent := max(item.BytesSent, 0)
 			requestLength := max(item.RequestLength, 0)
 			requestTimeMs := max(item.RequestTimeMs, 0)
@@ -181,7 +189,9 @@ func buildNodeAccessLogRecords(ctx context.Context, nodeID string, direct []prot
 				RemoteAddr:    strings.TrimSpace(item.RemoteAddr),
 				Region:        resolveAccessLogRegion(ctx, item.RemoteAddr),
 				Host:          strings.TrimSpace(item.Host),
-				Path:          truncateForDatabase(strings.TrimSpace(item.Path), accessLogPathMaxLength),
+				Path:          path,
+				WAFAction:     wafAction,
+				WAFAudit:      wafAudit,
 				UserAgent:     truncateForDatabase(strings.TrimSpace(item.UserAgent), accessLogUserAgentMaxLength),
 				CacheStatus:   truncateForDatabase(strings.TrimSpace(item.CacheStatus), accessLogCacheStatusMaxLength),
 				StatusCode:    item.StatusCode,
@@ -191,10 +201,15 @@ func buildNodeAccessLogRecords(ctx context.Context, nodeID string, direct []prot
 			}
 			records = append(records, record)
 		}
+		return nil
 	}
-	appendLogs(direct)
+	if err := appendLogs(direct); err != nil {
+		return nil, err
+	}
 	for _, record := range buffered {
-		appendLogs(record.AccessLogs)
+		if err := appendLogs(record.AccessLogs); err != nil {
+			return nil, err
+		}
 	}
 	return records, nil
 }

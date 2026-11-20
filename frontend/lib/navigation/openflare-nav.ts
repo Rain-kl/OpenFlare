@@ -40,6 +40,8 @@ export const openflareSecurityNavGroup: OpenFlareNavGroup = {
   icon: ShieldCheck,
   items: [
     { titleKey: 'waf', url: '/waf' },
+    { titleKey: 'attackProtection', url: '/attack-protection' },
+    { titleKey: 'attackLogs', url: '/attack-logs' },
     { titleKey: 'ipGroups', url: '/ip-groups' },
     { titleKey: 'securitySettings', url: '/security-settings' },
   ],

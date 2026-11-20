@@ -63,17 +63,7 @@ export function createRuleNode(
       id,
       type,
       position,
-      config: {
-        sql_injection: false,
-        path_traversal: true,
-        command_injection: false,
-        xss: false,
-        ssrf: false,
-        file_inclusion: true,
-        malicious_upload: false,
-        xxe: false,
-        crlf_injection: false,
-      },
+      config: { attack_group_id: 0 },
     };
   if (type === 'pow')
     return {

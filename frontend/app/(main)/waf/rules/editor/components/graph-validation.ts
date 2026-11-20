@@ -200,6 +200,12 @@ export function validateGraph(graph: WAFRuleGraph): GraphIssue[] {
 }
 
 function validateNodeConfig(node: WAFRuleNode): string | undefined {
+  if (
+    node.type === 'security_check' &&
+    node.config.attack_group_id !== undefined &&
+    !isIntegerInRange(node.config.attack_group_id, 1)
+  )
+    return runtimeText('attack_protection_group_required');
   if (node.type === 'ip_match') {
     if (node.config.ips.some((value) => !isIP(value)))
       return runtimeText(

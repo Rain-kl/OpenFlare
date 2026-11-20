@@ -124,16 +124,17 @@ type NodeMetricSnapshot struct {
 
 // NodeAccessLog is an access log entry from agent (L1 business fact).
 type NodeAccessLog struct {
-	LoggedAtUnix  int64  `json:"logged_at_unix"`
-	RemoteAddr    string `json:"remote_addr"`
-	Host          string `json:"host"`
-	Path          string `json:"path"`
-	UserAgent     string `json:"user_agent,omitempty"`
-	CacheStatus   string `json:"cache_status,omitempty"` // $upstream_cache_status
-	StatusCode    int    `json:"status_code"`
-	BytesSent     int64  `json:"bytes_sent"`      // body bytes = 已提供数据
-	RequestLength int64  `json:"request_length"`  // 接收数据
-	RequestTimeMs int64  `json:"request_time_ms"` // optional
+	LoggedAtUnix  int64     `json:"logged_at_unix"`
+	RemoteAddr    string    `json:"remote_addr"`
+	Host          string    `json:"host"`
+	Path          string    `json:"path"`
+	UserAgent     string    `json:"user_agent,omitempty"`
+	CacheStatus   string    `json:"cache_status,omitempty"` // $upstream_cache_status
+	StatusCode    int       `json:"status_code"`
+	BytesSent     int64     `json:"bytes_sent"`      // body bytes = 已提供数据
+	RequestLength int64     `json:"request_length"`  // 接收数据
+	RequestTimeMs int64     `json:"request_time_ms"` // optional
+	WAF           *WAFAudit `json:"waf,omitempty"`
 }
 
 // BufferedObservabilityRecord is a buffered observability record (facts only).

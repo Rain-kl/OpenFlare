@@ -11254,6 +11254,445 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/waf/attack-events": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "列出聚合攻击事件",
+                "parameters": [
+                    {
+                        "enum": [
+                            "all",
+                            "blocked",
+                            "observed"
+                        ],
+                        "type": "string",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Exact host and source IP",
+                        "name": "exact",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 255,
+                        "type": "string",
+                        "name": "host",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 64,
+                        "type": "string",
+                        "name": "node_id",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 1000000,
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Zero-based page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 0,
+                        "type": "integer",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 128,
+                        "type": "string",
+                        "name": "remote_addr",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Unix seconds, inclusive",
+                        "name": "since",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Unix seconds, exclusive",
+                        "name": "until",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_waf.attackLogPage-model_OpenFlareAttackEvent"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/waf/attack-groups": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "列出攻击防护规则组",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.OpenFlareAttackGroup"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "创建攻击防护规则组",
+                "parameters": [
+                    {
+                        "description": "规则组",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_waf.attackGroupInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.OpenFlareAttackGroup"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/waf/attack-groups/{id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "更新攻击防护规则组",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "规则组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "规则组",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_waf.attackGroupInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.OpenFlareAttackGroup"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/waf/attack-logs": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "列出攻击日志记录",
+                "parameters": [
+                    {
+                        "enum": [
+                            "all",
+                            "blocked",
+                            "observed"
+                        ],
+                        "type": "string",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Exact host and source IP",
+                        "name": "exact",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 255,
+                        "type": "string",
+                        "name": "host",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 64,
+                        "type": "string",
+                        "name": "node_id",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 1000000,
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Zero-based page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 0,
+                        "type": "integer",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 128,
+                        "type": "string",
+                        "name": "remote_addr",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Unix seconds, inclusive",
+                        "name": "since",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Unix seconds, exclusive",
+                        "name": "until",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_waf.attackLogPage-apps_openflare_waf_attackLogEntry"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/waf/ip-groups": {
             "get": {
                 "security": [
@@ -18844,6 +19283,111 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_waf.attackGroupInput": {
+            "type": "object",
+            "properties": {
+                "levels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_waf.attackLogEntry": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "attack_group_id": {
+                    "type": "integer"
+                },
+                "attack_group_name": {
+                    "type": "string"
+                },
+                "flow_id": {
+                    "type": "integer"
+                },
+                "flow_name": {
+                    "type": "string"
+                },
+                "flow_node_id": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "https": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "logged_at": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "remote_addr": {
+                    "type": "string"
+                },
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRuleMatch"
+                    }
+                },
+                "status_code": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_waf.attackLogPage-apps_openflare_waf_attackLogEntry": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_waf.attackLogEntry"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_waf.attackLogPage-model_OpenFlareAttackEvent": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OpenFlareAttackEvent"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "apps_openflare_zone.CleanupUnlinkedDomainsResult": {
             "type": "object",
             "properties": {
@@ -20182,6 +20726,9 @@ const docTemplate = `{
                 },
                 "user_agent": {
                     "type": "string"
+                },
+                "waf": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFAudit"
                 }
             }
         },
@@ -20599,6 +21146,61 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFAudit": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "attack_group_id": {
+                    "type": "integer"
+                },
+                "attack_group_name": {
+                    "type": "string"
+                },
+                "flow_id": {
+                    "type": "integer"
+                },
+                "flow_name": {
+                    "type": "string"
+                },
+                "flow_node_id": {
+                    "type": "string"
+                },
+                "https": {
+                    "type": "boolean"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRuleMatch"
+                    }
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRuleMatch": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_Rain-kl_Wavelet_internal_shared_response.Any": {
             "type": "object",
             "properties": {
@@ -20798,6 +21400,49 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.OpenFlareAttackEvent": {
+            "type": "object",
+            "properties": {
+                "bucket_unix": {
+                    "type": "integer"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "first_unix": {
+                    "type": "integer"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "last_unix": {
+                    "type": "integer"
+                },
+                "remote_addr": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.OpenFlareAttackGroup": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "levels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

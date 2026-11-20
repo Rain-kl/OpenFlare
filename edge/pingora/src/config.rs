@@ -29,6 +29,7 @@ pub struct AppliedConfig {
     pub payload_checksum: String,
     pub payload_json: String,
     pub config: Config,
+    pub waf: crate::policy::CompiledWaf,
     pub certificates: HashMap<u64, LoadedCertificate>,
     pub pages_releases: HashMap<u64, String>,
     upstream_cursors: Arc<HashMap<u64, std::sync::atomic::AtomicUsize>>,
@@ -112,6 +113,7 @@ pub fn decode(
         serde_json::from_str(payload_json).context("decode shared edge snapshot")?;
     let config = envelope.compile()?;
     validate(&config)?;
+    let waf = crate::policy::compile_waf(&config.waf)?;
     let certificates = load_certificates(&config)?;
     let upstream_cursors = Arc::new(
         config
@@ -128,6 +130,7 @@ pub fn decode(
         payload_checksum: digest,
         payload_json: payload_json.to_owned(),
         config,
+        waf,
         certificates,
         pages_releases: HashMap::new(),
         upstream_cursors,
@@ -171,7 +174,6 @@ fn validate(config: &Config) -> Result<()> {
     {
         bail!("configuration does not declare required capability {PROXY_CAPABILITY}");
     }
-    crate::policy::validate_waf(&config.waf)?;
     for route in &config.routes {
         if !route.enabled {
             continue;

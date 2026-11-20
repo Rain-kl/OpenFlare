@@ -47,6 +47,7 @@ pub struct RequestLogContext {
     origin_error_replaced: bool,
     permit: Option<policy::RequestPermit>,
     pow_cookie: Option<String>,
+    waf: Option<policy::WafAudit>,
 }
 
 impl Default for RequestLogContext {
@@ -71,6 +72,7 @@ impl Default for RequestLogContext {
             origin_error_replaced: false,
             permit: None,
             pow_cookie: None,
+            waf: None,
         }
     }
 }
@@ -292,6 +294,14 @@ impl ProxyHttp for ProxyService {
             .map(|response| response.status.as_u16())
             .unwrap_or_default();
         let downstream = session.as_downstream();
+        let waf = ctx.waf.take();
+        let path = if waf.is_some() {
+            ctx.path
+                .split_once('?')
+                .map_or(ctx.path.as_str(), |(path, _)| path)
+        } else {
+            ctx.path.as_str()
+        };
         let log = NodeAccessLog {
             logged_at_unix: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -299,13 +309,14 @@ impl ProxyHttp for ProxyService {
                 .unwrap_or_default(),
             remote_addr: ctx.remote_addr.clone(),
             host: ctx.host.clone(),
-            path: ctx.path.clone(),
+            path: path.to_owned(),
             user_agent: ctx.user_agent.clone(),
             cache_status: cache::status(session).to_owned(),
             status_code: i32::from(status),
             bytes_sent: downstream.body_bytes_sent() as i64,
             request_length: (downstream.body_bytes_read() + ctx.request_header_bytes) as i64,
             request_time_ms: ctx.started_at.elapsed().as_millis() as i64,
+            waf,
         };
         let spool = self.access_logs.clone();
         match tokio::task::spawn_blocking(move || spool.push(log)).await {

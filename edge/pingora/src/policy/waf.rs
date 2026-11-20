@@ -1,7 +1,12 @@
 use super::pow::pow_policy_required;
-use super::{ip_in_cidr, percent_decode, RequestContext};
-use crate::protocol::config::{PoWConfig, Route, WafDocument};
-use serde::Deserialize;
+use super::{
+    attack::{AttackGroup, Detector, EnginePool, LegacyConfig, RuleMatch},
+    ip_in_cidr, RequestContext,
+};
+use crate::protocol::config::{PoWConfig, Route, WafDocument, WafRuleGroup};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum WafDecision {
     Allow,
@@ -9,7 +14,46 @@ pub enum WafDecision {
     Takeover(Box<PoWConfig>),
 }
 
-pub(crate) fn validate(document: &WafDocument) -> anyhow::Result<()> {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WafAudit {
+    pub action: String,
+    pub reason: String,
+    pub method: String,
+    pub https: bool,
+    pub flow_id: u64,
+    pub flow_name: String,
+    pub flow_node_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attack_group_id: Option<u64>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub attack_group_name: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rules: Vec<RuleMatch>,
+}
+
+impl WafAudit {
+    fn mark_observed(&mut self) {
+        self.action = "observed".into();
+    }
+}
+
+#[derive(Clone)]
+pub struct CompiledWaf {
+    detectors: HashMap<u64, HashMap<String, Detector>>,
+}
+
+impl std::fmt::Debug for CompiledWaf {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CompiledWaf")
+            .field("graphs", &self.detectors.len())
+            .finish()
+    }
+}
+
+pub(crate) fn compile(document: &WafDocument) -> anyhow::Result<CompiledWaf> {
+    let mut detectors = HashMap::<u64, HashMap<String, Detector>>::new();
+    let mut engines = EnginePool::default();
     let group_ids: std::collections::HashSet<_> =
         document.rule_groups.iter().map(|group| group.id).collect();
     for binding in &document.bindings {
@@ -58,8 +102,28 @@ pub(crate) fn validate(document: &WafDocument) -> anyhow::Result<()> {
                     &["true", "false"]
                 }
                 "security_check" => {
-                    serde_json::from_value::<SecurityCheckConfig>(node.config.clone())
-                        .map_err(decode)?;
+                    let config: LegacyConfig =
+                        serde_json::from_value(node.config.clone()).map_err(decode)?;
+                    let detector = engines.compile(None, config.levels())?;
+                    detectors
+                        .entry(group.id)
+                        .or_default()
+                        .insert(id.clone(), detector);
+                    &["true", "false"]
+                }
+                "attack_protection" => {
+                    let config: AttackGroup =
+                        serde_json::from_value(node.config.clone()).map_err(decode)?;
+                    anyhow::ensure!(
+                        config.id != 0 && !config.name.trim().is_empty(),
+                        "invalid attack protection group"
+                    );
+                    let detector =
+                        engines.compile(Some((config.id, config.name)), config.levels)?;
+                    detectors
+                        .entry(group.id)
+                        .or_default()
+                        .insert(id.clone(), detector);
                     &["true", "false"]
                 }
                 "pow" => {
@@ -82,7 +146,7 @@ pub(crate) fn validate(document: &WafDocument) -> anyhow::Result<()> {
             }
         }
     }
-    Ok(())
+    Ok(CompiledWaf { detectors })
 }
 
 fn waf_groups<'a>(
@@ -119,46 +183,78 @@ pub fn has_waf_pow(document: &WafDocument, route: &Route) -> bool {
         })
 }
 
-pub fn waf_inspects_body(document: &WafDocument, route: &Route) -> bool {
-    waf_groups(document, route).any(|group| {
-        group
-            .graph
-            .nodes
-            .values()
-            .any(|node| node.node_type == "security_check")
-    })
+impl CompiledWaf {
+    pub fn inspects(&self, document: &WafDocument, route: &Route) -> bool {
+        waf_groups(document, route).any(|group| {
+            self.detectors
+                .get(&group.id)
+                .is_some_and(|nodes| nodes.values().any(Detector::active))
+        })
+    }
+
+    pub fn execute(
+        &self,
+        document: &WafDocument,
+        route: &Route,
+        request: WafRequest<'_>,
+        pow_valid: bool,
+    ) -> Result<(WafDecision, Option<WafAudit>), String> {
+        let mut observation = None;
+        for group in waf_groups(document, route) {
+            let (decision, audit) = execute_graph(
+                group,
+                document,
+                self.detectors.get(&group.id),
+                &request,
+                pow_valid,
+                route.pow.is_some(),
+            )?;
+            match decision {
+                WafDecision::Block { .. } => return Ok((decision, audit)),
+                WafDecision::Takeover(_) => return Ok((decision, audit.or(observation))),
+                WafDecision::Allow => observation = observation.or(audit),
+            }
+        }
+        Ok((WafDecision::Allow, observation))
+    }
 }
 
-pub const SECURITY_HEADERS: &[&str] = &["cookie", "referer"];
+pub struct WafRequest<'a> {
+    pub context: &'a RequestContext,
+    pub headers: &'a http::HeaderMap,
+    pub version: http::Version,
+    pub https: bool,
+}
 
-pub fn execute_waf(
-    document: &WafDocument,
-    route: &Route,
-    context: &RequestContext,
-    pow_valid: bool,
-) -> Result<WafDecision, String> {
-    for group in waf_groups(document, route) {
-        match execute_graph(
-            &group.graph,
-            document,
-            context,
-            pow_valid,
-            route.pow.is_some(),
-        )? {
-            WafDecision::Allow => continue,
-            decision => return Ok(decision),
+impl WafRequest<'_> {
+    fn audit(&self, group: &WafRuleGroup, node: &str, reason: &str) -> WafAudit {
+        WafAudit {
+            action: "blocked".into(),
+            reason: reason.into(),
+            method: self.context.method.clone(),
+            https: self.https,
+            flow_id: group.id,
+            flow_name: group.name.clone(),
+            flow_node_id: node.into(),
+            attack_group_id: None,
+            attack_group_name: String::new(),
+            rules: Vec::new(),
         }
     }
-    Ok(WafDecision::Allow)
 }
 
 fn execute_graph(
-    graph: &crate::protocol::config::WafGraph,
+    group: &WafRuleGroup,
     document: &WafDocument,
-    context: &RequestContext,
+    detectors: Option<&HashMap<String, Detector>>,
+    request: &WafRequest<'_>,
     pow_valid: bool,
     independent_pow: bool,
-) -> Result<WafDecision, String> {
+) -> Result<(WafDecision, Option<WafAudit>), String> {
+    let graph = &group.graph;
+    let context = request.context;
+    let mut previous_condition = None;
+    let mut detection: Option<WafAudit> = None;
     if graph.entry.is_empty() || graph.nodes.is_empty() {
         return Err("WAF graph is empty".into());
     }
@@ -170,16 +266,31 @@ fn execute_graph(
             .ok_or_else(|| format!("missing WAF node {current}"))?;
         let handle = match node.node_type.as_str() {
             "start" => "next",
-            "allow" => return Ok(WafDecision::Allow),
+            "allow" => {
+                if let Some(audit) = &mut detection {
+                    audit.mark_observed();
+                }
+                return Ok((WafDecision::Allow, detection));
+            }
             "block" => {
                 let config: BlockConfig = serde_json::from_value(node.config.clone())
                     .map_err(|e| format!("invalid block node: {e}"))?;
-                return Ok(WafDecision::Block {
-                    status: config.status_code,
-                    body: config.response_body,
-                });
+                let audit = detection
+                    .filter(|audit| audit.action == "blocked")
+                    .unwrap_or_else(|| {
+                        let (id, reason) = previous_condition.unwrap_or((current, "block"));
+                        request.audit(group, id, reason)
+                    });
+                return Ok((
+                    WafDecision::Block {
+                        status: config.status_code,
+                        body: config.response_body,
+                    },
+                    Some(audit),
+                ));
             }
             "ip_match" => {
+                previous_condition = Some((current, "ip_match"));
                 let config: IpMatchConfig = serde_json::from_value(node.config.clone())
                     .map_err(|e| format!("invalid ip_match node: {e}"))?;
                 if ip_matches(document, &config, &context.remote_addr) {
@@ -189,6 +300,7 @@ fn execute_graph(
                 }
             }
             "geo_match" => {
+                previous_condition = Some((current, "geo_match"));
                 let config: GeoMatchConfig = serde_json::from_value(node.config.clone())
                     .map_err(|e| format!("invalid geo_match node: {e}"))?;
                 if geo_matches(&config, context) {
@@ -198,6 +310,7 @@ fn execute_graph(
                 }
             }
             "ua_check" => {
+                previous_condition = Some((current, "ua_check"));
                 let config: UaCheckConfig = serde_json::from_value(node.config.clone())
                     .map_err(|e| format!("invalid ua_check node: {e}"))?;
                 if ua_matches(&config, &context.user_agent) {
@@ -206,13 +319,30 @@ fn execute_graph(
                     "false"
                 }
             }
-            "security_check" => {
-                let config: SecurityCheckConfig = serde_json::from_value(node.config.clone())
-                    .map_err(|e| format!("invalid security_check node: {e}"))?;
-                if security_matches(&config, context) {
-                    "true"
-                } else {
+            "security_check" | "attack_protection" => {
+                let detector = detectors
+                    .and_then(|nodes| nodes.get(current))
+                    .ok_or_else(|| format!("missing attack detector for {current}"))?;
+                let matches = detector
+                    .inspect(context, request.headers, request.version)
+                    .map_err(|error| format!("attack detection failed: {error}"))?;
+                let blocked = matches.first().is_some_and(|rule| rule.level != "observe");
+                if !matches.is_empty() && (blocked || detection.is_none()) {
+                    let mut audit = request.audit(group, current, "attack_protection");
+                    if let Some((id, name)) = &detector.group {
+                        audit.attack_group_id = Some(*id);
+                        audit.attack_group_name.clone_from(name);
+                    }
+                    if !blocked {
+                        audit.mark_observed();
+                    }
+                    audit.rules = matches;
+                    detection = Some(audit);
+                }
+                if blocked {
                     "false"
+                } else {
+                    "true"
                 }
             }
             "pow" if independent_pow || pow_valid => "next",
@@ -220,7 +350,10 @@ fn execute_graph(
                 let policy: PoWConfig = serde_json::from_value(node.config.clone())
                     .map_err(|error| format!("invalid WAF PoW node: {error}"))?;
                 if pow_policy_required(&policy, context) {
-                    return Ok(WafDecision::Takeover(Box::new(policy)));
+                    if let Some(audit) = &mut detection {
+                        audit.mark_observed();
+                    }
+                    return Ok((WafDecision::Takeover(Box::new(policy)), detection));
                 }
                 "next"
             }
@@ -280,28 +413,6 @@ struct UaCheckConfig {
     #[serde(default)]
     custom_ua_patterns: Vec<String>,
 }
-#[derive(Deserialize, Default)]
-struct SecurityCheckConfig {
-    #[serde(default)]
-    sql_injection: bool,
-    #[serde(default)]
-    path_traversal: bool,
-    #[serde(default)]
-    command_injection: bool,
-    #[serde(default)]
-    xss: bool,
-    #[serde(default)]
-    ssrf: bool,
-    #[serde(default)]
-    file_inclusion: bool,
-    #[serde(default)]
-    malicious_upload: bool,
-    #[serde(default)]
-    xxe: bool,
-    #[serde(default)]
-    crlf_injection: bool,
-}
-
 fn ip_matches(document: &WafDocument, config: &IpMatchConfig, ip: &str) -> bool {
     config.ips.iter().any(|v| v == ip)
         || config.cidrs.iter().any(|cidr| ip_in_cidr(ip, cidr))
@@ -420,151 +531,4 @@ fn classify_os(ua: &str) -> &'static str {
     } else {
         "Other"
     }
-}
-fn security_matches(config: &SecurityCheckConfig, context: &RequestContext) -> bool {
-    if !config.path_traversal
-        && !config.file_inclusion
-        && !config.sql_injection
-        && !config.command_injection
-        && !config.xss
-        && !config.ssrf
-        && !config.crlf_injection
-        && !config.malicious_upload
-        && !config.xxe
-    {
-        return true;
-    }
-    let mut inputs = vec![
-        percent_decode(&context.path).to_ascii_lowercase(),
-        percent_decode(&context.query).to_ascii_lowercase(),
-        percent_decode(&String::from_utf8_lossy(&context.body)).to_ascii_lowercase(),
-    ];
-    inputs.extend(
-        context
-            .sensitive_headers
-            .iter()
-            .map(|value| percent_decode(value).to_ascii_lowercase()),
-    );
-    inputs.retain(|value| !value.is_empty());
-    let patterns: &[(&[&str], bool)] = &[
-        (
-            &[
-                "../",
-                "..\\",
-                "..%2f",
-                "..%5c",
-                "%2e%2e/",
-                "%2e%2e\\",
-                "%252e%252e",
-                "....//",
-                "/etc/passwd",
-            ],
-            config.path_traversal,
-        ),
-        (
-            &[
-                "php://",
-                "file://",
-                "zip://",
-                "data://text",
-                "expect://",
-                "/proc/self",
-                "%00",
-            ],
-            config.file_inclusion,
-        ),
-        (
-            &[
-                "union select",
-                " or 1=1",
-                "' or '",
-                "\" or \"",
-                "information_schema",
-                "xp_cmdshell",
-                "load_file(",
-                " into outfile",
-                "/**/",
-                "/*!",
-                "*/--",
-                "@@version",
-            ],
-            config.sql_injection,
-        ),
-        (
-            &[
-                ";wget",
-                ";curl",
-                ";bash",
-                ";sh ",
-                "|bash",
-                "|sh ",
-                "`id`",
-                "$(id)",
-                "&&wget",
-                "&&curl",
-                "&&bash",
-                "&&sh ",
-                "||wget",
-                "||curl",
-                "||bash",
-                "/bin/sh ",
-                "/bin/bash ",
-                "cmd.exe /c",
-                "powershell -",
-                "powershell.exe",
-            ],
-            config.command_injection,
-        ),
-        (
-            &[
-                "<script",
-                "<iframe",
-                "onerror=",
-                "onload=",
-                "onmouseover=",
-                "document.cookie",
-            ],
-            config.xss,
-        ),
-        (
-            &[
-                "http://127.0.0.1",
-                "https://127.0.0.1",
-                "http://localhost",
-                "https://localhost",
-                "http://0.0.0.0",
-                "https://0.0.0.0",
-                "://169.254.",
-                "169.254.169.254",
-                "metadata.google",
-                "file://",
-                "gopher://",
-                "dict://",
-            ],
-            config.ssrf,
-        ),
-        (&["%0d%0a", "\r\n"], config.crlf_injection),
-        (
-            &[
-                ".php.",
-                ".jsp.",
-                ".asp.",
-                ".aspx.",
-                ".phtml",
-                ".phar",
-                "application/x-php",
-                "application/x-httpd-php",
-            ],
-            config.malicious_upload,
-        ),
-        (&["<!entity", " system \"", " system '"], config.xxe),
-    ];
-    !patterns
-        .iter()
-        .filter(|(_, enabled)| *enabled)
-        .any(|(values, _)| {
-            inputs
-                .iter()
-                .any(|input| values.iter().any(|value| input.contains(value)))
-        })
 }

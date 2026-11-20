@@ -25,6 +25,8 @@
       "origins": "Origins",
       "responses": "Response Pages",
       "waf": "WAF",
+      "attackProtection": "Attack Protection",
+      "attackLogs": "Attack Logs",
       "ipGroups": "IP Groups",
       "securitySettings": "Global Settings",
       "pages": "Pages",

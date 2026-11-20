@@ -40,6 +40,7 @@ func setupConfigVersionTestDB(t *testing.T) func() {
 		&model.ConfigVersion{},
 		&model.EdgeSnapshotState{},
 		&model.OpenFlareWAFRuleGroup{},
+		&model.OpenFlareAttackGroup{},
 		&model.OpenFlareWAFRuleGroupBinding{},
 		&model.OpenFlareWAFIPGroup{},
 		&model.SystemConfig{},

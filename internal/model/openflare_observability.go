@@ -33,6 +33,8 @@ func (OpenFlareMetricSnapshot) TableName() string {
 // OpenFlareAccessLog stores a single access log row in ClickHouse (database: openflare, table: of_node_access_logs).
 // ClickHouse DDL is managed by goose; reads/writes go through internal/repository/logstore.
 type OpenFlareAccessLog struct {
+	WAFAction     string    `json:"-" gorm:"column:waf_action"`
+	WAFAudit      string    `json:"-" gorm:"column:waf_audit"`
 	ID            uint64    `json:"id,string" gorm:"column:id"`
 	NodeID        string    `json:"node_id" gorm:"index;size:64;not null"`
 	LoggedAt      time.Time `json:"logged_at" gorm:"index"`
@@ -157,9 +159,11 @@ func (OpenFlareNodeObservationFrps) TableName() string {
 
 // OpenFlareAccessLogQuery filters access log list queries.
 type OpenFlareAccessLogQuery struct {
-	NodeID     string
-	RemoteAddr string
-	Host       string
+	WAFAction       string
+	ExactRemoteAddr bool
+	NodeID          string
+	RemoteAddr      string
+	Host            string
 	// Hosts matches case-insensitively and takes precedence over Host.
 	// Exact names match only that host; *.example.com matches one or more
 	// nonempty subdomain levels, excluding example.com itself.

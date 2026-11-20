@@ -25,6 +25,8 @@
       "origins": "源站地址",
       "responses": "响应页面",
       "waf": "WAF",
+      "attackProtection": "攻击防护",
+      "attackLogs": "攻击日志",
       "ipGroups": "IP 组",
       "securitySettings": "全局设置",
       "pages": "Pages",

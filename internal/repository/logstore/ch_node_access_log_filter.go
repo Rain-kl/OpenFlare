@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	nodeAccessLogFilterClauseCapacity = 7
+	nodeAccessLogFilterClauseCapacity = 8
 
 	nodeAccessLogSortDesc     = "DESC"
 	nodeAccessLogSortAsc      = "ASC"
@@ -34,9 +34,15 @@ func buildCHNodeAccessLogFilterClause(filter analyticsmodel.NodeAccessLogFilter)
 		args = append(args, trimmed)
 	}
 	if trimmed := strings.TrimSpace(filter.RemoteAddr); trimmed != "" {
-		parts = append(parts, "remote_addr LIKE ?")
-		args = append(args, util.EscapeLike(trimmed)+"%")
+		if filter.ExactRemoteAddr {
+			parts = append(parts, "remote_addr = ?")
+			args = append(args, trimmed)
+		} else {
+			parts = append(parts, "remote_addr LIKE ?")
+			args = append(args, util.EscapeLike(trimmed)+"%")
+		}
 	}
+	parts, args = appendWAFLogFilter(parts, args, filter.WAFAction)
 	hosts := normalizeNodeAccessLogHosts(filter.Hosts)
 	if len(hosts) > 0 {
 		hostParts := make([]string, 0, len(hosts))

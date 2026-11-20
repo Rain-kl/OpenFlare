@@ -10,11 +10,13 @@ import (
 
 const (
 	nodeAccessLogTableName     = "of_node_access_logs"
-	nodeAccessLogInsertColumns = "id, node_id, logged_at, remote_addr, region, host, path, user_agent, cache_status, status_code, bytes_sent, request_length, request_time_ms, created_at"
+	nodeAccessLogInsertColumns = "id, node_id, logged_at, remote_addr, region, host, path, user_agent, cache_status, status_code, bytes_sent, request_length, request_time_ms, created_at, waf_action, waf_audit"
 )
 
 // NodeAccessLog stores OpenFlare edge node access records in ClickHouse.
 type NodeAccessLog struct {
+	WAFAction     string    `gorm:"column:waf_action"`
+	WAFAudit      string    `gorm:"column:waf_audit"`
 	ID            uint64    `gorm:"column:id"`
 	NodeID        string    `gorm:"column:node_id"`
 	LoggedAt      time.Time `gorm:"column:logged_at"`

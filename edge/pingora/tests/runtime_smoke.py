@@ -89,7 +89,11 @@ class Controller(http.server.BaseHTTPRequestHandler):
         return resources
 
     def do_POST(self):
-        payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        body = self.rfile.read(int(self.headers["Content-Length"]))
+        if self.path == "/waf-body-fixture":
+            self.answer(body)
+            return
+        payload = json.loads(body)
         if self.path.endswith("/register"):
             assert payload["engine"] == "pingora"
             assert payload["contract_version"] == 3
@@ -176,6 +180,17 @@ def route(origin, rid, host, **options):
     return value
 
 
+def attack_flow(group_id, level):
+    return {"id": group_id, "name": f"fixture-{level}", "enabled": True, "is_global": False,
+            "graph": {"entry": "inspect", "nodes": {
+                "inspect": {"type": "attack_protection", "config": {
+                    "id": group_id + 10, "name": level, "levels": {"template_injection": level}},
+                    "next": {"true": "allow", "false": "block"}},
+                "block": {"type": "block", "config": {"status_code": 403}},
+                "allow": {"type": "allow"},
+            }}}
+
+
 def release(seq, origin, certificate, key, *, empty=False):
     shared = {
         "routes": [
@@ -194,6 +209,8 @@ def release(seq, origin, certificate, key, *, empty=False):
                                     "api_proxy_pass": origin, "api_proxy_rewrite": "/v1"}),
             route(origin, 6, "cache.edge.test", cache_enabled=True, cache_policy="all"),
             route(origin, 7, "waf.edge.test"),
+            route(origin, 8, "strict.edge.test"),
+            route(origin, 9, "observe.edge.test"),
         ],
         "edge_config": {
             "origin_error_page_enabled": True,
@@ -208,9 +225,11 @@ def release(seq, origin, certificate, key, *, empty=False):
                                         "next": {"true": "block", "false": "allow"}},
                                  "block": {"type": "block", "config": {"status_code": 403}},
                                  "allow": {"type": "allow"},
-                             }}}],
+                             }}}, attack_flow(2, "strict"), attack_flow(3, "observe")],
             "ip_groups": [{"id": 33, "enabled": True, "ip_list": ["127.0.0.1"]}],
-            "bindings": [{"route_id": 7, "rule_group_ids": [1]}],
+            "bindings": [{"route_id": 7, "rule_group_ids": [1]},
+                         {"route_id": 8, "rule_group_ids": [2]},
+                         {"route_id": 9, "rule_group_ids": [3]}],
         },
     }
     if empty:
@@ -377,6 +396,26 @@ def main(binary):
                 server.pages = make_pages(2, b"second page")
                 wait_for(lambda: request("pages.edge.test", headers=basic)[3] == "second page")
                 assert request("waf.edge.test")[0] == 403
+                json_headers = ("Content-Type: application/json",)
+                ordinary = json.dumps({"message": "quarterly plan"})
+                expression = json.dumps({"template": "{{ 2 + 3 }}"})
+                assert request("strict.edge.test", "/waf-body-fixture", data=ordinary,
+                               headers=json_headers)[::3] == (200, ordinary)
+                assert request("strict.edge.test", "/waf-body-fixture", data=expression,
+                               headers=json_headers)[0] == 403
+                assert request("observe.edge.test", "/waf-body-fixture", data=expression,
+                               headers=json_headers, use_http2=True)[::3] == (200, expression)
+
+                def audit_for(host, action):
+                    return next((row["waf"] for heartbeat in server.heartbeats
+                                 for row in heartbeat.get("access_logs", [])
+                                 if row["host"] == host and row.get("waf", {}).get("action") == action), None)
+
+                blocked_audit = wait_for(lambda: audit_for("strict.edge.test", "blocked"))
+                observed_audit = wait_for(lambda: audit_for("observe.edge.test", "observed"))
+                assert blocked_audit["attack_group_id"] == 12 and blocked_audit["flow_node_id"] == "inspect"
+                assert blocked_audit["rules"][0]["id"] == 11142
+                assert observed_audit["rules"][0]["level"] == "observe"
                 server.ip_groups = [{"id": 33, "enabled": False, "ip_list": [], "checksum": "updated"}]
                 wait_for(lambda: request("waf.edge.test")[0] == 200)
                 assert request("cache.edge.test", "/cache-test")[0] == 200

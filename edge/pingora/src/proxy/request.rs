@@ -116,21 +116,37 @@ impl ProxyService {
                 ctx.pow_cookie = Some(policy::session_cookie(token, ttl, ctx.https));
             }
         }
-        match policy::execute_waf(&config.config.waf, route, &context, pow_session.is_some()) {
-            Ok(policy::WafDecision::Allow) => {}
-            Ok(policy::WafDecision::Block { status, body }) => {
+        let request = policy::WafRequest {
+            context: &context,
+            headers: &session.req_header().headers,
+            version: session.req_header().version,
+            https: ctx.https,
+        };
+        let decision =
+            match config
+                .waf
+                .execute(&config.config.waf, route, request, pow_session.is_some())
+            {
+                Ok((decision, audit)) => {
+                    ctx.waf = audit;
+                    decision
+                }
+                Err(error) => {
+                    tracing::error!(site = %route.site_name, error, "WAF graph execution failed");
+                    session.respond_error(500).await?;
+                    return Ok(true);
+                }
+            };
+        match decision {
+            policy::WafDecision::Allow => {}
+            policy::WafDecision::Block { status, body } => {
                 let _ = session
                     .respond_error_with_body(status, body.into_bytes().into())
                     .await;
                 return Ok(true);
             }
-            Ok(policy::WafDecision::Takeover(pow)) => {
-                return self.issue_pow(session, route, &pow, page, &context).await
-            }
-            Err(error) => {
-                tracing::error!(site = %route.site_name, error, "WAF graph execution failed");
-                let _ = session.respond_error(500).await;
-                return Ok(true);
+            policy::WafDecision::Takeover(pow) => {
+                return self.issue_pow(session, route, &pow, page, &context).await;
             }
         }
         if login {
@@ -325,13 +341,8 @@ async fn build_request_context(
         .or_else(|| headers.get("host").and_then(|value| value.to_str().ok()))
         .unwrap_or(host)
         .to_owned();
-    let sensitive_headers = policy::SECURITY_HEADERS
-        .iter()
-        .filter_map(|name| headers.get(*name).and_then(|value| value.to_str().ok()))
-        .map(str::to_owned)
-        .collect();
     let login = route.site_auth_ttl_hours != 0 && path == SITE_AUTH_PATH;
-    let inspect = policy::waf_inspects_body(&config.config.waf, route)
+    let inspect = config.waf.inspects(&config.config.waf, route)
         && request_content_length(session)
             .is_some_and(|size| size > 0 && size <= MAX_INSPECTED_BODY_BYTES as u64);
     let mut body = Vec::new();
@@ -363,7 +374,6 @@ async fn build_request_context(
         content_type: content_type.unwrap_or_default(),
         body,
         origin_header,
-        sensitive_headers,
         authority,
         accept_language,
         geo,

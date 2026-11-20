@@ -26,7 +26,7 @@ const (
 	RuleNodePoW RuleNodeType = "pow"
 	// RuleNodeUACheck branches on User-Agent presence, classification, and lists.
 	RuleNodeUACheck RuleNodeType = "ua_check"
-	// RuleNodeSecurityCheck branches on basic request payload attack signatures.
+	// RuleNodeSecurityCheck branches on configured attack protection rules.
 	RuleNodeSecurityCheck RuleNodeType = "security_check"
 )
 
@@ -105,18 +105,18 @@ const (
 	UACheckMatchModeOr  = "or"
 )
 
-// SecurityCheckConfig toggles basic payload signature protections.
-// Default graph nodes enable path_traversal and file_inclusion only.
+// SecurityCheckConfig selects a group or carries the switches of an older graph.
 type SecurityCheckConfig struct {
-	SQLInjection     bool `json:"sql_injection"`
-	PathTraversal    bool `json:"path_traversal"`
-	CommandInjection bool `json:"command_injection"`
-	XSS              bool `json:"xss"`
-	SSRF             bool `json:"ssrf"`
-	FileInclusion    bool `json:"file_inclusion"`
-	MaliciousUpload  bool `json:"malicious_upload"`
-	XXE              bool `json:"xxe"`
-	CRLFInjection    bool `json:"crlf_injection"`
+	AttackGroupID    *uint `json:"attack_group_id,omitempty"`
+	SQLInjection     bool  `json:"sql_injection"`
+	PathTraversal    bool  `json:"path_traversal"`
+	CommandInjection bool  `json:"command_injection"`
+	XSS              bool  `json:"xss"`
+	SSRF             bool  `json:"ssrf"`
+	FileInclusion    bool  `json:"file_inclusion"`
+	MaliciousUpload  bool  `json:"malicious_upload"`
+	XXE              bool  `json:"xxe"`
+	CRLFInjection    bool  `json:"crlf_injection"`
 }
 
 // DefaultSecurityCheckConfig returns low false-positive defaults.

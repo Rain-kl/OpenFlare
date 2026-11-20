@@ -282,6 +282,7 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []snapshotRoute) (snap
 		return snapshotWAFDocument{}, err
 	}
 	ruleGroups := make([]snapshotWAFRuleGroup, 0, len(groups))
+	graphs := make([]waf.RuntimeRuleGraph, 0, len(groups))
 	referencedIPGroupIDs := make(map[uint]struct{})
 	enabledRuleIDs := make(map[uint]struct{})
 	for _, group := range groups {
@@ -299,6 +300,7 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []snapshotRoute) (snap
 		if compileErr != nil {
 			return snapshotWAFDocument{}, fmt.Errorf("failed to compile WAF rule %s: %w", group.Name, compileErr)
 		}
+		graphs = append(graphs, runtimeGraph)
 		ruleGroups = append(ruleGroups, snapshotWAFRuleGroup{
 			ID: group.ID, Name: group.Name, Enabled: group.Enabled, IsGlobal: group.IsGlobal, Graph: runtimeGraph,
 		})
@@ -306,6 +308,9 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []snapshotRoute) (snap
 		for _, id := range waf.ReferencedIPGroupIDs(editorGraph) {
 			referencedIPGroupIDs[id] = struct{}{}
 		}
+	}
+	if err = waf.ResolveAttackGroups(ctx, graphs...); err != nil {
+		return snapshotWAFDocument{}, err
 	}
 	ipGroups, err := buildSnapshotWAFIPGroups(ctx, referencedIPGroupIDs)
 	if err != nil {

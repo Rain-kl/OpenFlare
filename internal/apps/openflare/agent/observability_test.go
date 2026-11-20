@@ -5,10 +5,12 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildNodeAccessLogRecordsPreservesBytesSent(t *testing.T) {
@@ -33,4 +35,21 @@ func TestBuildNodeAccessLogRecordsPreservesBytesSent(t *testing.T) {
 	if records[0].BytesSent != 4096 {
 		t.Fatalf("BytesSent = %d, want 4096", records[0].BytesSent)
 	}
+}
+
+func TestBuildNodeAccessLogRecordsPreservesWAFDecisionAndStripsQuery(t *testing.T) {
+	audit := &protocol.WAFAudit{
+		Action: "blocked", FlowName: "Primary", FlowID: 2, FlowNodeID: "attack-protection", AttackGroupID: 3,
+		Rules: []protocol.WAFRuleMatch{{ID: 11001, Category: "sql_injection", Level: "balanced"}},
+	}
+	records, err := buildNodeAccessLogRecords(context.Background(), "edge-a", []protocol.NodeAccessLog{
+		{Path: "/search?q=private", WAF: audit, StatusCode: 403},
+	}, nil, time.Now())
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	require.Equal(t, "blocked", records[0].WAFAction)
+	require.Equal(t, "/search", records[0].Path)
+	var decoded protocol.WAFAudit
+	require.NoError(t, json.Unmarshal([]byte(records[0].WAFAudit), &decoded))
+	require.Equal(t, audit, &decoded)
 }

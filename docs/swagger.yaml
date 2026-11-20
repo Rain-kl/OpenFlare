@@ -2605,6 +2605,75 @@ definitions:
       name:
         type: string
     type: object
+  apps_openflare_waf.attackGroupInput:
+    properties:
+      levels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+    type: object
+  apps_openflare_waf.attackLogEntry:
+    properties:
+      action:
+        type: string
+      attack_group_id:
+        type: integer
+      attack_group_name:
+        type: string
+      flow_id:
+        type: integer
+      flow_name:
+        type: string
+      flow_node_id:
+        type: string
+      host:
+        type: string
+      https:
+        type: boolean
+      id:
+        example: "0"
+        type: string
+      logged_at:
+        type: string
+      method:
+        type: string
+      node_id:
+        type: string
+      path:
+        type: string
+      reason:
+        type: string
+      region:
+        type: string
+      remote_addr:
+        type: string
+      rules:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRuleMatch'
+        type: array
+      status_code:
+        type: integer
+    type: object
+  apps_openflare_waf.attackLogPage-apps_openflare_waf_attackLogEntry:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/apps_openflare_waf.attackLogEntry'
+        type: array
+      total:
+        type: integer
+    type: object
+  apps_openflare_waf.attackLogPage-model_OpenFlareAttackEvent:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/model.OpenFlareAttackEvent'
+        type: array
+      total:
+        type: integer
+    type: object
   apps_openflare_zone.CleanupUnlinkedDomainsResult:
     properties:
       deleted_count:
@@ -3487,6 +3556,8 @@ definitions:
         type: integer
       user_agent:
         type: string
+      waf:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFAudit'
     type: object
   github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth:
     properties:
@@ -3760,6 +3831,42 @@ definitions:
       websocket_upgrade_enabled:
         type: boolean
     type: object
+  github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFAudit:
+    properties:
+      action:
+        type: string
+      attack_group_id:
+        type: integer
+      attack_group_name:
+        type: string
+      flow_id:
+        type: integer
+      flow_name:
+        type: string
+      flow_node_id:
+        type: string
+      https:
+        type: boolean
+      method:
+        type: string
+      reason:
+        type: string
+      rules:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRuleMatch'
+        type: array
+    type: object
+  github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRuleMatch:
+    properties:
+      category:
+        type: string
+      id:
+        type: integer
+      level:
+        type: string
+      message:
+        type: string
+    type: object
   github_com_Rain-kl_Wavelet_internal_shared_response.Any:
     properties:
       data: {}
@@ -3892,6 +3999,34 @@ definitions:
       support_file_count:
         type: integer
       version:
+        type: string
+    type: object
+  model.OpenFlareAttackEvent:
+    properties:
+      bucket_unix:
+        type: integer
+      count:
+        type: integer
+      first_unix:
+        type: integer
+      host:
+        type: string
+      last_unix:
+        type: integer
+      remote_addr:
+        type: string
+    type: object
+  model.OpenFlareAttackGroup:
+    properties:
+      id:
+        type: integer
+      levels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      updated_at:
         type: string
     type: object
   model.OpenFlareHealthEvent:
@@ -11196,6 +11331,277 @@ paths:
       summary: 同步 Uptime Kuma
       tags:
       - openflare-option
+  /api/v1/d/waf/attack-events:
+    get:
+      parameters:
+      - enum:
+        - all
+        - blocked
+        - observed
+        in: query
+        name: action
+        type: string
+      - description: Exact host and source IP
+        in: query
+        name: exact
+        type: boolean
+      - in: query
+        maxLength: 255
+        name: host
+        type: string
+      - in: query
+        maxLength: 64
+        name: node_id
+        type: string
+      - description: Zero-based page
+        in: query
+        maximum: 1000000
+        minimum: 0
+        name: page
+        type: integer
+      - in: query
+        maximum: 100
+        minimum: 0
+        name: page_size
+        type: integer
+      - in: query
+        maxLength: 128
+        name: remote_addr
+        type: string
+      - description: Unix seconds, inclusive
+        in: query
+        minimum: 0
+        name: since
+        type: integer
+      - description: Unix seconds, exclusive
+        in: query
+        minimum: 0
+        name: until
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_waf.attackLogPage-model_OpenFlareAttackEvent'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出聚合攻击事件
+      tags:
+      - openflare-waf
+  /api/v1/d/waf/attack-groups:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.OpenFlareAttackGroup'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出攻击防护规则组
+      tags:
+      - openflare-waf
+    post:
+      parameters:
+      - description: 规则组
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_waf.attackGroupInput'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.OpenFlareAttackGroup'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建攻击防护规则组
+      tags:
+      - openflare-waf
+  /api/v1/d/waf/attack-groups/{id}/update:
+    post:
+      parameters:
+      - description: 规则组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 规则组
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_waf.attackGroupInput'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.OpenFlareAttackGroup'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新攻击防护规则组
+      tags:
+      - openflare-waf
+  /api/v1/d/waf/attack-logs:
+    get:
+      parameters:
+      - enum:
+        - all
+        - blocked
+        - observed
+        in: query
+        name: action
+        type: string
+      - description: Exact host and source IP
+        in: query
+        name: exact
+        type: boolean
+      - in: query
+        maxLength: 255
+        name: host
+        type: string
+      - in: query
+        maxLength: 64
+        name: node_id
+        type: string
+      - description: Zero-based page
+        in: query
+        maximum: 1000000
+        minimum: 0
+        name: page
+        type: integer
+      - in: query
+        maximum: 100
+        minimum: 0
+        name: page_size
+        type: integer
+      - in: query
+        maxLength: 128
+        name: remote_addr
+        type: string
+      - description: Unix seconds, inclusive
+        in: query
+        minimum: 0
+        name: since
+        type: integer
+      - description: Unix seconds, exclusive
+        in: query
+        minimum: 0
+        name: until
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_waf.attackLogPage-apps_openflare_waf_attackLogEntry'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 列出攻击日志记录
+      tags:
+      - openflare-waf
   /api/v1/d/waf/ip-groups:
     get:
       description: 返回全部 WAF IP 组，需要管理员权限

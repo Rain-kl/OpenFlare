@@ -21,9 +21,11 @@ type AccessLogFilter struct {
 
 // NodeAccessLogFilter scopes ClickHouse node access log queries.
 type NodeAccessLogFilter struct {
-	NodeID     string
-	RemoteAddr string
-	Host       string
+	WAFAction       string
+	ExactRemoteAddr bool
+	NodeID          string
+	RemoteAddr      string
+	Host            string
 	// Hosts 优先于 Host：具体域名精确匹配（忽略大小写），*.suffix 匹配非空、多层子域名但不含 suffix 本身。
 	Hosts []string
 	Path  string

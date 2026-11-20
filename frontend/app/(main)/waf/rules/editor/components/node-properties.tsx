@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/tooltip';
 import type { WAFIPGroup, WAFRuleNode } from '@/lib/services/openflare';
 
+import { AttackGroupSelect } from './attack-group-select';
 import { createGeoOptions, type GeoOption } from './geo-options';
 import { NODE_TYPE_LABEL_KEYS } from './node-factory';
 import { UA_BROWSER_OPTIONS, UA_OS_OPTIONS } from './ua-options';
@@ -365,55 +366,7 @@ function PropertyFields({
     return (
       <FieldGroup>
         <DisplayNameField node={node} onChange={onChange} />
-        <div className='space-y-1'>
-          <p className='flex items-center gap-1.5 text-xs font-medium text-muted-foreground'>
-            {t('security')}
-            <FieldHelp tip={t('securityTip')} />
-          </p>
-        </div>
-        <Separator />
-        <div className='space-y-3'>
-          <p className='text-xs font-medium text-muted-foreground'>
-            {t('basicProtection')}
-          </p>
-          {(
-            [
-              'path_traversal',
-              'file_inclusion',
-              'sql_injection',
-              'command_injection',
-              'xss',
-              'ssrf',
-              'malicious_upload',
-              'xxe',
-              'crlf_injection',
-            ] as const
-          ).map((key) => (
-            <Field
-              key={key}
-              orientation='horizontal'
-              className='items-center justify-between gap-3'
-            >
-              <FieldLabel
-                htmlFor={`${node.id}-${key}`}
-                className='flex items-center gap-1.5'
-              >
-                {t(`securityRules.${key}.label`)}
-                <FieldHelp tip={t(`securityRules.${key}.tip`)} />
-              </FieldLabel>
-              <Switch
-                id={`${node.id}-${key}`}
-                checked={node.config[key]}
-                onCheckedChange={(checked) =>
-                  onChange({
-                    ...node,
-                    config: { ...node.config, [key]: checked },
-                  })
-                }
-              />
-            </Field>
-          ))}
-        </div>
+        <AttackGroupSelect node={node} onChange={onChange} />
       </FieldGroup>
     );
   if (node.type === 'pow')

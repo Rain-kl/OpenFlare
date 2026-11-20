@@ -334,7 +334,13 @@ func validateUACheckNodeConfig(node RuleNode) error {
 
 func validateSecurityCheckNodeConfig(node RuleNode) error {
 	var cfg SecurityCheckConfig
-	return decodeNodeConfig(node, &cfg)
+	if err := decodeNodeConfig(node, &cfg); err != nil {
+		return err
+	}
+	if cfg.AttackGroupID != nil && *cfg.AttackGroupID == 0 {
+		return fmt.Errorf("node %s requires an attack protection group", node.ID)
+	}
+	return nil
 }
 
 var uaBrowserLabels = map[string]bool{

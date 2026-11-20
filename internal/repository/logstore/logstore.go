@@ -26,6 +26,7 @@ type AccessLogStore interface {
 
 	List(ctx context.Context, query model.OpenFlareAccessLogQuery) ([]*model.OpenFlareAccessLog, error)
 	Count(ctx context.Context, query model.OpenFlareAccessLogQuery) (int64, int64, int64, error)
+	AttackEvents(ctx context.Context, query model.OpenFlareAccessLogQuery, bucketSeconds int64) ([]model.OpenFlareAttackEvent, int64, error)
 	RegionCounts(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareAccessLogRegionCount, error)
 	BucketAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) ([]analyticsmodel.NodeAccessLogBucketAggregate, error)
 	CountBuckets(ctx context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) (int64, error)

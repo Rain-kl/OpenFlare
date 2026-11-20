@@ -152,6 +152,13 @@ func SaveRuleGraph(ctx context.Context, id uint, input SaveRuleGraphInput) (*Rul
 	if err := ValidateRuleGraph(ctx, input.Graph, ruleIPGroupExists); err != nil {
 		return nil, &RuleValidationError{Err: fmt.Errorf("invalid rule graph: %w", err)}
 	}
+	graph, err := CompileRuleGraph(input.Graph)
+	if err != nil {
+		return nil, &RuleValidationError{Err: err}
+	}
+	if _, err = loadAttackGroupReferences(ctx, graph); err != nil {
+		return nil, err
+	}
 	raw, err := json.Marshal(input.Graph)
 	if err != nil {
 		return nil, err
