@@ -15,7 +15,7 @@
     "loadFailed": "Unable to load attack protection groups.",
     "saveFailed": "Unable to save the attack protection group.",
     "applyAll": "Set all levels",
-    "levelHelp": "Observe only records rule matches. Balanced protection uses core rules. High protection adds more sensitive rules.",
+    "levelHelp": "Balanced protection uses CRS PL1 and base supplemental rules. High protection and observe only use all rules in the category.",
     "legacy": "This node uses its existing detection settings. Selecting a group applies its detection levels.",
     "branches": "Balanced or high protection matches follow the false branch. Observe-only matches are logged and follow the true branch.",
     "save": "Save",
@@ -35,13 +35,33 @@
       "php_injection": "PHP code injection",
       "php_deserialization": "PHP deserialization",
       "asp_injection": "ASP code injection",
-      "template_injection": "Template injection"
+      "template_injection": "Template injection",
+      "csrf": "Cross-site request forgery (CSRF)",
+      "malformed_http": "Malformed HTTP protocol"
     },
     "levels": {
       "off": "Disabled",
       "observe": "Observe only",
       "balanced": "Balanced",
       "strict": "High protection"
+    },
+    "catalog": {
+      "title": "Detection rule catalog",
+      "version": "OWASP CRS {version} and OpenFlare supplemental rules",
+      "category": "Attack category",
+      "allCategories": "All categories",
+      "search": "Search by rule ID or description",
+      "id": "Rule ID",
+      "message": "Description",
+      "ruleLevel": "Rule level",
+      "status": "Applied status",
+      "supplemental": "OpenFlare",
+      "baseRule": "Base",
+      "extendedRule": "Extended",
+      "ruleCount": "{count} rules",
+      "enabledRules": "{count, plural, one {# enabled rule} other {# enabled rules}}",
+      "categorySummary": "{category} · {level} · {count} enabled rules",
+      "noRules": "No matching detection rules."
     }
   },
   "attackLogs": {
@@ -121,7 +141,9 @@
       "11131": "ASP server-side code block",
       "11132": "ASP expression or object creation",
       "11141": "Template expression accessing runtime internals",
-      "11142": "Template expression or directive"
+      "11142": "Template expression or directive",
+      "11151": "Cross-origin request with cookies and an unsafe method",
+      "11152": "Request with cookies and an unsafe method has no verifiable origin"
     }
   }
 }

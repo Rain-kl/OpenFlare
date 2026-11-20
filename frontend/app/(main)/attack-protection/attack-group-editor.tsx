@@ -28,6 +28,8 @@ import {
 } from '@/lib/services/openflare/attack-types';
 import { WafService } from '@/lib/services/openflare';
 
+import { AttackRuleCatalog, countEnabledRules } from './attack-rule-catalog';
+
 export function AttackGroupEditor({
   group,
   onCancel,
@@ -100,9 +102,32 @@ export function AttackGroupEditor({
                 key={category}
                 className='grid items-center gap-3 px-4 py-3 md:grid-cols-[minmax(10rem,1fr)_minmax(0,2fr)]'
               >
-                <span id={`${category}-label`} className='text-sm font-medium'>
-                  {t(`categories.${category}`)}
-                </span>
+                <div className='flex flex-col items-start gap-1'>
+                  <span
+                    id={`${category}-label`}
+                    className='text-sm font-medium'
+                  >
+                    {t(`categories.${category}`)}
+                  </span>
+                  <AttackRuleCatalog
+                    category={category}
+                    level={levels[category] ?? 'off'}
+                  >
+                    <Button
+                      type='button'
+                      size='sm'
+                      variant='link'
+                      className='h-auto p-0'
+                    >
+                      {t('catalog.enabledRules', {
+                        count: countEnabledRules(
+                          category,
+                          levels[category] ?? 'off',
+                        ),
+                      })}
+                    </Button>
+                  </AttackRuleCatalog>
+                </div>
                 <div
                   role='radiogroup'
                   aria-labelledby={`${category}-label`}

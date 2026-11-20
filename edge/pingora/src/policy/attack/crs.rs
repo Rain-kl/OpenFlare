@@ -1,6 +1,7 @@
 use super::{Level, Levels, RuleMatch, CATEGORIES};
 use anyhow::{ensure, Context, Result};
 use include_dir::{include_dir, Dir};
+use serde::Serialize;
 use std::{collections::HashMap, fs};
 use zentinel_modsec::{
     parser::{Action, Directive, MetadataAction, OperatorName, Parser, RuleIdSelector, SecRule},
@@ -20,7 +21,24 @@ SecRule REQUEST_BODY "@rx <!entity\s+[^>]*\b(?:system|public)\s+" "id:11071,phas
 SecRule REQUEST_BODY "@rx <!doctype\s+[^>]*\b(?:system|public)\s+|<!entity\s" "id:11072,phase:2,pass,nolog,t:lowercase,msg:'XML DTD or entity declaration'"
 SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_URI|REQUEST_BODY|REQUEST_HEADERS:Referer "@rx <%\s*(?:@\s*page\b|response\s*\.|server\s*\.)" "id:11131,phase:2,pass,nolog,t:urlDecodeUni,t:htmlEntityDecode,t:lowercase,msg:'ASP server-side code block'"
 SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_URI|REQUEST_BODY|REQUEST_HEADERS:Referer "@rx <%[=!]|\bserver\.createobject\s*\(" "id:11132,phase:2,pass,nolog,t:urlDecodeUni,t:htmlEntityDecode,t:lowercase,msg:'ASP expression or object creation'"
+SecRule TX:openflare_csrf_context "@streq cross_origin" "id:11151,phase:1,pass,nolog,msg:'Cross-origin request with cookies and an unsafe method'"
+SecRule TX:openflare_csrf_context "@streq missing_origin" "id:11152,phase:1,pass,nolog,msg:'Request with cookies and an unsafe method has no verifiable origin'"
 "#;
+
+#[derive(Serialize)]
+pub(super) struct Catalog {
+    crs_version: &'static str,
+    rules: Vec<RuleInfo>,
+}
+
+#[derive(Serialize)]
+struct RuleInfo {
+    id: u32,
+    category: &'static str,
+    message: String,
+    paranoia: Option<u8>,
+    balanced: bool,
+}
 
 pub(super) struct Rules {
     directives: Vec<Directive>,
@@ -76,6 +94,20 @@ impl Rules {
         })
     }
 
+    pub(super) fn catalog(&self) -> Result<Catalog> {
+        let mut rules = Vec::new();
+        for directive in &self.directives {
+            if let Directive::SecRule(rule) = directive {
+                rules.extend(rule_info(rule)?);
+            }
+        }
+        rules.sort_unstable_by_key(|rule| rule.id);
+        Ok(Catalog {
+            crs_version: "4.30.0",
+            rules,
+        })
+    }
+
     pub(super) fn compile(
         &self,
         levels: Levels,
@@ -88,25 +120,19 @@ impl Rules {
                 continue;
             };
             let Some(id) = rule.id() else { continue };
-            let paranoia = paranoia_level(rule)?;
-            let Some(category) = category(rule, id) else {
-                if paranoia.is_some() {
+            let Some(info) = rule_info(rule)? else {
+                if paranoia_level(rule)?.is_some() {
                     removals.push(RuleIdSelector::Single(id));
                 }
                 continue;
             };
-            let paranoia = match id {
-                11071 | 11131 => 1,
-                11072 | 11132 => 2,
-                _ => paranoia.with_context(|| format!("CRS rule {id} has no paranoia level"))?,
-            };
             let level = match levels[CATEGORIES
                 .iter()
-                .position(|name| *name == category)
+                .position(|name| *name == info.category)
                 .unwrap()]
             {
                 Level::Off => None,
-                Level::Balanced if paranoia > 1 => None,
+                Level::Balanced if !info.balanced => None,
                 Level::Balanced => Some("balanced"),
                 Level::Strict => Some("strict"),
                 Level::Observe => Some("observe"),
@@ -115,20 +141,12 @@ impl Rules {
                 removals.push(RuleIdSelector::Single(id));
                 continue;
             };
-            let message = rule
-                .actions
-                .iter()
-                .find_map(|action| match action {
-                    Action::Metadata(MetadataAction::Msg(message)) => Some(message.clone()),
-                    _ => None,
-                })
-                .with_context(|| format!("attack rule {id} has no message"))?;
             let previous = matches.insert(
                 id.to_string(),
                 RuleMatch {
-                    id: u32::try_from(id)?,
-                    category: category.into(),
-                    message,
+                    id: info.id,
+                    category: info.category.into(),
+                    message: info.message,
                     level: level.into(),
                 },
             );
@@ -138,6 +156,37 @@ impl Rules {
         let ruleset = CompiledRuleset::compile(directives).context("compile embedded OWASP CRS")?;
         Ok((ruleset, matches))
     }
+}
+
+fn rule_info(rule: &SecRule) -> Result<Option<RuleInfo>> {
+    let Some(id) = rule.id() else { return Ok(None) };
+    let Some(category) = category(rule, id) else {
+        return Ok(None);
+    };
+    let (paranoia, balanced) = match id {
+        11071 | 11131 | 11151 => (None, true),
+        11072 | 11132 | 11152 => (None, false),
+        _ => {
+            let paranoia = paranoia_level(rule)?
+                .with_context(|| format!("CRS rule {id} has no paranoia level"))?;
+            (Some(paranoia), paranoia == 1)
+        }
+    };
+    let message = rule
+        .actions
+        .iter()
+        .find_map(|action| match action {
+            Action::Metadata(MetadataAction::Msg(message)) => Some(message.clone()),
+            _ => None,
+        })
+        .with_context(|| format!("attack rule {id} has no message"))?;
+    Ok(Some(RuleInfo {
+        id: u32::try_from(id)?,
+        category,
+        message,
+        paranoia,
+        balanced,
+    }))
 }
 
 fn tags(rule: &SecRule) -> impl Iterator<Item = &str> {
@@ -151,6 +200,30 @@ fn category(rule: &SecRule, id: u64) -> Option<&'static str> {
     Some(match id {
         11071 | 11072 => "xxe",
         11131 | 11132 => "asp_injection",
+        11151 | 11152 => "csrf",
+        920100
+        | 920160..=920190
+        | 920200..=920202
+        | 920210
+        | 920230
+        | 920240
+        | 920260
+        | 920270
+        | 920271
+        | 920280
+        | 920290
+        | 920460
+        | 920470
+        | 920510
+        | 920521
+        | 920530
+        | 920610
+        | 920620
+        | 920660
+        | 920275
+        | 921110
+        | 921421
+        | 921422 => "malformed_http",
         921120 | 921130 | 921140 | 921150 | 921151 | 921160 | 921190 => "crlf_injection",
         922100 | 922110 | 922120 | 922130 | 932180 | 933110 | 933111 | 933220 | 944140 => {
             "malicious_upload"

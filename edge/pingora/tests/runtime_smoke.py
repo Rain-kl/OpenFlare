@@ -187,7 +187,8 @@ def attack_flow(group_id, level):
     return {"id": group_id, "name": f"fixture-{level}", "enabled": True, "is_global": False,
             "graph": {"entry": "inspect", "nodes": {
                 "inspect": {"type": "attack_protection", "config": {
-                    "id": group_id + 10, "name": level, "levels": {"template_injection": level}},
+                    "id": group_id + 10, "name": level,
+                    "levels": {"template_injection": level, "csrf": level, "malformed_http": level}},
                     "next": {"true": "allow", "false": "block"}},
                 "block": {"type": "block", "config": {"status_code": 403}},
                 "allow": {"type": "allow"},
@@ -415,18 +416,30 @@ def main(binary):
                 assert request("observe.edge.test", "/waf-body-fixture", data=expression,
                                headers=json_headers, use_http2=True)[::3] == (200, expression)
 
-                def audit_for(host, action):
+                def audit_for(host, action, rule_id):
                     return next((row["waf"] for heartbeat in server.heartbeats
                                  for row in heartbeat.get("access_logs", [])
-                                 if row["host"] == host and row.get("waf", {}).get("action") == action), None)
+                                 if row["host"] == host and row.get("waf", {}).get("action") == action
+                                 and any(rule["id"] == rule_id for rule in row["waf"].get("rules", []))), None)
 
-                blocked_audit = wait_for(lambda: audit_for("strict.edge.test", "blocked"))
-                observed_audit = wait_for(lambda: audit_for("observe.edge.test", "observed"))
+                blocked_audit = wait_for(lambda: audit_for("strict.edge.test", "blocked", 934180))
+                observed_audit = wait_for(lambda: audit_for("observe.edge.test", "observed", 934180))
                 assert blocked_audit["attack_group_id"] == 12 and blocked_audit["flow_node_id"] == "inspect"
                 assert blocked_audit["rules"][0] == {
                     "id": 934180, "category": "template_injection", "message": "SSTI Attack", "level": "strict"}
                 assert observed_audit["rules"][0] == {
                     **blocked_audit["rules"][0], "level": "observe"}
+                csrf_headers = json_headers + ("Cookie: fixture=guest", "Origin: https://other.test")
+                assert request("strict.edge.test", "/waf-body-fixture", data=ordinary,
+                               headers=csrf_headers, use_http2=True)[0] == 403
+                assert request("observe.edge.test", "/waf-body-fixture", data=ordinary,
+                               headers=csrf_headers, use_http2=True)[0] == 200
+                range_headers = ("Range: bytes=9-0",)
+                assert request("strict.edge.test", headers=range_headers, use_http2=True)[0] == 403
+                assert request("observe.edge.test", headers=range_headers, use_http2=True)[0] == 200
+                for rule_id in (11151, 920190):
+                    wait_for(lambda: audit_for("strict.edge.test", "blocked", rule_id))
+                    wait_for(lambda: audit_for("observe.edge.test", "observed", rule_id))
                 server.ip_groups = [{"id": 33, "enabled": False, "ip_list": [], "checksum": "updated"}]
                 wait_for(lambda: request("waf.edge.test")[0] == 200)
                 assert request("cache.edge.test", "/cache-test")[0] == 200

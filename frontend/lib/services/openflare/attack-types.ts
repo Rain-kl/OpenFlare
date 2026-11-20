@@ -14,6 +14,8 @@ export const attackCategories = [
   'php_deserialization',
   'asp_injection',
   'template_injection',
+  'csrf',
+  'malformed_http',
 ] as const;
 
 export const attackLevels = ['off', 'observe', 'balanced', 'strict'] as const;

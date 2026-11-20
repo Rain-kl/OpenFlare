@@ -162,7 +162,7 @@ func TestWAFSnapshotResolvesCurrentAttackGroupLevels(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	group := model.OpenFlareAttackGroup{Name: "Ruleset", Levels: map[string]string{"sql_injection": "observe"}}
+	group := model.OpenFlareAttackGroup{Name: "Ruleset", Levels: map[string]string{"sql_injection": "observe", "malformed_http": "off"}}
 	require.NoError(t, repository.SaveOpenFlareAttackGroup(ctx, &group))
 	graph := waf.DefaultRuleGraph()
 	graph.Nodes = append(graph.Nodes, waf.RuleNode{
@@ -177,6 +177,7 @@ func TestWAFSnapshotResolvesCurrentAttackGroupLevels(t *testing.T) {
 	createSnapshotRule(t, ctx, "ruleset fixture", graph)
 	for _, level := range []string{"observe", "strict"} {
 		group.Levels["sql_injection"] = level
+		group.Levels["csrf"] = level
 		require.NoError(t, repository.SaveOpenFlareAttackGroup(ctx, &group))
 		snapshot, err := buildSnapshotWAFDocument(ctx, nil)
 		require.NoError(t, err)
@@ -185,6 +186,6 @@ func TestWAFSnapshotResolvesCurrentAttackGroupLevels(t *testing.T) {
 		require.Equal(t, waf.RuleNodeType("attack_protection"), node.Type)
 		compiled, err := json.Marshal(node.Config)
 		require.NoError(t, err)
-		require.JSONEq(t, fmt.Sprintf(`{"id":%d,"name":"Ruleset","levels":{"sql_injection":%q}}`, group.ID, level), string(compiled))
+		require.JSONEq(t, fmt.Sprintf(`{"id":%d,"name":"Ruleset","levels":{"sql_injection":%q,"csrf":%q}}`, group.ID, level, level), string(compiled))
 	}
 }

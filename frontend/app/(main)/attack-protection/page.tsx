@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Shield } from 'lucide-react';
+import { List, Plus, Shield } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
@@ -28,6 +28,7 @@ import {
 } from '@/lib/services/openflare/waf.service';
 
 import { AttackGroupEditor } from './attack-group-editor';
+import { AttackRuleCatalog } from './attack-rule-catalog';
 
 export default function AttackProtectionPage() {
   const t = useTranslations('attackProtection');
@@ -48,12 +49,20 @@ export default function AttackProtectionPage() {
             {t('title')}
           </h1>
         </div>
-        {!editor && (
-          <Button onClick={() => setEditor({})}>
-            <Plus data-icon='inline-start' />
-            {t('create')}
-          </Button>
-        )}
+        <div className='flex flex-wrap gap-2'>
+          <AttackRuleCatalog>
+            <Button variant='outline'>
+              <List data-icon='inline-start' />
+              {t('catalog.title')}
+            </Button>
+          </AttackRuleCatalog>
+          {!editor && (
+            <Button onClick={() => setEditor({})}>
+              <Plus data-icon='inline-start' />
+              {t('create')}
+            </Button>
+          )}
+        </div>
       </div>
       {editor ? (
         <AttackGroupEditor

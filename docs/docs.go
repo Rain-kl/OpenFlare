@@ -11435,6 +11435,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
+                "description": "可按类别设置禁用、仅观察、平衡和高强度。类别键包含 csrf、ssrf 和 malformed_http。",
                 "tags": [
                     "openflare-waf"
                 ],
@@ -11503,6 +11504,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
+                "description": "替换规则组等级配置，省略的类别按禁用处理。",
                 "tags": [
                     "openflare-waf"
                 ],

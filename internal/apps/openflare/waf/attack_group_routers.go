@@ -30,6 +30,7 @@ func ListAttackGroupsHandler(c *gin.Context) {
 
 // CreateAttackGroupHandler creates a selectable attack protection group.
 // @Summary 创建攻击防护规则组
+// @Description 可按类别设置禁用、仅观察、平衡和高强度。类别键包含 csrf、ssrf 和 malformed_http。
 // @Tags openflare-waf
 // @Security SessionCookie
 // @Param request body attackGroupInput true "规则组"
@@ -43,6 +44,7 @@ func CreateAttackGroupHandler(c *gin.Context) { saveAttackGroupHandler(c, 0) }
 
 // UpdateAttackGroupHandler replaces a group's name and protection levels.
 // @Summary 更新攻击防护规则组
+// @Description 替换规则组等级配置，省略的类别按禁用处理。
 // @Tags openflare-waf
 // @Security SessionCookie
 // @Param id path int true "规则组 ID"

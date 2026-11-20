@@ -324,7 +324,7 @@ fn execute_graph(
                     .and_then(|nodes| nodes.get(current))
                     .ok_or_else(|| format!("missing attack detector for {current}"))?;
                 let matches = detector
-                    .inspect(context, request.headers, request.version)
+                    .inspect(context, request.headers, request.version, request.https)
                     .map_err(|error| format!("attack detection failed: {error}"))?;
                 let blocked = matches.first().is_some_and(|rule| rule.level != "observe");
                 if !matches.is_empty() && (blocked || detection.is_none()) {

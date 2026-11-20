@@ -32,6 +32,8 @@ struct Cli {
 enum Command {
     /// Print the supported controller configuration sync protocol version.
     ConfigSyncVersion,
+    /// Print the attack rules available for configuring protection groups.
+    AttackRuleCatalog,
     Run {
         #[arg(long)]
         upgrade: bool,
@@ -63,6 +65,13 @@ fn main() -> Result<()> {
     match cli.command {
         Command::ConfigSyncVersion => {
             println!("{}", control::config_sync::VERSION);
+            Ok(())
+        }
+        Command::AttackRuleCatalog => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&policy::attack_rule_catalog()?)?
+            );
             Ok(())
         }
         Command::Run {

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"unicode/utf8"
 
@@ -19,6 +20,7 @@ var attackCategories = map[string]struct{}{
 	"file_inclusion": {}, "command_injection": {}, "ssrf": {}, "xxe": {}, "crlf_injection": {},
 	"java_injection": {}, "java_deserialization": {}, "php_injection": {},
 	"php_deserialization": {}, "asp_injection": {}, "template_injection": {},
+	"csrf": {}, "malformed_http": {},
 }
 
 type attackGroupInput struct {
@@ -86,8 +88,14 @@ func ResolveAttackGroups(ctx context.Context, graphs ...RuntimeRuleGraph) error 
 		for id, node := range graph.Nodes {
 			if cfg, ok := node.Config.(SecurityCheckConfig); ok && cfg.AttackGroupID != nil {
 				group := groups[*cfg.AttackGroupID]
+				levels := maps.Clone(group.Levels)
+				for _, category := range []string{"csrf", "malformed_http"} {
+					if levels[category] == "off" {
+						delete(levels, category)
+					}
+				}
 				node.Type = "attack_protection"
-				node.Config = runtimeAttackGroup{ID: group.ID, Name: group.Name, Levels: group.Levels}
+				node.Config = runtimeAttackGroup{ID: group.ID, Name: group.Name, Levels: levels}
 				graph.Nodes[id] = node
 			}
 		}

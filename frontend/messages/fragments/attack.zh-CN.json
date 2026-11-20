@@ -15,7 +15,7 @@
     "loadFailed": "无法加载攻击防护规则组。",
     "saveFailed": "无法保存攻击防护规则组。",
     "applyAll": "批量设置等级",
-    "levelHelp": "仅观察记录规则命中。平衡防护使用基础规则，高强度防护增加更敏感的规则。",
+    "levelHelp": "平衡防护使用 CRS PL1 与基础补充规则。高强度防护和仅观察使用该类别的全部规则。",
     "legacy": "此节点正在使用原有的检测设置。选择规则组后，节点将采用该组的检测等级。",
     "branches": "平衡或高强度规则命中时进入 false 分支。仅观察规则命中时记录日志并进入 true 分支。",
     "save": "保存",
@@ -35,13 +35,33 @@
       "php_injection": "PHP 代码注入",
       "php_deserialization": "PHP 反序列化",
       "asp_injection": "ASP 代码注入",
-      "template_injection": "模板注入"
+      "template_injection": "模板注入",
+      "csrf": "跨站请求伪造（CSRF）",
+      "malformed_http": "畸形 HTTP 协议"
     },
     "levels": {
       "off": "禁用",
       "observe": "仅观察",
       "balanced": "平衡防护",
       "strict": "高强度防护"
+    },
+    "catalog": {
+      "title": "检测规则目录",
+      "version": "OWASP CRS {version} 与 OpenFlare 补充规则",
+      "category": "攻击类别",
+      "allCategories": "全部类别",
+      "search": "搜索规则 ID 或说明",
+      "id": "规则 ID",
+      "message": "规则说明",
+      "ruleLevel": "规则级别",
+      "status": "应用状态",
+      "supplemental": "OpenFlare",
+      "baseRule": "基础",
+      "extendedRule": "扩展",
+      "ruleCount": "共 {count} 条规则",
+      "enabledRules": "启用 {count, plural, other {# 条规则}}",
+      "categorySummary": "{category} · {level} · 启用 {count} 条规则",
+      "noRules": "没有匹配的检测规则。"
     }
   },
   "attackLogs": {
@@ -121,7 +141,9 @@
       "11131": "ASP 服务端代码块",
       "11132": "ASP 表达式或对象创建",
       "11141": "模板表达式访问运行时内部对象",
-      "11142": "模板表达式或指令"
+      "11142": "模板表达式或指令",
+      "11151": "携带 Cookie 的跨源写请求",
+      "11152": "携带 Cookie 的写请求缺少可验证的来源"
     }
   }
 }

@@ -5,6 +5,7 @@ mod pow;
 mod service_worker;
 mod waf;
 
+pub(crate) use attack::attack_rule_catalog;
 pub use auth::{basic_auth, site_auth, site_auth_login, strip_site_auth_cookie, SITE_AUTH_PATH};
 pub use limits::{
     request_rate_limit, request_rate_limit_with_burst, ConcurrencyLimiter, RateLimiter,
