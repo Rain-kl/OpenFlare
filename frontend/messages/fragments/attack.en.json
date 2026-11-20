@@ -78,6 +78,8 @@
     "until": "To",
     "invalidDates": "The end time must be after the start time.",
     "all": "All",
+    "allActions": "All actions",
+    "moreFilters": "More filters",
     "apply": "Apply filters",
     "refresh": "Refresh",
     "autoRefresh": "Auto-refresh",

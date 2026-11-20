@@ -78,6 +78,8 @@
     "until": "结束时间",
     "invalidDates": "结束时间必须晚于开始时间。",
     "all": "全部",
+    "allActions": "全部动作",
+    "moreFilters": "更多筛选",
     "apply": "应用筛选",
     "refresh": "刷新",
     "autoRefresh": "自动刷新",

@@ -36,9 +36,9 @@ export function AttackLogPanel({
   const t = useTranslations('attackLogs');
   const format = useFormatter();
   return (
-    <Card>
+    <Card className='gap-3 py-3'>
       <CardHeader>{filters}</CardHeader>
-      <CardContent className='px-0'>
+      <CardContent className='border-t px-0'>
         {loading ? (
           <LoadingState />
         ) : failed ? (
