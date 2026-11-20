@@ -143,7 +143,7 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 		GeneratedAt: now,
 		Nodes:       make([]NodeHealth, 0, len(nodes)),
 		Distributions: observability.BuildTrafficDistributionsFromAccessLogs(
-			ctx, since, now, dashboardDistributionLimit, accessLogRegions,
+			ctx, "", since, now, dashboardDistributionLimit, accessLogRegions,
 		),
 		Trends: observability.BuildNodeTrends(ctx, now, "", snapshots),
 	}

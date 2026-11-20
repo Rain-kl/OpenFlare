@@ -197,9 +197,10 @@ func BuildMetricSnapshotViews(
 	return views
 }
 
-// BuildTrafficDistributionsFromAccessLogs builds distributions from access logs (L1).
+// BuildTrafficDistributionsFromAccessLogs builds distributions for a node or all nodes if nodeID is empty.
 func BuildTrafficDistributionsFromAccessLogs(
 	ctx context.Context,
+	nodeID string,
 	since, until time.Time,
 	limit int,
 	accessLogRegions []*model.OpenFlareAccessLogRegionCount,
@@ -207,7 +208,7 @@ func BuildTrafficDistributionsFromAccessLogs(
 	statusCodes := make(distributionAccumulator)
 	topDomains := make(distributionAccumulator)
 
-	query := model.OpenFlareAccessLogQuery{Since: since, Until: until}
+	query := model.OpenFlareAccessLogQuery{NodeID: nodeID, Since: since, Until: until}
 	if statusRows, err := repository.ValueCountsOpenFlareAccessLogs(ctx, query, "status_code", limit); err == nil {
 		for _, row := range statusRows {
 			if strings.TrimSpace(row.Value) == "" || row.Count <= 0 {

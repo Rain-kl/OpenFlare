@@ -132,7 +132,7 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 		return nil, err
 	}
 	distributions := BuildTrafficDistributionsFromAccessLogs(
-		ctx, since, now, defaultTrafficDistributionLimit, accessLogRegions,
+		ctx, node.NodeID, since, now, defaultTrafficDistributionLimit, accessLogRegions,
 	)
 	trafficSummary := buildTrafficWindowSummaryFromAccessLogs(ctx, node.NodeID, since, now)
 	view := &NodeView{
