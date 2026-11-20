@@ -92,10 +92,20 @@ jobs:
             exit 1
           fi
 
+          if [[ ! "$version" =~ ^v[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "expected a Server version tag such as v1.0.0 or v1.0.0-beta" >&2
+            exit 1
+          fi
+          prerelease=false
+          if [[ "$version" == *-* ]]; then
+            prerelease=true
+          fi
+
           {
             echo "version=$version"
             echo "version_without_v=${version#v}"
             echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "prerelease=$prerelease"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create release
@@ -104,7 +114,8 @@ jobs:
           tag_name: ${{ steps.metadata.outputs.version }}
           name: ${{ steps.metadata.outputs.version }}
           body: ${{ needs.prepare-message.outputs.commit_msg }}
-          prerelease: ${{ contains(steps.metadata.outputs.version, 'alpha') || contains(steps.metadata.outputs.version, 'beta') || contains(steps.metadata.outputs.version, 'rc') }}
+          prerelease: ${{ steps.metadata.outputs.prerelease }}
+          make_latest: ${{ steps.metadata.outputs.prerelease == 'false' }}
 
   build-frontend:
     name: Build Embedded Frontend
@@ -264,10 +275,11 @@ jobs:
           echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
 
       - name: Upload release artifact
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.create-release.outputs.version }}
-          files: ${{ steps.package.outputs.artifact }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.create-release.outputs.version }}
+          ARTIFACT: ${{ steps.package.outputs.artifact }}
+        run: gh release upload "$RELEASE_TAG" "$ARTIFACT" --clobber
 
   build-relay-binaries:
     name: Build relay ${{ matrix.goos }}/${{ matrix.goarch }}
@@ -311,10 +323,11 @@ jobs:
           go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/edge/relay/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/relay/main.go
 
       - name: Upload release artifact
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.create-release.outputs.version }}
-          files: dist/${{ matrix.asset_name }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.create-release.outputs.version }}
+          ASSET_NAME: ${{ matrix.asset_name }}
+        run: gh release upload "$RELEASE_TAG" "dist/$ASSET_NAME" --clobber
 
   build-flared-binaries:
     name: Build flared ${{ matrix.goos }}/${{ matrix.goarch }}
@@ -358,7 +371,8 @@ jobs:
           go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/edge/flared/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/flared/main.go
 
       - name: Upload release artifact
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.create-release.outputs.version }}
-          files: dist/${{ matrix.asset_name }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.create-release.outputs.version }}
+          ASSET_NAME: ${{ matrix.asset_name }}
+        run: gh release upload "$RELEASE_TAG" "dist/$ASSET_NAME" --clobber

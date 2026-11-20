@@ -86,7 +86,7 @@ jobs:
           tag_name: ${{ steps.edge.outputs.version }}
           target_commitish: ${{ steps.edge.outputs.source_sha }}
           prerelease: ${{ steps.edge.outputs.prerelease }}
-          make_latest: ${{ steps.edge.outputs.prerelease == 'false' }}
+          make_latest: "false"
           name: OpenFlare Edge ${{ steps.edge.outputs.version }}
           fail_on_unmatched_files: true
           files: |

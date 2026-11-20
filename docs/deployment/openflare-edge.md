@@ -13,6 +13,8 @@ OpenFlare Edge 使用独立的 `edge-v*` 版本标签，与主控和 Go Agent �
 
 推送 `canary` 分支会发布 Edge 预览版。版本采用下一修订号加工作流运行编号，例如从 `edge-v0.1.6` 生成 `edge-v0.1.7-canary.42`。控制台的「检查预览版」可发现该版本，默认安装和自动更新继续使用正式版。
 
+GitHub Releases 的 Latest 指向 Server 正式版，Relay 和隧道节点默认从该发行版获取更新。Edge 的安装脚本、控制台和节点自动更新从发行列表独立查找 `edge-v*`。
+
 Docker 镜像以 `ghcr.io/rain-kl/openflare-edge` 发布，支持 Linux amd64 和 arm64。每次发布都有对应的版本标签，正式版推送更新 `:latest`，Canary 推送更新 `:canary`。
 
 Actions 中的 **Test OpenFlare Edge** 独立运行单元测试、原生运行时测试和容器测试。**Build OpenFlare Edge** 完成双架构编译后，**Publish OpenFlare Edge Release** 与 **Build Image (openflare-edge)** 并行下载同一批二进制并分别发布。发布失败可在产物保留期内单独重跑对应工作流。首次启用时，将两个发布工作流合入默认分支后再推送 Canary 或版本标签。
