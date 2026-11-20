@@ -65,7 +65,7 @@ jobs:
 
       - name: Validate deployment scripts
         run: |
-          bash -n scripts/install-openflare-edge.sh scripts/uninstall-openflare-edge.sh
+          bash -n scripts/install-openflare-edge.sh scripts/update-openflare-edge.sh scripts/uninstall-openflare-edge.sh
           grep -Fx 'Type=notify' scripts/install-openflare-edge.sh
 
       - name: Setup Rust
@@ -96,6 +96,7 @@ jobs:
           cp "edge/pingora/target/${TARGET}/release/openflare-edge" "${staging_dir}/"
           cp LICENSE "${staging_dir}/"
           cp scripts/install-openflare-edge.sh "${staging_dir}/scripts/"
+          cp scripts/update-openflare-edge.sh "${staging_dir}/scripts/"
           cp scripts/uninstall-openflare-edge.sh "${staging_dir}/scripts/"
           cp scripts/fetch-agent-geoip-mmdb.sh "${staging_dir}/scripts/"
           printf '%s\n' "$VERSION" > "${staging_dir}/VERSION"
