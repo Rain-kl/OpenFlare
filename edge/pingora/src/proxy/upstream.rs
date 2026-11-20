@@ -3,6 +3,7 @@ use anyhow::Result as AnyhowResult;
 use http::Uri;
 use pingora::{proxy::Session, upstreams::peer::HttpPeer, Error, Result};
 use pingora_error::ErrorType::{HTTPStatus, InternalError};
+use std::net::IpAddr;
 use url::Url;
 
 impl ProxyService {
@@ -30,17 +31,21 @@ impl ProxyService {
             match tokio::net::lookup_host((upstream.host.as_str(), upstream.port)).await {
                 Ok(mut addresses) => {
                     if let Some(address) = addresses.next() {
-                        let sni = if route.origin_host.is_empty() || route.is_pages() {
-                            upstream.host.clone()
-                        } else {
+                        let tls = upstream.scheme == "https";
+                        let sni = if route.is_pages() {
+                            upstream.host.as_str()
+                        } else if !route.origin_host.is_empty() {
                             route
                                 .origin_host
                                 .split(':')
                                 .next()
                                 .unwrap_or(&route.origin_host)
-                                .to_owned()
+                        } else if tls && upstream.host.parse::<IpAddr>().is_ok() {
+                            ctx.host.as_str()
+                        } else {
+                            upstream.host.as_str()
                         };
-                        let mut peer = HttpPeer::new(address, upstream.scheme == "https", sni);
+                        let mut peer = HttpPeer::new(address, tls, sni.to_owned());
                         let performance = self.performance.current();
                         if let Some(settings) = &performance.policy.settings {
                             peer.group_key = performance.upstream_generation;

@@ -12,6 +12,7 @@ from pathlib import Path
 import shutil
 import signal
 import socket
+import ssl
 import struct
 import re
 import subprocess
@@ -183,6 +184,21 @@ def route(origin, rid, host, **options):
     return value
 
 
+class TLSOrigin(Controller):
+    protocol_version = "HTTP/1.1"
+
+    def do_GET(self):
+        self.answer(f"{self.connection.origin_sni} {self.headers['Host']}".encode())
+
+
+class TLSOriginServer(http.server.ThreadingHTTPServer):
+    def __init__(self):
+        self.address_family, _, _, _, address = socket.getaddrinfo(
+            "localhost", 0, type=socket.SOCK_STREAM
+        )[0]
+        super().__init__(address, TLSOrigin)
+
+
 def attack_flow(group_id, level):
     return {"id": group_id, "name": f"fixture-{level}", "enabled": True, "is_global": False,
             "graph": {"entry": "inspect", "nodes": {
@@ -197,7 +213,7 @@ def attack_flow(group_id, level):
             }}}
 
 
-def release(seq, origin, certificate, key, *, empty=False):
+def release(seq, origin, tls_origin, certificate, key, *, empty=False):
     shared = {
         "routes": [
             route(origin, 1, "edge.test", origin_host="origin.test"),
@@ -217,6 +233,10 @@ def release(seq, origin, certificate, key, *, empty=False):
             route(origin, 7, "waf.edge.test"),
             route(origin, 8, "strict.edge.test"),
             route(origin, 9, "observe.edge.test"),
+            route(tls_origin, 10, "*.buckets.edge.test"),
+            route(tls_origin, 11, "fixed.edge.test", origin_host="fixed-origin.edge.test"),
+            route(f"https://localhost:{urllib.parse.urlsplit(tls_origin).port}",
+                  12, "named.edge.test"),
         ],
         "edge_config": {
             "origin_error_page_enabled": True,
@@ -345,8 +365,23 @@ def main(binary):
         subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
                         "-subj", "/CN=edge.test", "-days", "1", "-out", str(certificate),
                         "-keyout", str(key)], check=True, capture_output=True)
+        origin_cert, origin_key = path / "origin.pem", path / "origin-key.pem"
+        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+                        "-subj", "/CN=localhost", "-days", "1",
+                        "-addext", "subjectAltName=DNS:localhost,DNS:*.buckets.edge.test,DNS:fixed-origin.edge.test",
+                        "-out", str(origin_cert), "-keyout", str(origin_key)],
+                       check=True, capture_output=True)
+        tls_origin_server = TLSOriginServer()
+        tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls_context.load_cert_chain(origin_cert, origin_key)
+        tls_context.sni_callback = lambda connection, name, _: setattr(connection, "origin_sni", name)
+        tls_origin_server.socket = tls_context.wrap_socket(tls_origin_server.socket, server_side=True)
+        threading.Thread(target=tls_origin_server.serve_forever, daemon=True).start()
+        origin_ip = ipaddress.ip_address(tls_origin_server.server_address[0])
+        origin_authority = f"[{origin_ip}]" if origin_ip.version == 6 else str(origin_ip)
+        tls_origin = f"https://{origin_authority}:{tls_origin_server.server_port}"
         server.pages = make_pages(1, b"first page")
-        server.active = release(1, origin, certificate.read_text(), key.read_text())
+        server.active = release(1, origin, tls_origin, certificate.read_text(), key.read_text())
         token = path / "bootstrap"
         token.write_text("discovery-credential")
         ready = path / "ready.json"
@@ -356,7 +391,8 @@ def main(binary):
 
         with (path / "edge.log").open("w+") as log:
             def launch(*options, env=None):
-                return subprocess.Popen(args + list(options), env={**os.environ, **(env or {}), "RUST_LOG": "info"},
+                return subprocess.Popen(args + list(options), env={**os.environ, **(env or {}),
+                                        "RUST_LOG": "info", "SSL_CERT_FILE": str(origin_cert)},
                                         stdout=log, stderr=subprocess.STDOUT)
 
             notify = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
@@ -486,6 +522,14 @@ def main(binary):
                 wait_for(lambda: http_route()[0] == 301)
                 state_file = path / "performance-policy.json"
                 assert json.loads(state_file.read_text())["settings"]["threads"] == 2
+                for bucket in ("first", "second"):
+                    hostname = f"{bucket}.buckets.edge.test"
+                    status, _, _, body = request(hostname)
+                    assert (status, body) == (200, f"{hostname} {hostname}"), (status, body)
+                status, _, _, body = request("fixed.edge.test")
+                assert (status, body) == (200, "fixed-origin.edge.test fixed-origin.edge.test"), (status, body)
+                status, _, _, body = request("named.edge.test")
+                assert (status, body) == (200, "localhost named.edge.test"), (status, body)
                 assert request("edge.test", "/slow-origin")[0] == 200
                 assert request("cache.edge.test", "/disk-restart")[0] == 200
                 disk_cache_path = path / "http-cache"
@@ -534,7 +578,7 @@ def main(binary):
                 assert origin_server.origins["/disk-inactive"] == 2
 
                 server.heartbeat_interval = 250
-                server.active = release(2, origin, certificate.read_text(), key.read_text())
+                server.active = release(2, origin, tls_origin, certificate.read_text(), key.read_text())
                 server.active["payload_checksum"] = "invalid candidate"
                 wake()
                 def failed_attempts():
@@ -573,7 +617,7 @@ def main(binary):
                 assert origin_server.origins["/disk-restart"] == 1
                 assert_no_retries()
 
-                server.active = release(3, origin, certificate.read_text(), key.read_text(), empty=True)
+                server.active = release(3, origin, tls_origin, certificate.read_text(), key.read_text(), empty=True)
                 wake()
                 wait_for(lambda: any(log["release_sequence"] == 3 and log["result"] == "success"
                                      for log in server.applies))
@@ -584,7 +628,7 @@ def main(binary):
 
                 pull_count = server.pulls.count("sites.v1")
                 server.site_pull_conflict = True
-                server.active = release(4, origin, certificate.read_text(), key.read_text())
+                server.active = release(4, origin, tls_origin, certificate.read_text(), key.read_text())
                 wake()
                 wait_for(lambda: request("edge.test", use_http2=True)[0] == 200)
                 assert server.pulls.count("sites.v1") == pull_count + 2
@@ -669,6 +713,8 @@ def main(binary):
                 server.server_close()
                 origin_server.shutdown()
                 origin_server.server_close()
+                tls_origin_server.shutdown()
+                tls_origin_server.server_close()
     print("Edge runtime smoke passed")
 
 

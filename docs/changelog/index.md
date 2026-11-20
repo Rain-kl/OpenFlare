@@ -17,6 +17,10 @@ sidebar: false
 
 ## [Unreleased]
 
+### 🛠 修复
+
+- HTTPS 上游使用 IP 且源站 Host 留空时，边缘节点使用实际访问域名进行回源 TLS 握手和证书名称校验，支持通配符路由下的多个子域名共用同一源站 IP。
+
 ### ⚡️ 优化与改进
 
 - OpenFlare Edge 的 amd64 和 arm64 容器镜像改用 Alpine 和静态链接的二进制，减少拉取体积。
