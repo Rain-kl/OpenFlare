@@ -28,7 +28,6 @@ const (
 	maxDatabaseTextLength    = 16000
 
 	defaultAgentHeartbeatInterval = 3000 // 默认心跳间隔 3 秒（毫秒）
-	defaultAgentUpdateRepo        = "Rain-kl/OpenFlare"
 	enginePingora                 = "pingora"
 	engineOpenResty               = "openresty"
 	nodeTypeEdge                  = "edge_node"
@@ -110,7 +109,10 @@ func validateNodePayload(payload protocol.NodePayload) error {
 	if payload.Version == "" {
 		return errPayload(errAgentVersionRequired)
 	}
-	if payload.Engine == enginePingora && payload.ContractVersion != edgeconfig.ContractVersion {
+	if payload.Engine != enginePingora {
+		return errPayload(errPingoraNodeRequired)
+	}
+	if payload.ContractVersion != edgeconfig.ContractVersion || payload.ConfigSyncVersion != protocol.EdgeConfigSyncVersion {
 		return errPayload(errPingoraContractUnsupported)
 	}
 	return nil
@@ -215,36 +217,12 @@ func isPublicNodeIP(raw string) bool {
 	return true
 }
 
-func buildAgentSettings(ctx context.Context, node *model.OpenFlareNode, updateNow bool, updateChannel string, updateTag string, restartOpenrestyNow bool) *protocol.AgentSettings {
-	autoUpdate := false
-	if node != nil {
-		autoUpdate = node.AutoUpdateEnabled
-	}
-	if strings.TrimSpace(updateChannel) == "" {
-		updateChannel = releaseChannelStable
-	}
-
-	// 从 SystemConfig 读取配置，使用默认值作为降级
+func buildAgentSettings(ctx context.Context, restartEdgeNow bool) *protocol.AgentSettings {
 	heartbeatInterval, _ := repository.GetIntByKey(ctx, model.ConfigKeyAgentHeartbeatInterval)
 	if heartbeatInterval <= 0 {
 		heartbeatInterval = defaultAgentHeartbeatInterval
 	}
-	wsUpgradeEnabled, _ := repository.GetBoolByKey(ctx, model.ConfigKeyAgentWebsocketUpgradeEnabled)
-	updateRepo, _ := repository.GetSystemConfigByKey(ctx, model.ConfigKeyAgentUpdateRepo)
-	if strings.TrimSpace(updateRepo.Value) == "" {
-		updateRepo.Value = defaultAgentUpdateRepo
-	}
-
-	return &protocol.AgentSettings{
-		HeartbeatInterval:       heartbeatInterval,
-		WebsocketUpgradeEnabled: wsUpgradeEnabled,
-		AutoUpdate:              autoUpdate,
-		UpdateRepo:              updateRepo.Value,
-		UpdateNow:               updateNow,
-		UpdateChannel:           updateChannel,
-		UpdateTag:               strings.TrimSpace(updateTag),
-		RestartOpenrestyNow:     restartOpenrestyNow,
-	}
+	return &protocol.AgentSettings{HeartbeatInterval: heartbeatInterval, RestartEdgeNow: restartEdgeNow}
 }
 
 func collectHeartbeatChanges(previous *model.OpenFlareNode, current *model.OpenFlareNode) map[string]any {

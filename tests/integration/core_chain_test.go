@@ -49,6 +49,7 @@ func setupCoreChainTest(t *testing.T) (*gin.Engine, adminSeed, func()) {
 		&model.OpenFlareWAFRuleGroupBinding{},
 		&model.OpenFlareWAFIPGroup{},
 		&model.OpenFlareNode{},
+		&model.OpenFlarePerformancePolicy{},
 		&model.SystemConfig{},
 		&model.OpenFlareApplyLog{},
 		&model.Zone{},

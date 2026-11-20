@@ -29,9 +29,8 @@ func TestAgentProtocolJSONTags(t *testing.T) {
 			name:  "AgentSettings",
 			value: AgentSettings{},
 			expected: map[string]string{
-				"HeartbeatInterval":       "heartbeat_interval",
-				"WebsocketUpgradeEnabled": "websocket_upgrade_enabled",
-				"RestartOpenrestyNow":     "restart_openresty_now",
+				"HeartbeatInterval": "heartbeat_interval",
+				"RestartEdgeNow":    "restart_edge_now",
 			},
 		},
 		{

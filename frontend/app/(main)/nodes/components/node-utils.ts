@@ -162,26 +162,6 @@ export function buildEdgeInstallCommand(serverUrl: string, agentToken: string) {
   ].join('\n');
 }
 
-export function buildEdgeDockerInstallCommand(
-  serverUrl: string,
-  agentToken: string,
-  version?: string,
-) {
-  const tag = getImageTag(version);
-  const image = `ghcr.io/rain-kl/openflare-agent:${tag}`;
-
-  return [
-    `docker pull ${image}`,
-    `docker rm -f openflare-agent 2>/dev/null || true`,
-    `docker run -d --name openflare-agent --restart unless-stopped \\`,
-    `  -p 80:80 -p 443:443/tcp -p 443:443/udp \\`,
-    `  -v openflare-agent-pages:/data/var/lib/openflare/pages \\`,
-    `  -e OPENFLARE_SERVER_URL=${serverUrl} \\`,
-    `  -e OPENFLARE_AGENT_TOKEN=${agentToken} \\`,
-    `  ${image}`,
-  ].join('\n');
-}
-
 export function buildRelayInstallCommand(
   serverUrl: string,
   discoveryToken: string,

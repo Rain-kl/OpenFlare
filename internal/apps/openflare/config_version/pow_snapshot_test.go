@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openresty "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
@@ -22,7 +22,7 @@ func TestIndependentPoWPolicySnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	createSnapshotZoneDomains(t, ctx, route, "pow.example.com")
-	config := openresty.DefaultPoWConfig()
+	config := edgeconfig.DefaultPoWConfig()
 	raw, err := json.Marshal(config)
 	if err != nil {
 		t.Fatal(err)
@@ -37,13 +37,13 @@ func TestIndependentPoWPolicySnapshot(t *testing.T) {
 	if len(bundle.SnapshotRoutes) != 1 || !bundle.SnapshotRoutes[0].PoWEnabled || bundle.SnapshotRoutes[0].PoWConfig == nil {
 		t.Fatalf("buildCurrentConfigBundle(independent PoW) routes = %+v, want published standalone policy", bundle.SnapshotRoutes)
 	}
-	if !strings.Contains(bundle.RouteConfig, "pass-challenge") {
+	if !strings.Contains(bundle.RouteConfig, `"pow_enabled":true`) {
 		t.Error("buildCurrentConfigBundle(independent PoW) omitted challenge endpoints")
 	}
 	left := bundle.SnapshotRoutes[0]
 	right := left
 	changedConfig := *left.PoWConfig
-	changedConfig.PathRules = &openresty.PoWPathRules{Mode: "blacklist", Blacklist: []openresty.PoWPathMatch{{Type: "exact", Value: "/login"}}}
+	changedConfig.PathRules = &edgeconfig.PoWPathRules{Mode: "blacklist", Blacklist: []edgeconfig.PoWPathMatch{{Type: "exact", Value: "/login"}}}
 	right.PoWConfig = &changedConfig
 	if snapshotRouteConfigEqual(left, right) {
 		t.Error("snapshotRouteConfigEqual(changed PoW paths) = true, want false")

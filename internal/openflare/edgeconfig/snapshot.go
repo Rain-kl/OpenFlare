@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
 )
 
 const (
@@ -48,11 +46,11 @@ type CertificateAsset struct {
 // Encode encodes an immutable published snapshot for a node.
 // All assets are read from the published release, including certificates that have since rotated.
 func Encode(snapshotJSON, supportFilesJSON string) (string, error) {
-	var snapshot openrestyrender.Document
+	var snapshot Document
 	if err := json.Unmarshal([]byte(snapshotJSON), &snapshot); err != nil {
 		return "", fmt.Errorf("decode shared edge snapshot: %w", err)
 	}
-	var files []openrestyrender.SupportFile
+	var files []SupportFile
 	if err := json.Unmarshal([]byte(supportFilesJSON), &files); err != nil {
 		return "", fmt.Errorf("decode shared edge assets: %w", err)
 	}
@@ -68,22 +66,22 @@ func Encode(snapshotJSON, supportFilesJSON string) (string, error) {
 	return string(data), err
 }
 
-func sharedEdgeAssets(snapshot openrestyrender.Document, files []openrestyrender.SupportFile) (Assets, error) {
+func sharedEdgeAssets(snapshot Document, files []SupportFile) (Assets, error) {
 	byPath := make(map[string]string, len(files))
 	for _, file := range files {
 		byPath[file.Path] = file.Content
 	}
 	assets := Assets{
 		Certificates:             make(map[string]CertificateAsset),
-		StaticCacheExtensions:    snapshot.OpenRestyConfig.CacheStaticExtensions,
-		OriginErrorHTML:          byPath[openrestyrender.OriginErrorPageSupportPath],
+		StaticCacheExtensions:    snapshot.Settings.CacheStaticExtensions,
+		OriginErrorHTML:          byPath[OriginErrorPageSupportPath],
 		ServiceWorkerScript:      byPath["sw/sw.js"],
 		ServiceWorkerOfflineHTML: byPath["sw/offline.html"],
 	}
-	if snapshot.OpenRestyConfig.OriginErrorPageEnabled && assets.OriginErrorHTML == "" {
+	if snapshot.Settings.OriginErrorPageEnabled && assets.OriginErrorHTML == "" {
 		return Assets{}, fmt.Errorf("missing published origin error page asset")
 	}
-	if snapshot.OpenRestyConfig.SWOfflineEnabled && len(snapshot.OpenRestyConfig.SWOfflineDomains) > 0 &&
+	if snapshot.Settings.SWOfflineEnabled && len(snapshot.Settings.SWOfflineDomains) > 0 &&
 		(assets.ServiceWorkerScript == "" || assets.ServiceWorkerOfflineHTML == "") {
 		return Assets{}, fmt.Errorf("missing published Service Worker assets")
 	}
@@ -112,7 +110,7 @@ func sharedEdgeAssets(snapshot openrestyrender.Document, files []openrestyrender
 
 // ContainsPagesProject reports whether a published snapshot references a Pages project.
 func ContainsPagesProject(snapshotJSON string, projectID uint) (bool, error) {
-	var snapshot openrestyrender.Document
+	var snapshot Document
 	if err := json.Unmarshal([]byte(snapshotJSON), &snapshot); err != nil {
 		return false, err
 	}

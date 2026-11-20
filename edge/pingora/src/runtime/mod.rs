@@ -1,3 +1,5 @@
+pub(crate) mod performance;
+
 use crate::{
     config::{self, SnapshotStore},
     telemetry::tcp_sockets,

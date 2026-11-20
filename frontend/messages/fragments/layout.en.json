@@ -30,7 +30,7 @@
       "pages": "Pages",
       "configVersions": "Releases",
       "accessLogs": "Access Logs",
-      "performance": "Performance",
+      "performance": "Performance policies",
       "applyLogs": "Apply Logs"
     },
     "groups": {

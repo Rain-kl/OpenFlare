@@ -276,7 +276,7 @@ func CreateIPGroup(ctx context.Context, input IPGroupInput) (*IPGroupView, error
 	if err = repository.CreateOpenFlareWAFIPGroup(ctx, group); err != nil {
 		return nil, err
 	}
-	broadcastIPGroupToAgents(ctx, group.ID)
+	broadcastIPGroupToAgents(ctx)
 	return GetIPGroup(ctx, group.ID)
 }
 
@@ -293,7 +293,7 @@ func UpdateIPGroup(ctx context.Context, id uint, input IPGroupInput) (*IPGroupVi
 	if err = repository.UpdateOpenFlareWAFIPGroup(ctx, group); err != nil {
 		return nil, err
 	}
-	broadcastIPGroupToAgents(ctx, group.ID)
+	broadcastIPGroupToAgents(ctx)
 	return GetIPGroup(ctx, group.ID)
 }
 

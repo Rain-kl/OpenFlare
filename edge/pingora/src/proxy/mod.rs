@@ -9,6 +9,7 @@ pub use listener::run_server;
 use crate::{
     config::{AppliedConfig, SnapshotStore},
     policy::{self, RateLimiter},
+    runtime::performance::LivePolicy,
     telemetry::{AccessLogBuffer, NodeAccessLog},
 };
 use async_trait::async_trait;
@@ -124,6 +125,7 @@ pub struct ProxyService {
     geo_ip: crate::geoip::GeoIpStore,
     pow: policy::PowState,
     access_logs: AccessLogBuffer,
+    performance: LivePolicy,
 }
 
 #[async_trait]
@@ -212,7 +214,13 @@ impl ProxyHttp for ProxyService {
                 {
                     if let Some(route_cache) = route.cache.as_ref() {
                         if route.site_auth_ttl_hours == 0 && !route.basic_auth_enabled {
-                            cache::enable(session, policy, route_cache);
+                            let performance = self.performance.current();
+                            cache::enable(
+                                session,
+                                policy,
+                                route_cache,
+                                performance.policy.settings.as_ref().map(|s| &s.cache),
+                            );
                         }
                     }
                 }
@@ -226,24 +234,12 @@ impl ProxyHttp for ProxyService {
         session: &Session,
         ctx: &mut Self::CTX,
     ) -> Result<pingora::cache::CacheKey> {
-        let (snapshot, policy) = ctx
+        let snapshot = ctx
             .snapshot
             .as_ref()
-            .and_then(|snapshot| {
-                snapshot
-                    .config
-                    .cache
-                    .as_ref()
-                    .map(|policy| (snapshot, policy))
-            })
-            .ok_or_else(|| Error::explain(InternalError, "cache policy disappeared"))?;
-        let route = snapshot
-            .route_for_host(&ctx.host)
-            .ok_or_else(|| Error::explain(InternalError, "cache route disappeared"))?;
+            .ok_or_else(|| Error::explain(InternalError, "cache snapshot disappeared"))?;
         Ok(cache::key(
             session.req_header(),
-            policy,
-            route,
             if ctx.https { "https" } else { "http" },
             &ctx.host,
             &snapshot.payload_checksum,

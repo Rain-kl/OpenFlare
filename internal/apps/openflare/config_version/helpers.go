@@ -210,7 +210,7 @@ func relayAgentAddress(node *model.OpenFlareNode) string {
 	return fmt.Sprintf("%s:%d", addr, port)
 }
 
-func resolveTunnelOpenRestyUpstreamURL(ctx context.Context) string {
+func resolveTunnelEdgeUpstreamURL(ctx context.Context) string {
 	nodes, err := repository.ListOpenFlareNodes(ctx)
 	if err == nil {
 		for index := range nodes {

@@ -37,11 +37,11 @@ func setupOriginErrorPageSnapshotDB(t *testing.T) func() {
 	}
 }
 
-func TestBuildOpenRestyConfigSnapshotOriginErrorPageDefaults(t *testing.T) {
+func TestBuildEdgeSettingsSnapshotOriginErrorPageDefaults(t *testing.T) {
 	cleanup := setupOriginErrorPageSnapshotDB(t)
 	defer cleanup()
 
-	snapshot := buildOpenRestyConfigSnapshot(context.Background())
+	snapshot := buildEdgeSettingsSnapshot(context.Background())
 	assert.True(t, snapshot.OriginErrorPageEnabled)
 	assert.Equal(t, []string{"500-599"}, snapshot.OriginErrorPageStatusCodes)
 	assert.Empty(t, snapshot.OriginErrorPageHTML)
@@ -52,7 +52,7 @@ func TestBuildOpenRestyConfigSnapshotOriginErrorPageDefaults(t *testing.T) {
 	assert.Contains(t, string(payload), `"origin_error_page_status_codes":["500-599"]`)
 }
 
-func TestBuildOpenRestyConfigSnapshotOriginErrorPageCustom(t *testing.T) {
+func TestBuildEdgeSettingsSnapshotOriginErrorPageCustom(t *testing.T) {
 	cleanup := setupOriginErrorPageSnapshotDB(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -67,7 +67,7 @@ func TestBuildOpenRestyConfigSnapshotOriginErrorPageCustom(t *testing.T) {
 		Key: model.ConfigKeyOriginErrorPageHTML, Value: "<h1>{{status}}</h1>", Type: "business",
 	}).Error)
 
-	snapshot := buildOpenRestyConfigSnapshot(ctx)
+	snapshot := buildEdgeSettingsSnapshot(ctx)
 	assert.False(t, snapshot.OriginErrorPageEnabled)
 	assert.Equal(t, []string{"522", "500-502"}, snapshot.OriginErrorPageStatusCodes)
 	assert.Equal(t, "<h1>{{status}}</h1>", snapshot.OriginErrorPageHTML)
@@ -85,17 +85,17 @@ func TestParseOriginErrorPageStatusCodesFallback(t *testing.T) {
 func TestDiffOpenRestyOptionDetailsOriginErrorPage(t *testing.T) {
 	t.Parallel()
 
-	left := openRestyConfigSnapshot{
+	left := edgeSettingsSnapshot{
 		OriginErrorPageEnabled:     true,
 		OriginErrorPageStatusCodes: []string{"500-599"},
 		OriginErrorPageHTML:        "",
 	}
-	right := openRestyConfigSnapshot{
+	right := edgeSettingsSnapshot{
 		OriginErrorPageEnabled:     false,
 		OriginErrorPageStatusCodes: []string{"522"},
 		OriginErrorPageHTML:        "<p>x</p>",
 	}
-	details := diffOpenRestyOptionDetails(left, right)
+	details := diffEdgeSettingDetails(left, right)
 	keys := make(map[string]ConfigOptionDiffItem, len(details))
 	for _, item := range details {
 		keys[item.Key] = item
@@ -111,13 +111,13 @@ func TestDiffOpenRestyOptionDetailsOriginErrorPage(t *testing.T) {
 func TestDiffOpenRestyOptionDetailsSWOfflineDomains(t *testing.T) {
 	t.Parallel()
 
-	left := openRestyConfigSnapshot{
+	left := edgeSettingsSnapshot{
 		SWOfflineDomains: []string{"a.com,b.com"},
 	}
-	right := openRestyConfigSnapshot{
+	right := edgeSettingsSnapshot{
 		SWOfflineDomains: []string{"a.com", "b.com"},
 	}
-	details := diffOpenRestyOptionDetails(left, right)
+	details := diffEdgeSettingDetails(left, right)
 	keys := make(map[string]ConfigOptionDiffItem, len(details))
 	for _, item := range details {
 		keys[item.Key] = item

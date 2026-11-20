@@ -7,17 +7,13 @@ OpenFlare's minimal runtime consists of:
 | Component | Responsibility |
 | --- | --- |
 | Server | admin UI, admin API, Agent API, config rendering, version release, and state storage |
-| Agent | runs on proxy nodes; pulls config, writes OpenResty, executes validation and reload |
-| OpenResty | actually receives traffic and reverse proxies to origins |
-
-The Agent uniformly controls the runtime via the OpenResty binary. Local deployment requires an `openresty` executable on the node; Docker deployment can directly run the Agent image with a built-in OpenResty.
+| Pingora Edge | Runs on edge hosts, synchronizes configuration, and proxies requests to origin servers |
 
 ## Environment Requirements
 
 | Item | Requirement |
 | --- | --- |
 | Docker / Docker Compose | starts the Server and its PostgreSQL, Valkey dependencies; also runs the Agent if using the Docker Agent |
-| OpenResty | local Agent installs need an executable `openresty`, or specify the path in the install script |
 | Reachable port | Server listens on `3000` by default; Agent nodes must be able to reach the Server address |
 
 ---
@@ -145,64 +141,19 @@ Prepare one of these credentials in the admin panel, then continue.
 
 ---
 
-## 3. Install / Run the Agent
+## 3. Install Pingora Edge
 
-Docker image deployment is recommended; you can also deploy to the local host via the install script.
-
-### Option A: Run the Agent with Docker (recommended)
-
-Run the Agent image directly on the proxy node:
+Run the installer on a Linux edge host. Use the discovery token for a new node, or copy the command with a node-specific token from the node details.
 
 ```bash
-docker pull ghcr.io/rain-kl/openflare-agent:latest
-docker rm -f openflare-agent 2>/dev/null || true
-docker run -d --name openflare-agent --restart unless-stopped \
-  -p 80:80 -p 443:443/tcp -p 443:443/udp \
-  -v openflare-agent-pages:/data/var/lib/openflare/pages \
-  -e OPENFLARE_SERVER_URL=http://your-server:3000 \
-  -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
-  ghcr.io/rain-kl/openflare-agent:latest
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-edge.sh -o install-openflare-edge.sh
+sudo bash install-openflare-edge.sh \
+  --server-url https://openflare.example.com \
+  --token-type discovery \
+  --token '<discovery token>'
 ```
 
-### Option B: Run the install script (local deployment)
-
-Run the install script on the proxy node.
-
-With `discovery_token`:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
-  --server-url http://your-server:3000 \
-  --discovery-token YOUR_DISCOVERY_TOKEN
-```
-
-With the node-specific `agent_token`:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
-  --server-url http://your-server:3000 \
-  --agent-token YOUR_AGENT_TOKEN
-```
-
-The script defaults:
-
-| Item | Default |
-| --- | --- |
-| Install directory | `/opt/openflare-agent` |
-| Config file | `/opt/openflare-agent/agent.json` |
-| systemd service | `openflare-agent.service` |
-| OpenResty path | auto-finds `openresty` when unspecified |
-
-Confirm the Agent service state:
-
-```bash
-systemctl status openflare-agent
-journalctl -u openflare-agent -f
-```
-
-Without systemd, the script prints a manual start command.
-
----
+The installer creates the `openflare-edge` systemd service. It listens on TCP ports 80 and 443 by default and waits for a published site snapshot to become active. Assign a policy to the node in **Performance policies**.
 
 ## 4. Next Steps
 

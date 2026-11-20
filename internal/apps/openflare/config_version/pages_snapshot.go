@@ -13,7 +13,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/internal/openflare/pagesarchive"
 	"gorm.io/gorm"
 )
@@ -24,7 +24,7 @@ const defaultPagesSnapshotFallbackPath = "/index.html"
 func buildPagesRouteSnapshot(
 	ctx context.Context,
 	route *model.ProxyRoute,
-) (originURL string, upstreams []string, pagesProjectID *uint, deployment *openrestyrender.PagesDeployment, err error) {
+) (originURL string, upstreams []string, pagesProjectID *uint, deployment *edgeconfig.PagesDeployment, err error) {
 	if route == nil {
 		return "", nil, nil, nil, errors.New("invalid Pages route configuration")
 	}
@@ -73,7 +73,7 @@ func buildPagesRouteSnapshot(
 func buildSnapshotPagesDeployment(
 	project *model.PagesProject,
 	activeDeployment *model.PagesDeployment,
-) (*openrestyrender.PagesDeployment, error) {
+) (*edgeconfig.PagesDeployment, error) {
 	if project == nil || activeDeployment == nil {
 		return nil, errors.New("pages project or deployment is empty")
 	}
@@ -93,11 +93,11 @@ func buildSnapshotPagesDeployment(
 	if fallbackPath == "" {
 		fallbackPath = defaultPagesSnapshotFallbackPath
 	}
-	localRoot := openrestyrender.PagesProjectLocalRoot(project.ID)
+	localRoot := edgeconfig.PagesProjectLocalRoot(project.ID)
 	if rootDir != "" {
 		localRoot = path.Join(localRoot, rootDir)
 	}
-	return &openrestyrender.PagesDeployment{
+	return &edgeconfig.PagesDeployment{
 		ProjectID:          project.ID,
 		ProjectSlug:        strings.TrimSpace(project.Slug),
 		DeploymentID:       activeDeployment.ID,

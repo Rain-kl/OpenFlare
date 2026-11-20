@@ -19,12 +19,12 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 )
 
 type activeConfigSnapshot struct {
-	WAF openrestyrender.WAFDocument `json:"waf"`
+	WAF edgeconfig.WAFDocument `json:"waf"`
 }
 
 type runtimeIPMatchConfig struct {
@@ -35,12 +35,12 @@ type runtimeIPMatchConfig struct {
 
 // WAFIPGroupsForAgent builds agent-facing WAF IP group payloads for the given ids.
 func WAFIPGroupsForAgent(ctx context.Context, ids []uint) ([]protocol.WAFIPGroup, error) {
-	return validatedAgentWAFIPGroups(ctx, ids, false, engineOpenResty)
+	return validatedAgentWAFIPGroups(ctx, ids, false, enginePingora)
 }
 
 // ChangedWAFIPGroupsForAgent returns WAF IP groups whose checksums differ from the agent state.
 func ChangedWAFIPGroupsForAgent(ctx context.Context, ids []uint, checksums map[string]string) ([]protocol.WAFIPGroup, error) {
-	return changedWAFIPGroups(ctx, ids, checksums, engineOpenResty)
+	return changedWAFIPGroups(ctx, ids, checksums, enginePingora)
 }
 
 func changedWAFIPGroups(ctx context.Context, ids []uint, checksums map[string]string, engine string) ([]protocol.WAFIPGroup, error) {
@@ -237,7 +237,7 @@ func parseActiveConfigSnapshot(snapshotJSON string) (*activeConfigSnapshot, erro
 		return nil, err
 	}
 	if snapshot.WAF.RuleGroups == nil {
-		snapshot.WAF.RuleGroups = []openrestyrender.WAFRuleGroup{}
+		snapshot.WAF.RuleGroups = []edgeconfig.WAFRuleGroup{}
 	}
 	return &snapshot, nil
 }

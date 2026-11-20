@@ -19,7 +19,6 @@ import { Label } from '@/components/ui/label';
 import { type NodeItem, StatusService } from '@/lib/services/openflare';
 
 import {
-  buildEdgeDockerInstallCommand,
   buildEdgeInstallCommand,
   buildRelayDockerInstallCommand,
   buildRelayInstallCommand,
@@ -47,7 +46,7 @@ export function InstallCommand({
       description: string;
       tokenLabel: string;
       scriptLabel?: string;
-      dockerLabel: string;
+      dockerLabel?: string;
     }
   > = {
     edge: {
@@ -55,7 +54,6 @@ export function InstallCommand({
       description: t('edgeDesc'),
       tokenLabel: t('agentToken'),
       scriptLabel: t('edgeScriptLabel'),
-      dockerLabel: t('edgeDockerLabel'),
     },
     relay: {
       title: t('relayTitle'),
@@ -105,13 +103,7 @@ export function InstallCommand({
     if (!normalizedServerUrl || !node.access_token) {
       return '';
     }
-    if (variant === 'edge') {
-      return buildEdgeDockerInstallCommand(
-        normalizedServerUrl,
-        node.access_token,
-        serverVersion,
-      );
-    }
+    if (variant === 'edge') return '';
     return variant === 'relay'
       ? buildRelayDockerInstallCommand(
           normalizedServerUrl,

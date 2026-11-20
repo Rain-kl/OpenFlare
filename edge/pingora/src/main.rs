@@ -21,6 +21,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Print the supported controller configuration sync protocol version.
+    ConfigSyncVersion,
     Run {
         #[arg(long)]
         upgrade: bool,
@@ -50,6 +52,10 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
     match cli.command {
+        Command::ConfigSyncVersion => {
+            println!("{}", control::config_sync::VERSION);
+            Ok(())
+        }
         Command::Run {
             upgrade,
             server_url,
@@ -75,7 +81,7 @@ fn main() -> Result<()> {
                 access_logs.clone(),
                 listeners.clone(),
             )?;
-            proxy::run_server(
+            if proxy::run_server(
                 proxy::DataPlaneState {
                     shared,
                     state_dir,
@@ -84,7 +90,18 @@ fn main() -> Result<()> {
                 },
                 control,
                 upgrade,
-            )
+            )? {
+                use std::os::unix::process::CommandExt;
+                let mut args = std::env::args_os();
+                let executable = std::env::current_exe()?;
+                args.next();
+                // An inherited listener retains its old socket options. Rebind it on reload.
+                let error = std::process::Command::new(executable)
+                    .args(args.filter(|arg| arg != "--upgrade"))
+                    .exec();
+                return Err(error.into());
+            }
+            Ok(())
         }
     }
 }

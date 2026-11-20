@@ -1,0 +1,41 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
+package performance
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestPolicyDefaultsAndValidation(t *testing.T) {
+	defaults, err := Normalize(nil)
+	require.NoError(t, err)
+	require.Len(t, defaults, len(Parameters))
+	require.Equal(t, 1, defaults["threads"])
+	require.Equal(t, 128, defaults["upstream_keepalive_pool_size"])
+	require.Equal(t, true, defaults["verify_cert"])
+
+	resolved, err := Decode(`{"threads_auto":true,"read_timeout":0,"work_stealing":false}`)
+	require.NoError(t, err)
+	require.Equal(t, true, resolved["threads_auto"])
+	require.Equal(t, 0, resolved["read_timeout"])
+	require.Equal(t, false, resolved["work_stealing"])
+
+	for _, body := range []string{
+		`{"threads":0}`,
+		`{"threads":null}`,
+		`{"threads_auto":"true"}`,
+		`{"verify_cert":false}`,
+		`{"max_frame_size":16777216}`,
+		`{"upstream_alpn":"h3"}`,
+		`{"cache_capacity_mib":16,"cache_max_object_mib":17}`,
+		`{"unknown":1}`,
+	} {
+		t.Run(body, func(t *testing.T) {
+			_, err := Decode(body)
+			require.Error(t, err)
+		})
+	}
+}

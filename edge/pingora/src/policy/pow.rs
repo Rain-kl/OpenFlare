@@ -12,15 +12,16 @@ pub const POW_API_PREFIX: &str = "/.within.website/x/cmd/anubis/api/";
 pub const POW_STATIC_PREFIX: &str = "/.within.website/x/cmd/anubis/static/";
 
 static POW_STATIC_DIR: include_dir::Dir =
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../internal/edge/agent/nginx/pow_static");
+    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../internal/openflare/edgeconfig/pow_static");
 const POW_SHIELD_HTML: &str =
-    include_str!("../../../../internal/openflare/openresty/pow_templates/shield.html");
+    include_str!("../../../../internal/openflare/edgeconfig/pow_templates/shield.html");
 const POW_CLASSIC_HTML: &str =
-    include_str!("../../../../internal/openflare/openresty/pow_templates/classic.html");
+    include_str!("../../../../internal/openflare/edgeconfig/pow_templates/classic.html");
 const POW_CHALLENGE_EN: &str =
-    include_str!("../../../../internal/edge/agent/nginx/pow_static/locales/challenge.en.json");
-const POW_CHALLENGE_ZH_CN: &str =
-    include_str!("../../../../internal/edge/agent/nginx/pow_static/locales/challenge.zh-CN.json");
+    include_str!("../../../../internal/openflare/edgeconfig/pow_static/locales/challenge.en.json");
+const POW_CHALLENGE_ZH_CN: &str = include_str!(
+    "../../../../internal/openflare/edgeconfig/pow_static/locales/challenge.zh-CN.json"
+);
 
 fn resolved_pow_page(page: &PoWPageConfig) -> PoWPageConfig {
     let mut resolved = page.clone();

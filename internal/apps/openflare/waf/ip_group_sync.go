@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"maps"
 	"net"
 	"net/http"
@@ -21,7 +20,6 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/geoip/iputil"
 
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
 
@@ -183,7 +181,7 @@ func syncIPGroupSubscription(ctx context.Context, group *model.OpenFlareWAFIPGro
 	if err := repository.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group); err != nil {
 		return nil, err
 	}
-	broadcastIPGroupToAgents(ctx, group.ID)
+	broadcastIPGroupToAgents(ctx)
 	view, err := GetIPGroup(ctx, group.ID)
 	if err != nil {
 		return nil, err
@@ -269,7 +267,7 @@ func syncIPGroupAutomatic(ctx context.Context, group *model.OpenFlareWAFIPGroup,
 	if err := repository.UpdateOpenFlareWAFIPGroupSyncResult(ctx, group); err != nil {
 		return nil, err
 	}
-	broadcastIPGroupToAgents(ctx, group.ID)
+	broadcastIPGroupToAgents(ctx)
 	view, err := GetIPGroup(ctx, group.ID)
 	if err != nil {
 		return nil, err
@@ -528,13 +526,6 @@ func collectJSONStrings(node any, items *[]string) {
 	}
 }
 
-func broadcastIPGroupToAgents(ctx context.Context, id uint) {
-	groups, err := agent.WAFIPGroupsForAgent(ctx, []uint{id})
-	if err != nil || len(groups) == 0 {
-		if err != nil {
-			slog.Debug("build waf ip group broadcast payload failed", "id", id, "error", err)
-		}
-		return
-	}
-	websocket.BroadcastWAFIPGroups(groups)
+func broadcastIPGroupToAgents(ctx context.Context) {
+	websocket.NotifyAgentConfigChanged(ctx)
 }

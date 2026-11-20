@@ -82,87 +82,6 @@ func HeartbeatHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(heartbeat))
 }
 
-// GetActiveConfigHandler returns the active configuration version.
-// @Summary 获取活跃配置版本
-// @Description 返回当前生效的完整配置包，供 Agent 拉取并应用
-// @Tags openflare-agent
-// @Produce json
-// @Security AgentTokenAuth
-// @Success 200 {object} response.Any{data=agent.ConfigResponse} "活跃配置"
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 401 {object} response.Any "Token 无效"
-// @Param site_auth query bool false "Agent 支持站点身份验证"
-// @Failure 403 {object} response.Any "资源不在节点发布范围内"
-// @Router /api/v1/agent/config-versions/active [get]
-func GetActiveConfigHandler(c *gin.Context) {
-	authNode, ok := NodeFromContext(c)
-	if !ok {
-		response.AbortUnauthorized(c, errNodeMissingFromContext)
-		return
-	}
-	if authNode.Engine == enginePingora {
-		response.AbortForbidden(c, errEdgeResourceOutsideRelease)
-		return
-	}
-	config, err := GetActiveConfig(c.Request.Context(), c.Query("site_auth") == "true")
-	if httpx.AbortBadRequestOnError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OK(config))
-}
-
-// GetActivePingoraConfigHandler returns the dedicated Pingora configuration.
-// @Summary 获取 Pingora 活跃配置
-// @Description 返回 Pingora 独立发布组的契约版本、发布序号与配置载荷
-// @Tags openflare-agent
-// @Produce json
-// @Security AgentTokenAuth
-// @Success 200 {object} response.Any{data=agent.PingoraConfigResponse} "Pingora 活跃配置"
-// @Failure 400 {object} response.Any "配置不存在"
-// @Failure 401 {object} response.Any "Token 无效"
-// @Failure 403 {object} response.Any "节点不是 Pingora 引擎"
-// @Router /api/v1/agent/pingora/config-versions/active [get]
-func GetActivePingoraConfigHandler(c *gin.Context) {
-	authNode, ok := NodeFromContext(c)
-	if !ok {
-		response.AbortUnauthorized(c, errNodeMissingFromContext)
-		return
-	}
-	if authNode.Engine != enginePingora {
-		response.AbortForbidden(c, errPingoraNodeRequired)
-		return
-	}
-	config, err := GetActivePingoraConfig(c.Request.Context())
-	if httpx.AbortBadRequestOnError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OK(config))
-}
-
-// SyncWAFIPGroupsHandler syncs WAF IP groups for an agent.
-// @Summary 同步 WAF IP 组
-// @Description 按 ID 与校验和增量同步 WAF IP 组定义
-// @Tags openflare-agent
-// @Accept json
-// @Produce json
-// @Security AgentTokenAuth
-// @Param body body protocol.WAFIPGroupSyncRequest true "同步请求"
-// @Success 200 {object} response.Any{data=protocol.WAFIPGroupSyncResponse} "同步结果"
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 401 {object} response.Any "Token 无效"
-// @Router /api/v1/agent/waf/ip-groups/sync [post]
-func SyncWAFIPGroupsHandler(c *gin.Context) {
-	var input protocol.WAFIPGroupSyncRequest
-	if !httpx.BindJSON(c, &input) {
-		return
-	}
-	result, err := SyncWAFIPGroups(c.Request.Context(), input)
-	if httpx.AbortBadRequestOnError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OK(result))
-}
-
 // ReportApplyLogHandler records an agent apply log entry.
 // @Summary 上报配置应用日志
 // @Description 记录 Agent 配置下发与应用结果
@@ -189,70 +108,6 @@ func ReportApplyLogHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(log))
-}
-
-// GetPagesDeploymentHashHandler returns the upload SHA-256 hash for a Pages deployment package.
-// @Summary 查询 Pages 部署包哈希
-// @Description 返回 upload 框架记录的 SHA-256 哈希，供 Agent 对比本地缓存并按需拉取部署包（兼容旧路径）
-// @Tags openflare-agent
-// @Produce json
-// @Security AgentTokenAuth
-// @Param deployment_id path int true "部署 ID"
-// @Success 200 {object} response.Any{data=protocol.PagesDeploymentHashResponse}
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 401 {object} response.Any "Token 无效"
-// @Failure 403 {object} response.Any "资源不在节点发布范围内"
-// @Router /api/v1/agent/pages/deployments/{deployment_id}/hash [get]
-func GetPagesDeploymentHashHandler(c *gin.Context) {
-	if node, ok := NodeFromContext(c); ok && node.Engine == enginePingora {
-		response.AbortForbidden(c, errEdgeResourceOutsideRelease)
-		return
-	}
-	deploymentID, ok := pagesUintParam(c, "deployment_id")
-	if !ok {
-		return
-	}
-	hash, err := pages.GetDeploymentPackageHash(c.Request.Context(), deploymentID)
-	if httpx.AbortBadRequestOnError(c, err) {
-		return
-	}
-	c.JSON(http.StatusOK, response.OK(protocol.PagesDeploymentHashResponse{
-		DeploymentID: deploymentID,
-		Hash:         hash,
-	}))
-}
-
-// DownloadPagesPackageHandler streams the Pages deployment artifact to an authenticated agent.
-// @Summary 下载 Pages 部署包
-// @Description 流式下载指定部署的静态资源压缩包，供 Agent 边缘分发（兼容旧路径）
-// @Tags openflare-agent
-// @Produce application/octet-stream
-// @Security AgentTokenAuth
-// @Param deployment_id path int true "部署 ID"
-// @Success 200 {file} binary "部署包文件"
-// @Failure 400 {object} response.Any "参数错误"
-// @Failure 401 {object} response.Any "Token 无效"
-// @Failure 403 {object} response.Any "资源不在节点发布范围内"
-// @Router /api/v1/agent/pages/deployments/{deployment_id}/package [get]
-func DownloadPagesPackageHandler(c *gin.Context) {
-	if node, ok := NodeFromContext(c); ok && node.Engine == enginePingora {
-		response.AbortForbidden(c, errEdgeResourceOutsideRelease)
-		return
-	}
-	deploymentID, ok := pagesUintParam(c, "deployment_id")
-	if !ok {
-		return
-	}
-	packageObj, err := pages.OpenDeploymentPackage(c.Request.Context(), deploymentID)
-	if httpx.AbortBadRequestOnError(c, err) {
-		return
-	}
-	defer func() { _ = packageObj.Body.Close() }()
-	c.Header("Content-Disposition", "attachment; filename="+packageObj.FileName)
-	if packageObj.ContentType != "" {
-		c.Header("Content-Type", packageObj.ContentType)
-	}
-	c.DataFromReader(http.StatusOK, packageObj.ContentLength, packageObj.ContentType, packageObj.Body, nil)
 }
 
 // GetPagesProjectLatestHashHandler returns the hash of a project's currently active deployment.
@@ -366,5 +221,9 @@ func WebSocketHandler(c *gin.Context) {
 		response.AbortUnauthorized(c, errInvalidAgentToken)
 		return
 	}
-	websocket.ServeAgent(c, authNode.NodeID, normalizeEngine(authNode.Engine), HandleWSStatus)
+	if authNode.Engine != enginePingora {
+		response.AbortForbidden(c, errPingoraNodeRequired)
+		return
+	}
+	websocket.ServeAgent(c, authNode.NodeID)
 }

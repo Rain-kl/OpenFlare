@@ -312,6 +312,7 @@ export interface ProxyRouteMutationPayload {
 }
 
 export interface ConfigVersionSummary {
+  engine: string;
   id: string;
   version: string;
   checksum: string;

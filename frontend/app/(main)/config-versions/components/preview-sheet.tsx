@@ -75,7 +75,7 @@ export function PreviewSheet({
                 <p className='text-xs font-semibold'>{t('mainConfig')}</p>
                 <CodeBlock
                   code={preview.main_config}
-                  language='nginx'
+                  language='json'
                   className='my-0 text-xs'
                 />
               </div>
@@ -84,7 +84,7 @@ export function PreviewSheet({
                 <p className='text-xs font-semibold'>{t('routeConfig')}</p>
                 <CodeBlock
                   code={preview.rendered_config}
-                  language='nginx'
+                  language='json'
                   className='my-0 text-xs'
                 />
               </div>

@@ -29,7 +29,7 @@ func versionParam(c *gin.Context) (string, bool) {
 
 // ListConfigVersionsHandler lists config versions.
 // @Summary 获取配置版本列表
-// @Description 返回所有已发布的 OpenResty 配置版本摘要，按创建时间倒序排列，需要管理员权限
+// @Description 返回所有已发布的边缘配置版本摘要，按创建时间倒序排列，需要管理员权限
 // @Tags openflare-config-version
 // @Produce json
 // @Security SessionCookie

@@ -269,54 +269,6 @@ jobs:
           tag_name: ${{ needs.create-release.outputs.version }}
           files: ${{ steps.package.outputs.artifact }}
 
-  build-agent-binaries:
-    name: Build agent ${{ matrix.goos }}/${{ matrix.goarch }}
-    runs-on: ubuntu-latest
-    needs: create-release
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-            asset_name: openflare-agent-linux-amd64
-          - goos: linux
-            goarch: arm64
-            asset_name: openflare-agent-linux-arm64
-          - goos: darwin
-            goarch: amd64
-            asset_name: openflare-agent-darwin-amd64
-          - goos: darwin
-            goarch: arm64
-            asset_name: openflare-agent-darwin-arm64
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      # GeoIP MMDB is not embedded; Docker images COPY mmdb files, bare binaries seed via download on first start.
-      - name: Build Agent
-        env:
-          CGO_ENABLED: 0
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          ASSET_NAME: ${{ matrix.asset_name }}
-          VERSION: ${{ needs.create-release.outputs.version }}
-        run: |
-          go mod download
-          mkdir -p dist
-          go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/edge/agent/config.Version=$VERSION'" -o "dist/$ASSET_NAME" ./cmd/agent/main.go
-
-      - name: Upload release artifact
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.create-release.outputs.version }}
-          files: dist/${{ matrix.asset_name }}
-
   build-relay-binaries:
     name: Build relay ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest

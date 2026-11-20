@@ -3,7 +3,7 @@
 # OpenFlare
 
 **新一代分布式反向代理与边缘安全网关**  
-*Next-Gen Distributed Reverse Proxy & Edge Gateway for OpenResty / Nginx*
+*Next-Gen Distributed Reverse Proxy & Edge Gateway for Pingora*
 
 **[简体中文](./README.zh-CN.md) | [English](./README.md)**
 
@@ -27,7 +27,7 @@
 
 **OpenFlare** 是一套面向多服务器与分布式集群的**新一代开源反向代理与边缘安全网关平台**。
 
-它并非简单的单机管理面板，而是将传统的 OpenResty / Nginx 升级为具备**多节点集群化编排、动态热更新、边缘 WAF 防护以及内网穿透能力**的现代化边缘网络基础设施：
+它并非简单的单机管理面板，而是将传统的 Pingora 升级为具备**多节点集群化编排、动态热更新、边缘 WAF 防护以及内网穿透能力**的现代化边缘网络基础设施：
 
 * ⚡ **告别手写配置与 Reload 抖动**：单一控制面板管理任意数量的边缘节点，配置差分毫秒级热同步（Zero-Reload），业务流量平滑无感。
 * 🛡️ **开箱即用的边缘安全防御**：内置 WAF 规则引擎、国家级 GeoIP 访问控制，以及**类似 Cloudflare Turnstile 的客户端密码学 PoW 防 CC 人机验证（5 秒盾）**，在边缘秒级阻断僵尸网络。
@@ -77,9 +77,9 @@ flowchart TD
         CF["Cloudflare CDN (可选代理层)"]
     end
 
-    subgraph EdgePlane ["边缘数据面 (OpenResty Agent 节点)"]
-        Edge1["边缘节点 A (OpenResty)"]
-        Edge2["边缘节点 B (OpenResty)"]
+    subgraph EdgePlane ["边缘数据面 (Pingora 节点)"]
+        Edge1["边缘节点 A (Pingora)"]
+        Edge2["边缘节点 B (Pingora)"]
     end
 
     subgraph ControlPlane ["控制面 (Control Plane)"]

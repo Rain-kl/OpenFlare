@@ -30,7 +30,7 @@
       "pages": "Страницы",
       "configVersions": "Версии",
       "accessLogs": "Журнал запросов",
-      "performance": "Производительность",
+      "performance": "Политики производительности",
       "applyLogs": "Журнал применения"
     },
     "groups": {

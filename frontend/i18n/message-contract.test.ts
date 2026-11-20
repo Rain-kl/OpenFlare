@@ -28,7 +28,7 @@ describe('translation rendering contracts', () => {
       'rateLimits.config.limitRateHint': ['512k', '1m'],
       'rateLimits.config.reqPerIpHint': ['10r/s', '100r/m'],
       'rateLimits.config.invalidReq': ['10r/s', '100r/m'],
-      'builtinMetadata.configDescriptions.openresty_default_limit_req_per_ip': [
+      'builtinMetadata.configDescriptions.edge_default_limit_req_per_ip': [
         '10r/s',
         '100r/m',
       ],

@@ -45,7 +45,7 @@ export const defaultOpenFlareOpsFields: OpenFlareOpsFields = {
 };
 
 export const INSTALLER_SCRIPT_URL =
-  'https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh';
+  'https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-edge.sh';
 
 export function optionsToMap(options: OptionItem[]) {
   return options.reduce<Record<string, string>>((accumulator, option) => {
@@ -117,9 +117,9 @@ export function buildDiscoveryCommand(
   discoveryToken: string,
 ) {
   return [
-    `curl -fsSL ${INSTALLER_SCRIPT_URL} | bash -s -- \\`,
+    `curl -fsSL ${INSTALLER_SCRIPT_URL} | sudo bash -s -- \\`,
     `  --server-url ${normalizeServerUrl(serverUrl)} \\`,
-    `  --discovery-token ${discoveryToken}`,
+    `  --token-type discovery --token ${discoveryToken}`,
   ].join('\n');
 }
 

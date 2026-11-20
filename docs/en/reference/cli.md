@@ -75,25 +75,11 @@ pnpm tsc --noEmit --jsx preserve
 pnpm check:i18n
 ```
 
-## Agent
-
-Source run:
+## Pingora Edge
 
 ```bash
-go run ./cmd/agent -config /path/to/agent.json
-```
-
-Build:
-
-```bash
-make build-agent
-# or: go build -o bin/openflare-agent ./cmd/agent
-```
-
-Tests:
-
-```bash
-GOCACHE=/tmp/openflare-go-cache go test ./internal/edge/agent/...
+make build-edge
+cargo test --manifest-path edge/pingora/Cargo.toml --locked
 ```
 
 ## Relay
@@ -126,19 +112,9 @@ make build-flared
 # or: go build -o bin/flared ./cmd/flared
 ```
 
-## Install Agent
+## Install or uninstall Pingora Edge
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
-  --server-url http://your-server:3000 \
-  --agent-token YOUR_AGENT_TOKEN
-```
-
-## Uninstall Agent
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash
-```
+Follow [Quick start](../guide/quick-start.md#3-install-pingora-edge) to install. Run `scripts/uninstall-openflare-edge.sh` from the release package on the edge host to uninstall.
 
 ## Swagger
 

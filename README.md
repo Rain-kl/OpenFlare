@@ -2,7 +2,7 @@
 
 # OpenFlare
 
-**Next-Gen Distributed Reverse Proxy & Edge Security Gateway for OpenResty / Nginx**
+**Next-Gen Distributed Reverse Proxy & Edge Security Gateway for Pingora**
 
 **[English](./README.md) | [简体中文](./README.zh-CN.md)**
 
@@ -26,7 +26,7 @@
 
 **OpenFlare** is a modern, open-source **distributed reverse proxy and edge security gateway platform** designed for multi-server infrastructures and edge clusters.
 
-Rather than a simple single-host admin panel, OpenFlare empowers traditional OpenResty / Nginx nodes with **centralized cluster orchestration, dynamic zero-reload sync, line-rate edge WAF defense, and secure in-network tunneling**:
+Rather than a simple single-host admin panel, OpenFlare provides Pingora edge nodes with **centralized cluster orchestration, dynamic zero-reload sync, line-rate edge WAF defense, and secure in-network tunneling**:
 
 * ⚡ **Zero-Reload Dynamic Orchestration**: Centralized control plane manages any number of edge nodes. Synchronize rule diffs in milliseconds with zero Nginx reload disruptions.
 * 🛡️ **Built-in Edge Security & Anti-CC (Turnstile Alternative)**: Comprehensive WAF rule engine, MaxMind GeoIP regional ACLs, and **client-side cryptographic Proof of Work (PoW) challenges** to eliminate botnets and CC attacks at line rate.
@@ -76,9 +76,9 @@ flowchart TD
         CF["Cloudflare CDN (Optional Edge Layer)"]
     end
 
-    subgraph EdgePlane ["Edge Data Plane (OpenResty Agent Nodes)"]
-        Edge1["Edge Node A (OpenResty)"]
-        Edge2["Edge Node B (OpenResty)"]
+    subgraph EdgePlane ["Edge Data Plane (Pingora Nodes)"]
+        Edge1["Edge Node A (Pingora)"]
+        Edge2["Edge Node B (Pingora)"]
     end
 
     subgraph ControlPlane ["Control Plane"]

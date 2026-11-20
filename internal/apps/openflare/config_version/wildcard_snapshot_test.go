@@ -15,7 +15,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
@@ -52,14 +52,14 @@ func TestWildcardDomainConfigBundle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildCurrentConfigBundle(wildcard) error = %v", err)
 	}
-	var doc openrestyrender.Document
+	var doc edgeconfig.Document
 	if err := json.Unmarshal([]byte(bundle.SnapshotJSON), &doc); err != nil {
 		t.Fatal(err)
 	}
 	if len(doc.Routes) != 1 || !slices.Equal(doc.Routes[0].Domains, []string{domain.Domain}) || !slices.Equal(doc.Routes[0].DomainCertIDs, []uint{cert.ID}) {
 		t.Fatalf("snapshot routes = %+v, want wildcard domain and its certificate", doc.Routes)
 	}
-	if !strings.Contains(bundle.RouteConfig, "server_name *.s3.example.com;") || !strings.Contains(bundle.RouteConfig, "listen 443 ssl;") {
+	if !strings.Contains(bundle.RouteConfig, "*.s3.example.com") || !strings.Contains(bundle.RouteConfig, `"enable_https":true`) {
 		t.Errorf("wildcard bundle missing HTTPS server: %s", bundle.RouteConfig)
 	}
 }

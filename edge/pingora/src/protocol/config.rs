@@ -284,9 +284,6 @@ pub struct ServiceWorker {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CachePolicy {
-    pub key_template: String,
-    pub lock_enabled: bool,
-    pub lock_timeout_ms: u64,
     pub stale_on_error: bool,
     pub stale_updating: bool,
     pub static_extensions: Vec<String>,

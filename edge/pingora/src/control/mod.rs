@@ -1,9 +1,15 @@
 use crate::config::SnapshotStore;
+pub(crate) mod config_sync;
 mod websocket;
+
+use config_sync::{Manifest, Resource, PERFORMANCE_KEY, SITE_KEY};
 
 use crate::config::{self, AppliedConfig};
 use crate::pages::PagesSyncer;
-use crate::runtime::Listeners;
+use crate::runtime::{
+    performance::{LivePolicy, NodePolicy},
+    Listeners,
+};
 use crate::telemetry::{AccessLogBuffer, HostCollector, HostTelemetry, NodeAccessLog};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -27,6 +33,7 @@ pub struct Runtime {
     access_logs: AccessLogBuffer,
     listeners: Listeners,
     geo_ip: crate::geoip::GeoIpStore,
+    performance: LivePolicy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,11 +54,11 @@ struct NodePayload<'a> {
     openresty_message: &'a str,
     engine: &'a str,
     contract_version: u8,
+    config_sync_version: u8,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     access_logs: Vec<NodeAccessLog>,
     #[serde(skip_serializing_if = "str::is_empty")]
     last_error: &'a str,
-    waf_ip_group_checksums: std::collections::HashMap<String, String>,
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     telemetry: Option<HostTelemetry>,
 }
@@ -76,17 +83,11 @@ struct PersistedIdentity {
     registration_key: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct Heartbeat {
+    config: Manifest,
     #[serde(default)]
     agent_settings: Option<AgentSettings>,
-    #[serde(default)]
-    active_config: Option<ActiveConfigMeta>,
-    #[serde(
-        default,
-        deserialize_with = "crate::protocol::config::deserialize_null_default_vec"
-    )]
-    waf_ip_groups: Vec<crate::protocol::config::WafIPGroup>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -94,7 +95,7 @@ struct AgentSettings {
     #[serde(default = "default_heartbeat_interval")]
     heartbeat_interval: u32,
     #[serde(default)]
-    restart_openresty_now: bool,
+    restart_edge_now: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
@@ -107,13 +108,6 @@ struct ActiveConfigMeta {
     release_sequence: i64,
     #[serde(default)]
     payload_checksum: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct ActiveConfig {
-    #[serde(flatten)]
-    meta: ActiveConfigMeta,
-    payload_json: String,
 }
 
 fn default_heartbeat_interval() -> u32 {
@@ -167,6 +161,7 @@ impl Runtime {
             .redirect(reqwest::redirect::Policy::none())
             .user_agent(concat!("openflare-edge/", env!("CARGO_PKG_VERSION")))
             .build()?;
+        let performance = LivePolicy::new(NodePolicy::load(&state_dir));
         Ok(Self {
             base_url,
             token_type,
@@ -177,7 +172,12 @@ impl Runtime {
             client,
             access_logs,
             listeners,
+            performance,
         })
+    }
+
+    pub fn performance(&self) -> LivePolicy {
+        self.performance.clone()
     }
 
     pub fn geo_ip(&self) -> crate::geoip::GeoIpStore {
@@ -236,45 +236,97 @@ impl Runtime {
             retry = RetryDelay::default();
             if let Some(settings) = response.agent_settings {
                 interval = Duration::from_millis(settings.heartbeat_interval.max(100).into());
-                if settings.restart_openresty_now {
+                if settings.restart_edge_now {
                     tracing::info!("controller requested a local Edge restart");
                     crate::runtime::request_restart();
                     return;
                 }
             }
-            if let Err(error) = self
-                .state
-                .apply_ip_groups(&self.state_dir, &response.waf_ip_groups)
-            {
-                tracing::warn!(%error, "WAF IP group update was not persisted");
+            let manifest = response.config;
+            if manifest.version != config_sync::VERSION {
+                tracing::error!(
+                    version = manifest.version,
+                    "unsupported Edge configuration sync protocol"
+                );
+                retry.wait().await;
+                continue;
             }
-            if let Some(target) = response
-                .active_config
-                .filter(|meta| meta.engine == "pingora")
-            {
-                let result = self
-                    .reconcile(&target, wake.take_force(), &response.waf_ip_groups)
-                    .await;
-                match result {
-                    Ok(applied) => {
-                        last_error.clear();
-                        if let Some(applied) = applied {
-                            self.report_result(
-                                node_id,
-                                &applied,
-                                "success",
-                                "configuration applied",
-                            )
-                            .await;
+            let performance_policy = match manifest.resources.get(PERFORMANCE_KEY) {
+                Some(resource) => match resource.read(self, PERFORMANCE_KEY).await {
+                    Ok(policy) => Some(policy),
+                    Err(error) => {
+                        tracing::error!(%error, "could not load Pingora performance policy");
+                        None
+                    }
+                },
+                None => None,
+            };
+            if current.is_some() && self.reconcile_performance(performance_policy.clone()) {
+                return;
+            }
+            let force = wake.take_force();
+            if let Some(resource) = manifest.resources.get(SITE_KEY) {
+                match resource
+                    .metadata
+                    .clone()
+                    .map(serde_json::from_value::<ActiveConfigMeta>)
+                    .transpose()
+                {
+                    Ok(Some(target)) => {
+                        let refreshing = force
+                            || current.as_ref().is_none_or(|current| {
+                                current.release_sequence != target.release_sequence
+                            });
+                        match manifest
+                            .ip_groups(self, current.as_deref(), refreshing)
+                            .await
+                        {
+                            Ok(groups) => {
+                                if let Err(error) =
+                                    self.state.apply_ip_groups(&self.state_dir, &groups)
+                                {
+                                    tracing::warn!(%error, "WAF IP group update was not persisted");
+                                }
+                                match self.reconcile(&target, resource, force, &groups).await {
+                                    Ok(applied) => {
+                                        last_error.clear();
+                                        if applied {
+                                            self.report_result(
+                                                node_id,
+                                                &target,
+                                                "success",
+                                                "configuration applied",
+                                            )
+                                            .await;
+                                        }
+                                    }
+                                    Err(error) => {
+                                        last_error = error.to_string();
+                                        tracing::warn!(version = %target.version, %error, "configuration reconciliation failed");
+                                        self.report_result(node_id, &target, "failed", &last_error)
+                                            .await;
+                                    }
+                                }
+                            }
+                            Err(error) => {
+                                last_error = error.to_string();
+                                tracing::warn!(%error, "WAF IP group reconciliation failed");
+                                if force {
+                                    wake.requeue_force();
+                                }
+                            }
                         }
                     }
+                    Ok(None) => {
+                        tracing::warn!("site configuration resource has no release metadata")
+                    }
                     Err(error) => {
-                        last_error = error.to_string();
-                        tracing::warn!(version = %target.version, %error, "configuration reconciliation failed");
-                        self.report_result(node_id, &target, "failed", &last_error)
-                            .await;
+                        tracing::warn!(%error, "invalid site configuration release metadata")
                     }
                 }
+            }
+            if current.is_none() && self.reconcile_performance(performance_policy) {
+                return;
             }
             tokio::select! {
                 _ = tokio::time::sleep(interval) => {}
@@ -283,12 +335,29 @@ impl Runtime {
         }
     }
 
+    fn reconcile_performance(&self, desired: Option<NodePolicy>) -> bool {
+        let Some(desired) = desired else {
+            return false;
+        };
+        self.performance
+            .reconcile(&self.state_dir, &self.listeners, desired)
+            .unwrap_or_else(|error| {
+                tracing::error!(%error, "could not apply Pingora performance policy");
+                false
+            })
+    }
+
     async fn reconcile(
         &self,
         target: &ActiveConfigMeta,
+        resource: &Resource,
         force: bool,
         ip_groups: &[crate::protocol::config::WafIPGroup],
-    ) -> Result<Option<ActiveConfigMeta>> {
+    ) -> Result<bool> {
+        anyhow::ensure!(
+            target.engine == "pingora" && target.payload_checksum == resource.sha256,
+            "invalid site snapshot metadata"
+        );
         let current = self.state.current();
         if let Some(current) = current.as_deref() {
             if current.release_sequence > target.release_sequence {
@@ -303,33 +372,29 @@ impl Runtime {
                     );
                 }
                 if !force {
-                    let mut updated = current.clone();
-                    if self.prepare_pages(&mut updated).await? {
-                        self.state.commit(&self.state_dir, updated)?;
+                    if current.routes().any(|route| route.pages.is_some()) {
+                        let mut updated = current.clone();
+                        if self.prepare_pages(&mut updated).await? {
+                            self.state.commit(&self.state_dir, updated)?;
+                        }
                     }
-                    return Ok(None);
+                    return Ok(false);
                 }
             }
         }
 
-        let remote = self.fetch_active_config().await?;
-        if remote.meta.engine != "pingora"
-            || remote.meta.release_sequence < target.release_sequence
-            || (remote.meta.release_sequence == target.release_sequence && remote.meta != *target)
-        {
-            anyhow::bail!("active configuration does not match the advertised release");
-        }
+        let body = resource.body(self, SITE_KEY).await?;
         let mut candidate = config::decode(
-            &remote.meta.version,
-            &remote.meta.checksum,
-            remote.meta.release_sequence,
-            &remote.meta.payload_checksum,
-            &remote.payload_json,
+            &target.version,
+            &target.checksum,
+            target.release_sequence,
+            &target.payload_checksum,
+            &body,
         )?;
         candidate.merge_ip_groups(ip_groups);
         self.prepare_pages(&mut candidate).await?;
         self.state.commit(&self.state_dir, candidate)?;
-        Ok(Some(remote.meta))
+        Ok(true)
     }
 
     async fn prepare_pages(&self, candidate: &mut AppliedConfig) -> Result<bool> {
@@ -431,9 +496,9 @@ impl Runtime {
             openresty_message: "Pingora enrollment",
             engine: "pingora",
             contract_version: config::CONTRACT_VERSION as u8,
+            config_sync_version: config_sync::VERSION,
             access_logs: Vec::new(),
             last_error: "",
-            waf_ip_group_checksums: Default::default(),
             telemetry: None,
         });
         if let Some(registration_key) = registration_key {
@@ -486,9 +551,9 @@ impl Runtime {
             openresty_message: message,
             engine: "pingora",
             contract_version: config::CONTRACT_VERSION as u8,
+            config_sync_version: config_sync::VERSION,
             access_logs: logs.iter().map(|entry| entry.log.clone()).collect(),
             last_error,
-            waf_ip_group_checksums: self.state.ip_group_checksums(),
             telemetry: Some(collector.sample(status, message, last_error)),
         };
         let response = self
@@ -503,19 +568,6 @@ impl Runtime {
             tracing::warn!(%error, "could not acknowledge access log batch");
         }
         Ok(decoded)
-    }
-
-    async fn fetch_active_config(&self) -> Result<ActiveConfig> {
-        let response = self
-            .client
-            .get(format!(
-                "{}/api/v1/agent/pingora/config-versions/active",
-                self.base_url
-            ))
-            .header("X-Agent-Token", &self.token)
-            .send()
-            .await?;
-        decode_response(response).await
     }
 
     async fn report_apply(

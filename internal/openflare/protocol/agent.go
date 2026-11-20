@@ -16,30 +16,10 @@ type APIResponse[T any] struct {
 	Data     T      `json:"data"`
 }
 
-// HeartbeatData is the heartbeat request payload from agent.
-type HeartbeatData struct {
-	AgentSettings *AgentSettings    `json:"agent_settings"`
-	ActiveConfig  *ActiveConfigMeta `json:"active_config"`
-	WAFIPGroups   []WAFIPGroup      `json:"waf_ip_groups,omitempty"`
-}
-
-// HeartbeatResult is the heartbeat response payload.
-type HeartbeatResult struct {
-	AgentSettings *AgentSettings
-	ActiveConfig  *ActiveConfigMeta
-	WAFIPGroups   []WAFIPGroup
-}
-
-// AgentSettings holds agent configuration settings.
+// AgentSettings holds the Edge heartbeat interval and queued restart command.
 type AgentSettings struct {
-	HeartbeatInterval       int    `json:"heartbeat_interval"`
-	WebsocketUpgradeEnabled bool   `json:"websocket_upgrade_enabled"`
-	AutoUpdate              bool   `json:"auto_update"`
-	UpdateRepo              string `json:"update_repo"`
-	UpdateNow               bool   `json:"update_now"`
-	UpdateChannel           string `json:"update_channel"`
-	UpdateTag               string `json:"update_tag"`
-	RestartOpenrestyNow     bool   `json:"restart_openresty_now"`
+	HeartbeatInterval int  `json:"heartbeat_interval"`
+	RestartEdgeNow    bool `json:"restart_edge_now"`
 }
 
 // WSMessageType constants define WebSocket message types.
@@ -85,25 +65,25 @@ const (
 // schema_version 2: host_metrics + edge_health + access_logs facts only (no business pre-aggregation).
 // Agents are destroy/rebuild upgraded; no wire-level compatibility aliases.
 type NodePayload struct {
-	SchemaVersion       int                           `json:"schema_version,omitempty"`
-	NodeID              string                        `json:"node_id"`
-	Name                string                        `json:"name"`
-	IP                  string                        `json:"ip"`
-	Version             string                        `json:"version"`
-	ExtVersion          string                        `json:"ext_version"`
-	CurrentVersion      string                        `json:"current_version"`
-	LastError           string                        `json:"last_error"`
-	OpenrestyStatus     string                        `json:"openresty_status"`
-	OpenrestyMessage    string                        `json:"openresty_message"`
-	Profile             *NodeSystemProfile            `json:"profile,omitempty"`
-	HostMetrics         *NodeMetricSnapshot           `json:"host_metrics,omitempty"`
-	EdgeHealth          *NodeEdgeHealth               `json:"edge_health,omitempty"`
-	AccessLogs          []NodeAccessLog               `json:"access_logs,omitempty"`
-	Buffered            []BufferedObservabilityRecord `json:"buffered,omitempty"`
-	HealthEvents        []NodeHealthEvent             `json:"health_events"`
-	WAFIPGroupChecksums map[string]string             `json:"waf_ip_group_checksums,omitempty"`
-	Engine              string                        `json:"engine,omitempty"`
-	ContractVersion     int                           `json:"contract_version,omitempty"`
+	SchemaVersion     int                           `json:"schema_version,omitempty"`
+	NodeID            string                        `json:"node_id"`
+	Name              string                        `json:"name"`
+	IP                string                        `json:"ip"`
+	Version           string                        `json:"version"`
+	ExtVersion        string                        `json:"ext_version"`
+	CurrentVersion    string                        `json:"current_version"`
+	LastError         string                        `json:"last_error"`
+	OpenrestyStatus   string                        `json:"openresty_status"`
+	OpenrestyMessage  string                        `json:"openresty_message"`
+	Profile           *NodeSystemProfile            `json:"profile,omitempty"`
+	HostMetrics       *NodeMetricSnapshot           `json:"host_metrics,omitempty"`
+	EdgeHealth        *NodeEdgeHealth               `json:"edge_health,omitempty"`
+	AccessLogs        []NodeAccessLog               `json:"access_logs,omitempty"`
+	Buffered          []BufferedObservabilityRecord `json:"buffered,omitempty"`
+	HealthEvents      []NodeHealthEvent             `json:"health_events"`
+	Engine            string                        `json:"engine,omitempty"`
+	ContractVersion   int                           `json:"contract_version,omitempty"`
+	ConfigSyncVersion int                           `json:"config_sync_version"`
 }
 
 // NodeEdgeHealth is an instantaneous OpenResty health snapshot (L2).
@@ -236,17 +216,6 @@ type WAFIPGroup struct {
 	Checksum string   `json:"checksum"`
 }
 
-// WAFIPGroupSyncRequest is a WAF IP group sync request.
-type WAFIPGroupSyncRequest struct {
-	IDs       []uint            `json:"ids,omitempty"`
-	Checksums map[string]string `json:"checksums,omitempty"`
-}
-
-// WAFIPGroupSyncResponse is a WAF IP group sync response.
-type WAFIPGroupSyncResponse struct {
-	Groups []WAFIPGroup `json:"groups"`
-}
-
 // SupportFile represents a support file for relay.
 type SupportFile struct {
 	Path    string `json:"path"`
@@ -268,4 +237,21 @@ type PagesProjectLatestHashResponse struct {
 	PackageSize  int64  `json:"package_size"`
 	FileCount    int    `json:"file_count"`
 	TotalSize    int64  `json:"total_size"`
+}
+
+// EdgeConfigSyncVersion is the resource manifest wire protocol understood by the controller.
+const EdgeConfigSyncVersion = 1
+
+// ConfigManifest advertises resources from all configuration providers.
+type ConfigManifest struct {
+	Version   int                       `json:"version"`
+	Resources map[string]ConfigResource `json:"resources"`
+}
+
+// ConfigResource describes the exact JSON bytes of one configuration resource.
+type ConfigResource struct {
+	SHA256     string `json:"sha256"`
+	InlineJSON string `json:"inline_json,omitempty"`
+	Revision   string `json:"revision,omitempty"`
+	Metadata   any    `json:"metadata,omitempty"`
 }

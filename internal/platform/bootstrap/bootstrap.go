@@ -15,8 +15,10 @@ import (
 	admin_push "github.com/Rain-kl/Wavelet/internal/apps/admin/push"
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push/custom_events"
 	admin_status "github.com/Rain-kl/Wavelet/internal/apps/admin/status"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/config_version"
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/logwriter"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/platform/lifecycle"
@@ -165,6 +167,10 @@ func Init(ctx context.Context, opts Options) {
 			logger.ErrorF(ctx, "[Bootstrap] sync push events failed: %v", err)
 		}
 		if opts.API {
+			websocket.StartConfigChangeListener(ctx)
+			if err := config_version.EnsureActivePingoraRelease(ctx); err != nil {
+				logger.ErrorF(ctx, "[Bootstrap] promote the active site snapshot to Pingora: %v", err)
+			}
 			logwriter.Init(ctx)
 			admin_status.RegisterBatchWriterStatsProvider(logwriter.WriterStats)
 		}

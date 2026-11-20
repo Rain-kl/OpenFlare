@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -16,14 +15,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
-const maxOpenRestyGzipCompLevel = 9
-
-var (
-	openRestySizePattern          = regexp.MustCompile(`^\d+[kKmMgG]?$`)
-	openRestyProxyBuffersPattern  = regexp.MustCompile(`^\d+\s+\d+[kKmMgG]?$`)
-	openRestyCacheLevelsPattern   = regexp.MustCompile(`^\d{1,2}(?::\d{1,2}){0,2}$`)
-	openRestyDurationTokenPattern = regexp.MustCompile(`^\d+[smhdwSMHDW]$`)
-)
+var ()
 
 const optionValueTrue = "true"
 
@@ -58,7 +50,7 @@ func buildOptionValidationState(ctx context.Context, options []model.OpenFlareOp
 
 func validateOptionWithState(ctx context.Context, option model.OpenFlareOption, state map[string]string) error {
 
-	if err := validateOpenRestyOption(option.Key, option.Value); err != nil {
+	if err := validateEdgeOption(option.Key, option.Value); err != nil {
 		return err
 	}
 	if err := validateGeoIPOption(option.Key, option.Value); err != nil {

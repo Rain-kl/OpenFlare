@@ -172,9 +172,6 @@ fn validate(config: &Config) -> Result<()> {
         bail!("configuration does not declare required capability {PROXY_CAPABILITY}");
     }
     crate::policy::validate_waf(&config.waf)?;
-    if let Some(policy) = config.cache.as_ref() {
-        crate::proxy::cache::validate_policy(policy)?;
-    }
     if config.routes.is_empty() {
         bail!("configuration has no routes");
     }
@@ -405,21 +402,6 @@ impl SnapshotStore {
         *self.0.write().expect("snapshot lock poisoned") = Some(Arc::new(candidate));
         Ok(())
     }
-
-    pub fn ip_group_checksums(&self) -> HashMap<String, String> {
-        self.current()
-            .map(|snapshot| {
-                snapshot
-                    .config
-                    .waf
-                    .ip_groups
-                    .iter()
-                    .map(|group| (group.id.to_string(), group.checksum.clone()))
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-
     pub fn apply_ip_groups(&self, state_dir: &Path, groups: &[WafIPGroup]) -> Result<()> {
         if groups.is_empty() {
             return Ok(());

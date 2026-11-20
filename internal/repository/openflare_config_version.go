@@ -52,7 +52,19 @@ func GetConfigVersionSource(ctx context.Context, version *model.ConfigVersion) (
 
 // GetActiveConfigVersion returns the currently active config version.
 func GetActiveConfigVersion(ctx context.Context) (*model.ConfigVersion, error) {
-	return GetActiveConfigVersionByEngine(ctx, engineOpenResty)
+	active, err := GetActivePingoraConfigVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	source, err := GetConfigVersionSource(ctx, active)
+	if err != nil {
+		return nil, err
+	}
+	active.SnapshotJSON = source.SnapshotJSON
+	active.MainConfig = source.MainConfig
+	active.RenderedConfig = source.RenderedConfig
+	active.SupportFilesJSON = source.SupportFilesJSON
+	return active, nil
 }
 
 // GetActiveConfigVersionByEngine returns the active version for one release engine.
@@ -70,8 +82,6 @@ func GetActiveConfigVersionByEngine(ctx context.Context, engine string) (*model.
 	}
 	return &version, nil
 }
-
-const engineOpenResty = "openresty"
 
 // GetActivePingoraConfigVersion returns the active Pingora release.
 func GetActivePingoraConfigVersion(ctx context.Context) (*model.ConfigVersion, error) {
@@ -96,37 +106,49 @@ func GetLatestConfigVersionByPrefix(ctx context.Context, prefix string) (string,
 	return version.Version, nil
 }
 
-// PublishConfigVersionTx atomically advances the supplied engine release groups.
-func PublishConfigVersionTx(ctx context.Context, versions ...*model.ConfigVersion) error {
+// PublishConfigVersionTx atomically publishes the only active edge release.
+func PublishConfigVersionTx(ctx context.Context, version *model.ConfigVersion) error {
 	conn := db.DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
 	}
 	return conn.Transaction(func(tx *gorm.DB) error {
-		for _, version := range versions {
-			if version == nil {
-				continue
-			}
-			if version.Engine == "" {
-				version.Engine = engineOpenResty
-			}
-			if err := deactivateActiveConfigVersion(tx, version.Engine); err != nil {
-				return err
-			}
-			if version.Engine == enginePingora {
-				if err := assignPingoraReleaseSequence(tx, version); err != nil {
-					return err
-				}
-			}
-			if err := tx.Create(version).Error; err != nil {
-				return err
-			}
+		if err := tx.Model(&model.ConfigVersion{}).Where("is_active = ?", true).Update("is_active", false).Error; err != nil {
+			return err
 		}
-		return nil
+		version.Engine = enginePingora
+		if err := assignPingoraReleaseSequence(tx, version); err != nil {
+			return err
+		}
+		if version.Version == "" {
+			version.Version = fmt.Sprintf("pingora-r%d", version.ReleaseSequence)
+		}
+		return tx.Create(version).Error
 	})
 }
 
 const enginePingora = "pingora"
+
+// EnsureActivePingoraRelease promotes the current published snapshot once across controllers.
+func EnsureActivePingoraRelease(ctx context.Context, previous, version *model.ConfigVersion) error {
+	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		// Claim the historical active pointer before inserting the replacement.
+		claimed := tx.Model(&model.ConfigVersion{}).
+			Where("engine = ? AND version = ? AND is_active = ?", previous.Engine, previous.Version, true).
+			Update("is_active", false)
+		if claimed.Error != nil || claimed.RowsAffected == 0 {
+			return claimed.Error
+		}
+		if err := deactivateActiveConfigVersion(tx, enginePingora); err != nil {
+			return err
+		}
+		if err := assignPingoraReleaseSequence(tx, version); err != nil {
+			return err
+		}
+		version.Version = fmt.Sprintf("pingora-r%d", version.ReleaseSequence)
+		return tx.Create(version).Error
+	})
+}
 
 func deactivateActiveConfigVersion(tx *gorm.DB, engine string) error {
 	return tx.Model(&model.ConfigVersion{}).
@@ -155,16 +177,13 @@ func ActivateConfigVersionTx(ctx context.Context, version string) (*model.Config
 		if err := tx.First(&target, "version = ?", version).Error; err != nil {
 			return err
 		}
-		if target.Engine == enginePingora && target.SourceVersion == "" {
-			return errors.New("the Edge release does not reference a shared snapshot")
+		if target.Engine != enginePingora || target.PayloadChecksum == "" {
+			return errors.New("the selected version is not a Pingora edge release")
 		}
 		if err := deactivateActiveConfigVersion(tx, target.Engine); err != nil {
 			return err
 		}
 		target.IsActive = true
-		if target.Engine != enginePingora {
-			return tx.Model(&model.ConfigVersion{}).Where("version = ?", version).Update("is_active", true).Error
-		}
 		if err := assignPingoraReleaseSequence(tx, &target); err != nil {
 			return err
 		}

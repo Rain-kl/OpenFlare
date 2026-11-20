@@ -7,17 +7,13 @@ OpenFlare 的最小运行单元包含：
 | 组件 | 职责 |
 | --- | --- |
 | Server | 管理端 UI、管理 API、Agent API、配置渲染、版本发布与状态存储 |
-| Agent | 运行在代理节点上，拉取配置、写入 OpenResty、执行校验与 reload |
-| OpenResty | 实际接收流量并反向代理到源站 |
-
-Agent 统一通过 OpenResty 二进制控制运行时。本地部署需要节点上已有 `openresty` 可执行文件；Docker 部署可直接运行内置 OpenResty 的 Agent 镜像。
+| Pingora Edge | 运行在边缘节点，接收控制端配置并反向代理到源站 |
 
 ## 环境要求
 
 | 项目 | 要求                                                               |
 | --- |------------------------------------------------------------------|
 | Docker / Docker Compose | 用于启动 Server 及其依赖的 PostgreSQL、Valkey；如采用 Docker Agent，也用于运行 Agent |
-| OpenResty | 本地安装 Agent 时需要可执行 `openresty`，或在安装脚本中指定路径                        |
 | 可访问端口 | Server 默认监听 `3000`，Agent 节点需要能访问 Server 地址                       |
 
 ---
@@ -145,64 +141,19 @@ Agent 可以用两类凭证接入：
 
 ---
 
-## 3. 安装/运行 Agent
+## 3. 安装 Pingora Edge
 
-推荐使用 Docker 镜像部署 Agent；也可以通过安装脚本部署到本地宿主机。
-
-### 方式 A：Docker 运行 Agent（推荐）
-
-在代理节点上直接运行 Agent 镜像：
+在 Linux 边缘节点上运行安装脚本。使用发现令牌安装新节点，或从控制台的节点详情复制带专属令牌的命令。
 
 ```bash
-docker pull ghcr.io/rain-kl/openflare-agent:latest
-docker rm -f openflare-agent 2>/dev/null || true
-docker run -d --name openflare-agent --restart unless-stopped \
-  -p 80:80 -p 443:443/tcp -p 443:443/udp \
-  -v openflare-agent-pages:/data/var/lib/openflare/pages \
-  -e OPENFLARE_SERVER_URL=http://your-server:3000 \
-  -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
-  ghcr.io/rain-kl/openflare-agent:latest
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-edge.sh -o install-openflare-edge.sh
+sudo bash install-openflare-edge.sh \
+  --server-url https://openflare.example.com \
+  --token-type discovery \
+  --token '<发现令牌>'
 ```
 
-### 方式 B：执行安装脚本（本地部署）
-
-在代理节点上执行安装脚本。
-
-使用 `discovery_token`：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
-  --server-url http://your-server:3000 \
-  --discovery-token YOUR_DISCOVERY_TOKEN
-```
-
-使用节点专属 `agent_token`：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
-  --server-url http://your-server:3000 \
-  --agent-token YOUR_AGENT_TOKEN
-```
-
-脚本默认会：
-
-| 项目 | 默认值 |
-| --- | --- |
-| 安装目录 | `/opt/openflare-agent` |
-| 配置文件 | `/opt/openflare-agent/agent.json` |
-| systemd 服务 | `openflare-agent.service` |
-| OpenResty 路径 | 未指定时自动查找 `openresty` |
-
-确认 Agent 服务状态：
-
-```bash
-systemctl status openflare-agent
-journalctl -u openflare-agent -f
-```
-
-如果没有 systemd，脚本会输出手动启动命令。
-
----
+安装器创建 `openflare-edge` systemd 服务，默认监听 TCP 80 和 443。控制端需要有生效的站点快照，安装器会等待节点加载快照并报告就绪。登录控制台，在「节点」确认节点在线；按需在「性能策略」批量分配策略。
 
 ## 4. 后续步骤
 

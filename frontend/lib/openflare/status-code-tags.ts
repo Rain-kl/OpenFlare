@@ -1,5 +1,5 @@
 import { runtimeText } from '@/i18n/runtime';
-/** Matches internal/openflare/openresty StatusCodeMin / StatusCodeMax. */
+/** Matches internal/openflare/edgeconfig StatusCodeMin / StatusCodeMax. */
 export const STATUS_CODE_MIN = 400;
 export const STATUS_CODE_MAX = 599;
 

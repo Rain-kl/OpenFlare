@@ -8,7 +8,7 @@ OpenFlare 是一套新一代分布式反向代理与边缘安全网关平台，�
 
 ## 项目定位
 
-OpenFlare 适合需要统一管理多台 OpenResty 代理节点、构建自建高可用边缘网络，或为源站搭建坚固防护网关的团队，具备以下定位：
+OpenFlare 适合需要统一管理多台 Pingora 代理节点、构建自建高可用边缘网络，或为源站搭建坚固防护网关的团队，具备以下定位：
 * **控制与落地分离**：Server 控制面不直接 SSH 到代理节点，而是通过 Agent 主动拉取版本并应用。
 * **Zero-Reload 动态配置同步**：基于 Lua 共享内存实现差分热更新，避免传统 Nginx 频繁 reload 导致的连接抖动。
 * **一体化边缘安全网关**：在同一个控制面内集成反向代理、TLS 证书自动续期、WAF 防护拦截、Turnstile-like 客户端 PoW 防 CC 盾、内网穿透（Tunnel）以及 Pages 静态网站托管。
@@ -24,13 +24,13 @@ OpenFlare 适合需要统一管理多台 OpenResty 代理节点、构建自建�
 | --- | --- | --- |
 | **反代配置管理** | 以网站规则（Proxy Route）为聚合边界，支持多域名与多上游负载均衡 | [新建反代配置](../guide/proxy-config.md) |
 | **源站错误页** | 全局可配置：源站/网关匹配状态码时返回 OpenFlare 默认或自定义 HTML，HTTP 状态码保持原值 | [源站错误页设计](./origin-error-page.md) |
-| **边缘缓存** | 单节点 OpenResty `proxy_cache`；默认 static 扩展名 + 源站头/Set-Cookie 闸门 + 默认 Edge TTL（对标 CF 默认模型） | [边缘缓存策略设计](./edge-cache-design.md) |
+| **边缘缓存** | Pingora 节点内存缓存；默认 static 扩展名 + 源站头/Set-Cookie 闸门 + 默认 Edge TTL（对标 CF 默认模型） | [边缘缓存策略设计](./edge-cache-design.md) |
 | **Zone 与域名管理** | 以可注册根域为管理入口，聚合明确域名、域名证书与反代路由 | [Zone 与域名资源设计](./zone-design.md) |
 | **Cloudflare DNS 指向** | 以 ZoneDomain 为粒度，将单条 Cloudflare A 记录幂等指向边缘节点 IPv4；支持连接配置、分组、成员橙云与异步同步，一期不含自动故障切换 | [Cloudflare DNS 指向设计](./cloudflare-pointing.md) |
 | **配置版本控制** | 支持全局单一激活版本的预览、发布、不可变快照历史与秒级一键回滚 | [Agent 与发布模型](./agent-design.md) |
 | **WAF 安全防护** | 支持可视化 DAG 编排规则、手动/自动/订阅型 IP 组、GeoIP 匹配与 PoW CC 防护 | [WAF 设计](./waf-design.md) / [WAF 可编排规则设计](./waf-orchestration-design.md) / [WAF 使用指南](../guide/waf-usage.md) |
 | **内网穿透** | 通过中继节点（Relay）与内网客户端（OpenFlared），反向穿透暴露内网 Web 服务 | [内网穿透设计](./tunnel-design.md) / [穿透使用指南](../guide/tunnel-usage.md) |
-| **Pages 静态托管** | 支持上传或从 Remote URL、公开 GitHub Release 同步预构建产物；GitHub latest 可定时检查并可选自动发布。不可变部署由边缘节点拉取并由 OpenResty 本地服务，支持回滚、API 反代与 SPA Fallback | [Pages 静态托管设计](./pages-design.md) / [Pages 使用指南](../guide/pages-usage.md) |
+| **Pages 静态托管** | 支持上传或从 Remote URL、公开 GitHub Release 同步预构建产物；GitHub latest 可定时检查并可选自动发布。不可变部署由边缘节点拉取并由 Pingora 本地服务，支持回滚、API 反代与 SPA Fallback | [Pages 静态托管设计](./pages-design.md) / [Pages 使用指南](../guide/pages-usage.md) |
 | **TLS 证书自动续期** | 将证书显式绑定到 Zone 域名，并通过 ACME 协议向 Let's Encrypt 申请/续期证书 | [Zone 与域名资源设计](./zone-design.md) |
 | **多节点监控与观测** | 访问日志为业务流量唯一真相；Agent 只上报明细与主机读数，Server 统一聚合；与 Zone/看板对账 | [观测数据传输模型](./observability-transport-model.md) / [边缘可观测与业务流量统计](./observability-design.md) / [上报协议与表结构](./observability-data-model.md) / [系统架构](./architecture.md) |
 | **日志存储** | 访问日志与可观测时序走可切换日志主库（随业务主库或 ClickHouse）；关闭 ClickHouse 后仍可写可查 | [日志存储解耦](./logstore.md) |
@@ -50,7 +50,7 @@ OpenFlare 适合需要统一管理多台 OpenResty 代理节点、构建自建�
 ### 2. WAF 安全边界
 * **白名单优先原则**：白名单拥有绝对匹配权。若未命中白名单规则，才依次触发全局和自定义黑名单过滤。
 * **GeoIP 弱依赖性**：地域准入解析完全依赖节点本地 MaxMind 库。当 GeoIP 异常或解析失败时，系统必须自动忽略地域规则，**绝对不能**破坏 IP 组过滤和反代主链路的可用性。
-* **运行时数据解耦**：OpenResty 拦截时仅读取 Agent 同步至本地的 JSON，不与 Server 数据库通信。IP 组成员同步与版本发布解耦，通过 Checksum 差分拉取以实现零重载平滑生效。
+* **运行时数据解耦**：Pingora 通过内存快照执行规则，不与 Server 数据库通信。IP 组成员同步与版本发布解耦，通过 Checksum 差分拉取以实现零重载平滑生效。
 
 ### 3. 内网穿透边界
 * **仅限 HTTP 流量**：穿透组件仅支持 HTTP/HTTPS 协议（底层依靠 frp 虚拟主机 Vhost 机制实现单端口域名路由复用），暂不支持单独的 TCP/UDP 端口分配。
@@ -97,7 +97,7 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 | `internal/apps/openflare/` | OpenFlare 控制面业务域（`routers.go` + `logics.go`、`tasks/`、`logwriter/`） |
 | `internal/apps/{admin,user,oauth,upload,cap,...}/` | Wavelet 平台能力（用户、认证、上传、任务、推送等） |
 | `internal/apps/openflare/{agent,relay,flared}/` | **Server 侧**边缘协议处理器（鉴权、心跳、WS） |
-| `internal/openflare/` | OpenFlare 跨端共享域模块：`protocol/`、`openresty/`、`pagesarchive/`、`routeidentity/` |
+| `internal/openflare/` | OpenFlare 跨端共享域模块：`protocol/`、`edgeconfig/`、`pagesarchive/`、`routeidentity/` |
 | `internal/edge/` | 边缘运行时共享基础与端侧实现：`common/`、`agent/`、`relay/`、`flared/` |
 | `internal/model/` | GORM 实体 / DTO / 无 IO 领域规则（`openflare_*.go` + 平台模型）；**不含** DB 访问 |
 | `internal/infra/persistence/migrator/goose/` | goose SQL 迁移（PostgreSQL / SQLite / ClickHouse） |
@@ -117,23 +117,9 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 | `/api/v1/tunnel/*` | Tunnel 客户端协议 | `X-Tunnel-Token` |
 | `/api/v1/admin/*` | Wavelet 平台管理 API | 管理员 Session |
 
-### 2. Agent 模块 (`internal/edge/agent/` / `cmd/agent/`)
+### 2. Pingora 边缘节点
 
-> 通用边缘能力（`config/`、`heartbeat/`、`httpclient/`、`logging/`、`nodeip/`、`observability/`、`runner/`、`updater/`、`wsclient/`）沉淀在 `internal/edge/common/`；协议模型共用 `internal/openflare/protocol/`。
-
-| 目录/模块 | 职责 |
-| --- | --- |
-| `cmd/agent/` | Agent 命令行启动入口及主函数 |
-| `internal/edge/agent/config/` | 配置读取与默认值 |
-| `internal/edge/agent/heartbeat/` | 心跳与版本摘要判断 |
-| `internal/edge/agent/sync/` | 配置拉取与应用编排 |
-| `internal/edge/agent/nginx/` | OpenResty 文件写入、校验、reload、启动与回滚 |
-| `internal/edge/agent/state/` | 本地状态与观测补报缓冲 |
-| `internal/edge/agent/httpclient/` | Server 通信 |
-| `internal/edge/agent/observability/` | 可观测性（指标、链路等） |
-| `internal/edge/agent/geoipupdate/` | GeoIP 数据更新 |
-| `internal/edge/agent/localfile/`、`runtimeuser/` | 本地状态文件管理与运行时权限控制 |
-| `internal/edge/agent/agent/` | 核心 Agent 逻辑与生命周期 |
+节点运行时位于 `edge/pingora/`。控制端通过配置清单分发站点、WAF IP 组和性能策略，节点校验后更新本地数据面。详见 [Pingora 边缘节点设计](./pingora-edge-design.md)。
 
 ### 3. Frontend 分层 (`frontend/`)
 

@@ -214,8 +214,8 @@ func RequestAgentUpdateHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(view))
 }
 
-// RequestOpenrestyRestartHandler requests openresty restart on a node.
-// @Summary 请求重启 OpenResty
+// RequestEdgeRestartHandler requests openresty restart on a node.
+// @Summary 请求重启 Pingora
 // @Description 向指定节点下发 OpenResty 重启指令，需要管理员权限
 // @Tags openflare-node
 // @Produce json
@@ -225,13 +225,13 @@ func RequestAgentUpdateHandler(c *gin.Context) {
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 404 {object} response.Any "无权限或节点不存在"
-// @Router /api/v1/d/nodes/{id}/openresty-restart [post]
-func RequestOpenrestyRestartHandler(c *gin.Context) {
+// @Router /api/v1/d/nodes/{id}/edge-restart [post]
+func RequestEdgeRestartHandler(c *gin.Context) {
 	id, ok := httpx.IDParam(c)
 	if !ok {
 		return
 	}
-	view, err := RequestOpenrestyRestart(c.Request.Context(), id)
+	view, err := RequestEdgeRestart(c.Request.Context(), id)
 	if handleLogicError(c, err) {
 		return
 	}

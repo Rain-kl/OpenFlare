@@ -1,0 +1,246 @@
+{
+  "performancePolicies": {
+    "title": "性能策略",
+    "description": "按节点规格配置 Pingora。已连接的节点在策略保存后开始同步。",
+    "create": "新建策略",
+    "edit": "编辑策略",
+    "delete": "删除策略",
+    "loadFailed": "无法加载性能策略。",
+    "retry": "重新加载",
+    "operationFailed": "无法保存更改。",
+    "empty": "当前没有性能策略。",
+    "assignedCount": "已分配 {count} 个节点",
+    "threadAuto": "自动线程数",
+    "threadCount": "{count} 个工作线程",
+    "poolSize": "连接池容量 {count}",
+    "assign": "分配节点",
+    "editDescription": "新策略已填入默认参数。修改线程、监听器等启动参数时，节点会自动重载。",
+    "name": "策略名称",
+    "save": "保存策略",
+    "cancel": "取消",
+    "saved": "性能策略已保存。",
+    "assigned": "节点分配已保存。",
+    "deleted": "性能策略已删除。",
+    "deleteTitle": "删除「{name}」",
+    "deleteDescription": "使用此策略的节点将恢复默认参数。",
+    "assignTitle": "为「{name}」分配节点",
+    "assignDescription": "每个节点使用一条策略。选中节点将使用此策略，取消已分配的节点将恢复默认参数。",
+    "search": "搜索节点名称或 ID",
+    "selectAll": "选择筛选结果",
+    "noNodes": "没有匹配的 Pingora 节点。",
+    "defaults": "默认参数",
+    "applyCount": "保存分配（{count}）",
+    "range": "允许范围为 {min} 至 {max}。",
+    "groups": {
+      "runtime": "运行时",
+      "upstream": "回源连接",
+      "http2": "HTTP/2",
+      "tls": "TLS 线程池",
+      "listener": "监听器",
+      "cache": "缓存"
+    },
+    "choices": {
+      "h1": "HTTP/1.1",
+      "h2h1": "优先 HTTP/2",
+      "h2": "仅 HTTP/2"
+    },
+    "fields": {
+      "threads": {
+        "label": "工作线程数",
+        "help": "填入节点的 CPU 核心数作为起点。"
+      },
+      "threads_auto": {
+        "label": "自动配置线程数",
+        "help": "使用节点进程可用的 CPU 核心数。"
+      },
+      "work_stealing": {
+        "label": "任务窃取",
+        "help": "允许空闲线程处理其他线程队列中的任务。"
+      },
+      "listener_tasks_per_fd": {
+        "label": "每个监听套接字的任务数",
+        "help": "增加此值可并行接受连接。"
+      },
+      "upstream_keepalive_pool_size": {
+        "label": "空闲回源连接池容量",
+        "help": "增加此值可提高连接复用率，也会占用更多文件描述符。"
+      },
+      "max_retries": {
+        "label": "回源尝试上限",
+        "help": "包含首次尝试。设为 1 时不重试。"
+      },
+      "runtime_enable_alt_timer": {
+        "label": "备用运行时计时器",
+        "help": "使用备用 Tokio 计时器，需要开启任务窃取。"
+      },
+      "fast_timeout_to_tokio_threshold_seconds": {
+        "label": "Tokio 计时器阈值",
+        "help": "单位为秒。达到此时长的超时交给 Tokio。"
+      },
+      "runtime_metrics_poll_time_histogram": {
+        "label": "任务轮询耗时统计",
+        "help": "收集异步任务轮询耗时的直方图。"
+      },
+      "connection_timeout": {
+        "label": "TCP 建连超时",
+        "help": "单位为秒，0 表示使用运行时默认行为。"
+      },
+      "total_connection_timeout": {
+        "label": "总建连超时",
+        "help": "单位为秒，包含 TLS 握手。0 表示使用运行时默认行为。"
+      },
+      "read_timeout": {
+        "label": "回源读取超时",
+        "help": "单位为秒，0 表示使用运行时默认行为。"
+      },
+      "write_timeout": {
+        "label": "回源写入超时",
+        "help": "单位为秒，0 表示使用运行时默认行为。"
+      },
+      "idle_timeout": {
+        "label": "空闲回源连接保留时间",
+        "help": "单位为秒，0 表示使用运行时默认行为。"
+      },
+      "upstream_tcp_keepalive": {
+        "label": "回源 TCP 保活",
+        "help": "空闲 60 秒后探测，每 15 秒一次，最多 4 次。"
+      },
+      "upstream_tcp_recv_buf": {
+        "label": "回源 TCP 接收缓冲区",
+        "help": "单位为字节，0 表示使用系统默认值。"
+      },
+      "verify_cert": {
+        "label": "验证源站证书",
+        "help": "验证 TLS 证书的信任链。"
+      },
+      "verify_hostname": {
+        "label": "验证源站主机名",
+        "help": "匹配 TLS 证书的主机名，需要开启证书验证。"
+      },
+      "upstream_alpn": {
+        "label": "TLS 回源协议",
+        "help": "选择 HTTPS 回源时协商的 HTTP 协议。"
+      },
+      "max_h2_streams": {
+        "label": "回源 HTTP/2 并发流数",
+        "help": "限制每条 HTTP/2 回源连接同时使用的流数。"
+      },
+      "h2_ping_interval": {
+        "label": "回源 HTTP/2 PING 间隔",
+        "help": "单位为秒，0 表示关闭。"
+      },
+      "h2_stream_window_size": {
+        "label": "回源 HTTP/2 单流窗口",
+        "help": "接收流量的初始窗口，单位为字节。"
+      },
+      "h2_connection_window_size": {
+        "label": "回源 HTTP/2 连接窗口",
+        "help": "整条连接的初始接收窗口，单位为字节。"
+      },
+      "max_concurrent_streams": {
+        "label": "下游 HTTP/2 并发流数",
+        "help": "限制每条客户端连接同时使用的流数。"
+      },
+      "initial_window_size": {
+        "label": "下游 HTTP/2 单流窗口",
+        "help": "每条流的初始接收窗口，单位为字节。"
+      },
+      "initial_connection_window_size": {
+        "label": "下游 HTTP/2 连接窗口",
+        "help": "每条客户端连接的初始接收窗口，单位为字节。"
+      },
+      "max_frame_size": {
+        "label": "下游 HTTP/2 最大帧大小",
+        "help": "HTTP/2 帧载荷的字节数上限。"
+      },
+      "max_header_list_size": {
+        "label": "下游 HTTP/2 请求头上限",
+        "help": "解压后的请求头列表大小上限，单位为字节。"
+      },
+      "header_table_size": {
+        "label": "下游 HPACK 表大小",
+        "help": "单位为字节，0 表示停用动态表。"
+      },
+      "max_send_buffer_size": {
+        "label": "下游 HTTP/2 单流发送缓冲区",
+        "help": "缓冲区上限，单位为字节。"
+      },
+      "upstream_connect_offload_threadpools": {
+        "label": "回源建连专用线程池数",
+        "help": "0 表示在常规工作线程中建连。"
+      },
+      "upstream_connect_offload_thread_per_pool": {
+        "label": "每个回源建连池的线程数",
+        "help": "回源建连专用线程池启用后生效。"
+      },
+      "downstream_tls_offload_threadpools": {
+        "label": "下游 TLS 握手专用线程池数",
+        "help": "0 表示在常规工作线程中握手。"
+      },
+      "downstream_tls_offload_thread_per_pool": {
+        "label": "每个 TLS 握手池的线程数",
+        "help": "下游 TLS 握手专用线程池启用后生效。"
+      },
+      "keepalive_request_limit": {
+        "label": "单条连接的请求数上限",
+        "help": "适用于 HTTP/1.x。0 表示不限。"
+      },
+      "h2_idle_timeout": {
+        "label": "下游 HTTP/2 空闲超时",
+        "help": "单位为秒，0 表示不主动关闭空闲连接。"
+      },
+      "h2c": {
+        "label": "明文 HTTP/2",
+        "help": "允许客户端通过明文监听器连接 HTTP/2。"
+      },
+      "so_reuseport": {
+        "label": "监听端口复用",
+        "help": "允许多个套接字绑定同一地址和端口。"
+      },
+      "tcp_fastopen": {
+        "label": "TCP Fast Open 队列长度",
+        "help": "需要操作系统支持。0 表示关闭。"
+      },
+      "listener_tcp_keepalive": {
+        "label": "下游 TCP 保活",
+        "help": "空闲 60 秒后探测，每 15 秒一次，最多 4 次。"
+      },
+      "tcp_snd_buf": {
+        "label": "下游 TCP 发送缓冲区",
+        "help": "单位为字节，0 表示使用系统默认值。"
+      },
+      "tcp_recv_buf": {
+        "label": "下游 TCP 接收缓冲区",
+        "help": "单位为字节，0 表示使用系统默认值。"
+      },
+      "ipv6_only": {
+        "label": "IPv6 监听器仅接受 IPv6",
+        "help": "仅影响绑定至 IPv6 地址的监听器。"
+      },
+      "dscp": {
+        "label": "下游 DSCP 标记",
+        "help": "取值为 0 至 63。0 表示沿用默认值。"
+      },
+      "cache_enabled": {
+        "label": "节点缓存",
+        "help": "开启后，站点级缓存规则可以在该节点生效。"
+      },
+      "cache_capacity_mib": {
+        "label": "缓存容量",
+        "help": "内存缓存的对象容量，单位为 MiB。"
+      },
+      "cache_max_object_mib": {
+        "label": "最大缓存对象",
+        "help": "单个缓存对象的大小上限，单位为 MiB。"
+      },
+      "cache_lock_wait_timeout": {
+        "label": "缓存锁等待超时",
+        "help": "同一对象正在回源时允许等待的秒数。"
+      },
+      "cache_max_lock_retries": {
+        "label": "缓存锁重试上限",
+        "help": "等待结束后重新查询缓存的次数。"
+      }
+    }
+  }
+}

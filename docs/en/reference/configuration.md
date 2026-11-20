@@ -126,11 +126,14 @@ All Server core base config is defined in `config.yaml`, and every field support
 | `log.max_size` | - | max single log file size (MB); auto-rotates beyond | `100` |
 | `log.max_age` | - | max days to keep rotated log files | `30` |
 
-### 6. Async Task Worker Queue Config (`worker:`)
-| YAML path | Override env var | Description | Default |
+### 6. Pingora performance and site policy
+
+Use **Performance policies** to configure runtime, origin connections, HTTP/2, TLS, listeners, and caching independently for each edge node.
+
+| Key | Type | Purpose | Default |
 | --- | --- | --- | --- |
-| `worker.concurrency` | `WORKER_CONCURRENCY` | max concurrent tasks consumed by the background Worker | `20` |
-| `worker.strict_priority`| `WORKER_STRICT_PRIORITY` | strictly assign consumer threads by queue priority (else weighted round-robin) | `false` |
+
+| `edge_trusted_proxy_cidrs` | JSON string array | CIDRs trusted to send the `CF-Connecting-IP` header | Cloudflare CIDRs |
 
 ### 7. Tracing OpenTelemetry Config (`otel:`)
 | YAML path | Override env var | Description | Default |
@@ -254,10 +257,10 @@ These items are stored in the `w_system_configs` table. Changes actively notify 
 | `openresty_cache_lock_enabled` | `bool` | queue/lock origin connections on high-concurrency cache misses for the same expired resource | `true` |
 | `openresty_cache_lock_timeout` | `string` | max queue wait for the proxy cache lock | `5s` |
 | `openresty_cache_use_stale` | `string` | serve stale cache on specific origin errors (500/502/504 etc.) | `error timeout updating http_500 http_502 http_503 http_504` |
-| `openresty_default_limit_conn_per_server` | `int` | default concurrent-connection cap per server when a site has no config; `0` = off | `0` |
-| `openresty_default_limit_conn_per_ip` | `int` | default per-IP concurrent cap when a site has no config; `0` = off | `0` |
-| `openresty_default_limit_rate` | `string` | default per-request bandwidth when a site has no config (e.g. `512k`); empty = off | empty |
-| `openresty_default_limit_req_per_ip` | `string` | default per-IP request rate limit when a site has no config (e.g. `10r/s`, `100r/m`); empty = off | empty |
+| `edge_default_limit_conn_per_server` | `int` | default concurrent-connection cap per server when a site has no config; `0` = off | `0` |
+| `edge_default_limit_conn_per_ip` | `int` | default per-IP concurrent cap when a site has no config; `0` = off | `0` |
+| `edge_default_limit_rate` | `string` | default per-request bandwidth when a site has no config (e.g. `512k`); empty = off | empty |
+| `edge_default_limit_req_per_ip` | `string` | default per-IP request rate limit when a site has no config (e.g. `10r/s`, `100r/m`); empty = off | empty |
 | `openresty_main_config_template` | `string` | fully rewrite the OpenResty nginx.conf skeleton template | empty (built-in default skeleton) |
 
 ### 7. Origin Error Page
@@ -298,67 +301,9 @@ Runtime config after log-store decoupling: the log primary DB is managed by theã
 
 ---
 
-## Agent Env Vars
+## Pingora Edge startup arguments
 
-| Env var | Purpose | Default |
-| --- | --- | --- |
-| `LOG_LEVEL` | Agent log level | `info` |
-| `OPENFLARE_SERVER_URL` | control-plane address, overrides `agent.json` | empty |
-| `OPENFLARE_AGENT_TOKEN` | node-specific auth Token, overrides `agent.json` | empty |
-| `OPENFLARE_DISCOVERY_TOKEN` | first-time auto-registration Token, overrides `agent.json` | empty |
-| `OPENFLARE_NODE_NAME` | node name, overrides `agent.json` | empty |
-| `OPENFLARE_NODE_IP` | node IP, overrides `agent.json` | empty |
-| `OPENFLARE_DATA_DIR` | Agent data dir, overrides `agent.json` | empty |
-| `OPENFLARE_OPENRESTY_PATH` | OpenResty binary path, overrides `agent.json` | empty |
-| `OPENFLARE_PAGES_DIR` | Pages static deployment dir, overrides `agent.json` | empty |
-| `OPENFLARE_HEARTBEAT_INTERVAL` | heartbeat interval, overrides `agent.json` | empty |
-| `OPENFLARE_REQUEST_TIMEOUT` | request timeout, overrides `agent.json` | empty |
-| `OPENFLARE_OPENRESTY_OBSERVABILITY_PORT` | local observability port, overrides `agent.json` | empty |
-| `OPENFLARE_MMDB_PATH` | WAF GeoIP mmdb path, overrides `agent.json` | empty |
-| `OPENFLARE_MMDB_UPDATE_INTERVAL` | WAF GeoIP mmdb update interval, overrides `agent.json` | empty |
-| `OPENFLARE_MMDB_DOWNLOAD_URL` | WAF GeoIP mmdb download URL, overrides `agent.json` | empty |
-| `OPENFLARE_CITY_MMDB_PATH` | WAF City MMDB path, overrides `agent.json` | empty |
-| `OPENFLARE_CITY_MMDB_DOWNLOAD_URL` | WAF City MMDB download URL, overrides `agent.json` | empty |
-
----
-
-## Agent CLI Args and Config Fields
-
-### CLI Args
-- `-config`: Agent config file path, default `./agent.json`.
-
-### Config File Fields (agent.json)
-| Field | Purpose | Required | Default/Behavior |
-| --- | --- | --- | --- |
-| `server_url` | control-plane address | yes | none |
-| `agent_token` | node-specific auth Token | one of two with `discovery_token` | empty |
-| `discovery_token` | global Token for first-time auto-registration | one of two with `agent_token` | empty |
-| `node_name` | node name | no | hostname automatically |
-| `node_ip` | node IP | no | auto-detected, prefers the public egress IP; falls back to local NIC detection on failure |
-| `openresty_path` | OpenResty binary path | no | `openresty` |
-| `openresty_observability_port` | local observability & OpenResty health-check port | no | `18081` |
-| `data_dir` | Agent data dir | no | `data` next to the config file |
-| `main_config_path` | OpenResty main config write path | no | `data_dir/etc/nginx/nginx.conf` |
-| `route_config_path` | route config write path | no | `data_dir/etc/nginx/conf.d/openflare_routes.conf` |
-| `access_log_path` | OpenResty access log path | no | `data_dir/var/log/openflare/access.log` |
-| `cert_dir` | certificate write dir | no | `data_dir/etc/nginx/certs` |
-| `openresty_cert_dir` | certificate dir read by the OpenResty config | no | same as `cert_dir` |
-| `lua_dir` | Lua scripts & static assets write dir | no | `data_dir/etc/nginx/lua` |
-| `openresty_lua_dir` | Lua dir read by the OpenResty config | no | same as `lua_dir` |
-| `runtime_config_dir` | Agent runtime config write dir, e.g. `pow_config.json` | no | `data_dir/etc/openflare` |
-| `pages_dir` | Pages deployment package extraction & current deploy dir | no | `data_dir/var/lib/openflare/pages` |
-| `mmdb_path` | WAF GeoIP mmdb file path | no | `data_dir/etc/openflare/GeoLite2-Country.mmdb` |
-| `city_mmdb_path` | WAF City MMDB file path | no | `data_dir/etc/openflare/GeoLite2-City.mmdb` |
-| `mmdb_update_interval` | WAF GeoIP mmdb update interval | no | `86400000` ms (24h) |
-| `mmdb_download_url` | WAF GeoIP mmdb periodic update URL | no | GeoLite2 Country update URL; first download when the disk file is missing (Docker images COPY default-path files) |
-| `city_mmdb_download_url` | WAF City MMDB periodic update URL | no | GeoLite2 City update URL; first download when the disk file is missing (Docker images COPY default-path files) |
-| `observability_buffer_path` | observability backfill buffer file path | no | `data_dir/var/lib/openflare/observability-buffer.json` |
-| `observability_replay_minutes` | auto-backfill recent observability window (minutes) | no | `60` |
-| `state_path` | Agent local state file path | no | `data_dir/var/lib/openflare/agent-state.json` |
-| `heartbeat_interval` | heartbeat interval | no | `3000` ms |
-| `request_timeout` | HTTP request timeout | no | `10000` ms |
-
----
+`openflare-edge run` accepts `--server-url`, `--token-type discovery|node`, `--token-file`, `--state-dir`, `--http-listen`, and optionally `--tls-listen`. The systemd installer defaults to ports 80 and 443 and stores node state in `/var/lib/openflare-edge`.
 
 ## Relay Env Vars and Config Fields
 

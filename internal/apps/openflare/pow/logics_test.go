@@ -10,7 +10,7 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openresty "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -40,8 +40,8 @@ func TestIndependentPolicyLifecycle(t *testing.T) {
 		}
 	}
 	ctx := context.Background()
-	config := openresty.DefaultPoWConfig()
-	config.PathRules = &openresty.PoWPathRules{Mode: "blacklist", Blacklist: []openresty.PoWPathMatch{{Type: "prefix", Value: "/admin/"}}}
+	config := edgeconfig.DefaultPoWConfig()
+	config.PathRules = &edgeconfig.PoWPathRules{Mode: "blacklist", Blacklist: []edgeconfig.PoWPathMatch{{Type: "prefix", Value: "/admin/"}}}
 	input := Policy{Enabled: true, Config: config}
 	if err := SavePolicy(ctx, 1, input); err != nil {
 		t.Fatalf("SavePolicy(route 1) error = %v", err)

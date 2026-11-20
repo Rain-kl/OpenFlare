@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/subtle"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
@@ -49,7 +48,7 @@ func RegisterWithAccessToken(ctx context.Context, authNode *model.OpenFlareNode,
 		if releaseErr != nil && !isActiveConfigNotFound(releaseErr) {
 			return nil, releaseErr
 		}
-		if release == nil || release.SourceVersion == "" || release.PayloadChecksum == "" {
+		if release == nil || release.PayloadChecksum == "" {
 			return nil, errors.New(errPingoraReleaseRequired)
 		}
 	}
@@ -167,16 +166,8 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 		authNode = fresh
 	}
 	previous := *authNode
-	updateNow := authNode.UpdateRequested
-	restartOpenrestyNow := authNode.RestartOpenrestyRequested
-	updateChannel := strings.TrimSpace(authNode.UpdateChannel)
-	updateTag := strings.TrimSpace(authNode.UpdateTag)
-
-	payload.Engine = normalizeEngine(authNode.Engine)
+	restartEdgeNow := authNode.RestartOpenrestyRequested
 	applyNodeRuntime(ctx, authNode, payload, true)
-	authNode.UpdateRequested = false
-	authNode.UpdateChannel = releaseChannelStable
-	authNode.UpdateTag = ""
 	authNode.RestartOpenrestyRequested = false
 
 	if err := persistNodeRuntime(ctx, &previous, authNode); err != nil {
@@ -194,43 +185,11 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 	}
 	PersistHeartbeatObservability(ctx, authNode.NodeID, payload, reportedAt)
 
-	activeConfig, err := getActiveConfigMetaByEngine(ctx, authNode.Engine)
-	if err != nil && !isActiveConfigNotFound(err) {
-		return nil, err
-	}
-
-	wafIPGroups, err := changedWAFIPGroups(ctx, nil, payload.WAFIPGroupChecksums, normalizeEngine(authNode.Engine))
-	if err != nil {
-		return nil, err
-	}
-
 	return &HeartbeatResponse{
+		Config:        configManifest(ctx, authNode),
 		Node:          authNode,
-		AgentSettings: buildAgentSettings(ctx, authNode, updateNow, updateChannel, updateTag, restartOpenrestyNow),
-		ActiveConfig:  activeConfig,
-		WAFIPGroups:   wafIPGroups,
+		AgentSettings: buildAgentSettings(ctx, restartEdgeNow),
 	}, nil
-}
-
-// GetActiveConfig returns the active configuration for an agent.
-func GetActiveConfig(ctx context.Context, siteAuthSupported bool) (*ConfigResponse, error) {
-	config, err := getActiveConfigForAgent(ctx, siteAuthSupported)
-	if err != nil {
-		if isActiveConfigNotFound(err) {
-			return nil, errors.New(errNoActiveConfig)
-		}
-		return nil, err
-	}
-	return config, nil
-}
-
-// SyncWAFIPGroups returns WAF IP groups whose checksums differ from the agent state.
-func SyncWAFIPGroups(ctx context.Context, input protocol.WAFIPGroupSyncRequest) (*protocol.WAFIPGroupSyncResponse, error) {
-	groups, err := ChangedWAFIPGroupsForAgent(ctx, input.IDs, input.Checksums)
-	if err != nil {
-		return nil, err
-	}
-	return &protocol.WAFIPGroupSyncResponse{Groups: groups}, nil
 }
 
 // ReportApplyLog records an agent apply result.

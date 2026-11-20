@@ -1,8 +1,8 @@
 # 故障排查
 
-你会学到：如何按症状排查 OpenFlare Server、数据库、登录、Agent、OpenResty 和配置发布问题。
+你会学到：如何按症状排查 OpenFlare Server、数据库、登录、Pingora Edge 和配置发布问题。
 
-排查时先确认问题发生在哪一层：浏览器、Server、数据库、Agent、OpenResty、源站或 DNS。OpenFlare 的配置不会直接在线写入所有节点，只有激活版本变化后，Agent 才会在 heartbeat 中发现并应用。
+排查时先确认问题发生在哪一层：浏览器、Server、数据库、Pingora Edge、源站或 DNS。节点收到 WebSocket 通知后会重新获取配置清单，也会通过周期心跳重新同步。
 
 ## 快速定位
 
@@ -13,8 +13,8 @@
 | 数据无法保存 | 数据库连接、SQLite 文件权限、PostgreSQL 健康状态 |
 | Agent 离线 | Agent 日志、Token、Server 地址、网络连通性 |
 | 发布后节点未更新 | 激活版本、节点 heartbeat、应用记录 |
-| OpenResty 应用失败 | 应用记录、Agent 日志、证书、上游地址、端口占用 |
-| 访问分析无数据 | OpenResty 容器状态、观测端口、Agent 补报日志 |
+| Pingora 配置应用失败 | 应用记录、Edge 日志、证书、源站地址、端口占用 |
+| 访问分析无数据 | 节点心跳、Edge 访问日志队列和控制端日志 |
 | 静态资源总不命中缓存 | 全局/站点缓存开关、策略扩展名、配置是否已发布、访问日志 `cache_status`、源站 Set-Cookie / Cache-Control |
 
 ## Server 无法启动
@@ -138,35 +138,12 @@ journalctl -u openflare-agent -f
 
 注意：某个目标 `version + checksum` 一旦应用失败并回退，Agent 会在本地状态中阻断该目标重复应用。修正配置后需要重新发布生成新的 checksum，或激活旧版本回滚。
 
-如果这是 Agent 首次应用配置，且本地没有历史 `nginx.conf` 可回滚，失败目标仍会被阻断，但 Agent 会尝试进入安全兜底运行态。此时应用记录和 Agent 日志会包含 `fallback runtime started`，OpenResty 对外只监听 `80` 端口并统一返回 `503` 与 `OpenFlare: No Valid Configuration`，同时保留本地 `stub_status` 健康检查入口。修正配置并重新发布新版本后，Agent 会覆盖兜底配置并恢复正常代理。
+已有可用快照时，节点在候选配置校验失败后继续使用当前配置。首次应用失败时，请检查「应用记录」并重新发布。
 
-## OpenResty 应用失败
+## Pingora 配置应用失败
 
-常见原因：
+使用 `systemctl status openflare-edge` 查看服务状态，并通过 `journalctl -u openflare-edge` 查看节点拉取、校验、应用和监听日志。节点的 `ready.json` 包含实际加载的站点版本和内容摘要。
 
-| 原因 | 排查 |
-| --- | --- |
-| 域名或 server 块冲突 | 检查同一域名是否被多个网站配置使用 |
-| 上游地址不合法 | 确认所有上游都是 `http://` 或 `https://` |
-| 多上游格式不符合约束 | 多上游必须是纯 `scheme://host[:port]` |
-| 证书缺失或路径错误 | 检查域名是否绑定证书，以及 Agent 证书目录是否可写 |
-| 端口被占用 | 检查本机 `80`、`443` 端口 |
-
-OpenResty 配置校验：
-
-```bash
-openresty -t -c /path/to/openflare/data/etc/nginx/nginx.conf
-```
-
-OpenResty 运行状态：
-
-```bash
-ps aux | grep openresty
-```
-
-Agent 周期性健康检查通过本地 `http://127.0.0.1:<openresty_observability_port>/openflare/stub_status` 判断 OpenResty 是否存活，不会反复执行 `openresty -t`。如果节点被标记为 unhealthy，优先确认该本地观测端口是否正在监听；如果只在应用配置时出现 `host not found in upstream`，说明失败来自配置校验或 reload，而不是周期性健康探针。
-
-实际二进制路径和主配置路径以 `agent.json` 中的 `openresty_path` 与 `main_config_path` 为准。
 
 ## HTTPS 不生效
 
@@ -185,9 +162,9 @@ curl -Iv https://your-domain
 ## 访问分析没有数据
 
 1. 确认节点已经成功应用包含观测 Lua 资源的配置。
-2. 确认 OpenResty 正在运行。
+2. 确认 `openflare-edge` 服务正在运行。
 3. 查看 Agent 日志是否有观测采集或补报失败信息。
-4. 检查 `openresty_observability_port` 是否被占用，默认是 `18081`。
+4. 检查边缘节点的访问日志是否通过心跳提交。
 5. 确认 Server 侧没有因数据库清理策略删除对应时间窗口数据。
 
 ## 边缘缓存命中率异常
@@ -196,7 +173,7 @@ curl -Iv https://your-domain
 
 ### 检查清单
 
-1. **性能设置** 中全局 OpenResty 缓存已开启。  
+1. 节点性能策略中的缓存开关已开启。
 2. 站点 **缓存** 已启用，策略与路径匹配（「标准静态资源」只覆盖内置扩展名，**不含** HTML/JSON；`.js.map` 的扩展名是 `map`，在默认表内）。  
 3. 已 **发布并激活** 配置版本，对应节点应用记录成功（改缓存规则不发布则节点仍用旧旁路逻辑）。  
 4. 请求方法为 **GET**（非 GET 一律不缓存）。  

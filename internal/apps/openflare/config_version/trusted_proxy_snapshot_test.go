@@ -12,50 +12,24 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/pkg/cache/ram"
 )
 
-func TestTrustedProxyCIDRsSurviveSnapshotRendering(t *testing.T) {
+func TestTrustedProxyCIDRsSurviveSnapshotEncoding(t *testing.T) {
 	snapshot := snapshotDocument{
-		OpenRestyConfig: openRestyConfigSnapshot{
-			MainConfigTemplate: model.DefaultOpenRestyMainConfigTemplate,
-			TrustedProxyCIDRs:  parseTrustedProxyCIDRs(`["173.245.48.0/20","2001:db8:1234::/48"]`),
-		},
+		EdgeSettings: edgeSettingsSnapshot{TrustedProxyCIDRs: parseTrustedProxyCIDRs(`["173.245.48.0/20","2001:db8:1234::/48"]`)},
 	}
 	data, err := json.Marshal(snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rendered, err := renderSnapshotConfig(string(data), nil)
-	if err != nil {
+	var document edgeconfig.Document
+	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{"real_ip_header CF-Connecting-IP;", "set_real_ip_from 173.245.48.0/20;", "set_real_ip_from 2001:db8:1234::/48;"} {
-		if !strings.Contains(rendered.MainConfig, expected) {
-			t.Errorf("rendered snapshot missing %q", expected)
-		}
-	}
-}
-
-func TestTrustedProxyCIDRsSnapshotEmptyAndLegacyDefaults(t *testing.T) {
-	for _, testCase := range []struct {
-		name string
-		json string
-		want int
-	}{
-		{name: "explicit empty list remains disabled", json: `{"openresty_config":{"trusted_proxy_cidrs":[]}}`, want: 0},
-		{name: "legacy snapshot defaults to Cloudflare ranges", json: `{"openresty_config":{}}`, want: 22},
-	} {
-		t.Run(testCase.name, func(t *testing.T) {
-			rendered, err := renderSnapshotConfig(testCase.json, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got := strings.Count(rendered.MainConfig, "set_real_ip_from "); got != testCase.want {
-				t.Fatalf("rendered trusted proxy range count = %d, want %d", got, testCase.want)
-			}
-		})
+	if !slices.Equal(document.Settings.TrustedProxyCIDRs, snapshot.EdgeSettings.TrustedProxyCIDRs) {
+		t.Fatalf("trusted proxies changed in snapshot: %v", document.Settings.TrustedProxyCIDRs)
 	}
 }
 
@@ -64,19 +38,19 @@ func TestTrustedProxyCIDRConfigMissingAndExplicitEmpty(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	missing := buildOpenRestyConfigSnapshot(ctx).TrustedProxyCIDRs
-	if len(missing) != 22 || !slices.Equal(missing, openrestyrender.DefaultTrustedProxyCIDRs()) {
+	missing := buildEdgeSettingsSnapshot(ctx).TrustedProxyCIDRs
+	if len(missing) != 22 || !slices.Equal(missing, edgeconfig.DefaultTrustedProxyCIDRs()) {
 		t.Fatalf("missing database key defaults to %#v, want the 22 Cloudflare ranges", missing)
 	}
 
-	if err := db.DB(ctx).Create(&model.SystemConfig{Key: model.ConfigKeyOpenRestyTrustedProxyCIDRs, Value: `[]`, Type: "business"}).Error; err != nil {
+	if err := db.DB(ctx).Create(&model.SystemConfig{Key: model.ConfigKeyEdgeTrustedProxyCIDRs, Value: `[]`, Type: "business"}).Error; err != nil {
 		t.Fatal(err)
 	}
-	explicitEmpty := buildOpenRestyConfigSnapshot(ctx).TrustedProxyCIDRs
+	explicitEmpty := buildEdgeSettingsSnapshot(ctx).TrustedProxyCIDRs
 	if explicitEmpty == nil || len(explicitEmpty) != 0 {
 		t.Fatalf("explicit [] must remain a non-nil empty list, got %#v", explicitEmpty)
 	}
-	payload, err := json.Marshal(snapshotDocument{OpenRestyConfig: buildOpenRestyConfigSnapshot(ctx)})
+	payload, err := json.Marshal(snapshotDocument{EdgeSettings: buildEdgeSettingsSnapshot(ctx)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,24 +61,24 @@ func TestTrustedProxyCIDRConfigMissingAndExplicitEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(rendered.MainConfig, "set_real_ip_from ") {
+	if !strings.Contains(rendered.MainConfig, `"trusted_proxy_cidrs":[]`) {
 		t.Fatal("explicit empty list still trusts proxy ranges")
 	}
 
-	if err := db.DB(ctx).Model(&model.SystemConfig{}).Where("key = ?", model.ConfigKeyOpenRestyTrustedProxyCIDRs).Update("value", "invalid").Error; err != nil {
+	if err := db.DB(ctx).Model(&model.SystemConfig{}).Where("key = ?", model.ConfigKeyEdgeTrustedProxyCIDRs).Update("value", "invalid").Error; err != nil {
 		t.Fatal(err)
 	}
 	ram.ResetForTest()
-	malformed := buildOpenRestyConfigSnapshot(ctx).TrustedProxyCIDRs
+	malformed := buildEdgeSettingsSnapshot(ctx).TrustedProxyCIDRs
 	if malformed == nil || len(malformed) != 0 {
 		t.Fatalf("malformed configuration must fail closed, got %#v", malformed)
 	}
 }
 
 func TestTrustedProxyCIDRDiffTreatsLegacyNilAsCloudflareDefaults(t *testing.T) {
-	diffs := diffOpenRestyOptionDetails(openRestyConfigSnapshot{}, openRestyConfigSnapshot{TrustedProxyCIDRs: []string{}})
+	diffs := diffEdgeSettingDetails(edgeSettingsSnapshot{}, edgeSettingsSnapshot{TrustedProxyCIDRs: []string{}})
 	for _, diff := range diffs {
-		if diff.Key == "OpenRestyTrustedProxyCIDRs" {
+		if diff.Key == "EdgeTrustedProxyCIDRs" {
 			if diff.PreviousValue == diff.CurrentValue {
 				t.Fatal("legacy nil and explicit empty list should have different effective values")
 			}

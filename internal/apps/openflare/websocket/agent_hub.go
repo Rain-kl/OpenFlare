@@ -5,13 +5,11 @@
 package websocket
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,21 +17,11 @@ const (
 	// AgentWSConnectedLastSeenValue is the sentinel last_seen_at value when agent WS is connected.
 	AgentWSConnectedLastSeenValue = "__OPENFLARE_WS_CONNECTED__"
 
-	agentMessageTypeStatus          = "status"
-	agentMessageTypeSettings        = "settings"
-	agentMessageTypeActiveConfig    = "active_config"
-	agentMessageTypeForceSyncConfig = "force_sync_config"
-	agentMessageTypeWAFIPGroups     = "waf_ip_groups"
+	agentMessageTypeConfigChanged = "config_changed"
 )
-
-// AgentStatusHandler processes inbound agent websocket status payloads.
-type AgentStatusHandler func(ctx context.Context, nodeID, remoteAddr string, payload json.RawMessage)
 
 type agentClient struct {
 	wsClientCore
-	remoteAddr string
-	engine     string
-	onStatus   AgentStatusHandler
 }
 
 type agentHub struct {
@@ -44,7 +32,7 @@ type agentHub struct {
 var defaultAgentHub = &agentHub{clients: make(map[string]*agentClient)}
 
 // ServeAgent handles an upgraded agent websocket connection.
-func ServeAgent(c *gin.Context, nodeID, engine string, onStatus AgentStatusHandler) {
+func ServeAgent(c *gin.Context, nodeID string) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		slog.Debug("agent ws upgrade failed", "node_id", nodeID, "error", err)
@@ -58,14 +46,11 @@ func ServeAgent(c *gin.Context, nodeID, engine string, onStatus AgentStatusHandl
 			send:   make(chan Message, wsChannelBuf),
 			done:   make(chan struct{}),
 		},
-		remoteAddr: c.Request.RemoteAddr,
-		engine:     engine,
-		onStatus:   onStatus,
 	}
 	defaultAgentHub.register(client)
 	defer defaultAgentHub.unregister(client)
 
-	slog.Debug("agent ws connected", "node_id", nodeID, "remote", client.remoteAddr)
+	slog.Debug("agent ws connected", "node_id", nodeID, "remote", c.Request.RemoteAddr)
 
 	go client.writePump()
 	client.readPump()
@@ -105,58 +90,24 @@ func IsAgentConnected(nodeID string) bool {
 	}
 }
 
-// SendAgentSettings pushes agent settings to a connected agent.
-func SendAgentSettings(nodeID string, payload any) bool {
-	return sendAgentMessage(nodeID, Message{Type: agentMessageTypeSettings, Payload: payload})
-}
-
-// SendAgentActiveConfig pushes active config metadata to a connected agent.
-func SendAgentActiveConfig(nodeID string, payload any) bool {
-	return sendAgentMessage(nodeID, Message{Type: agentMessageTypeActiveConfig, Payload: payload})
-}
-
-// SendAgentWAFIPGroups pushes WAF IP group updates to a connected agent.
-func SendAgentWAFIPGroups(nodeID string, payload any) bool {
-	return sendAgentMessage(nodeID, Message{Type: agentMessageTypeWAFIPGroups, Payload: payload})
-}
-
-// BroadcastWAFIPGroups pushes changed WAF IP groups to all connected agents.
-func BroadcastWAFIPGroups(payload any) int {
-	return broadcastAgent(agentMessageTypeWAFIPGroups, "openresty", payload) +
-		broadcastAgent(agentMessageTypeWAFIPGroups, "pingora", struct{}{})
-}
-
-// BroadcastActiveConfig pushes active config metadata to its engine release group.
-func BroadcastActiveConfig(payload protocol.ActiveConfigMeta) int {
-	return broadcastAgent(agentMessageTypeActiveConfig, payload.Engine, payload)
-}
-
-func broadcastAgent(messageType, engine string, payload any) int {
-	if payload == nil {
-		return 0
-	}
-	message := Message{Type: messageType, Payload: payload}
+func wakeAgents() {
+	message := Message{Type: agentMessageTypeConfigChanged}
 	defaultAgentHub.mu.RLock()
 	clients := make([]*agentClient, 0, len(defaultAgentHub.clients))
 	for _, client := range defaultAgentHub.clients {
-		if engine == "" || engine == client.engine {
-			clients = append(clients, client)
-		}
+		clients = append(clients, client)
 	}
 	defaultAgentHub.mu.RUnlock()
-
-	success := 0
 	for _, client := range clients {
-		if client.enqueue(message) {
-			success++
-		}
+		client.enqueue(message)
 	}
-	return success
 }
 
-// SendForceSyncConfig notifies an agent to force sync configuration.
-func SendForceSyncConfig(nodeID string, payload any) bool {
-	return sendAgentMessage(nodeID, Message{Type: agentMessageTypeForceSyncConfig, Payload: payload})
+// SendForceSyncConfig asks a specific node to reload its active configuration.
+func SendForceSyncConfig(nodeID string) bool {
+	return sendAgentMessage(nodeID, Message{Type: agentMessageTypeConfigChanged, Payload: struct {
+		Force bool `json:"force"`
+	}{Force: true}})
 }
 
 func sendAgentMessage(nodeID string, message Message) bool {
@@ -191,10 +142,6 @@ func (c *agentClient) readPump() {
 
 		slog.Debug("agent ws message received", "node_id", c.nodeID, "type", inbound.Type)
 		switch inbound.Type {
-		case agentMessageTypeStatus:
-			if c.onStatus != nil {
-				c.onStatus(context.Background(), c.nodeID, c.remoteAddr, inbound.Payload)
-			}
 		case messageTypePing:
 			_ = c.enqueue(Message{Type: messageTypePong})
 		case messageTypePong:

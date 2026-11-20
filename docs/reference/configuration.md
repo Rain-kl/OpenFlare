@@ -130,11 +130,17 @@ SQLite 文件数据库在启动时自动启用 WAL 模式；内存数据库保�
 
 Server、Agent、调度器、任务框架及存储维护等运行时日志的固定描述使用英文，便于跨语言排障和检索。界面语言切换不会改变终端日志和 OTel 异常；接口错误、任务执行详情与内置元数据在展示时按语言翻译，历史记录不回写。用户配置名称及第三方错误保留原文，可能包含中文。现有日志格式、级别、参数及输出渠道保持不变，详见 [运行时语言与国际化](../design/log-language.md)。
 
-### 6. 异步任务 Worker 队列配置 (`worker:`)
-| 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
+### 6. Pingora 性能和站点策略
+
+在控制台「性能策略」中查看可用的运行时、回源、HTTP/2、TLS、监听器和缓存参数。节点可以应用不同的策略。操作说明见 [Pingora 性能策略](../guide/performance-policies.md)。
+
+站点安全参数在业务配置中维护，随站点快照发布。
+
+| 配置键 | 类型 | 用途 | 默认值 |
 | --- | --- | --- | --- |
-| `worker.concurrency` | `WORKER_CONCURRENCY` | 后台 Worker 进程同时消费任务的最大并发数 | `20` |
-| `worker.strict_priority`| `WORKER_STRICT_PRIORITY` | 是否严格按队列优先级分配消费线程（否则为加权轮询） | `false` |
+
+
+Edge 仅接受可信代理发来的 `CF-Connecting-IP`。来源列表默认为 Cloudflare 官方网段，显式设置为 `[]` 可停用此转发头处理。
 
 ### 7. 链路追踪 OpenTelemetry 配置 (`otel:`)
 | 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
@@ -258,14 +264,14 @@ Server、Agent、调度器、任务框架及存储维护等运行时日志的固
 | `openresty_cache_lock_enabled` | `bool` | 遭遇高并发请求击穿同一失效资源时是否对向源站发起建连排队加锁 | `true` |
 | `openresty_cache_lock_timeout` | `string` | 抢夺代理缓存锁排队建连时排队等待的最长等待耗时限制 | `5s` |
 | `openresty_cache_use_stale` | `string` | 当源站遇到特定报错（如500/502/504等）时是否直接向用户投递过期缓存 | `error timeout updating http_500 http_502 http_503 http_504` |
-| `openresty_default_limit_conn_per_server` | `int` | 站点未配置时的默认并发连接上限；`0` 表示默认关闭 | `0` |
-| `openresty_default_limit_conn_per_ip` | `int` | 站点未配置时的默认单 IP 并发上限；`0` 表示默认关闭 | `0` |
-| `openresty_default_limit_rate` | `string` | 站点未配置时的默认单请求带宽（如 `512k`）；空表示默认关闭 | 空 |
-| `openresty_default_limit_req_per_ip` | `string` | 站点未配置时的默认单 IP 请求频率限制（如 `10r/s`、`100r/m`）；空表示默认关闭 | 空 |
+| `edge_default_limit_conn_per_server` | `int` | 站点未配置时的默认并发连接上限；`0` 表示默认关闭 | `0` |
+| `edge_default_limit_conn_per_ip` | `int` | 站点未配置时的默认单 IP 并发上限；`0` 表示默认关闭 | `0` |
+| `edge_default_limit_rate` | `string` | 站点未配置时的默认单请求带宽（如 `512k`）；空表示默认关闭 | 空 |
+| `edge_default_limit_req_per_ip` | `string` | 站点未配置时的默认单 IP 请求频率限制（如 `10r/s`、`100r/m`）；空表示默认关闭 | 空 |
 | `openresty_main_config_template` | `string` | 允许用户完全重写整个 OpenResty nginx.conf 的底层结构大骨架模板 | 空 (内置缺省骨架) |
-| `openresty_trusted_proxy_cidrs` | `string` (JSON 数组) | 可读取 `CF-Connecting-IP` 的可信代理 IPv4/IPv6 CIDR 列表；默认包含 Cloudflare 官方 22 个 IPv4/IPv6 网段；显式 `[]` 会关闭自动生成的可信代理配置 | Cloudflare 官方网段 |
+| `edge_trusted_proxy_cidrs` | `string` (JSON 数组) | 可读取 `CF-Connecting-IP` 的可信代理 IPv4/IPv6 CIDR 列表；默认包含 Cloudflare 官方 22 个 IPv4/IPv6 网段；显式 `[]` 会关闭自动生成的可信代理配置 | Cloudflare 官方网段 |
 
-在管理端「系统管理 → 系统配置 → 业务配置」中编辑 `openresty_trusted_proxy_cidrs`。默认值为 Cloudflare 官方完整 22 个 IPv4/IPv6 网段，可从 [Cloudflare IPv4 网段](https://www.cloudflare.com/ips-v4) 和 [IPv6 网段](https://www.cloudflare.com/ips-v6) 核对并按官方更新维护。若要信任额外内网代理，应将其 CIDR 追加到现有数组；例如 `10.2.0.227` 只有在确认它是可信代理、且它发送的 `CF-Connecting-IP` 真实可靠后，才追加 `10.2.0.227/32`。该地址不属于默认信任范围。显式设置为 `[]` 会关闭由此配置生成的转发头信任；已有显式空值不会在升级时自动改为默认。自定义主模板中手工写入的 Real-IP 指令仍按模板生效。源站请求必须带有真实的 `CF-Connecting-IP`。保存后需重新生成并发布节点配置版本。Nginx Real-IP 会按 `CF-Connecting-IP` 更新 `$remote_addr`，访问日志、WAF 和上游 `X-Real-IP` 使用这个单一客户端地址；`X-Forwarded-For` 保留原代理链并追加恢复后的客户端地址。旧版自定义主模板即使没有新占位符，也会在 `http {}` 中自动插入 Real-IP 指令；若模板已有 `real_ip_header`，该模板控制使用的头，设置仅追加可信来源 CIDR。数据库中缺少该配置项时使用 Cloudflare 默认网段；非法 JSON 或读取配置失败时按空列表关闭信任。
+在管理端「系统管理 → 系统配置 → 业务配置」中编辑 `edge_trusted_proxy_cidrs`。默认值为 Cloudflare 官方完整 22 个 IPv4/IPv6 网段，可从 [Cloudflare IPv4 网段](https://www.cloudflare.com/ips-v4) 和 [IPv6 网段](https://www.cloudflare.com/ips-v6) 核对并按官方更新维护。若要信任额外内网代理，应将其 CIDR 追加到现有数组；例如 `10.2.0.227` 只有在确认它是可信代理、且它发送的 `CF-Connecting-IP` 真实可靠后，才追加 `10.2.0.227/32`。该地址不属于默认信任范围。显式设置为 `[]` 会关闭由此配置生成的转发头信任；已有显式空值不会在升级时自动改为默认。自定义主模板中手工写入的 Real-IP 指令仍按模板生效。源站请求必须带有真实的 `CF-Connecting-IP`。保存后需重新生成并发布节点配置版本。Nginx Real-IP 会按 `CF-Connecting-IP` 更新 `$remote_addr`，访问日志、WAF 和上游 `X-Real-IP` 使用这个单一客户端地址；`X-Forwarded-For` 保留原代理链并追加恢复后的客户端地址。旧版自定义主模板即使没有新占位符，也会在 `http {}` 中自动插入 Real-IP 指令；若模板已有 `real_ip_header`，该模板控制使用的头，设置仅追加可信来源 CIDR。数据库中缺少该配置项时使用 Cloudflare 默认网段；非法 JSON 或读取配置失败时按空列表关闭信任。
 
 ### 7. 源站错误页 (Origin Error Page)
 
@@ -305,67 +311,9 @@ Server、Agent、调度器、任务框架及存储维护等运行时日志的固
 
 ---
 
-## Agent 环境变量
+## Pingora Edge 启动参数
 
-| 环境变量 | 作用 | 默认值 |
-| --- | --- | --- |
-| `LOG_LEVEL` | Agent 日志等级 | `info` |
-| `OPENFLARE_SERVER_URL` | 控制面地址，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_AGENT_TOKEN` | 节点专属认证 Token，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_DISCOVERY_TOKEN` | 首次自动注册 Token，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_NODE_NAME` | 节点名称，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_NODE_IP` | 节点 IP，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_DATA_DIR` | Agent 数据目录，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_OPENRESTY_PATH` | OpenResty 二进制路径，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_PAGES_DIR` | Pages 静态部署目录，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_HEARTBEAT_INTERVAL` | 心跳间隔，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_REQUEST_TIMEOUT` | 请求超时，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_OPENRESTY_OBSERVABILITY_PORT` | 本地观测端口，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_MMDB_PATH` | WAF GeoIP mmdb 路径，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_MMDB_UPDATE_INTERVAL` | WAF GeoIP mmdb 更新间隔，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_MMDB_DOWNLOAD_URL` | WAF GeoIP mmdb 下载地址，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_CITY_MMDB_PATH` | WAF 地区匹配 City MMDB 路径，可覆盖 `agent.json` | 空 |
-| `OPENFLARE_CITY_MMDB_DOWNLOAD_URL` | WAF City MMDB 下载地址，可覆盖 `agent.json` | 空 |
-
----
-
-## Agent 命令行参数与配置字段
-
-### 命令行参数
-- `-config`：指定 Agent 配置文件路径，默认值为 `./agent.json`。
-
-### 配置文件字段 (agent.json)
-| 字段 | 作用 | 是否必填 | 默认值/行为 |
-| --- | --- | --- | --- |
-| `server_url` | 控制面地址 | 是 | 无 |
-| `agent_token` | 节点专属认证 Token | 与 `discovery_token` 二选一 | 空 |
-| `discovery_token` | 首次自动注册使用的全局 Token | 与 `agent_token` 二选一 | 空 |
-| `node_name` | 节点名称 | 否 | 自动使用主机名 |
-| `node_ip` | 节点 IP | 否 | 自动探测，优先使用公网出口 IP；失败时退回本机网卡探测 |
-| `openresty_path` | OpenResty 二进制路径 | 否 | `openresty` |
-| `openresty_observability_port` | 本地观测与 OpenResty 健康检查端口 | 否 | `18081` |
-| `data_dir` | Agent 数据目录 | 否 | 配置文件同级目录下的 `data` |
-| `main_config_path` | OpenResty 主配置写入路径 | 否 | `data_dir/etc/nginx/nginx.conf` |
-| `route_config_path` | 路由配置写入路径 | 否 | `data_dir/etc/nginx/conf.d/openflare_routes.conf` |
-| `access_log_path` | OpenResty 访问日志路径 | 否 | `data_dir/var/log/openflare/access.log` |
-| `cert_dir` | 证书写入目录 | 否 | `data_dir/etc/nginx/certs` |
-| `openresty_cert_dir` | OpenResty 配置中读取证书的目录 | 否 | 同 `cert_dir` |
-| `lua_dir` | Lua 脚本与静态资源写入目录 | 否 | `data_dir/etc/nginx/lua` |
-| `openresty_lua_dir` | OpenResty 配置中读取 Lua 的目录 | 否 | 同 `lua_dir` |
-| `runtime_config_dir` | Agent 运行时配置写入目录，如 `pow_config.json` | 否 | `data_dir/etc/openflare` |
-| `pages_dir` | Pages 静态部署包解压与当前部署目录 | 否 | `data_dir/var/lib/openflare/pages` |
-| `mmdb_path` | WAF GeoIP mmdb 文件路径 | 否 | `data_dir/etc/openflare/GeoLite2-Country.mmdb` |
-| `city_mmdb_path` | WAF 地区匹配 City MMDB 文件路径 | 否 | `data_dir/etc/openflare/GeoLite2-City.mmdb` |
-| `mmdb_update_interval` | WAF GeoIP mmdb 更新间隔 | 否 | `86400000` 毫秒 (24h) |
-| `mmdb_download_url` | WAF GeoIP mmdb 周期更新地址 | 否 | GeoLite2 Country 更新地址；磁盘文件缺失时首次下载（Docker 镜像已 COPY 默认路径文件） |
-| `city_mmdb_download_url` | WAF City MMDB 周期更新地址 | 否 | GeoLite2 City 更新地址；磁盘文件缺失时首次下载（Docker 镜像已 COPY 默认路径文件） |
-| `observability_buffer_path` | 观测补报缓冲文件路径 | 否 | `data_dir/var/lib/openflare/observability-buffer.json` |
-| `observability_replay_minutes` | 自动补传最近观测窗口分钟数 | 否 | `60` |
-| `state_path` | Agent 本地状态文件路径 | 否 | `data_dir/var/lib/openflare/agent-state.json` |
-| `heartbeat_interval` | 心跳间隔 | 否 | `3000` 毫秒 |
-| `request_timeout` | HTTP 请求超时 | 否 | `10000` 毫秒 |
-
----
+`openflare-edge run` 使用 `--server-url`、`--token-type discovery|node`、`--token-file` 和 `--state-dir` 连接控制端。监听地址由 `--http-listen` 和可选的 `--tls-listen` 设置。由安装脚本管理的服务默认监听 80 和 443，状态目录为 `/var/lib/openflare-edge`。
 
 ## Relay 环境变量与配置字段
 

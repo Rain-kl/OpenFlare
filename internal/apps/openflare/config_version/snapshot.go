@@ -16,7 +16,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/credential"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
@@ -26,55 +26,41 @@ import (
 const (
 	supportFilesPerCertificate  = 2
 	wafIPGroupChecksumHexLength = 64
-
-	// OpenResty 默认配置值
-	defaultOpenRestyReturnStatus     = 421
-	defaultOpenRestyWorkerConns      = 4096
-	defaultOpenRestyRlimitNofile     = 65535
-	defaultOpenRestyKeepaliveTimeout = 20
-	defaultOpenRestyKeepaliveReqs    = 1000
-	defaultOpenRestyHeaderTimeout    = 15
-	defaultOpenRestyBodyTimeout      = 15
-	defaultOpenRestySendTimeout      = 30
-	defaultOpenRestyConnectTimeout   = 3
-	defaultOpenRestyProxyTimeout     = 60
-	defaultOpenRestyGzipMinLen       = 1024
-	defaultOpenRestyGzipLevel        = 5
 )
 
 type snapshotRoute struct {
-	ID                 uint                             `json:"id,omitempty"`
-	SiteName           string                           `json:"site_name,omitempty"`
-	Domains            []string                         `json:"domains,omitempty"`
-	OriginURL          string                           `json:"origin_url"`
-	OriginHost         string                           `json:"origin_host,omitempty"`
-	Upstreams          []string                         `json:"upstreams,omitempty"`
-	Enabled            bool                             `json:"enabled"`
-	EnableHTTPS        bool                             `json:"enable_https"`
-	EnableHTTP2        bool                             `json:"enable_http2"`
-	DomainCertIDs      []uint                           `json:"domain_cert_ids,omitempty"`
-	RedirectHTTP       bool                             `json:"redirect_http"`
-	LimitConnPerServer int                              `json:"limit_conn_per_server,omitempty"`
-	LimitConnPerIP     int                              `json:"limit_conn_per_ip,omitempty"`
-	LimitRate          string                           `json:"limit_rate,omitempty"`
-	LimitReqPerIP      string                           `json:"limit_req_per_ip,omitempty"`
-	CacheEnabled       bool                             `json:"cache_enabled"`
-	CachePolicy        string                           `json:"cache_policy,omitempty"`
-	CacheRules         []string                         `json:"cache_rules,omitempty"`
-	CustomHeaders      []customHeaderInput              `json:"custom_headers,omitempty"`
-	PoWEnabled         bool                             `json:"pow_enabled,omitempty"`
-	PoWConfig          *openrestyrender.PoWConfig       `json:"pow_config,omitempty"`
-	BasicAuthEnabled   bool                             `json:"basic_auth_enabled,omitempty"`
-	BasicAuthUsername  string                           `json:"basic_auth_username,omitempty"`
-	BasicAuthPassword  string                           `json:"basic_auth_password,omitempty"`
-	SiteAuthTTLHours   int                              `json:"site_auth_ttl_hours,omitempty"`
-	SiteAuthKey        string                           `json:"site_auth_key,omitempty"`
-	UpstreamType       string                           `json:"upstream_type,omitempty"`
-	TunnelNodeID       *uint                            `json:"tunnel_node_id,omitempty"`
-	TunnelTargetAddr   string                           `json:"tunnel_target_addr,omitempty"`
-	TunnelTargetProto  string                           `json:"tunnel_target_protocol,omitempty"`
-	PagesProjectID     *uint                            `json:"pages_project_id,omitempty"`
-	PagesDeployment    *openrestyrender.PagesDeployment `json:"pages_deployment,omitempty"`
+	ID                 uint                        `json:"id,omitempty"`
+	SiteName           string                      `json:"site_name,omitempty"`
+	Domains            []string                    `json:"domains,omitempty"`
+	OriginURL          string                      `json:"origin_url"`
+	OriginHost         string                      `json:"origin_host,omitempty"`
+	Upstreams          []string                    `json:"upstreams,omitempty"`
+	Enabled            bool                        `json:"enabled"`
+	EnableHTTPS        bool                        `json:"enable_https"`
+	EnableHTTP2        bool                        `json:"enable_http2"`
+	DomainCertIDs      []uint                      `json:"domain_cert_ids,omitempty"`
+	RedirectHTTP       bool                        `json:"redirect_http"`
+	LimitConnPerServer int                         `json:"limit_conn_per_server,omitempty"`
+	LimitConnPerIP     int                         `json:"limit_conn_per_ip,omitempty"`
+	LimitRate          string                      `json:"limit_rate,omitempty"`
+	LimitReqPerIP      string                      `json:"limit_req_per_ip,omitempty"`
+	CacheEnabled       bool                        `json:"cache_enabled"`
+	CachePolicy        string                      `json:"cache_policy,omitempty"`
+	CacheRules         []string                    `json:"cache_rules,omitempty"`
+	CustomHeaders      []customHeaderInput         `json:"custom_headers,omitempty"`
+	PoWEnabled         bool                        `json:"pow_enabled,omitempty"`
+	PoWConfig          *edgeconfig.PoWConfig       `json:"pow_config,omitempty"`
+	BasicAuthEnabled   bool                        `json:"basic_auth_enabled,omitempty"`
+	BasicAuthUsername  string                      `json:"basic_auth_username,omitempty"`
+	BasicAuthPassword  string                      `json:"basic_auth_password,omitempty"`
+	SiteAuthTTLHours   int                         `json:"site_auth_ttl_hours,omitempty"`
+	SiteAuthKey        string                      `json:"site_auth_key,omitempty"`
+	UpstreamType       string                      `json:"upstream_type,omitempty"`
+	TunnelNodeID       *uint                       `json:"tunnel_node_id,omitempty"`
+	TunnelTargetAddr   string                      `json:"tunnel_target_addr,omitempty"`
+	TunnelTargetProto  string                      `json:"tunnel_target_protocol,omitempty"`
+	PagesProjectID     *uint                       `json:"pages_project_id,omitempty"`
+	PagesDeployment    *edgeconfig.PagesDeployment `json:"pages_deployment,omitempty"`
 }
 
 type snapshotWAFRuleGroup struct {
@@ -105,79 +91,24 @@ type snapshotWAFDocument struct {
 	Bindings   []snapshotWAFBinding   `json:"bindings"`
 }
 
-type openRestyConfigSnapshot struct {
-	TrustedProxyCIDRs          []string `json:"trusted_proxy_cidrs"`
-	DefaultServerReturnStatus  int      `json:"default_server_return_status"`
-	WorkerProcesses            string   `json:"worker_processes"`
-	WorkerConnections          int      `json:"worker_connections"`
-	WorkerRlimitNofile         int      `json:"worker_rlimit_nofile"`
-	EventsUse                  string   `json:"events_use,omitempty"`
-	EventsMultiAcceptEnabled   bool     `json:"events_multi_accept_enabled"`
-	KeepaliveTimeout           int      `json:"keepalive_timeout"`
-	KeepaliveRequests          int      `json:"keepalive_requests"`
-	ClientHeaderTimeout        int      `json:"client_header_timeout"`
-	ClientBodyTimeout          int      `json:"client_body_timeout"`
-	ClientMaxBodySize          string   `json:"client_max_body_size"`
-	LargeClientHeaderBuffers   string   `json:"large_client_header_buffers"`
-	SendTimeout                int      `json:"send_timeout"`
-	ProxyConnectTimeout        int      `json:"proxy_connect_timeout"`
-	ProxySendTimeout           int      `json:"proxy_send_timeout"`
-	ProxyReadTimeout           int      `json:"proxy_read_timeout"`
-	WebsocketEnabled           bool     `json:"websocket_enabled"`
-	HTTP3Enabled               bool     `json:"http3_enabled"`
-	ProxyRequestBuffering      bool     `json:"proxy_request_buffering"`
-	ProxyBufferingEnabled      bool     `json:"proxy_buffering_enabled"`
-	ProxyBuffers               string   `json:"proxy_buffers"`
-	ProxyBufferSize            string   `json:"proxy_buffer_size"`
-	ProxyBusyBuffersSize       string   `json:"proxy_busy_buffers_size"`
-	GzipEnabled                bool     `json:"gzip_enabled"`
-	GzipMinLength              int      `json:"gzip_min_length"`
-	GzipCompLevel              int      `json:"gzip_comp_level"`
-	Resolvers                  string   `json:"resolvers,omitempty"`
-	CacheEnabled               bool     `json:"cache_enabled"`
-	CachePath                  string   `json:"cache_path,omitempty"`
-	CacheLevels                string   `json:"cache_levels"`
-	CacheInactive              string   `json:"cache_inactive"`
-	CacheMaxSize               string   `json:"cache_max_size"`
-	CacheKeyTemplate           string   `json:"cache_key_template"`
-	CacheStaticExtensions      []string `json:"cache_static_extensions,omitempty"`
-	CacheLockEnabled           bool     `json:"cache_lock_enabled"`
-	CacheLockTimeout           string   `json:"cache_lock_timeout"`
-	CacheUseStale              string   `json:"cache_use_stale"`
-	MainConfigTemplate         string   `json:"main_config_template,omitempty"`
-	DefaultLimitConnPerServer  int      `json:"default_limit_conn_per_server,omitempty"`
-	DefaultLimitConnPerIP      int      `json:"default_limit_conn_per_ip,omitempty"`
-	DefaultLimitRate           string   `json:"default_limit_rate,omitempty"`
-	DefaultLimitReqPerIP       string   `json:"default_limit_req_per_ip,omitempty"`
-	OriginErrorPageEnabled     bool     `json:"origin_error_page_enabled"`
-	OriginErrorPageStatusCodes []string `json:"origin_error_page_status_codes,omitempty"`
-	OriginErrorPageHTML        string   `json:"origin_error_page_html,omitempty"`
-	OriginErrorPageGetOnly     bool     `json:"origin_error_page_get_only,omitempty"`
-	SWOfflineEnabled           bool     `json:"sw_offline_enabled,omitempty"`
-	SWOfflineHTML              string   `json:"sw_offline_html,omitempty"`
-	SWOfflineDomains           []string `json:"sw_offline_domains,omitempty"`
-
-	PoWPage      openrestyrender.PoWPageConfig `json:"pow_page,omitempty"`
-	SiteAuthHTML string                        `json:"site_auth_html,omitempty"`
-}
+type edgeSettingsSnapshot = edgeconfig.ConfigSnapshot
 
 type snapshotDocument struct {
-	Routes          []snapshotRoute         `json:"routes"`
-	OpenRestyConfig openRestyConfigSnapshot `json:"openresty_config"`
-	WAF             snapshotWAFDocument     `json:"waf"`
+	Routes       []snapshotRoute      `json:"routes"`
+	EdgeSettings edgeSettingsSnapshot `json:"edge_config"`
+	WAF          snapshotWAFDocument  `json:"waf"`
 }
 
 type configBundle struct {
-	Routes            []*model.ProxyRoute
-	SnapshotRoutes    []snapshotRoute
-	WAFSnapshot       snapshotWAFDocument
-	OpenRestyConfig   openRestyConfigSnapshot
-	SnapshotJSON      string
-	MainConfig        string
-	RouteConfig       string
-	SupportFiles      []SupportFile
-	Checksum          string
-	ChangedOptionKeys []string
+	Routes         []*model.ProxyRoute
+	SnapshotRoutes []snapshotRoute
+	WAFSnapshot    snapshotWAFDocument
+	EdgeSettings   edgeSettingsSnapshot
+	SnapshotJSON   string
+	MainConfig     string
+	RouteConfig    string
+	SupportFiles   []SupportFile
+	Checksum       string
 }
 
 func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configBundle, error) {
@@ -199,11 +130,11 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 	if err != nil {
 		return nil, err
 	}
-	openRestyConfig := buildOpenRestyConfigSnapshot(ctx)
+	edgeSettings := buildEdgeSettingsSnapshot(ctx)
 	snapshotDoc := snapshotDocument{
-		Routes:          snapshotRoutes,
-		OpenRestyConfig: openRestyConfig,
-		WAF:             wafSnapshot,
+		Routes:       snapshotRoutes,
+		EdgeSettings: edgeSettings,
+		WAF:          wafSnapshot,
 	}
 	snapshotJSON, err := json.Marshal(snapshotDoc)
 	if err != nil {
@@ -214,30 +145,21 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 		return nil, err
 	}
 
-	var mainConfig, routeConfig, checksum string
-	supportFiles := []SupportFile(nil)
-
-	rendered, renderErr := renderSnapshotConfig(string(snapshotJSON), certificateFiles)
-	if renderErr == nil {
-		mainConfig = rendered.MainConfig
-		routeConfig = rendered.RouteConfig
-		checksum = rendered.Checksum
-		supportFiles = fromOpenRestySupportFiles(rendered.SupportFiles)
-	} else {
-		mainConfig, routeConfig, checksum = renderPlaceholderConfig(string(snapshotJSON))
+	rendered, err := renderSnapshotConfig(string(snapshotJSON), certificateFiles)
+	if err != nil {
+		return nil, err
 	}
 
 	return &configBundle{
-		Routes:            routes,
-		SnapshotRoutes:    snapshotRoutes,
-		WAFSnapshot:       wafSnapshot,
-		OpenRestyConfig:   openRestyConfig,
-		SnapshotJSON:      string(snapshotJSON),
-		MainConfig:        mainConfig,
-		RouteConfig:       routeConfig,
-		SupportFiles:      supportFiles,
-		Checksum:          checksum,
-		ChangedOptionKeys: openRestyOptionKeys(),
+		Routes:         routes,
+		SnapshotRoutes: snapshotRoutes,
+		WAFSnapshot:    wafSnapshot,
+		EdgeSettings:   edgeSettings,
+		SnapshotJSON:   string(snapshotJSON),
+		MainConfig:     rendered.MainConfig,
+		RouteConfig:    rendered.RouteConfig,
+		SupportFiles:   rendered.SupportFiles,
+		Checksum:       rendered.Checksum,
 	}, nil
 }
 
@@ -275,10 +197,10 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 		var tunnelTargetAddr string
 		var tunnelTargetProtocol string
 		var pagesProjectID *uint
-		var pagesDeployment *openrestyrender.PagesDeployment
+		var pagesDeployment *edgeconfig.PagesDeployment
 		switch upstreamType {
 		case "tunnel":
-			originURL = resolveTunnelOpenRestyUpstreamURL(ctx)
+			originURL = resolveTunnelEdgeUpstreamURL(ctx)
 			upstreams = []string{originURL}
 			tunnelNodeID = route.TunnelNodeID
 			tunnelTargetAddr = strings.TrimSpace(route.TunnelTargetAddr)
@@ -343,11 +265,11 @@ func attachSnapshotPoWPolicies(ctx context.Context, routes []snapshotRoute) erro
 		if !ok {
 			continue
 		}
-		var config openrestyrender.PoWConfig
+		var config edgeconfig.PoWConfig
 		if err := json.Unmarshal([]byte(policy.Config), &config); err != nil {
 			return fmt.Errorf("invalid PoW policy for route %d: %w", policy.RouteID, err)
 		}
-		if err := openrestyrender.ValidatePoWConfig(config); err != nil {
+		if err := edgeconfig.ValidatePoWConfig(config); err != nil {
 			return fmt.Errorf("invalid PoW policy for route %d: %w", policy.RouteID, err)
 		}
 		routes[index].PoWEnabled, routes[index].PoWConfig = policy.Enabled, &config
@@ -524,17 +446,7 @@ func decodeIPList(raw string) ([]string, error) {
 	return items, nil
 }
 
-func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
-	// 读取所有 OpenResty 配置，使用默认值作为降级
-	getIntConfig := func(key string, defaultVal int) int {
-		val, err := repository.GetIntByKey(ctx, key)
-		if err != nil || val <= 0 {
-			return defaultVal
-		}
-		return val
-	}
-
-	// 0 为合法关闭值，不能与 getIntConfig 的 val<=0 语义混用
+func buildEdgeSettingsSnapshot(ctx context.Context) edgeSettingsSnapshot {
 	getNonNegIntConfig := func(key string, defaultVal int) int {
 		val, err := repository.GetIntByKey(ctx, key)
 		if err != nil || val < 0 {
@@ -571,67 +483,27 @@ func buildOpenRestyConfigSnapshot(ctx context.Context) openRestyConfigSnapshot {
 		return values
 	}
 
-	snapshot := openRestyConfigSnapshot{
-		DefaultServerReturnStatus:  getIntConfig(model.ConfigKeyOpenRestyDefaultServerReturnStatus, defaultOpenRestyReturnStatus),
-		WorkerProcesses:            getStringConfig(model.ConfigKeyOpenRestyWorkerProcesses, "auto"),
-		WorkerConnections:          getIntConfig(model.ConfigKeyOpenRestyWorkerConnections, defaultOpenRestyWorkerConns),
-		WorkerRlimitNofile:         getIntConfig(model.ConfigKeyOpenRestyWorkerRlimitNofile, defaultOpenRestyRlimitNofile),
-		EventsUse:                  getStringConfig(model.ConfigKeyOpenRestyEventsUse, "epoll"),
-		EventsMultiAcceptEnabled:   getBoolConfig(model.ConfigKeyOpenRestyEventsMultiAcceptEnabled, true),
-		KeepaliveTimeout:           getIntConfig(model.ConfigKeyOpenRestyKeepaliveTimeout, defaultOpenRestyKeepaliveTimeout),
-		KeepaliveRequests:          getIntConfig(model.ConfigKeyOpenRestyKeepaliveRequests, defaultOpenRestyKeepaliveReqs),
-		ClientHeaderTimeout:        getIntConfig(model.ConfigKeyOpenRestyClientHeaderTimeout, defaultOpenRestyHeaderTimeout),
-		ClientBodyTimeout:          getIntConfig(model.ConfigKeyOpenRestyClientBodyTimeout, defaultOpenRestyBodyTimeout),
-		ClientMaxBodySize:          getStringConfig(model.ConfigKeyOpenRestyClientMaxBodySize, "64m"),
-		LargeClientHeaderBuffers:   getStringConfig(model.ConfigKeyOpenRestyLargeClientHeaderBuffers, "4 16k"),
-		SendTimeout:                getIntConfig(model.ConfigKeyOpenRestySendTimeout, defaultOpenRestySendTimeout),
-		ProxyConnectTimeout:        getIntConfig(model.ConfigKeyOpenRestyProxyConnectTimeout, defaultOpenRestyConnectTimeout),
-		ProxySendTimeout:           getIntConfig(model.ConfigKeyOpenRestyProxySendTimeout, defaultOpenRestyProxyTimeout),
-		ProxyReadTimeout:           getIntConfig(model.ConfigKeyOpenRestyProxyReadTimeout, defaultOpenRestyProxyTimeout),
-		WebsocketEnabled:           getBoolConfig(model.ConfigKeyOpenRestyWebsocketEnabled, true),
-		HTTP3Enabled:               getBoolConfig(model.ConfigKeyOpenRestyHTTP3Enabled, true),
-		ProxyRequestBuffering:      getBoolConfig(model.ConfigKeyOpenRestyProxyRequestBufferingEnabled, true),
-		ProxyBufferingEnabled:      getBoolConfig(model.ConfigKeyOpenRestyProxyBufferingEnabled, true),
-		ProxyBuffers:               getStringConfig(model.ConfigKeyOpenRestyProxyBuffers, "16 16k"),
-		ProxyBufferSize:            getStringConfig(model.ConfigKeyOpenRestyProxyBufferSize, "8k"),
-		ProxyBusyBuffersSize:       getStringConfig(model.ConfigKeyOpenRestyProxyBusyBuffersSize, "64k"),
-		GzipEnabled:                getBoolConfig(model.ConfigKeyOpenRestyGzipEnabled, true),
-		GzipMinLength:              getIntConfig(model.ConfigKeyOpenRestyGzipMinLength, defaultOpenRestyGzipMinLen),
-		GzipCompLevel:              getIntConfig(model.ConfigKeyOpenRestyGzipCompLevel, defaultOpenRestyGzipLevel),
-		Resolvers:                  getStringConfig(model.ConfigKeyOpenRestyResolvers, ""),
-		CacheEnabled:               getBoolConfig(model.ConfigKeyOpenRestyCacheEnabled, false),
-		CachePath:                  getStringConfig(model.ConfigKeyOpenRestyCachePath, ""),
-		CacheLevels:                getStringConfig(model.ConfigKeyOpenRestyCacheLevels, "1:2"),
-		CacheInactive:              getStringConfig(model.ConfigKeyOpenRestyCacheInactive, "30m"),
-		CacheMaxSize:               getStringConfig(model.ConfigKeyOpenRestyCacheMaxSize, "1g"),
-		CacheKeyTemplate:           getStringConfig(model.ConfigKeyOpenRestyCacheKeyTemplate, "$scheme$host$request_uri"),
-		CacheStaticExtensions:      openrestyrender.DefaultStaticCacheExtensions,
-		CacheLockEnabled:           getBoolConfig(model.ConfigKeyOpenRestyCacheLockEnabled, true),
-		CacheLockTimeout:           getStringConfig(model.ConfigKeyOpenRestyCacheLockTimeout, "5s"),
-		CacheUseStale:              getStringConfig(model.ConfigKeyOpenRestyCacheUseStale, "error timeout updating http_500 http_502 http_503 http_504"),
-		MainConfigTemplate:         getStringConfig(model.ConfigKeyOpenRestyMainConfigTemplate, model.DefaultOpenRestyMainConfigTemplate),
-		TrustedProxyCIDRs:          getTrustedProxyCIDRsConfig(ctx),
-		DefaultLimitConnPerServer:  getNonNegIntConfig(model.ConfigKeyOpenRestyDefaultLimitConnPerServer, 0),
-		DefaultLimitConnPerIP:      getNonNegIntConfig(model.ConfigKeyOpenRestyDefaultLimitConnPerIP, 0),
-		DefaultLimitRate:           strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyOpenRestyDefaultLimitRate, ""))),
-		DefaultLimitReqPerIP:       strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyOpenRestyDefaultLimitReqPerIP, ""))),
-		OriginErrorPageEnabled:     getBoolConfig(model.ConfigKeyOriginErrorPageEnabled, true),
-		OriginErrorPageStatusCodes: parseOriginErrorPageStatusCodes(getStringConfig(model.ConfigKeyOriginErrorPageStatusCodes, `["500-599"]`)),
-		OriginErrorPageHTML:        getStringConfig(model.ConfigKeyOriginErrorPageHTML, ""),
-		PoWPage:                    parsePoWPageConfig(ctx, getStringConfig(model.ConfigKeyPoWPage, "{}")),
-		SiteAuthHTML:               getStringConfig(model.ConfigKeySiteAuthHTML, ""),
-		OriginErrorPageGetOnly:     getBoolConfig(model.ConfigKeyOriginErrorPageGetOnly, false),
-		SWOfflineEnabled:           getBoolConfig(model.ConfigKeySWOfflineEnabled, false),
-		SWOfflineHTML:              getStringConfig(model.ConfigKeySWOfflineHTML, ""),
-		SWOfflineDomains:           getStringSliceConfig(model.ConfigKeySWOfflineDomains, nil),
-	}
+	snapshot := edgeSettingsSnapshot{CacheStaticExtensions: edgeconfig.DefaultStaticCacheExtensions}
+	snapshot.TrustedProxyCIDRs = getTrustedProxyCIDRsConfig(ctx)
+	snapshot.DefaultLimitConnPerServer = getNonNegIntConfig(model.ConfigKeyEdgeDefaultLimitConnPerServer, 0)
+	snapshot.DefaultLimitConnPerIP = getNonNegIntConfig(model.ConfigKeyEdgeDefaultLimitConnPerIP, 0)
+	snapshot.DefaultLimitRate = strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyEdgeDefaultLimitRate, "")))
+	snapshot.DefaultLimitReqPerIP = strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyEdgeDefaultLimitReqPerIP, "")))
+	snapshot.OriginErrorPageEnabled = getBoolConfig(model.ConfigKeyOriginErrorPageEnabled, true)
+	snapshot.OriginErrorPageStatusCodes = parseOriginErrorPageStatusCodes(getStringConfig(model.ConfigKeyOriginErrorPageStatusCodes, `["500-599"]`))
+	snapshot.OriginErrorPageHTML = getStringConfig(model.ConfigKeyOriginErrorPageHTML, "")
+	snapshot.PoWPage = parsePoWPageConfig(ctx, getStringConfig(model.ConfigKeyPoWPage, "{}"))
+	snapshot.SiteAuthHTML = getStringConfig(model.ConfigKeySiteAuthHTML, "")
+	snapshot.OriginErrorPageGetOnly = getBoolConfig(model.ConfigKeyOriginErrorPageGetOnly, false)
+	snapshot.SWOfflineEnabled = getBoolConfig(model.ConfigKeySWOfflineEnabled, false)
+	snapshot.SWOfflineHTML = getStringConfig(model.ConfigKeySWOfflineHTML, "")
+	snapshot.SWOfflineDomains = getStringSliceConfig(model.ConfigKeySWOfflineDomains, nil)
 	if snapshot.DefaultLimitRate == "0" {
 		snapshot.DefaultLimitRate = ""
 	}
 	if snapshot.DefaultLimitReqPerIP == "0" {
 		snapshot.DefaultLimitReqPerIP = ""
 	}
-	snapshot.CachePath = normalizeProxyCachePathForSnapshot(snapshot.CacheEnabled, snapshot.CachePath)
 	return snapshot
 }
 
@@ -644,9 +516,9 @@ func parseTrustedProxyCIDRs(value string) []string {
 }
 
 func getTrustedProxyCIDRsConfig(ctx context.Context) []string {
-	config, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyOpenRestyTrustedProxyCIDRs)
+	config, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyEdgeTrustedProxyCIDRs)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return openrestyrender.DefaultTrustedProxyCIDRs()
+		return edgeconfig.DefaultTrustedProxyCIDRs()
 	}
 	if err != nil {
 		logger.ErrorF(ctx, "[OpenFlareConfig] read trusted proxy CIDRs failed: error=%v", err)
@@ -655,15 +527,15 @@ func getTrustedProxyCIDRsConfig(ctx context.Context) []string {
 	return parseTrustedProxyCIDRs(config.Value)
 }
 
-func parsePoWPageConfig(ctx context.Context, raw string) openrestyrender.PoWPageConfig {
-	var cfg openrestyrender.PoWPageConfig
+func parsePoWPageConfig(ctx context.Context, raw string) edgeconfig.PoWPageConfig {
+	var cfg edgeconfig.PoWPageConfig
 	err := json.Unmarshal([]byte(raw), &cfg)
 	if err == nil {
-		err = openrestyrender.ValidatePoWPageConfig(cfg)
+		err = edgeconfig.ValidatePoWPageConfig(cfg)
 	}
 	if err != nil {
 		logger.ErrorF(ctx, "[OpenFlareConfig] decode PoW page configuration failed: error=%v", err)
-		return openrestyrender.PoWPageConfig{}
+		return edgeconfig.PoWPageConfig{}
 	}
 	return cfg
 }
@@ -679,17 +551,6 @@ func parseOriginErrorPageStatusCodes(raw string) []string {
 		return []string{defaultTag}
 	}
 	return tags
-}
-
-func normalizeProxyCachePathForSnapshot(cacheEnabled bool, cachePath string) string {
-	if !cacheEnabled {
-		return strings.TrimSpace(cachePath)
-	}
-	trimmed := strings.TrimSpace(cachePath)
-	if trimmed == "" || strings.HasPrefix(trimmed, "/var/") {
-		return openrestyrender.ProxyCachePathPlaceholder
-	}
-	return trimmed
 }
 
 func buildCertificateSupportFiles(ctx context.Context, routes []snapshotRoute) ([]SupportFile, error) {

@@ -1,4 +1,5 @@
-use crate::protocol::config::{CachePolicy, Route, RouteCache};
+use crate::protocol::config::{CachePolicy, RouteCache};
+use crate::runtime::performance::Cache;
 use pingora::{
     cache::{
         cache_control::CacheControl, eviction::simple_lru::Manager, filters, key::HashBinary,
@@ -8,20 +9,32 @@ use pingora::{
     proxy::Session,
 };
 use pingora_http::{RequestHeader, ResponseHeader};
-use std::{sync::LazyLock, time::Duration};
+use std::{
+    sync::{LazyLock, OnceLock},
+    time::Duration,
+};
 
-const CACHE_CAPACITY: usize = 128 * 1024 * 1024;
-const MAX_OBJECT_SIZE: usize = 16 * 1024 * 1024;
+const MIB: usize = 1024 * 1024;
+const DEFAULT_CAPACITY_MIB: usize = 128;
+const DEFAULT_MAX_OBJECT_MIB: usize = 16;
 static STORAGE: LazyLock<MemCache> = LazyLock::new(MemCache::new);
-static EVICTION: LazyLock<Manager> =
-    LazyLock::new(|| Manager::new_with_watermark(CACHE_CAPACITY, Some(32_768)));
+static EVICTION: OnceLock<Manager> = OnceLock::new();
+static CAPACITY: OnceLock<usize> = OnceLock::new();
+
+pub(super) fn configure_capacity(capacity_mib: Option<usize>) {
+    CAPACITY.get_or_init(|| capacity_mib.unwrap_or(DEFAULT_CAPACITY_MIB) * MIB);
+}
 static CACHE_LOCK: LazyLock<CacheLock> = LazyLock::new(|| CacheLock::new(Duration::from_secs(60)));
 
-const DEFAULT_KEY_TEMPLATE: &str = "$scheme$host$request_uri";
-
-pub(super) fn enable(session: &mut Session, policy: &CachePolicy, route: &RouteCache) {
+pub(super) fn enable(
+    session: &mut Session,
+    policy: &CachePolicy,
+    route: &RouteCache,
+    tuning: Option<&Cache>,
+) {
     let req = session.req_header();
-    if req.method != http::Method::GET
+    if tuning.is_some_and(|tuning| !tuning.cache_enabled)
+        || req.method != http::Method::GET
         || req.headers.contains_key("authorization")
         || req.headers.contains_key("upgrade")
         || req.headers.contains_key("range")
@@ -30,15 +43,26 @@ pub(super) fn enable(session: &mut Session, policy: &CachePolicy, route: &RouteC
         return;
     }
     let mut timeouts = CacheOptionOverrides::default();
-    timeouts.wait_timeout = Some(Duration::from_millis(policy.lock_timeout_ms));
+    timeouts.wait_timeout = Some(tuning.map_or_else(
+        || Duration::from_secs(5),
+        |tuning| Duration::from_secs(tuning.cache_lock_wait_timeout),
+    ));
+    timeouts.max_lock_retries = tuning.map(|tuning| tuning.cache_max_lock_retries);
+    let eviction = EVICTION.get_or_init(|| {
+        Manager::new_with_watermark(
+            *CAPACITY.get().unwrap_or(&(DEFAULT_CAPACITY_MIB * MIB)),
+            Some(32_768),
+        )
+    });
     session.cache.enable(
         &*STORAGE,
-        Some(&*EVICTION),
+        Some(eviction),
         None,
-        policy.lock_enabled.then_some(&*CACHE_LOCK),
+        Some(&*CACHE_LOCK),
         Some(timeouts),
     );
-    session.cache.set_max_file_size_bytes(MAX_OBJECT_SIZE);
+    let max_object = tuning.map_or(DEFAULT_MAX_OBJECT_MIB, |tuning| tuning.cache_max_object_mib);
+    session.cache.set_max_file_size_bytes(max_object * MIB);
 }
 
 fn path_matches(route: &RouteCache, static_extensions: &[String], path: &str) -> bool {
@@ -59,159 +83,12 @@ fn path_matches(route: &RouteCache, static_extensions: &[String], path: &str) ->
     }
 }
 
-pub(super) fn key(
-    request: &RequestHeader,
-    policy: &CachePolicy,
-    route: &Route,
-    scheme: &str,
-    host: &str,
-    digest: &str,
-) -> CacheKey {
-    let default = policy.key_template.is_empty() || policy.key_template == DEFAULT_KEY_TEMPLATE;
-    let path = request.uri.path();
-    let args = request.uri.query().unwrap_or_default();
+pub(super) fn key(request: &RequestHeader, scheme: &str, host: &str, digest: &str) -> CacheKey {
     let request_uri = request
         .uri
         .path_and_query()
-        .map_or(path, |value| value.as_str());
-    let key = if default {
-        format!("{scheme}|{host}|{request_uri}")
-    } else {
-        let mut rendered = String::new();
-        let mut proxy_host = None;
-        let mut parts = policy.key_template.split('$');
-        rendered.push_str(parts.next().unwrap_or_default());
-        for part in parts {
-            let end = part
-                .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
-                .unwrap_or(part.len());
-            let (variable, suffix) = part.split_at(end);
-            rendered.push_str(match variable {
-                "scheme" => scheme,
-                "host" => host,
-                "proxy_host" => proxy_host.get_or_insert_with(|| proxy_pass_host(route)),
-                "request_uri" => request_uri,
-                "uri" => path,
-                "args" | "query_string" => args,
-                "is_args" if !args.is_empty() => "?",
-                "request_method" => request.method.as_str(),
-                _ => "",
-            });
-            rendered.push_str(suffix);
-        }
-        rendered
-    };
-    CacheKey::new(format!("{digest}|{scheme}|{host}|{key}"), "")
-}
-
-fn proxy_pass_host(route: &Route) -> String {
-    use url::{Position, Url};
-
-    let Ok(origin) = Url::parse(&route.origin_url) else {
-        return String::new();
-    };
-    // Match the named upstream used by the OpenResty proxy_pass renderer.
-    let mut scheme = None;
-    let named = route.upstreams.len() <= 1
-        || route.upstreams.iter().all(|value| {
-            Url::parse(value).is_ok_and(|url| {
-                url.path() == "/"
-                    && url.query().is_none()
-                    && scheme.get_or_insert_with(|| url.scheme().to_owned()) == url.scheme()
-            })
-        });
-    if !named {
-        return origin[Position::BeforeHost..Position::AfterPort].to_owned();
-    }
-    let name = route.site_name.trim();
-    let identity = if name.is_empty() {
-        route.domains.first().map_or("", String::as_str)
-    } else {
-        name
-    };
-    let sanitized: String = identity
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c.to_ascii_lowercase()
-            } else {
-                '_'
-            }
-        })
-        .collect();
-    let sanitized = sanitized.trim_matches('_');
-    let name = if sanitized.is_empty() {
-        "backend"
-    } else {
-        sanitized
-    };
-    format!("backend_{name}_{}", route.id)
-}
-
-pub(crate) fn validate_policy(policy: &CachePolicy) -> anyhow::Result<()> {
-    for fragment in policy.key_template.split('$').skip(1) {
-        let variable = fragment
-            .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
-            .next()
-            .unwrap_or_default();
-        if !matches!(
-            variable,
-            "scheme"
-                | "host"
-                | "proxy_host"
-                | "request_uri"
-                | "uri"
-                | "args"
-                | "query_string"
-                | "is_args"
-                | "request_method"
-        ) {
-            anyhow::bail!("unsupported cache key variable {variable}");
-        }
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn openresty_proxy_host_template_uses_the_named_upstream() {
-        let request = RequestHeader::build("GET", b"/path?q=1", None).unwrap();
-        let policy = CachePolicy {
-            key_template: "$scheme$proxy_host$request_uri".into(),
-            lock_enabled: false,
-            lock_timeout_ms: 0,
-            stale_on_error: false,
-            stale_updating: false,
-            static_extensions: vec![],
-        };
-        let route = Route {
-            id: 42,
-            site_name: "Example Site".into(),
-            origin_url: "https://origin.test:9443".into(),
-            origin_host: "overridden.test".into(),
-            upstreams: vec![
-                "https://origin.test:9443".into(),
-                "https://backup.test".into(),
-            ],
-            ..Route::default()
-        };
-        validate_policy(&policy).unwrap();
-        assert_eq!(
-            key(&request, &policy, &route, "https", "example.test", "digest").primary_key_str(),
-            Some("digest|https|example.test|httpsbackend_example_site_42/path?q=1"),
-        );
-        let route = Route {
-            upstreams: vec![
-                "https://origin.test:9443".into(),
-                "http://backup.test".into(),
-            ],
-            ..route
-        };
-        assert_eq!(proxy_pass_host(&route), "origin.test:9443");
-    }
+        .map_or(request.uri.path(), |value| value.as_str());
+    CacheKey::new(format!("{digest}|{scheme}|{host}|{request_uri}"), "")
 }
 
 pub(super) fn response(

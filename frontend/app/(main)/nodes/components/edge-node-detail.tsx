@@ -13,7 +13,6 @@ import {
   RefreshCw,
   RotateCcw,
   Trash2,
-  Upload,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -30,14 +29,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/utils';
-import type {
-  NodeAgentReleaseInfo,
-  NodeItem,
-  ReleaseChannel,
-} from '@/lib/services/openflare';
+import type { NodeItem } from '@/lib/services/openflare';
 import { NodeService } from '@/lib/services/openflare';
 
-import { AgentUpdateDialog } from './agent-update-dialog';
 import { InstallCommand } from './install-command';
 import { NodeDetailShell } from './node-detail-shell';
 import {
@@ -69,7 +63,6 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [editorOpen, setEditorOpen] = useState(false);
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const saveMutation = useMutation({
@@ -93,40 +86,9 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
   });
 
   const restartMutation = useMutation({
-    mutationFn: () => NodeService.requestOpenrestyRestart(node.id),
+    mutationFn: () => NodeService.requestEdgeRestart(node.id),
     onSuccess: async (updated) => {
       toast.success(t('edge.toastRestart', { name: updated.name }));
-      await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
-    },
-    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
-  });
-
-  const upgradeMutation = useMutation({
-    mutationFn: ({
-      release,
-      channel,
-    }: {
-      release: NodeAgentReleaseInfo | null;
-      channel: ReleaseChannel;
-    }) =>
-      NodeService.requestAgentUpdate(node.id, {
-        channel: release?.channel ?? channel,
-        tag_name:
-          release?.channel === 'preview'
-            ? release.tag_name || undefined
-            : undefined,
-      }),
-    onSuccess: async (updated) => {
-      toast.success(
-        t('edge.toastUpgrade', {
-          name: updated.name,
-          channel:
-            updated.update_channel === 'preview'
-              ? t('channel.preview')
-              : t('channel.stable'),
-        }),
-      );
-      setUpgradeOpen(false);
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
     onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
@@ -187,18 +149,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         disabled={restartMutation.isPending}
         onClick={() => restartMutation.mutate()}
       >
-        {restartMutation.isPending
-          ? t('dispatching')
-          : t('edge.restartOpenresty')}
-      </Button>
-      <Button
-        variant='secondary'
-        size='sm'
-        className='h-8'
-        onClick={() => setUpgradeOpen(true)}
-      >
-        <Upload className='size-3.5 mr-1.5' />
-        {node.update_requested ? t('viewUpgrade') : t('edge.upgrade')}
+        {restartMutation.isPending ? t('dispatching') : t('edge.restartEdge')}
       </Button>
       <Button
         variant='outline'
@@ -373,16 +324,6 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         onClose={() => setEditorOpen(false)}
         onSubmit={async (payload) => {
           await saveMutation.mutateAsync(payload);
-        }}
-      />
-
-      <AgentUpdateDialog
-        open={upgradeOpen}
-        node={node}
-        submitting={upgradeMutation.isPending}
-        onClose={() => setUpgradeOpen(false)}
-        onConfirm={async (release, channel) => {
-          await upgradeMutation.mutateAsync({ release, channel });
         }}
       />
 

@@ -4311,62 +4311,75 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/agent/config-versions/active": {
+        "/api/v1/agent/config/pull": {
             "get": {
                 "security": [
                     {
                         "AgentTokenAuth": []
                     }
                 ],
-                "description": "返回当前生效的完整配置包，供 Agent 拉取并应用",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "openflare-agent"
                 ],
-                "summary": "获取活跃配置版本",
+                "summary": "拉取边缘配置资源",
                 "parameters": [
                     {
-                        "type": "boolean",
-                        "description": "Agent 支持站点身份验证",
-                        "name": "site_auth",
-                        "in": "query"
+                        "type": "string",
+                        "description": "配置资源标识",
+                        "name": "key",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "配置资源 SHA-256",
+                        "name": "sha256",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "活跃配置",
+                        "description": "配置 JSON",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/apps_openflare_agent.ConfigResponse"
-                                        }
-                                    }
-                                }
-                            ]
+                            "type": "string"
                         }
                     },
                     "400": {
-                        "description": "参数错误",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "401": {
-                        "description": "Token 无效",
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
-                        "description": "资源不在节点发布范围内",
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -4500,122 +4513,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/agent/pages/deployments/{deployment_id}/hash": {
-            "get": {
-                "security": [
-                    {
-                        "AgentTokenAuth": []
-                    }
-                ],
-                "description": "返回 upload 框架记录的 SHA-256 哈希，供 Agent 对比本地缓存并按需拉取部署包（兼容旧路径）",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-agent"
-                ],
-                "summary": "查询 Pages 部署包哈希",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "部署 ID",
-                        "name": "deployment_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.PagesDeploymentHashResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "Token 无效",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "403": {
-                        "description": "资源不在节点发布范围内",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/agent/pages/deployments/{deployment_id}/package": {
-            "get": {
-                "security": [
-                    {
-                        "AgentTokenAuth": []
-                    }
-                ],
-                "description": "流式下载指定部署的静态资源压缩包，供 Agent 边缘分发（兼容旧路径）",
-                "produces": [
-                    "application/octet-stream"
-                ],
-                "tags": [
-                    "openflare-agent"
-                ],
-                "summary": "下载 Pages 部署包",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "部署 ID",
-                        "name": "deployment_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "部署包文件",
-                        "schema": {
-                            "type": "file"
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "Token 无效",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "403": {
-                        "description": "资源不在节点发布范围内",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/agent/pages/projects/{project_id}/latest/hash": {
             "get": {
                 "security": [
@@ -4725,124 +4622,6 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "资源不在节点发布范围内",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/agent/pingora/config-versions/active": {
-            "get": {
-                "security": [
-                    {
-                        "AgentTokenAuth": []
-                    }
-                ],
-                "description": "返回 Pingora 独立发布组的契约版本、发布序号与配置载荷",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-agent"
-                ],
-                "summary": "获取 Pingora 活跃配置",
-                "responses": {
-                    "200": {
-                        "description": "Pingora 活跃配置",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/apps_openflare_agent.PingoraConfigResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "配置不存在",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "Token 无效",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "403": {
-                        "description": "节点不是 Pingora 引擎",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/agent/waf/ip-groups/sync": {
-            "post": {
-                "security": [
-                    {
-                        "AgentTokenAuth": []
-                    }
-                ],
-                "description": "按 ID 与校验和增量同步 WAF IP 组定义",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-agent"
-                ],
-                "summary": "同步 WAF IP 组",
-                "parameters": [
-                    {
-                        "description": "同步请求",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroupSyncRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "同步结果",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroupSyncResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "Token 无效",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -7015,7 +6794,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "返回所有已发布的 OpenResty 配置版本摘要，按创建时间倒序排列，需要管理员权限",
+                "description": "返回所有已发布的边缘配置版本摘要，按创建时间倒序排列，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
@@ -8418,6 +8197,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/nodes/{id}/edge-restart": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "向指定节点下发 OpenResty 重启指令，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-node"
+                ],
+                "summary": "请求重启 Pingora",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "重启请求已下发",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_node.View"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或节点不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/nodes/{id}/force-sync": {
             "post": {
                 "security": [
@@ -8595,70 +8438,6 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/apps_openflare_node.HealthEventCleanupResult"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "未登录",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "404": {
-                        "description": "无权限或节点不存在",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/d/nodes/{id}/openresty-restart": {
-            "post": {
-                "security": [
-                    {
-                        "SessionCookie": []
-                    }
-                ],
-                "description": "向指定节点下发 OpenResty 重启指令，需要管理员权限",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "openflare-node"
-                ],
-                "summary": "请求重启 OpenResty",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "节点 ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "重启请求已下发",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/apps_openflare_node.View"
                                         }
                                     }
                                 }
@@ -15199,6 +14978,290 @@ const docTemplate = `{
                 }
             }
         },
+        "/d/performance-policies": {
+            "get": {
+                "tags": [
+                    "Performance Policies"
+                ],
+                "summary": "List Pingora performance policies",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_performance.policyList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Performance Policies"
+                ],
+                "summary": "Create a Pingora performance policy",
+                "parameters": [
+                    {
+                        "description": "Policy name and parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_performance.policyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_performance.policyView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/d/performance-policies/{id}/assign": {
+            "post": {
+                "tags": [
+                    "Performance Policies"
+                ],
+                "summary": "Assign a Pingora performance policy to a set of nodes",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Policy ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Selected Pingora node IDs",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_performance.assignmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/d/performance-policies/{id}/delete": {
+            "post": {
+                "tags": [
+                    "Performance Policies"
+                ],
+                "summary": "Delete a Pingora performance policy",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Policy ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/d/performance-policies/{id}/update": {
+            "post": {
+                "tags": [
+                    "Performance Policies"
+                ],
+                "summary": "Update a Pingora performance policy",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Policy ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Policy name and parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_performance.policyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_performance.policyView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/f/{id}": {
             "get": {
                 "description": "根据文件 ID 获取并提供已上传的临时或正式文件，若配置了缓存则优先走本地缓存，否则从 S3 等后端存储读取并流式返回",
@@ -16508,72 +16571,17 @@ const docTemplate = `{
                 }
             }
         },
-        "apps_openflare_agent.ConfigResponse": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "source_config_json": {
-                    "type": "string"
-                },
-                "support_files": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.SupportFile"
-                    }
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
         "apps_openflare_agent.HeartbeatResponse": {
             "type": "object",
             "properties": {
-                "active_config": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.ActiveConfigMeta"
-                },
                 "agent_settings": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentSettings"
                 },
+                "config": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.ConfigManifest"
+                },
                 "node": {
                     "$ref": "#/definitions/model.OpenFlareNode"
-                },
-                "waf_ip_groups": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroup"
-                    }
-                }
-            }
-        },
-        "apps_openflare_agent.PingoraConfigResponse": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "engine": {
-                    "type": "string"
-                },
-                "payload_checksum": {
-                    "type": "string"
-                },
-                "payload_json": {
-                    "type": "string"
-                },
-                "release_sequence": {
-                    "type": "integer"
-                },
-                "version": {
-                    "type": "string"
                 }
             }
         },
@@ -18548,11 +18556,77 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_performance.assignmentRequest": {
+            "type": "object",
+            "required": [
+                "node_ids"
+            ],
+            "properties": {
+                "node_ids": {
+                    "type": "array",
+                    "maxItems": 10000,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "apps_openflare_performance.policyList": {
+            "type": "object",
+            "properties": {
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.PerformancePolicyNode"
+                    }
+                },
+                "parameters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_performance.Parameter"
+                    }
+                },
+                "policies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_performance.policyView"
+                    }
+                }
+            }
+        },
+        "apps_openflare_performance.policyRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "settings": {
+                    "type": "object"
+                }
+            }
+        },
+        "apps_openflare_performance.policyView": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "settings": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_performance.Settings"
+                }
+            }
+        },
         "apps_openflare_pow.Policy": {
             "type": "object",
             "properties": {
                 "config": {
-                    "$ref": "#/definitions/openresty.PoWConfig"
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWConfig"
                 },
                 "enabled": {
                     "type": "boolean"
@@ -20192,6 +20266,126 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWConfig": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "type": "string"
+                },
+                "blacklist": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWListConfig"
+                },
+                "challenge_ttl": {
+                    "type": "integer"
+                },
+                "difficulty": {
+                    "type": "integer"
+                },
+                "path_rules": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWPathRules"
+                },
+                "session_ttl": {
+                    "type": "integer"
+                },
+                "whitelist": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWListConfig"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWListConfig": {
+            "type": "object",
+            "properties": {
+                "ip_cidrs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ips": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "path_regexes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "paths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "user_agents": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWPathMatch": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWPathRules": {
+            "type": "object",
+            "properties": {
+                "blacklist": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWPathMatch"
+                    }
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "whitelist": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWPathMatch"
+                    }
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_performance.Parameter": {
+            "type": "object",
+            "properties": {
+                "choices": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "default": {},
+                "group": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "min": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_performance.Settings": {
+            "type": "object",
+            "additionalProperties": {}
+        },
         "github_com_Rain-kl_Wavelet_internal_openflare_protocol.ActiveConfigMeta": {
             "type": "object",
             "properties": {
@@ -20305,28 +20499,10 @@ const docTemplate = `{
         "github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentSettings": {
             "type": "object",
             "properties": {
-                "auto_update": {
-                    "type": "boolean"
-                },
                 "heartbeat_interval": {
                     "type": "integer"
                 },
-                "restart_openresty_now": {
-                    "type": "boolean"
-                },
-                "update_channel": {
-                    "type": "string"
-                },
-                "update_now": {
-                    "type": "boolean"
-                },
-                "update_repo": {
-                    "type": "string"
-                },
-                "update_tag": {
-                    "type": "string"
-                },
-                "websocket_upgrade_enabled": {
+                "restart_edge_now": {
                     "type": "boolean"
                 }
             }
@@ -20386,6 +20562,35 @@ const docTemplate = `{
                 },
                 "host_metrics": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeMetricSnapshot"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.ConfigManifest": {
+            "type": "object",
+            "properties": {
+                "resources": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.ConfigResource"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.ConfigResource": {
+            "type": "object",
+            "properties": {
+                "inline_json": {
+                    "type": "string"
+                },
+                "metadata": {},
+                "revision": {
+                    "type": "string"
+                },
+                "sha256": {
+                    "type": "string"
                 }
             }
         },
@@ -20629,6 +20834,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.BufferedObservabilityRecord"
                     }
                 },
+                "config_sync_version": {
+                    "type": "integer"
+                },
                 "contract_version": {
                     "type": "integer"
                 },
@@ -20679,12 +20887,6 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "string"
-                },
-                "waf_ip_group_checksums": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
                 }
             }
         },
@@ -20726,17 +20928,6 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.PagesDeploymentHashResponse": {
-            "type": "object",
-            "properties": {
-                "deployment_id": {
-                    "type": "integer"
-                },
-                "hash": {
-                    "type": "string"
-                }
-            }
-        },
         "github_com_Rain-kl_Wavelet_internal_openflare_protocol.PagesProjectLatestHashResponse": {
             "type": "object",
             "properties": {
@@ -20774,6 +20965,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.BufferedObservabilityRecord"
                     }
+                },
+                "config_sync_version": {
+                    "type": "integer"
                 },
                 "contract_version": {
                     "type": "integer"
@@ -20828,12 +21022,6 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "string"
-                },
-                "waf_ip_group_checksums": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
                 }
             }
         },
@@ -20967,71 +21155,6 @@ const docTemplate = `{
                 },
                 "websocket_upgrade_enabled": {
                     "type": "boolean"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.SupportFile": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroup": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "ip_list": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroupSyncRequest": {
-            "type": "object",
-            "properties": {
-                "checksums": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroupSyncResponse": {
-            "type": "object",
-            "properties": {
-                "groups": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFIPGroup"
-                    }
                 }
             }
         },
@@ -21522,6 +21645,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.PerformancePolicyNode": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "policy_id": {
+                    "type": "integer"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -22050,98 +22190,6 @@ const docTemplate = `{
                 },
                 "zone_id": {
                     "type": "integer"
-                }
-            }
-        },
-        "openresty.PoWConfig": {
-            "type": "object",
-            "properties": {
-                "algorithm": {
-                    "type": "string"
-                },
-                "blacklist": {
-                    "$ref": "#/definitions/openresty.PoWListConfig"
-                },
-                "challenge_ttl": {
-                    "type": "integer"
-                },
-                "difficulty": {
-                    "type": "integer"
-                },
-                "path_rules": {
-                    "$ref": "#/definitions/openresty.PoWPathRules"
-                },
-                "session_ttl": {
-                    "type": "integer"
-                },
-                "whitelist": {
-                    "$ref": "#/definitions/openresty.PoWListConfig"
-                }
-            }
-        },
-        "openresty.PoWListConfig": {
-            "type": "object",
-            "properties": {
-                "ip_cidrs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "ips": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "path_regexes": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "paths": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "user_agents": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "openresty.PoWPathMatch": {
-            "type": "object",
-            "properties": {
-                "type": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "string"
-                }
-            }
-        },
-        "openresty.PoWPathRules": {
-            "type": "object",
-            "properties": {
-                "blacklist": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/openresty.PoWPathMatch"
-                    }
-                },
-                "mode": {
-                    "type": "string"
-                },
-                "whitelist": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/openresty.PoWPathMatch"
-                    }
                 }
             }
         },

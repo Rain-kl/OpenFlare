@@ -75,26 +75,14 @@ pnpm tsc --noEmit --jsx preserve
 pnpm check:i18n
 ```
 
-## Agent
-
-源码运行：
+## Pingora Edge
 
 ```bash
-go run ./cmd/agent -config /path/to/agent.json
+make build-edge
+cargo test --manifest-path edge/pingora/Cargo.toml --locked
 ```
 
-编译：
-
-```bash
-make build-agent
-# 或：go build -o bin/openflare-agent ./cmd/agent
-```
-
-测试：
-
-```bash
-GOCACHE=/tmp/openflare-go-cache go test ./internal/edge/agent/...
-```
+运行参数见 [Pingora Edge 启动参数](./configuration.md#pingora-edge-启动参数)。
 
 ## Relay（中继端）
 
@@ -126,19 +114,9 @@ make build-flared
 # 或：go build -o bin/flared ./cmd/flared
 ```
 
-## 安装 Agent
+## 安装与卸载 Pingora Edge
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-agent.sh | bash -s -- \
-  --server-url http://your-server:3000 \
-  --agent-token YOUR_AGENT_TOKEN
-```
-
-## 卸载 Agent
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-agent.sh | bash
-```
+安装说明见 [快速开始](../guide/quick-start.md#3-安装-pingora-edge)。卸载在边缘节点运行发行包中的 `scripts/uninstall-openflare-edge.sh`。
 
 ## Swagger
 

@@ -387,7 +387,7 @@ export default function ConfigVersionsPage() {
                         <Eye className='size-3 mr-1' />
                         {t('snapshot')}
                       </Button>
-                      {!version.is_active ? (
+                      {!version.is_active && version.engine === 'pingora' ? (
                         <Button
                           variant='ghost'
                           size='sm'

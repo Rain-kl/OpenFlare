@@ -1,0 +1,246 @@
+{
+  "performancePolicies": {
+    "title": "Performance policies",
+    "description": "Tune Pingora for different node sizes. Connected nodes begin syncing as soon as a policy changes.",
+    "create": "Create policy",
+    "edit": "Edit policy",
+    "delete": "Delete policy",
+    "loadFailed": "Could not load performance policies.",
+    "retry": "Reload",
+    "operationFailed": "Could not save changes.",
+    "empty": "There are no performance policies.",
+    "assignedCount": "{count, plural, one {# assigned node} other {# assigned nodes}}",
+    "threadAuto": "Automatic threads",
+    "threadCount": "{count, plural, one {# worker thread} other {# worker threads}}",
+    "poolSize": "Origin pool size {count}",
+    "assign": "Assign nodes",
+    "editDescription": "New policies start with filled defaults. Updating startup settings such as workers or listeners automatically reloads the node.",
+    "name": "Policy name",
+    "save": "Save policy",
+    "cancel": "Cancel",
+    "saved": "Performance policy saved.",
+    "assigned": "Node assignments saved.",
+    "deleted": "Performance policy deleted.",
+    "deleteTitle": "Delete {name}",
+    "deleteDescription": "Nodes using this policy will return to the default settings.",
+    "assignTitle": "Assign nodes to {name}",
+    "assignDescription": "Each node uses one policy. Selected nodes will use this policy. Clearing a current assignment restores the node defaults.",
+    "search": "Search node name or ID",
+    "selectAll": "Select filtered nodes",
+    "noNodes": "No matching Pingora nodes.",
+    "defaults": "Default settings",
+    "applyCount": "Save assignments ({count})",
+    "range": "Enter a value from {min} to {max}.",
+    "groups": {
+      "runtime": "Runtime",
+      "upstream": "Origin connections",
+      "http2": "HTTP/2",
+      "tls": "TLS thread pools",
+      "listener": "Listeners",
+      "cache": "Cache"
+    },
+    "choices": {
+      "h1": "HTTP/1.1",
+      "h2h1": "Prefer HTTP/2",
+      "h2": "HTTP/2 only"
+    },
+    "fields": {
+      "threads": {
+        "label": "Worker threads",
+        "help": "Start with the node's CPU core count."
+      },
+      "threads_auto": {
+        "label": "Automatic thread count",
+        "help": "Use the CPU cores available to the node process."
+      },
+      "work_stealing": {
+        "label": "Work stealing",
+        "help": "Idle workers can process tasks from other workers' queues."
+      },
+      "listener_tasks_per_fd": {
+        "label": "Tasks per listener socket",
+        "help": "Increasing this value allows parallel connection acceptance."
+      },
+      "upstream_keepalive_pool_size": {
+        "label": "Idle origin pool size",
+        "help": "A larger pool can improve connection reuse and consumes more file descriptors."
+      },
+      "max_retries": {
+        "label": "Origin attempt limit",
+        "help": "Includes the initial attempt. Set to 1 to disable retries."
+      },
+      "runtime_enable_alt_timer": {
+        "label": "Alternative runtime timer",
+        "help": "Uses the alternative Tokio timer and requires work stealing."
+      },
+      "fast_timeout_to_tokio_threshold_seconds": {
+        "label": "Tokio timer threshold",
+        "help": "In seconds. Timeouts at or above this duration use Tokio."
+      },
+      "runtime_metrics_poll_time_histogram": {
+        "label": "Task poll duration metrics",
+        "help": "Collect a histogram of asynchronous task poll durations."
+      },
+      "connection_timeout": {
+        "label": "TCP connection timeout",
+        "help": "In seconds. Use 0 for runtime defaults."
+      },
+      "total_connection_timeout": {
+        "label": "Total connection timeout",
+        "help": "In seconds, including the TLS handshake. Use 0 for runtime defaults."
+      },
+      "read_timeout": {
+        "label": "Origin read timeout",
+        "help": "In seconds. Use 0 for runtime defaults."
+      },
+      "write_timeout": {
+        "label": "Origin write timeout",
+        "help": "In seconds. Use 0 for runtime defaults."
+      },
+      "idle_timeout": {
+        "label": "Idle origin connection lifetime",
+        "help": "In seconds. Use 0 for runtime defaults."
+      },
+      "upstream_tcp_keepalive": {
+        "label": "Origin TCP keepalive",
+        "help": "Starts probing after 60 seconds of idle time, every 15 seconds, up to 4 times."
+      },
+      "upstream_tcp_recv_buf": {
+        "label": "Origin TCP receive buffer",
+        "help": "In bytes. Use 0 for the system default."
+      },
+      "verify_cert": {
+        "label": "Verify origin certificate",
+        "help": "Validate the trust chain of the TLS certificate."
+      },
+      "verify_hostname": {
+        "label": "Verify origin hostname",
+        "help": "Match the hostname in the TLS certificate. Requires certificate verification."
+      },
+      "upstream_alpn": {
+        "label": "HTTPS origin protocol",
+        "help": "Select which HTTP protocol to negotiate for HTTPS origins."
+      },
+      "max_h2_streams": {
+        "label": "Concurrent origin HTTP/2 streams",
+        "help": "Limit active streams per HTTP/2 origin connection."
+      },
+      "h2_ping_interval": {
+        "label": "Origin HTTP/2 PING interval",
+        "help": "In seconds. Use 0 to disable."
+      },
+      "h2_stream_window_size": {
+        "label": "Origin HTTP/2 stream window",
+        "help": "Initial receive window per stream, in bytes."
+      },
+      "h2_connection_window_size": {
+        "label": "Origin HTTP/2 connection window",
+        "help": "Initial receive window for the connection, in bytes."
+      },
+      "max_concurrent_streams": {
+        "label": "Concurrent downstream HTTP/2 streams",
+        "help": "Limit active streams per client connection."
+      },
+      "initial_window_size": {
+        "label": "Downstream HTTP/2 stream window",
+        "help": "Initial receive window per stream, in bytes."
+      },
+      "initial_connection_window_size": {
+        "label": "Downstream HTTP/2 connection window",
+        "help": "Initial receive window per client connection, in bytes."
+      },
+      "max_frame_size": {
+        "label": "Maximum downstream HTTP/2 frame size",
+        "help": "Maximum HTTP/2 frame payload in bytes."
+      },
+      "max_header_list_size": {
+        "label": "Downstream HTTP/2 header limit",
+        "help": "Limit the decoded request header list size, in bytes."
+      },
+      "header_table_size": {
+        "label": "Downstream HPACK table size",
+        "help": "In bytes. Use 0 to disable the dynamic table."
+      },
+      "max_send_buffer_size": {
+        "label": "Downstream HTTP/2 send buffer",
+        "help": "Maximum buffer size per stream, in bytes."
+      },
+      "upstream_connect_offload_threadpools": {
+        "label": "Dedicated origin connection pools",
+        "help": "Use 0 to connect on regular workers."
+      },
+      "upstream_connect_offload_thread_per_pool": {
+        "label": "Threads per origin connection pool",
+        "help": "Applies when dedicated origin connection pools are enabled."
+      },
+      "downstream_tls_offload_threadpools": {
+        "label": "Dedicated downstream TLS handshake pools",
+        "help": "Use 0 to handle handshakes on regular workers."
+      },
+      "downstream_tls_offload_thread_per_pool": {
+        "label": "Threads per TLS handshake pool",
+        "help": "Applies when dedicated downstream TLS pools are enabled."
+      },
+      "keepalive_request_limit": {
+        "label": "Requests per keep-alive connection",
+        "help": "Applies to HTTP/1.x. Use 0 for no limit."
+      },
+      "h2_idle_timeout": {
+        "label": "Downstream HTTP/2 idle timeout",
+        "help": "In seconds. Use 0 to leave idle connections open."
+      },
+      "h2c": {
+        "label": "Cleartext HTTP/2",
+        "help": "Allow HTTP/2 on the cleartext listener."
+      },
+      "so_reuseport": {
+        "label": "Listener port reuse",
+        "help": "Allow multiple sockets to bind to the same address and port."
+      },
+      "tcp_fastopen": {
+        "label": "TCP Fast Open queue length",
+        "help": "Requires operating system support. Use 0 to disable."
+      },
+      "listener_tcp_keepalive": {
+        "label": "Downstream TCP keepalive",
+        "help": "Starts probing after 60 seconds of idle time, every 15 seconds, up to 4 times."
+      },
+      "tcp_snd_buf": {
+        "label": "Downstream TCP send buffer",
+        "help": "In bytes. Use 0 for the system default."
+      },
+      "tcp_recv_buf": {
+        "label": "Downstream TCP receive buffer",
+        "help": "In bytes. Use 0 for the system default."
+      },
+      "ipv6_only": {
+        "label": "IPv6-only listeners",
+        "help": "Applies to listeners bound to an IPv6 address."
+      },
+      "dscp": {
+        "label": "Downstream DSCP marking",
+        "help": "Range 0 to 63. Use 0 for the default."
+      },
+      "cache_enabled": {
+        "label": "Node caching",
+        "help": "Allow site cache rules to take effect on this node."
+      },
+      "cache_capacity_mib": {
+        "label": "Cache capacity",
+        "help": "Object capacity of the in-memory cache, in MiB."
+      },
+      "cache_max_object_mib": {
+        "label": "Maximum cached object",
+        "help": "Maximum size of one cached object, in MiB."
+      },
+      "cache_lock_wait_timeout": {
+        "label": "Cache lock wait timeout",
+        "help": "Seconds to wait for an in-progress origin fetch of the same object."
+      },
+      "cache_max_lock_retries": {
+        "label": "Cache lock retry limit",
+        "help": "Number of cache lookup retries after waiting."
+      }
+    }
+  }
+}

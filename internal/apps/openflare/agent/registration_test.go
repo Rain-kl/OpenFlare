@@ -5,21 +5,16 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	agentclient "github.com/Rain-kl/Wavelet/internal/edge/agent/httpclient"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/Rain-kl/Wavelet/internal/repository"
-	"github.com/Rain-kl/Wavelet/internal/shared/response"
 )
 
 func TestRegisterWithAccessTokenMigratesAnExistingEdge(t *testing.T) {
@@ -36,7 +31,7 @@ func TestRegisterWithAccessTokenMigratesAnExistingEdge(t *testing.T) {
 	if err := repository.CreateOpenFlareNode(ctx, &node); err != nil {
 		t.Fatal(err)
 	}
-	pingora := protocol.NodePayload{Engine: enginePingora, ContractVersion: edgeconfig.ContractVersion, IP: "192.0.2.3", Version: "test"}
+	pingora := protocol.NodePayload{Engine: enginePingora, ContractVersion: edgeconfig.ContractVersion, ConfigSyncVersion: protocol.EdgeConfigSyncVersion, IP: "192.0.2.3", Version: "test"}
 	if _, err := RegisterWithAccessToken(ctx, &node, pingora); err == nil || err.Error() != errPingoraReleaseRequired {
 		t.Fatalf("migration without a release: %v", err)
 	}
@@ -52,10 +47,10 @@ func TestRegisterWithAccessTokenMigratesAnExistingEdge(t *testing.T) {
 		t.Fatalf("migration changed identity or failed: %v", err)
 	}
 	oldAgent := protocol.NodePayload{IP: "192.0.2.2", Version: "legacy"}
-	if _, err := HeartbeatNode(ctx, &node, oldAgent); err == nil || err.Error() != errNodeEngineChanged {
+	if _, err := HeartbeatNode(ctx, &node, oldAgent); err == nil || err.Error() != errPingoraNodeRequired {
 		t.Fatalf("stale OpenResty heartbeat: %v", err)
 	}
-	if _, err := RegisterWithAccessToken(ctx, &node, oldAgent); err == nil || err.Error() != errNodeEngineChanged {
+	if _, err := RegisterWithAccessToken(ctx, &node, oldAgent); err == nil || err.Error() != errPingoraNodeRequired {
 		t.Fatalf("OpenResty registration after migration: %v", err)
 	}
 	stored, err := repository.GetOpenFlareNodeByNodeID(ctx, node.NodeID)
@@ -68,46 +63,11 @@ func TestRegisterWithAccessTokenMigratesAnExistingEdge(t *testing.T) {
 	}
 }
 
-func TestRegistrationResponseServerClientContract(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(response.OK(protocol.RegisterNodeResponse{NodeID: "node-contract", AccessToken: "issued", Name: "edge"})); err != nil {
-			t.Error(err)
-		}
-	}))
-	t.Cleanup(server.Close)
-	client := agentclient.New(server.URL, "discovery", time.Second)
-	got, err := client.RegisterNode(context.Background(), protocol.RegisterNodeRequest{})
-	if err != nil {
-		t.Fatalf("RegisterNode(server response) error = %v", err)
-	}
-	if got.NodeID != "node-contract" || got.AccessToken != "issued" || got.Name != "edge" {
-		t.Errorf("RegisterNode(server response) = %+v, want node-contract/issued/edge", got)
-	}
-	data, err := json.Marshal(protocol.RegisterNodeResponse{AccessToken: "issued"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var legacy struct {
-		AccessToken string `json:"access_token"`
-	}
-	if err = json.Unmarshal(data, &legacy); err != nil || legacy.AccessToken != "issued" {
-		t.Errorf("Decode legacy server response = %q, %v; want issued, nil", legacy.AccessToken, err)
-	}
-	var documented RegistrationResponseDocs
-	if err = json.Unmarshal(data, &documented); err != nil {
-		t.Fatal(err)
-	}
-	if documented.AgentToken != "issued" || documented.AccessToken != documented.AgentToken {
-		t.Error("RegistrationResponseDocs does not describe both emitted token aliases")
-	}
-}
-
 func TestDiscoveryRetriesKeepOneIdentityAndPreserveChanges(t *testing.T) {
 	t.Cleanup(setupAgentAuthTestDB(t))
 	ctx := context.Background()
 	key := strings.Repeat("a1", 32)
-	payload := protocol.NodePayload{IP: "10.0.0.8", Version: "test", Name: "edge"}
+	payload := protocol.NodePayload{Engine: enginePingora, ContractVersion: edgeconfig.ContractVersion, ConfigSyncVersion: protocol.EdgeConfigSyncVersion, IP: "10.0.0.8", Version: "test", Name: "edge"}
 	first, err := RegisterWithDiscovery(ctx, payload, key)
 	if err != nil {
 		t.Fatal(err)
@@ -160,7 +120,7 @@ func TestDiscoveryConcurrentRetriesAndRevokedCredential(t *testing.T) {
 	}
 	sqlDB.SetMaxOpenConns(1)
 	key := strings.Repeat("c3", 32)
-	payload := protocol.NodePayload{IP: "10.0.0.8", Version: "test"}
+	payload := protocol.NodePayload{Engine: enginePingora, ContractVersion: edgeconfig.ContractVersion, ConfigSyncVersion: protocol.EdgeConfigSyncVersion, IP: "10.0.0.8", Version: "test"}
 	const attempts = 12
 	results := make(chan *protocol.RegisterNodeResponse, attempts)
 	errors := make(chan error, attempts)

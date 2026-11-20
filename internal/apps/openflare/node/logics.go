@@ -203,6 +203,9 @@ func CreateNode(ctx context.Context, input Input) (*View, error) {
 	if err != nil {
 		return nil, err
 	}
+	if node.NodeType == "edge_node" {
+		node.Engine = "pingora"
+	}
 	if node.NodeType == "tunnel_relay" {
 		node.RelayBindPort = normalizeRelayPort(input.RelayBindPort, defaultRelayBindPort)
 		node.RelayVhostHTTPPort = normalizeRelayPort(input.RelayVhostHTTPPort, defaultRelayVhostHTTPPort)
@@ -341,8 +344,8 @@ func RequestAgentUpdate(ctx context.Context, id uint, input AgentUpdateInput) (*
 	return buildNodeView(node), nil
 }
 
-// RequestOpenrestyRestart marks a node for openresty restart.
-func RequestOpenrestyRestart(ctx context.Context, id uint) (*View, error) {
+// RequestEdgeRestart marks a node for Pingora restart.
+func RequestEdgeRestart(ctx context.Context, id uint) (*View, error) {
 	node, err := repository.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -361,20 +364,17 @@ func RequestForceSync(ctx context.Context, id uint) (*View, error) {
 		return nil, err
 	}
 	engine := node.Engine
-	if engine == "" {
-		engine = "openresty"
+	if engine != "pingora" {
+		return nil, errors.New(errNodeForceSyncFailed)
 	}
-	activeConfig, err := repository.GetActiveConfigVersionByEngine(ctx, engine)
+	_, err = repository.GetActiveConfigVersionByEngine(ctx, engine)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("unable to get the currently active configuration version: %s", errNoActiveConfigVersion)
 		}
 		return nil, fmt.Errorf("unable to get the currently active configuration version: %w", err)
 	}
-	if !ofws.SendForceSyncConfig(node.NodeID, forceSyncConfigPayload{
-		Version:  activeConfig.Version,
-		Checksum: activeConfig.Checksum,
-	}) {
+	if !ofws.SendForceSyncConfig(node.NodeID) {
 		return nil, errors.New(errNodeForceSyncFailed)
 	}
 	return buildNodeView(node), nil
@@ -411,11 +411,6 @@ func ensureGlobalDiscoveryToken(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return token, nil
-}
-
-type forceSyncConfigPayload struct {
-	Version  string `json:"version"`
-	Checksum string `json:"checksum"`
 }
 
 // ValidateDiscoveryToken validates the global discovery token.

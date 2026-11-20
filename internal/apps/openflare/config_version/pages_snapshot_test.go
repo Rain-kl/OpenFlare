@@ -12,7 +12,7 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -74,7 +74,7 @@ func TestBuildSnapshotRoutesPages(t *testing.T) {
 
 	var decoded struct {
 		Routes []struct {
-			PagesDeployment *openrestyrender.PagesDeployment `json:"pages_deployment"`
+			PagesDeployment *edgeconfig.PagesDeployment `json:"pages_deployment"`
 		} `json:"routes"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(bundle.SnapshotJSON), &decoded))

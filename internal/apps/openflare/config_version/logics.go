@@ -19,8 +19,8 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
-	pkgprotocol "github.com/Rain-kl/Wavelet/internal/openflare/protocol"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
+
 	"gorm.io/gorm"
 )
 
@@ -58,7 +58,7 @@ type ConfigDiffResult struct {
 	ActiveWebsiteCount   int                    `json:"active_website_count"`
 }
 
-// ConfigOptionDiffItem describes a changed OpenResty option.
+// ConfigOptionDiffItem describes a changed edge setting.
 type ConfigOptionDiffItem struct {
 	Key           string `json:"key"`
 	PreviousValue string `json:"previous_value"`
@@ -146,8 +146,8 @@ func DiffConfigVersion(ctx context.Context) (*ConfigDiffResult, error) {
 				result.AddedDomains = append(result.AddedDomains, route.Domains...)
 			}
 			result.MainConfigChanged = true
-			result.ChangedOptionKeys = openRestyOptionKeys()
-			result.ChangedOptionDetails = buildInitialOpenRestyOptionDiffs(bundle.OpenRestyConfig)
+			result.ChangedOptionDetails = buildInitialEdgeSettingDiffs(bundle.EdgeSettings)
+			result.ChangedOptionKeys = extractOptionDiffKeys(result.ChangedOptionDetails)
 			sort.Strings(result.AddedSites)
 			sort.Strings(result.AddedDomains)
 			sort.Strings(result.ChangedOptionKeys)
@@ -197,7 +197,7 @@ func DiffConfigVersion(ctx context.Context) (*ConfigDiffResult, error) {
 	}
 	result.MainConfigChanged = activeVersion.MainConfig != bundle.MainConfig
 	result.WAFConfigChanged = !snapshotWAFConfigEqual(activeSnapshot.WAF, bundle.WAFSnapshot)
-	result.ChangedOptionDetails = diffOpenRestyOptionDetails(activeSnapshot.OpenRestyConfig, bundle.OpenRestyConfig)
+	result.ChangedOptionDetails = diffEdgeSettingDetails(activeSnapshot.EdgeSettings, bundle.EdgeSettings)
 	result.ChangedOptionKeys = extractOptionDiffKeys(result.ChangedOptionDetails)
 	sort.Strings(result.AddedSites)
 	sort.Strings(result.RemovedSites)
@@ -243,20 +243,16 @@ func PublishConfigVersion(ctx context.Context, createdBy string, force bool) (*m
 		IsActive:         true,
 		CreatedBy:        createdBy,
 	}
-	pingoraRecord, err := buildPingoraConfigVersion(ctx, record)
-	if err != nil {
-		return nil, err
-	}
-	if err = repository.PublishConfigVersionTx(ctx, record, pingoraRecord); err != nil {
+
+	record.Engine = pingoraEngineName
+	record.PayloadChecksum = bundle.Checksum
+	if err = repository.PublishConfigVersionTx(ctx, record); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errVersionConflict)
 		}
 		return nil, err
 	}
-	broadcastConfigVersion(record)
-	if pingoraRecord != nil {
-		broadcastConfigVersion(pingoraRecord)
-	}
+	websocket.NotifyAgentConfigChanged(ctx)
 	return record, nil
 }
 
@@ -266,15 +262,8 @@ func ActivateConfigVersion(ctx context.Context, versionStr string) (*model.Confi
 	if err != nil {
 		return nil, err
 	}
-	broadcastConfigVersion(version)
+	websocket.NotifyAgentConfigChanged(ctx)
 	return version, nil
-}
-
-func broadcastConfigVersion(version *model.ConfigVersion) {
-	websocket.BroadcastActiveConfig(pkgprotocol.ActiveConfigMeta{
-		Version: version.Version, Checksum: version.Checksum, Engine: version.Engine,
-		ReleaseSequence: version.ReleaseSequence, PayloadChecksum: version.PayloadChecksum,
-	})
 }
 
 // CleanupConfigVersions removes old inactive config versions.
@@ -342,6 +331,11 @@ func parseSnapshotDocument(snapshotJSON string) (*snapshotDocument, error) {
 	if err := json.Unmarshal([]byte(text), &snapshot); err != nil {
 		return nil, errors.New(errInvalidSnapshotFormat)
 	}
+	var settings edgeconfig.Document
+	if err := json.Unmarshal([]byte(snapshotJSON), &settings); err != nil {
+		return nil, errors.New(errInvalidSnapshotFormat)
+	}
+	snapshot.EdgeSettings = settings.Settings
 	snapshot.Routes = normalizeSnapshotRoutes(snapshot.Routes)
 	return &snapshot, nil
 }
@@ -441,7 +435,7 @@ func snapshotRouteOriginEqual(left, right snapshotRoute) bool {
 		snapshotPagesDeploymentEqual(left.PagesDeployment, right.PagesDeployment)
 }
 
-func snapshotPagesDeploymentEqual(left, right *openrestyrender.PagesDeployment) bool {
+func snapshotPagesDeploymentEqual(left, right *edgeconfig.PagesDeployment) bool {
 	if left == nil && right == nil {
 		return true
 	}
@@ -496,15 +490,15 @@ func snapshotWAFConfigEqual(left snapshotWAFDocument, right snapshotWAFDocument)
 	return string(leftJSON) == string(rightJSON)
 }
 
-func buildInitialOpenRestyOptionDiffs(current openRestyConfigSnapshot) []ConfigOptionDiffItem {
-	details := diffOpenRestyOptionDetails(openRestyConfigSnapshot{}, current)
+func buildInitialEdgeSettingDiffs(current edgeSettingsSnapshot) []ConfigOptionDiffItem {
+	details := diffEdgeSettingDetails(edgeSettingsSnapshot{}, current)
 	for index := range details {
 		details[index].PreviousValue = ""
 	}
 	return details
 }
 
-func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyConfigSnapshot) []ConfigOptionDiffItem {
+func diffEdgeSettingDetails(left edgeSettingsSnapshot, right edgeSettingsSnapshot) []ConfigOptionDiffItem {
 	changes := make([]ConfigOptionDiffItem, 0)
 	appendIfChanged := func(key string, previous string, current string) {
 		if previous == current {
@@ -516,47 +510,11 @@ func diffOpenRestyOptionDetails(left openRestyConfigSnapshot, right openRestyCon
 			CurrentValue:  current,
 		})
 	}
-	appendIfChanged("OpenRestyDefaultServerReturnStatus", strconv.Itoa(left.DefaultServerReturnStatus), strconv.Itoa(right.DefaultServerReturnStatus))
-	appendIfChanged("OpenRestyWorkerProcesses", left.WorkerProcesses, right.WorkerProcesses)
-	appendIfChanged("OpenRestyWorkerConnections", strconv.Itoa(left.WorkerConnections), strconv.Itoa(right.WorkerConnections))
-	appendIfChanged("OpenRestyWorkerRlimitNofile", strconv.Itoa(left.WorkerRlimitNofile), strconv.Itoa(right.WorkerRlimitNofile))
-	appendIfChanged("OpenRestyEventsUse", left.EventsUse, right.EventsUse)
-	appendIfChanged("OpenRestyEventsMultiAcceptEnabled", strconv.FormatBool(left.EventsMultiAcceptEnabled), strconv.FormatBool(right.EventsMultiAcceptEnabled))
-	appendIfChanged("OpenRestyKeepaliveTimeout", strconv.Itoa(left.KeepaliveTimeout), strconv.Itoa(right.KeepaliveTimeout))
-	appendIfChanged("OpenRestyKeepaliveRequests", strconv.Itoa(left.KeepaliveRequests), strconv.Itoa(right.KeepaliveRequests))
-	appendIfChanged("OpenRestyClientHeaderTimeout", strconv.Itoa(left.ClientHeaderTimeout), strconv.Itoa(right.ClientHeaderTimeout))
-	appendIfChanged("OpenRestyClientBodyTimeout", strconv.Itoa(left.ClientBodyTimeout), strconv.Itoa(right.ClientBodyTimeout))
-	appendIfChanged("OpenRestyClientMaxBodySize", left.ClientMaxBodySize, right.ClientMaxBodySize)
-	appendIfChanged("OpenRestyLargeClientHeaderBuffers", left.LargeClientHeaderBuffers, right.LargeClientHeaderBuffers)
-	appendIfChanged("OpenRestySendTimeout", strconv.Itoa(left.SendTimeout), strconv.Itoa(right.SendTimeout))
-	appendIfChanged("OpenRestyProxyConnectTimeout", strconv.Itoa(left.ProxyConnectTimeout), strconv.Itoa(right.ProxyConnectTimeout))
-	appendIfChanged("OpenRestyProxySendTimeout", strconv.Itoa(left.ProxySendTimeout), strconv.Itoa(right.ProxySendTimeout))
-	appendIfChanged("OpenRestyProxyReadTimeout", strconv.Itoa(left.ProxyReadTimeout), strconv.Itoa(right.ProxyReadTimeout))
-	appendIfChanged("OpenRestyWebsocketEnabled", strconv.FormatBool(left.WebsocketEnabled), strconv.FormatBool(right.WebsocketEnabled))
-	appendIfChanged("OpenRestyHTTP3Enabled", strconv.FormatBool(left.HTTP3Enabled), strconv.FormatBool(right.HTTP3Enabled))
-	appendIfChanged("OpenRestyProxyRequestBufferingEnabled", strconv.FormatBool(left.ProxyRequestBuffering), strconv.FormatBool(right.ProxyRequestBuffering))
-	appendIfChanged("OpenRestyProxyBufferingEnabled", strconv.FormatBool(left.ProxyBufferingEnabled), strconv.FormatBool(right.ProxyBufferingEnabled))
-	appendIfChanged("OpenRestyProxyBuffers", left.ProxyBuffers, right.ProxyBuffers)
-	appendIfChanged("OpenRestyProxyBufferSize", left.ProxyBufferSize, right.ProxyBufferSize)
-	appendIfChanged("OpenRestyProxyBusyBuffersSize", left.ProxyBusyBuffersSize, right.ProxyBusyBuffersSize)
-	appendIfChanged("OpenRestyGzipEnabled", strconv.FormatBool(left.GzipEnabled), strconv.FormatBool(right.GzipEnabled))
-	appendIfChanged("OpenRestyGzipMinLength", strconv.Itoa(left.GzipMinLength), strconv.Itoa(right.GzipMinLength))
-	appendIfChanged("OpenRestyGzipCompLevel", strconv.Itoa(left.GzipCompLevel), strconv.Itoa(right.GzipCompLevel))
-	appendIfChanged("OpenRestyResolvers", left.Resolvers, right.Resolvers)
-	appendIfChanged("OpenRestyCacheEnabled", strconv.FormatBool(left.CacheEnabled), strconv.FormatBool(right.CacheEnabled))
-	appendIfChanged("OpenRestyCachePath", left.CachePath, right.CachePath)
-	appendIfChanged("OpenRestyCacheLevels", left.CacheLevels, right.CacheLevels)
-	appendIfChanged("OpenRestyCacheInactive", left.CacheInactive, right.CacheInactive)
-	appendIfChanged("OpenRestyCacheMaxSize", left.CacheMaxSize, right.CacheMaxSize)
-	appendIfChanged("OpenRestyCacheKeyTemplate", left.CacheKeyTemplate, right.CacheKeyTemplate)
-	appendIfChanged("OpenRestyCacheLockEnabled", strconv.FormatBool(left.CacheLockEnabled), strconv.FormatBool(right.CacheLockEnabled))
-	appendIfChanged("OpenRestyCacheLockTimeout", left.CacheLockTimeout, right.CacheLockTimeout)
-	appendIfChanged("OpenRestyCacheUseStale", left.CacheUseStale, right.CacheUseStale)
-	appendIfChanged("OpenRestyTrustedProxyCIDRs", strings.Join(effectiveTrustedProxyCIDRs(left.TrustedProxyCIDRs), ","), strings.Join(effectiveTrustedProxyCIDRs(right.TrustedProxyCIDRs), ","))
-	appendIfChanged("OpenRestyDefaultLimitConnPerServer", strconv.Itoa(left.DefaultLimitConnPerServer), strconv.Itoa(right.DefaultLimitConnPerServer))
-	appendIfChanged("OpenRestyDefaultLimitConnPerIP", strconv.Itoa(left.DefaultLimitConnPerIP), strconv.Itoa(right.DefaultLimitConnPerIP))
-	appendIfChanged("OpenRestyDefaultLimitRate", left.DefaultLimitRate, right.DefaultLimitRate)
-	appendIfChanged("OpenRestyDefaultLimitReqPerIP", left.DefaultLimitReqPerIP, right.DefaultLimitReqPerIP)
+	appendIfChanged("EdgeTrustedProxyCIDRs", strings.Join(effectiveTrustedProxyCIDRs(left.TrustedProxyCIDRs), ","), strings.Join(effectiveTrustedProxyCIDRs(right.TrustedProxyCIDRs), ","))
+	appendIfChanged("EdgeDefaultLimitConnPerServer", strconv.Itoa(left.DefaultLimitConnPerServer), strconv.Itoa(right.DefaultLimitConnPerServer))
+	appendIfChanged("EdgeDefaultLimitConnPerIP", strconv.Itoa(left.DefaultLimitConnPerIP), strconv.Itoa(right.DefaultLimitConnPerIP))
+	appendIfChanged("EdgeDefaultLimitRate", left.DefaultLimitRate, right.DefaultLimitRate)
+	appendIfChanged("EdgeDefaultLimitReqPerIP", left.DefaultLimitReqPerIP, right.DefaultLimitReqPerIP)
 	appendIfChanged("OriginErrorPageEnabled", strconv.FormatBool(left.OriginErrorPageEnabled), strconv.FormatBool(right.OriginErrorPageEnabled))
 	appendIfChanged("OriginErrorPageStatusCodes", encodeOriginErrorPageStatusCodes(left.OriginErrorPageStatusCodes), encodeOriginErrorPageStatusCodes(right.OriginErrorPageStatusCodes))
 	appendIfChanged("OriginErrorPageHTML", left.OriginErrorPageHTML, right.OriginErrorPageHTML)
@@ -601,63 +559,9 @@ func extractOptionDiffKeys(details []ConfigOptionDiffItem) []string {
 	return keys
 }
 
-func openRestyOptionKeys() []string {
-	return []string{
-		"OpenRestyDefaultServerReturnStatus",
-		"OpenRestyWorkerProcesses",
-		"OpenRestyWorkerConnections",
-		"OpenRestyWorkerRlimitNofile",
-		"OpenRestyEventsUse",
-		"OpenRestyEventsMultiAcceptEnabled",
-		"OpenRestyKeepaliveTimeout",
-		"OpenRestyKeepaliveRequests",
-		"OpenRestyClientHeaderTimeout",
-		"OpenRestyClientBodyTimeout",
-		"OpenRestyClientMaxBodySize",
-		"OpenRestyLargeClientHeaderBuffers",
-		"OpenRestySendTimeout",
-		"OpenRestyProxyConnectTimeout",
-		"OpenRestyProxySendTimeout",
-		"OpenRestyProxyReadTimeout",
-		"OpenRestyWebsocketEnabled",
-		"OpenRestyHTTP3Enabled",
-		"OpenRestyProxyRequestBufferingEnabled",
-		"OpenRestyProxyBufferingEnabled",
-		"OpenRestyProxyBuffers",
-		"OpenRestyProxyBufferSize",
-		"OpenRestyProxyBusyBuffersSize",
-		"OpenRestyGzipEnabled",
-		"OpenRestyGzipMinLength",
-		"OpenRestyGzipCompLevel",
-		"OpenRestyCacheEnabled",
-		"OpenRestyCachePath",
-		"OpenRestyCacheLevels",
-		"OpenRestyCacheInactive",
-		"OpenRestyCacheMaxSize",
-		"OpenRestyCacheKeyTemplate",
-		"OpenRestyCacheLockEnabled",
-		"OpenRestyCacheLockTimeout",
-		"OpenRestyCacheUseStale",
-		"OpenRestyTrustedProxyCIDRs",
-		"OpenRestyDefaultLimitConnPerServer",
-		"OpenRestyDefaultLimitConnPerIP",
-		"OpenRestyDefaultLimitRate",
-		"OpenRestyDefaultLimitReqPerIP",
-		"OriginErrorPageEnabled",
-		"OriginErrorPageStatusCodes",
-		"OriginErrorPageHTML",
-		"PoWPage",
-		"SiteAuthHTML",
-		"OriginErrorPageGetOnly",
-		"SWOfflineEnabled",
-		"SWOfflineHTML",
-		"SWOfflineDomains",
-	}
-}
-
 func effectiveTrustedProxyCIDRs(cidrs []string) []string {
 	if cidrs == nil {
-		return openrestyrender.DefaultTrustedProxyCIDRs()
+		return edgeconfig.DefaultTrustedProxyCIDRs()
 	}
 	return cidrs
 }

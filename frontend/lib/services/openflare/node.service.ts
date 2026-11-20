@@ -62,8 +62,8 @@ export class NodeService extends OpenFlareBaseService {
     return this.post<NodeItem>(`/${id}/force-sync`);
   }
 
-  static async requestOpenrestyRestart(id: number): Promise<NodeItem> {
-    return this.post<NodeItem>(`/${id}/openresty-restart`);
+  static async requestEdgeRestart(id: number): Promise<NodeItem> {
+    return this.post<NodeItem>(`/${id}/edge-restart`);
   }
 
   static async getAgentRelease(

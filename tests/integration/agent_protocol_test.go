@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -70,9 +71,12 @@ func TestAgentRelayFlaredProtocol(t *testing.T) {
 		assert.Equal(t, "edge_node", edge.NodeType)
 
 		rec := performJSONRequest(t, engine, http.MethodPost, "/api/v1/agent/nodes/heartbeat", map[string]any{
-			"name":    "edge-1",
-			"ip":      "203.0.113.10",
-			"version": "0.1.0",
+			"name":                "edge-1",
+			"ip":                  "203.0.113.10",
+			"version":             "0.1.0",
+			"engine":              "pingora",
+			"contract_version":    edgeconfig.ContractVersion,
+			"config_sync_version": protocol.EdgeConfigSyncVersion,
 		}, map[string]string{
 			"X-Agent-Token": edge.AccessToken,
 		})
@@ -81,6 +85,7 @@ func TestAgentRelayFlaredProtocol(t *testing.T) {
 		resp := requireAPIOK(t, rec)
 		data := unmarshalAPIMap(t, resp.Data)
 		assert.NotNil(t, data["agent_settings"])
+		assert.NotNil(t, data["config"])
 	})
 
 	t.Run("create tunnel_relay node and relay heartbeat", func(t *testing.T) {
@@ -147,9 +152,12 @@ func TestAgentRelayFlaredProtocol(t *testing.T) {
 		require.NotEmpty(t, bootstrap.DiscoveryToken)
 
 		rec := performJSONRequest(t, engine, http.MethodPost, "/api/v1/agent/nodes/register", map[string]any{
-			"name":    "discovered-edge",
-			"ip":      "203.0.113.30",
-			"version": "0.2.0",
+			"name":                "discovered-edge",
+			"ip":                  "203.0.113.30",
+			"version":             "0.2.0",
+			"engine":              "pingora",
+			"contract_version":    edgeconfig.ContractVersion,
+			"config_sync_version": protocol.EdgeConfigSyncVersion,
 		}, map[string]string{
 			"X-Agent-Token": bootstrap.DiscoveryToken,
 		})
@@ -175,10 +183,18 @@ func TestAgentRelayFlaredProtocol(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		require.NoError(t, db.DB(ctx).Create(&model.ConfigVersion{
+			Version: "20260618-001", Engine: "pingora", ReleaseSequence: 1, IsActive: true,
+			PayloadChecksum: "digest-fixture",
+		}).Error)
+
 		rec := performJSONRequest(t, engine, http.MethodPost, "/api/v1/agent/apply-logs", map[string]any{
-			"version": "20260618-001",
-			"result":  "success",
-			"message": "apply ok",
+			"version":          "20260618-001",
+			"result":           "success",
+			"message":          "apply ok",
+			"engine":           "pingora",
+			"release_sequence": 1,
+			"payload_checksum": "digest-fixture",
 		}, map[string]string{
 			"X-Agent-Token": edge.AccessToken,
 		})

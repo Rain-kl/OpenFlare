@@ -23,25 +23,25 @@ import { OptionService } from '@/lib/services/openflare';
 
 const optionsQueryKey = ['openflare', 'options'] as const;
 
-const KEY_CONN_PER_SERVER = 'openresty_default_limit_conn_per_server';
-const KEY_CONN_PER_IP = 'openresty_default_limit_conn_per_ip';
-const KEY_LIMIT_RATE = 'openresty_default_limit_rate';
-const KEY_LIMIT_REQ_PER_IP = 'openresty_default_limit_req_per_ip';
+const KEY_CONN_PER_SERVER = 'edge_default_limit_conn_per_server';
+const KEY_CONN_PER_IP = 'edge_default_limit_conn_per_ip';
+const KEY_LIMIT_RATE = 'edge_default_limit_rate';
+const KEY_LIMIT_REQ_PER_IP = 'edge_default_limit_req_per_ip';
 
 const limitRatePattern = /^\d+(?:[kKmM])?$/;
 
 type RateLimitFields = {
-  openresty_default_limit_conn_per_server: string;
-  openresty_default_limit_conn_per_ip: string;
-  openresty_default_limit_rate: string;
-  openresty_default_limit_req_per_ip: string;
+  edge_default_limit_conn_per_server: string;
+  edge_default_limit_conn_per_ip: string;
+  edge_default_limit_rate: string;
+  edge_default_limit_req_per_ip: string;
 };
 
 const defaultFields: RateLimitFields = {
-  openresty_default_limit_conn_per_server: '0',
-  openresty_default_limit_conn_per_ip: '0',
-  openresty_default_limit_rate: '',
-  openresty_default_limit_req_per_ip: '',
+  edge_default_limit_conn_per_server: '0',
+  edge_default_limit_conn_per_ip: '0',
+  edge_default_limit_rate: '',
+  edge_default_limit_req_per_ip: '',
 };
 
 function optionsToMap(options: Array<{ key: string; value: string }>) {
@@ -55,11 +55,10 @@ function mapOptionsToFields(
   optionMap: Record<string, string>,
 ): RateLimitFields {
   return {
-    openresty_default_limit_conn_per_server:
-      optionMap[KEY_CONN_PER_SERVER] ?? '0',
-    openresty_default_limit_conn_per_ip: optionMap[KEY_CONN_PER_IP] ?? '0',
-    openresty_default_limit_rate: optionMap[KEY_LIMIT_RATE] ?? '',
-    openresty_default_limit_req_per_ip: optionMap[KEY_LIMIT_REQ_PER_IP] ?? '',
+    edge_default_limit_conn_per_server: optionMap[KEY_CONN_PER_SERVER] ?? '0',
+    edge_default_limit_conn_per_ip: optionMap[KEY_CONN_PER_IP] ?? '0',
+    edge_default_limit_rate: optionMap[KEY_LIMIT_RATE] ?? '',
+    edge_default_limit_req_per_ip: optionMap[KEY_LIMIT_REQ_PER_IP] ?? '',
   };
 }
 
@@ -77,12 +76,12 @@ function validateFields(
     }
   }
 
-  const rate = fields.openresty_default_limit_rate.trim();
+  const rate = fields.edge_default_limit_rate.trim();
   if (rate && rate !== '0' && !limitRatePattern.test(rate)) {
     throw new Error(t('config.invalidRate'));
   }
 
-  const reqRate = fields.openresty_default_limit_req_per_ip.trim();
+  const reqRate = fields.edge_default_limit_req_per_ip.trim();
   if (reqRate && reqRate !== '0' && !/^\d+r\/[sm]$/i.test(reqRate)) {
     throw new Error(t('config.invalidReq'));
   }
@@ -124,21 +123,19 @@ export function ConfigTab() {
       await OptionService.updateBatch([
         {
           key: KEY_CONN_PER_SERVER,
-          value: normalizeConnValue(
-            fields.openresty_default_limit_conn_per_server,
-          ),
+          value: normalizeConnValue(fields.edge_default_limit_conn_per_server),
         },
         {
           key: KEY_CONN_PER_IP,
-          value: normalizeConnValue(fields.openresty_default_limit_conn_per_ip),
+          value: normalizeConnValue(fields.edge_default_limit_conn_per_ip),
         },
         {
           key: KEY_LIMIT_RATE,
-          value: normalizeRateValue(fields.openresty_default_limit_rate),
+          value: normalizeRateValue(fields.edge_default_limit_rate),
         },
         {
           key: KEY_LIMIT_REQ_PER_IP,
-          value: normalizeRateValue(fields.openresty_default_limit_req_per_ip),
+          value: normalizeRateValue(fields.edge_default_limit_req_per_ip),
         },
       ]);
     },
@@ -227,11 +224,11 @@ export function ConfigTab() {
             <Input
               type='number'
               min={0}
-              value={fields.openresty_default_limit_conn_per_server}
+              value={fields.edge_default_limit_conn_per_server}
               placeholder='0'
               onChange={(e) =>
                 updateField(
-                  'openresty_default_limit_conn_per_server',
+                  'edge_default_limit_conn_per_server',
                   e.target.value,
                 )
               }
@@ -248,13 +245,10 @@ export function ConfigTab() {
             <Input
               type='number'
               min={0}
-              value={fields.openresty_default_limit_conn_per_ip}
+              value={fields.edge_default_limit_conn_per_ip}
               placeholder='0'
               onChange={(e) =>
-                updateField(
-                  'openresty_default_limit_conn_per_ip',
-                  e.target.value,
-                )
+                updateField('edge_default_limit_conn_per_ip', e.target.value)
               }
               className='h-9 text-xs'
             />
@@ -267,10 +261,10 @@ export function ConfigTab() {
               {t('config.limitRate')}
             </Label>
             <Input
-              value={fields.openresty_default_limit_rate}
+              value={fields.edge_default_limit_rate}
               placeholder='512k / 1m'
               onChange={(e) =>
-                updateField('openresty_default_limit_rate', e.target.value)
+                updateField('edge_default_limit_rate', e.target.value)
               }
               className='h-9 text-xs'
             />
@@ -283,13 +277,10 @@ export function ConfigTab() {
               {t('config.reqPerIp')}
             </Label>
             <Input
-              value={fields.openresty_default_limit_req_per_ip}
+              value={fields.edge_default_limit_req_per_ip}
               placeholder='10r/s / 100r/m'
               onChange={(e) =>
-                updateField(
-                  'openresty_default_limit_req_per_ip',
-                  e.target.value,
-                )
+                updateField('edge_default_limit_req_per_ip', e.target.value)
               }
               className='h-9 text-xs'
             />

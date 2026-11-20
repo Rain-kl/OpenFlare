@@ -91,7 +91,7 @@ pub fn site_auth_login(
         ),
     ];
     let html = if template.trim().is_empty() {
-        include_str!("../../../../internal/openflare/openresty/site_auth.html")
+        include_str!("../../../../internal/openflare/edgeconfig/site_auth.html")
     } else {
         template
     };

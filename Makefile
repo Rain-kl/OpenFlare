@@ -1,4 +1,4 @@
-.PHONY: swagger license license-check format build-embedded build-test cross-build code-check build-backend build-frontend build-agent build-relay build-flared build-all
+.PHONY: swagger license license-check format build-embedded build-test cross-build code-check build-backend build-frontend build-edge build-relay build-flared build-all
 
 VERSION ?= dev
 BUILD_DATE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -54,12 +54,8 @@ build-backend:
 		-o bin/openflare-server \
 		cmd/server/main.go
 
-build-agent:
-	@echo "==> Building agent version=$(VERSION)..."
-	go build \
-		-ldflags "-s -w -X '$(MODULE)/internal/edge/agent/config.Version=$(VERSION)'" \
-		-o bin/openflare-agent \
-		cmd/agent/main.go
+build-edge:
+	cargo build --manifest-path edge/pingora/Cargo.toml --release --locked
 
 build-relay:
 	@echo "==> Building relay version=$(VERSION)..."
@@ -75,7 +71,7 @@ build-flared:
 		-o bin/flared \
 		cmd/flared/main.go
 
-build-all: build-backend build-agent build-relay build-flared
+build-all: build-backend build-edge build-relay build-flared
 
 build-frontend:
 	@echo "==> Building frontend version=$(VERSION) build_date=$(BUILD_DATE)..."

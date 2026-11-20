@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/openflare/pagesarchive"
@@ -667,6 +668,7 @@ func ActivateDeploymentAs(ctx context.Context, projectID uint, deploymentID uint
 	if audit.Noop {
 		return GetProject(ctx, projectID)
 	}
+	websocket.NotifyAgentConfigChanged(ctx)
 	logger.InfoF(ctx,
 		"[Pages] manual activation: actor=%s project_id=%d old_deployment_id=%d new_deployment_id=%d source_type=%s source_identity=%s auto_disabled=%t",
 		strings.TrimSpace(actor), projectID, audit.OldDeploymentID, deploymentID,

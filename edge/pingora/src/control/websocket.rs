@@ -22,6 +22,10 @@ impl Wake {
         self.notify.notified().await;
     }
 
+    pub(super) fn requeue_force(&self) {
+        self.force.store(true, Ordering::Release);
+    }
+
     pub(super) fn take_force(&self) -> bool {
         self.force.swap(false, Ordering::AcqRel)
     }
@@ -41,6 +45,13 @@ pub(super) async fn run(base_url: &str, token: &str, wake: &Wake) {
 struct MessageKind {
     #[serde(rename = "type")]
     kind: String,
+    payload: Option<ConfigChanged>,
+}
+
+#[derive(Deserialize)]
+struct ConfigChanged {
+    #[serde(default)]
+    force: bool,
 }
 
 async fn connect(
@@ -71,11 +82,12 @@ async fn connect(
                             continue;
                         };
                         match message.kind.as_str() {
-                            "force_sync_config" => {
-                                wake.force.store(true, Ordering::Release);
+                            "config_changed" => {
+                                if message.payload.is_some_and(|payload| payload.force) {
+                                    wake.requeue_force();
+                                }
                                 wake.notify.notify_one();
                             }
-                            "active_config" | "waf_ip_groups" | "settings" => wake.notify.notify_one(),
                             "ping" => socket.send(Message::Text(r#"{"type":"pong"}"#.into())).await?,
                             _ => {}
                         }

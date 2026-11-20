@@ -124,7 +124,7 @@ export function VersionSnapshotSheet({
                 <p className='text-xs font-semibold'>{t('mainConfig')}</p>
                 <CodeBlock
                   code={detail.main_config}
-                  language='nginx'
+                  language='json'
                   className='my-0 text-xs'
                 />
               </div>
@@ -133,7 +133,7 @@ export function VersionSnapshotSheet({
                 <p className='text-xs font-semibold'>{t('routeConfig')}</p>
                 <CodeBlock
                   code={detail.rendered_config}
-                  language='nginx'
+                  language='json'
                   className='my-0 text-xs'
                 />
               </div>

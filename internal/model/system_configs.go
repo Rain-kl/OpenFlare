@@ -46,8 +46,8 @@ const (
 	ConfigKeyAgentWebsocketUpgradeEnabled = "agent_websocket_upgrade_enabled" // Agent WebSocket 升级开关
 	ConfigKeyNodeOfflineThreshold         = "node_offline_threshold"          // 节点离线阈值（毫秒）
 	ConfigKeyAgentUpdateRepo              = "agent_update_repo"               // Agent 更新仓库
-	ConfigKeyPingoraEnabled               = "pingora_enabled"                 // Pingora 独立发布组开关
-	ConfigKeyGeoIPProvider                = "geoip_provider"                  // GeoIP 服务商
+
+	ConfigKeyGeoIPProvider = "geoip_provider" // GeoIP 服务商
 
 	// Pages 静态托管配置
 	ConfigKeyPagesMaxPackageSizeMB = "pages_max_package_size_mb" // Pages 部署包上传大小上限（MiB）
@@ -67,48 +67,11 @@ const (
 	ConfigKeyUptimeKumaTimeout       = "uptime_kuma_timeout"        // UptimeKuma 超时（秒）
 
 	// OpenResty 配置
-	ConfigKeyOpenRestyDefaultServerReturnStatus    = "openresty_default_server_return_status"    // 默认服务器返回状态码
-	ConfigKeyOpenRestyWorkerProcesses              = "openresty_worker_processes"                // Worker 进程数
-	ConfigKeyOpenRestyWorkerConnections            = "openresty_worker_connections"              // Worker 连接数
-	ConfigKeyOpenRestyWorkerRlimitNofile           = "openresty_worker_rlimit_nofile"            // Worker 文件描述符限制
-	ConfigKeyOpenRestyEventsUse                    = "openresty_events_use"                      // 事件模型
-	ConfigKeyOpenRestyEventsMultiAcceptEnabled     = "openresty_events_multi_accept_enabled"     // 多路接受开关
-	ConfigKeyOpenRestyKeepaliveTimeout             = "openresty_keepalive_timeout"               // Keepalive 超时（秒）
-	ConfigKeyOpenRestyKeepaliveRequests            = "openresty_keepalive_requests"              // Keepalive 请求数
-	ConfigKeyOpenRestyClientHeaderTimeout          = "openresty_client_header_timeout"           // 客户端头超时（秒）
-	ConfigKeyOpenRestyClientBodyTimeout            = "openresty_client_body_timeout"             // 客户端体超时（秒）
-	ConfigKeyOpenRestyClientMaxBodySize            = "openresty_client_max_body_size"            // 客户端最大体大小
-	ConfigKeyOpenRestyLargeClientHeaderBuffers     = "openresty_large_client_header_buffers"     // 大客户端头缓冲区
-	ConfigKeyOpenRestySendTimeout                  = "openresty_send_timeout"                    // 发送超时（秒）
-	ConfigKeyOpenRestyResolvers                    = "openresty_resolvers"                       // DNS 解析器
-	ConfigKeyOpenRestyProxyConnectTimeout          = "openresty_proxy_connect_timeout"           // 代理连接超时（秒）
-	ConfigKeyOpenRestyProxySendTimeout             = "openresty_proxy_send_timeout"              // 代理发送超时（秒）
-	ConfigKeyOpenRestyProxyReadTimeout             = "openresty_proxy_read_timeout"              // 代理读取超时（秒）
-	ConfigKeyOpenRestyWebsocketEnabled             = "openresty_websocket_enabled"               // WebSocket 支持开关
-	ConfigKeyOpenRestyHTTP3Enabled                 = "openresty_http3_enabled"                   // HTTP/3 支持开关
-	ConfigKeyOpenRestyProxyRequestBufferingEnabled = "openresty_proxy_request_buffering_enabled" // 代理请求缓冲开关
-	ConfigKeyOpenRestyProxyBufferingEnabled        = "openresty_proxy_buffering_enabled"         // 代理响应缓冲开关
-	ConfigKeyOpenRestyProxyBuffers                 = "openresty_proxy_buffers"                   // 代理缓冲区
-	ConfigKeyOpenRestyProxyBufferSize              = "openresty_proxy_buffer_size"               // 代理缓冲区大小
-	ConfigKeyOpenRestyProxyBusyBuffersSize         = "openresty_proxy_busy_buffers_size"         // 代理繁忙缓冲区大小
-	ConfigKeyOpenRestyGzipEnabled                  = "openresty_gzip_enabled"                    // Gzip 压缩开关
-	ConfigKeyOpenRestyGzipMinLength                = "openresty_gzip_min_length"                 // Gzip 最小长度
-	ConfigKeyOpenRestyGzipCompLevel                = "openresty_gzip_comp_level"                 // Gzip 压缩级别
-	ConfigKeyOpenRestyCacheEnabled                 = "openresty_cache_enabled"                   // 缓存开关
-	ConfigKeyOpenRestyCachePath                    = "openresty_cache_path"                      // 缓存路径
-	ConfigKeyOpenRestyCacheLevels                  = "openresty_cache_levels"                    // 缓存层级
-	ConfigKeyOpenRestyCacheInactive                = "openresty_cache_inactive"                  // 缓存不活跃时间
-	ConfigKeyOpenRestyCacheMaxSize                 = "openresty_cache_max_size"                  // 缓存最大大小
-	ConfigKeyOpenRestyCacheKeyTemplate             = "openresty_cache_key_template"              // 缓存键模板
-	ConfigKeyOpenRestyCacheLockEnabled             = "openresty_cache_lock_enabled"              // 缓存锁开关
-	ConfigKeyOpenRestyCacheLockTimeout             = "openresty_cache_lock_timeout"              // 缓存锁超时
-	ConfigKeyOpenRestyCacheUseStale                = "openresty_cache_use_stale"                 // 缓存失效策略
-	ConfigKeyOpenRestyMainConfigTemplate           = "openresty_main_config_template"            // 主配置模板
-	ConfigKeyOpenRestyTrustedProxyCIDRs            = "openresty_trusted_proxy_cidrs"             // 可信代理 CIDR JSON 数组
-	ConfigKeyOpenRestyDefaultLimitConnPerServer    = "openresty_default_limit_conn_per_server"   // 默认站点并发连接
-	ConfigKeyOpenRestyDefaultLimitConnPerIP        = "openresty_default_limit_conn_per_ip"       // 默认单 IP 并发连接
-	ConfigKeyOpenRestyDefaultLimitRate             = "openresty_default_limit_rate"              // 默认单请求带宽
-	ConfigKeyOpenRestyDefaultLimitReqPerIP         = "openresty_default_limit_req_per_ip"        // 默认单 IP 请求频率限制
+	ConfigKeyEdgeTrustedProxyCIDRs         = "edge_trusted_proxy_cidrs"           // 可信代理 CIDR JSON 数组
+	ConfigKeyEdgeDefaultLimitConnPerServer = "edge_default_limit_conn_per_server" // 默认站点并发连接
+	ConfigKeyEdgeDefaultLimitConnPerIP     = "edge_default_limit_conn_per_ip"     // 默认单 IP 并发连接
+	ConfigKeyEdgeDefaultLimitRate          = "edge_default_limit_rate"            // 默认单请求带宽
+	ConfigKeyEdgeDefaultLimitReqPerIP      = "edge_default_limit_req_per_ip"      // 默认单 IP 请求频率限制
 
 	// 源站错误页
 	ConfigKeyOriginErrorPageEnabled     = "origin_error_page_enabled"      // 是否启用源站错误页

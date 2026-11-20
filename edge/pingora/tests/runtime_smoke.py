@@ -1,5 +1,6 @@
 """Exercise the Edge public HTTP and enrollment interfaces against a local controller."""
 
+import base64
 import hashlib
 import http.client
 import http.server
@@ -10,6 +11,7 @@ from pathlib import Path
 import shutil
 import signal
 import socket
+import struct
 import re
 import subprocess
 import sys
@@ -26,7 +28,7 @@ def wait_for(check, *, seconds=12):
         try:
             if result := check():
                 return result
-        except (OSError, http.client.HTTPException):
+        except (OSError, http.client.HTTPException, subprocess.CalledProcessError):
             pass
         time.sleep(0.1)
     raise AssertionError(f"timed out waiting for {check.__name__}")
@@ -53,11 +55,33 @@ class Controller(http.server.BaseHTTPRequestHandler):
     def data(self, data, status=200):
         self.answer(json.dumps({"error_msg": "", "data": data}).encode(), status)
 
+    def manifest(self):
+        if self.server.active is None:
+            return {}
+        self.server.config_bodies.clear()
+        active = self.server.active
+        meta = {key: value for key, value in active.items() if key != "payload_json"}
+        self.server.config_bodies["sites.v1"] = active["payload_json"]
+        resources = {"sites.v1": {"sha256": active["payload_checksum"], "metadata": meta}}
+        def add(key, value, revision=None, inline=True):
+            body = json.dumps(value, separators=(",", ":"))
+            resources[key] = {"sha256": hashlib.sha256(body.encode()).hexdigest()}
+            if inline:
+                resources[key]["inline_json"] = body
+            if revision:
+                resources[key]["revision"] = revision
+            self.server.config_bodies[key] = body
+        add("performance.v1", {"settings": self.server.performance})
+        for group in self.server.ip_groups:
+            add(f"waf.ip-group.v1/{group['id']}", group, group["checksum"], inline=False)
+        return resources
+
     def do_POST(self):
         payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if self.path.endswith("/register"):
             assert payload["engine"] == "pingora"
             assert payload["contract_version"] == 3
+            assert payload["config_sync_version"] == 1
             if self.headers["X-Agent-Token"] == "discovery-credential":
                 assert payload["registration_key"]
             else:
@@ -69,16 +93,20 @@ class Controller(http.server.BaseHTTPRequestHandler):
             self.data(None, 401)
         elif self.path.endswith("/heartbeat"):
             self.server.heartbeats.append(payload)
-            self.data({"active_config": self.server.active, "agent_settings": {"heartbeat_interval": 250},
-                       "waf_ip_groups": self.server.ip_groups})
+            self.data({"config": {"version": 1, "resources": self.manifest()},
+                       "agent_settings": {"heartbeat_interval": self.server.heartbeat_interval}})
         elif self.path.endswith("/apply-logs"):
             self.server.applies.append(payload)
             self.data({"id": len(self.server.applies)})
 
     def do_GET(self):
-        if self.path.endswith("/pingora/config-versions/active"):
+        if self.path.startswith("/api/v1/agent/config/pull?"):
             assert self.headers["X-Agent-Token"] == "node-credential"
-            self.data(self.server.active)
+            query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            key = query["key"][0]
+            self.server.pulls.append(key)
+            self.answer(self.server.config_bodies[key].encode(),
+                        headers=(("Content-Type", "application/json"),))
         elif self.path == "/api/v1/agent/pages/projects/10/latest/hash":
             package, metadata = self.server.pages
             self.data(metadata)
@@ -86,9 +114,31 @@ class Controller(http.server.BaseHTTPRequestHandler):
             package, metadata = self.server.pages
             self.answer(package)
         elif self.path == "/api/v1/agent/ws":
-            self.send_error(404)
+            self.protocol_version = "HTTP/1.1"
+            key = (self.headers["Sec-WebSocket-Key"] + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()
+            self.send_response(101)
+            self.send_header("Upgrade", "websocket")
+            self.send_header("Connection", "Upgrade")
+            self.send_header("Sec-WebSocket-Accept", base64.b64encode(hashlib.sha1(key).digest()).decode())
+            self.end_headers()
+            self.server.config_ws = self.connection
+            self.connection.settimeout(20)
+            try:
+                while self.connection.recv(4096):
+                    pass
+            except OSError:
+                pass
+            finally:
+                if self.server.config_ws is self.connection:
+                    self.server.config_ws = None
         elif self.path == "/origin-error":
             self.answer(b"original", 503)
+        elif self.path == "/slow-origin":
+            time.sleep(1.3)
+            try:
+                self.answer(b"slow origin")
+            except OSError:
+                pass
         else:
             self.server.origins[self.path] = self.server.origins.get(self.path, 0) + 1
             self.answer(f"{self.headers['Host']} {self.path}".encode(),
@@ -122,14 +172,9 @@ def release(seq, origin, certificate, key):
             route(origin, 6, "cache.edge.test", cache_enabled=True, cache_policy="all"),
             route(origin, 7, "waf.edge.test"),
         ],
-        "openresty_config": {
+        "edge_config": {
             "origin_error_page_enabled": True,
             "origin_error_page_status_codes": ["503"],
-            "client_max_body_size": "64m",
-            "websocket_enabled": True,
-            "gzip_enabled": False,
-            "cache_enabled": True,
-            "cache_lock_timeout": "5s",
             "trusted_proxy_cidrs": [],
             "site_auth_html": "<form>fixture sign-in {{login_error}}</form>",
         },
@@ -191,6 +236,11 @@ def main(binary):
     server.applies = []
     server.registered_with_node_token = False
     server.ip_groups = []
+    server.config_bodies = {}
+    server.pulls = []
+    server.config_ws = None
+    server.performance = None
+    server.heartbeat_interval = 250
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     control_url = f"http://127.0.0.1:{server.server_port}"
@@ -219,6 +269,11 @@ def main(binary):
         head, body = head_body.split("\n\n", 1)
         return int(status), version, head, body
 
+    def wake():
+        ws = wait_for(lambda: server.config_ws)
+        payload = b'{"type":"config_changed"}'
+        ws.sendall(struct.pack("!BB", 0x81, len(payload)) + payload)
+
     def http_route():
         conn = http.client.HTTPConnection("127.0.0.1", http_port, timeout=1)
         try:
@@ -245,24 +300,26 @@ def main(binary):
 
         with (path / "edge.log").open("w+") as log:
             def launch(*options, env=None):
-                return subprocess.Popen(args + list(options), env=env, stdout=log, stderr=subprocess.STDOUT)
+                return subprocess.Popen(args + list(options), env={**os.environ, **(env or {}), "RUST_LOG": "info"},
+                                        stdout=log, stderr=subprocess.STDOUT)
 
-            with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as notify:
-                if sys.platform == "linux":
-                    address = str(path / "notify.sock")
-                    notify.bind(address)
-                    notify.settimeout(12)
-                    edge = launch(env={**os.environ, "NOTIFY_SOCKET": address})
-                    try:
-                        assert notify.recv(4096).startswith(b"READY=1\n")
-                    except Exception:
-                        edge.kill()
-                        edge.wait(timeout=5)
-                        log.seek(0)
-                        sys.stderr.write(log.read())
-                        raise
-                else:
-                    edge = launch()
+            notify = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+            if sys.platform == "linux":
+                address = str(path / "notify.sock")
+                notify.bind(address)
+                notify.settimeout(12)
+                edge = launch(env={**os.environ, "NOTIFY_SOCKET": address})
+                try:
+                    assert notify.recv(4096).startswith(b"READY=1\n")
+                except Exception:
+                    edge.kill()
+                    edge.wait(timeout=5)
+                    notify.close()
+                    log.seek(0)
+                    sys.stderr.write(log.read())
+                    raise
+            else:
+                edge = launch()
             try:
                 wait_for(lambda: ready.exists())
                 wait_for(lambda: any(item["result"] == "success" for item in server.applies))
@@ -302,8 +359,38 @@ def main(binary):
                                      and "profile" in h and "host_metrics" in h and "edge_health" in h
                                      for h in server.heartbeats))
 
+                assert "sites.v1" in server.pulls
+                assert "waf.ip-group.v1/33" in server.pulls
+                assert server.pulls.count("sites.v1") == 1
+                policy = json.loads(Path(__file__).with_name("performance_policy.json").read_text())
+                policy["threads"] = 2
+                server.performance = policy
+                server.heartbeat_interval = 10_000
+                wake()
+
+                def has_worker_threads(expected):
+                    content = (path / "edge.log").read_text()
+                    return f"threads={expected}" in re.sub(r"\x1b\[[0-9;]*m", "", content)
+
+                assert wait_for(lambda: has_worker_threads(2), seconds=8)
+                assert edge.poll() is None
+                wait_for(lambda: http_route()[0] == 301)
+                state_file = path / "performance-policy.json"
+                assert json.loads(state_file.read_text())["settings"]["threads"] == 2
+                assert request("edge.test", "/slow-origin")[0] == 200
+
+                # A peer-only change takes effect without restarting the worker runtime.
+                server.performance = {**policy, "read_timeout": 1}
+                wake()
+                wait_for(lambda: json.loads(state_file.read_text())["settings"]["read_timeout"] == 1, seconds=3)
+                assert request("edge.test", "/slow-origin")[0] != 200
+                assert (path / "edge.log").read_text().count("starting Pingora workers") == 2
+                assert "performance.v1" not in server.pulls
+
+                server.heartbeat_interval = 250
                 server.active = release(2, origin, certificate.read_text(), key.read_text())
                 server.active["payload_checksum"] = "invalid candidate"
+                wake()
                 wait_for(lambda: any(log["release_sequence"] == 2 and log["result"] == "failed"
                                      for log in server.applies))
                 assert request("edge.test", use_http2=True)[0] == 200
@@ -313,7 +400,7 @@ def main(binary):
                 edge.wait(timeout=5)
                 edge = launch()
                 wait_for(lambda: server.registered_with_node_token)
-                assert request("edge.test", use_http2=True)[0] == 200
+                wait_for(lambda: request("edge.test", use_http2=True)[0] == 200)
 
                 edge.kill()
                 edge.wait(timeout=5)
@@ -355,6 +442,7 @@ def main(binary):
                 if edge.poll() is None:
                     edge.kill()
                     edge.wait(timeout=5)
+                notify.close()
                 server.server_close()
                 origin_server.shutdown()
                 origin_server.server_close()

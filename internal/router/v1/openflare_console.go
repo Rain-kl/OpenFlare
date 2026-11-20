@@ -15,6 +15,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/origin"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/performance"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pow"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/proxy_route"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
@@ -136,6 +137,13 @@ func registerOpenFlareTrafficRoutes(apiGroup *gin.RouterGroup) {
 }
 
 func registerOpenFlareNodeRoutes(apiGroup *gin.RouterGroup) {
+	policies := apiGroup.Group("/performance-policies", openFlareAdminMiddlewares()...)
+	httpx.RegisterCollection(policies, "GET", performance.ListHandler)
+	httpx.RegisterCollection(policies, "POST", performance.CreateHandler)
+	policies.POST("/:id/update", performance.UpdateHandler)
+	policies.POST("/:id/assign", performance.AssignHandler)
+	policies.POST("/:id/delete", performance.DeleteHandler)
+
 	nodeRoute := apiGroup.Group("/nodes")
 	nodeRoute.Use(openFlareAdminMiddlewares()...)
 	{
@@ -149,7 +157,7 @@ func registerOpenFlareNodeRoutes(apiGroup *gin.RouterGroup) {
 		nodeRoute.POST("/:id/update", node.UpdateNodeHandler)
 		nodeRoute.POST("/:id/delete", node.DeleteNodeHandler)
 		nodeRoute.POST("/:id/agent-update", node.RequestAgentUpdateHandler)
-		nodeRoute.POST("/:id/openresty-restart", node.RequestOpenrestyRestartHandler)
+		nodeRoute.POST("/:id/edge-restart", node.RequestEdgeRestartHandler)
 		nodeRoute.POST("/:id/force-sync", node.RequestForceSyncHandler)
 		nodeRoute.GET("/:id/observability", node.GetObservabilityHandler)
 		nodeRoute.POST("/:id/observability/cleanup", node.CleanupHealthEventsHandler)

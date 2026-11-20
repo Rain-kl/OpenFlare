@@ -89,8 +89,8 @@ func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {
 	require.Len(t, bundle.SnapshotRoutes, 1)
 	assert.Equal(t, []string{"one.example.com", "two.example.com"}, bundle.SnapshotRoutes[0].Domains)
 	assert.Equal(t, []uint{first.ID, second.ID}, bundle.SnapshotRoutes[0].DomainCertIDs)
-	assert.Contains(t, bundle.RouteConfig, "server_name one.example.com;")
-	assert.Contains(t, bundle.RouteConfig, "server_name two.example.com;")
+	assert.Contains(t, bundle.RouteConfig, "one.example.com")
+	assert.Contains(t, bundle.RouteConfig, "two.example.com")
 }
 
 func generateTestCertKeyPairForSnapshot(t *testing.T) (certPEM string, keyPEM string) {

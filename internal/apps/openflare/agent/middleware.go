@@ -25,6 +25,10 @@ func Auth() gin.HandlerFunc {
 			response.AbortUnauthorized(c, errInvalidAgentToken)
 			return
 		}
+		if node.Engine != enginePingora || node.NodeType != nodeTypeEdge {
+			response.AbortForbidden(c, errPingoraNodeRequired)
+			return
+		}
 		c.Set(agentNodeContextKey, node)
 		c.Next()
 	}

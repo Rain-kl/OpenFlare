@@ -41,9 +41,14 @@ impl ProxyService {
                                 .to_owned()
                         };
                         let mut peer = HttpPeer::new(address, upstream.scheme == "https", sni);
-                        // OpenResty does not enable upstream certificate verification.
-                        peer.options.verify_cert = false;
-                        peer.options.verify_hostname = false;
+                        let performance = self.performance.current();
+                        if let Some(settings) = &performance.policy.settings {
+                            peer.group_key = performance.upstream_generation;
+                            settings.upstream.configure(&mut peer);
+                        } else {
+                            peer.options.verify_cert = false;
+                            peer.options.verify_hostname = false;
+                        }
                         return Ok(Box::new(peer));
                     }
                 }

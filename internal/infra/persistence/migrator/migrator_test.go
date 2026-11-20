@@ -6,6 +6,7 @@ package migrator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"slices"
 	"strings"
@@ -14,7 +15,8 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
+	"github.com/Rain-kl/Wavelet/internal/openflare/performance"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/glebarez/sqlite"
@@ -27,10 +29,10 @@ import (
 // （初始系统配置 + 各期配置迁移/新增 seed：of_options 迁移、文件白名单、磁盘缓存、
 // 登录会话 TTL、升级源、存储、FRPS Web UI、Pages、OpenResty 限流、单 IP 限频、
 // 错误页、SW 离线、日志保留期、指标保留期等）；新增配置 seed 迁移时需同步更新本常量。
-const expectedMigratedSystemConfigCount = 100
+const expectedMigratedSystemConfigCount = 65
 
 func TestTrustedProxyCIDRMigrationDefaultsMatchRenderer(t *testing.T) {
-	want := openrestyrender.DefaultTrustedProxyCIDRs()
+	want := edgeconfig.DefaultTrustedProxyCIDRs()
 	if len(want) != 22 {
 		t.Fatalf("renderer default contains %d proxy ranges, want 22", len(want))
 	}
@@ -122,15 +124,51 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	if systemConfigCount != expectedMigratedSystemConfigCount {
 		t.Errorf("Migrate() w_system_configs count = %d, want %d", systemConfigCount, expectedMigratedSystemConfigCount)
 	}
+	ctx := context.Background()
+	policies, _, err := repository.ListPerformancePolicies(ctx)
+	if err != nil || len(policies) != 3 {
+		t.Fatalf("performance policy seeds: %v, %v", policies, err)
+	}
+	for index, policy := range policies {
+		resolved, err := performance.Decode(policy.SettingsJSON)
+		if err != nil || resolved["threads"] != []int{1, 2, 4}[index] {
+			t.Fatalf("invalid preset %s: %v", policy.Name, err)
+		}
+	}
+	for _, node := range []model.OpenFlareNode{
+		{NodeID: "test-pingora", Name: "Pingora", Engine: "pingora"},
+		{NodeID: "test-openresty", Name: "OpenResty", Engine: "openresty"},
+	} {
+		if err := repository.CreateOpenFlareNode(ctx, &node); err != nil {
+			t.Fatal(err)
+		}
+	}
+	id := policies[0].ID
+	if err := repository.AssignPerformancePolicy(ctx, id, []string{"test-pingora"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.AssignPerformancePolicy(ctx, id, []string{"test-openresty"}); !errors.Is(err, repository.ErrInvalidPerformancePolicyNodes) {
+		t.Fatalf("expected invalid node assignment, got %v", err)
+	}
+	if _, err := repository.GetNodePerformancePolicy(ctx, "test-pingora"); err != nil {
+		t.Fatalf("rejected bulk assignment removed a valid assignment: %v", err)
+	}
+	if err := repository.DeletePerformancePolicy(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.GetNodePerformancePolicy(ctx, "test-pingora"); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("expected node to return to defaults, got %v", err)
+	}
+
 	var trustedProxyConfig model.SystemConfig
-	if err := sqliteDB.Where("key = ?", model.ConfigKeyOpenRestyTrustedProxyCIDRs).First(&trustedProxyConfig).Error; err != nil {
+	if err := sqliteDB.Where("key = ?", model.ConfigKeyEdgeTrustedProxyCIDRs).First(&trustedProxyConfig).Error; err != nil {
 		t.Fatalf("Migrate() trusted proxy CIDR config error = %v", err)
 	}
 	var trustedProxyCIDRs []string
 	if err := json.Unmarshal([]byte(trustedProxyConfig.Value), &trustedProxyCIDRs); err != nil {
 		t.Fatalf("decode trusted proxy CIDR config: %v", err)
 	}
-	if !slices.Equal(trustedProxyCIDRs, openrestyrender.DefaultTrustedProxyCIDRs()) {
+	if !slices.Equal(trustedProxyCIDRs, edgeconfig.DefaultTrustedProxyCIDRs()) {
 		t.Errorf("Migrate() trusted proxy CIDRs = %#v, want default Cloudflare ranges", trustedProxyCIDRs)
 	}
 

@@ -199,3 +199,5 @@ export const openflareServices = {
   status: StatusService,
   cloudflare: CloudflareService,
 } as const;
+
+export * from './performance';

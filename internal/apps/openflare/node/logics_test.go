@@ -264,7 +264,7 @@ func TestRequestAgentUpdateWithPreviewTag(t *testing.T) {
 	assert.Equal(t, "v0.5.0-rc.1", updated.UpdateTag)
 }
 
-func TestRequestOpenrestyRestart(t *testing.T) {
+func TestRequestEdgeRestart(t *testing.T) {
 	cleanup := setupNodeTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -272,7 +272,7 @@ func TestRequestOpenrestyRestart(t *testing.T) {
 	created, err := CreateNode(ctx, Input{Name: "edge-restart"})
 	require.NoError(t, err)
 
-	updated, err := RequestOpenrestyRestart(ctx, created.ID)
+	updated, err := RequestEdgeRestart(ctx, created.ID)
 	require.NoError(t, err)
 	assert.True(t, updated.RestartOpenrestyRequested)
 }

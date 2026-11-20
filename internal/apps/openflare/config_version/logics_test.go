@@ -15,7 +15,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
-	openrestyrender "github.com/Rain-kl/Wavelet/internal/openflare/openresty"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
 	"github.com/Rain-kl/Wavelet/pkg/cache/ram"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
@@ -180,16 +180,9 @@ func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
 	}
 	assert.True(t, found, "expected WAF binding for enabled route")
 
-	var wafRuntime openrestyrender.WAFDocument
-	foundWAFConfig := false
-	for _, file := range bundle.SupportFiles {
-		if file.Path != "waf_config.json" {
-			continue
-		}
-		foundWAFConfig = true
-		require.NoError(t, json.Unmarshal([]byte(file.Content), &wafRuntime))
-	}
-	require.True(t, foundWAFConfig, "expected rendered WAF support file")
+	var document edgeconfig.Document
+	require.NoError(t, json.Unmarshal([]byte(bundle.SnapshotJSON), &document))
+	wafRuntime := document.WAF
 	require.NotEmpty(t, wafRuntime.RuleGroups)
 	assert.Equal(t, globalGroup.ID, wafRuntime.RuleGroups[0].ID)
 	assert.True(t, wafRuntime.RuleGroups[0].IsGlobal)
@@ -197,7 +190,7 @@ func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
 	assert.Equal(t, route.ID, wafRuntime.Bindings[0].RouteID)
 	assert.Equal(t, "example.com", wafRuntime.Bindings[0].SiteName)
 	assert.Equal(t, []uint{customGroup.ID}, wafRuntime.Bindings[0].RuleGroupIDs)
-	assert.Contains(t, bundle.RouteConfig, `set $openflare_waf_site "example.com"`)
+	assert.Contains(t, bundle.RouteConfig, `"site_name":"example.com"`)
 }
 
 func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testing.T) {
@@ -224,18 +217,9 @@ func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testi
 
 	bundle, err := buildCurrentConfigBundle(ctx, true)
 	require.NoError(t, err)
-	var wafRuntime openrestyrender.WAFDocument
-	foundWAFConfig := false
-	for _, file := range bundle.SupportFiles {
-		if file.Path != "waf_config.json" {
-			continue
-		}
-		foundWAFConfig = true
-		assert.Contains(t, file.Content, `"rule_group_ids":[]`)
-		assert.NotContains(t, file.Content, `"rule_group_ids":null`)
-		require.NoError(t, json.Unmarshal([]byte(file.Content), &wafRuntime))
-	}
-	require.True(t, foundWAFConfig, "expected rendered WAF support file")
+	var document edgeconfig.Document
+	require.NoError(t, json.Unmarshal([]byte(bundle.SnapshotJSON), &document))
+	wafRuntime := document.WAF
 	require.NotEmpty(t, wafRuntime.RuleGroups)
 	assert.Equal(t, globalGroup.ID, wafRuntime.RuleGroups[0].ID)
 	assert.True(t, wafRuntime.RuleGroups[0].IsGlobal)

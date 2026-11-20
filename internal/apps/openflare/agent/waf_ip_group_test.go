@@ -146,7 +146,7 @@ func TestChangedWAFIPGroupsForAgentRejectsMalformedIPMatchConfig(t *testing.T) {
 		SnapshotJSON: `{"waf":{"rule_groups":[{"id":7,"graph":{"entry":"match","nodes":{` +
 			`"match":{"type":"ip_match","config":{"ip_group_ids":"not-an-array"}}}}}],"bindings":[]}}`,
 		Checksum: "malformed-test-checksum",
-		IsActive: true,
+		IsActive: true, Engine: enginePingora,
 	}).Error)
 
 	_, err := ChangedWAFIPGroupsForAgent(ctx, nil, nil)
@@ -211,39 +211,6 @@ func TestChangedWAFIPGroupsForAgentReturnsChecksumDelta(t *testing.T) {
 	assert.Equal(t, ipGroup.ID, delta[0].ID)
 	assert.Equal(t, "203.0.113.45", delta[0].IPList[0])
 	assert.NotEqual(t, groups[0].Checksum, delta[0].Checksum)
-}
-
-func TestSyncWAFIPGroupsReturnsChangedGroups(t *testing.T) {
-	cleanup := setupWAFIPGroupTestDB(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	ipGroup := &model.OpenFlareWAFIPGroup{
-		Name:    "sync group",
-		Type:    "manual",
-		Enabled: true,
-		IPList:  `["198.51.100.10"]`,
-	}
-	require.NoError(t, repository.CreateOpenFlareWAFIPGroup(ctx, ipGroup))
-	seedActiveConfigWithWAFIPGroup(t, ctx, ipGroup.ID)
-
-	result, err := SyncWAFIPGroups(ctx, protocol.WAFIPGroupSyncRequest{
-		IDs:       []uint{ipGroup.ID},
-		Checksums: map[string]string{},
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-	assert.Equal(t, ipGroup.ID, result.Groups[0].ID)
-	assert.Equal(t, "198.51.100.10", result.Groups[0].IPList[0])
-
-	result, err = SyncWAFIPGroups(ctx, protocol.WAFIPGroupSyncRequest{
-		IDs: []uint{ipGroup.ID},
-		Checksums: map[string]string{
-			strconv.FormatUint(uint64(ipGroup.ID), 10): result.Groups[0].Checksum,
-		},
-	})
-	require.NoError(t, err)
-	assert.Empty(t, result.Groups)
 }
 
 func TestChangedWAFIPGroupsForAgentDisabledGroupClearsIPList(t *testing.T) {

@@ -26,16 +26,6 @@ type RegistrationResponseDocs struct {
 	Name        string `json:"name"`
 }
 
-// ConfigResponse is the full active config payload for agents.
-// Server uses time.Time for CreatedAt; the agent client uses string via ActiveConfigResponse.
-type ConfigResponse struct {
-	Version          string                 `json:"version"`
-	Checksum         string                 `json:"checksum"`
-	SourceConfigJSON string                 `json:"source_config_json"`
-	SupportFiles     []protocol.SupportFile `json:"support_files"`
-	CreatedAt        time.Time              `json:"created_at"`
-}
-
 // PingoraConfigResponse is the dedicated configuration contract for Pingora nodes.
 type PingoraConfigResponse struct {
 	Version         string    `json:"version"`
@@ -49,8 +39,7 @@ type PingoraConfigResponse struct {
 
 // HeartbeatResponse is the heartbeat handler result.
 type HeartbeatResponse struct {
-	Node          *model.OpenFlareNode       `json:"node"`
-	AgentSettings *protocol.AgentSettings    `json:"agent_settings"`
-	ActiveConfig  *protocol.ActiveConfigMeta `json:"active_config"`
-	WAFIPGroups   []protocol.WAFIPGroup      `json:"waf_ip_groups,omitempty"`
+	Config        *protocol.ConfigManifest `json:"config"`
+	Node          *model.OpenFlareNode     `json:"node"`
+	AgentSettings *protocol.AgentSettings  `json:"agent_settings"`
 }
