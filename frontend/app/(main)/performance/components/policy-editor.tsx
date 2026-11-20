@@ -43,6 +43,8 @@ export const performancePoliciesQueryKey = [
   'performance-policies',
 ] as const;
 
+const automaticFields = new Set(['threads', 'upstream_keepalive_pool_size']);
+
 interface Props {
   policy?: PerformancePolicy;
   parameters: PerformanceParameter[];
@@ -68,6 +70,7 @@ export function PolicyEditor({ policy, parameters }: Props) {
   const [group, setGroup] = useState(() => groups[0] ?? '');
   const [saving, setSaving] = useState(false);
   const [invalid, setInvalid] = useState<string>();
+  const automatic = values.threads_auto === true;
 
   function update(key: string, value: PerformanceValue) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -89,28 +92,24 @@ export function PolicyEditor({ policy, parameters }: Props) {
       return;
     }
 
-    const invalidParameter = parameters.find(
-      ({ key, min, max }) =>
-        min !== undefined &&
-        max !== undefined &&
-        (String(values[key]).trim() === '' ||
-          !Number.isInteger(Number(values[key])) ||
-          Number(values[key]) < min ||
-          Number(values[key]) > max),
-    );
-    if (invalidParameter) {
-      setGroup(invalidParameter.group);
-      setInvalid(invalidParameter.key);
-      focusElement(`${id}-${invalidParameter.key}`);
+    const settings = { ...values };
+    for (const { key, group, min, max, default: defaultValue } of parameters) {
+      if (min === undefined || max === undefined) continue;
+      const raw = String(values[key]).trim();
+      const number = Number(raw);
+      if (raw && Number.isInteger(number) && number >= min && number <= max) {
+        settings[key] = number;
+        continue;
+      }
+      if (automatic && automaticFields.has(key)) {
+        settings[key] = defaultValue;
+        continue;
+      }
+      setGroup(group);
+      setInvalid(key);
+      focusElement(`${id}-${key}`);
       return;
     }
-
-    const settings = Object.fromEntries(
-      parameters.map(({ key, min }) => [
-        key,
-        min === undefined ? values[key] : Number(values[key]),
-      ]),
-    );
     setSaving(true);
     try {
       await PerformanceService.save(policy?.id, {
@@ -318,9 +317,8 @@ export function PolicyEditor({ policy, parameters }: Props) {
                             const errorID = `${inputID}-error`;
                             const label = t(`fields.${paramKey}.label`);
                             const disabled =
-                              paramKey === 'threads' &&
-                              values.threads_auto === true;
-                            const isInvalid = invalid === paramKey;
+                              automatic && automaticFields.has(paramKey);
+                            const isInvalid = !disabled && invalid === paramKey;
 
                             return (
                               <Field

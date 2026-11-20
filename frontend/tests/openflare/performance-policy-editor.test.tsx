@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { NextIntlClientProvider } from 'next-intl';
@@ -56,6 +56,7 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => {
 const policyFixture: PerformancePolicy = {
   id: 2,
   name: '2C2G',
+  is_default: false,
   settings: {
     threads: 2,
     threads_auto: false,
@@ -129,6 +130,47 @@ describe('Performance policy editor secondary page', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('lists the default first and counts nodes that inherit it', async () => {
+    const defaultPolicy: PerformancePolicy = {
+      id: 4,
+      name: 'Pingora',
+      is_default: true,
+      settings: { ...policyFixture.settings, threads_auto: true },
+    };
+    vi.mocked(PerformanceService.list).mockResolvedValue({
+      ...listFixture,
+      policies: [policyFixture, defaultPolicy],
+      nodes: [
+        ...listFixture.nodes,
+        {
+          node_id: 'edge-2',
+          name: 'Edge 2',
+          status: 'online',
+          policy_id: null,
+        },
+      ],
+    });
+    renderWithProviders(<PerformancePage />);
+
+    const defaultBadge = await screen.findByText('默认策略');
+    const card = defaultBadge.closest<HTMLElement>('[data-slot="card"]');
+    expect(card).not.toBeNull();
+    if (!card) throw new Error('Default strategy card was not rendered');
+    expect(within(card).getByText('1 个节点使用此策略')).toBeInTheDocument();
+    expect(
+      within(card).getByText('按节点资源自动配置线程与回源连接池'),
+    ).toBeInTheDocument();
+    expect(
+      within(card).queryByRole('button', { name: '分配节点' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(card).queryByRole('button', { name: '删除策略' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole('link', { name: '编辑策略' })[0],
+    ).toHaveAttribute('href', '/performance/editor?id=4');
+  });
+
   it('renders switches inside horizontal fields without a dialog or inner scrollbar', async () => {
     const user = userEvent.setup();
     renderWithProviders(<PolicyEditorPageClient />);
@@ -151,9 +193,14 @@ describe('Performance policy editor secondary page', () => {
     expect(panel).not.toHaveClass('overflow-y-auto');
 
     const threadsInput = screen.getByLabelText('工作线程数');
+    const poolInput = screen.getByLabelText('空闲回源连接池容量');
     expect(threadsInput).not.toBeDisabled();
-    await user.click(screen.getByRole('switch', { name: '自动配置线程数' }));
+    expect(poolInput).not.toBeDisabled();
+    await user.clear(poolInput);
+    await user.type(poolInput, '0');
+    await user.click(screen.getByRole('switch', { name: '自动配置' }));
     expect(threadsInput).toBeDisabled();
+    expect(poolInput).toBeDisabled();
 
     await user.type(nameInput, '4C8G');
     await user.click(screen.getByRole('button', { name: '保存策略' }));

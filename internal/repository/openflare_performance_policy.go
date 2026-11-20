@@ -10,12 +10,19 @@ import (
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-const pingoraPolicyNodes = "engine = 'pingora' AND node_type = 'edge_node'"
+const (
+	pingoraPolicyNodes = "engine = 'pingora' AND node_type = 'edge_node'"
+	assignablePolicy   = "(preset_key IS NULL OR preset_key <> ?)"
+)
 
 // ErrInvalidPerformancePolicyNodes indicates that at least one target is not a Pingora edge node.
 var ErrInvalidPerformancePolicyNodes = errors.New("all selected nodes must be Pingora edge nodes")
+
+// ErrInheritedPerformancePolicy protects the system policy from deletion and explicit assignment.
+var ErrInheritedPerformancePolicy = errors.New("the default performance policy is inherited automatically")
 
 // ListPerformancePolicies returns the policies and eligible edge nodes.
 func ListPerformancePolicies(ctx context.Context) ([]model.OpenFlarePerformancePolicy, []model.PerformancePolicyNode, error) {
@@ -39,13 +46,17 @@ func CreatePerformancePolicy(ctx context.Context, policy *model.OpenFlarePerform
 
 // UpdatePerformancePolicy modifies an existing policy.
 func UpdatePerformancePolicy(ctx context.Context, policy *model.OpenFlarePerformancePolicy) error {
-	return performancePolicyWrite(db.DB(ctx).Model(policy).Select("Name", "SettingsJSON", "UpdatedAt").Updates(policy))
+	return performancePolicyWrite(db.DB(ctx).Model(policy).
+		Clauses(clause.Returning{Columns: []clause.Column{{Name: "preset_key"}}}).
+		Select("Name", "SettingsJSON", "UpdatedAt").Updates(policy))
 }
 
 // DeletePerformancePolicy removes a policy and clears its node assignments.
 func DeletePerformancePolicy(ctx context.Context, id uint) error {
 	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := performancePolicyWrite(tx.Delete(&model.OpenFlarePerformancePolicy{}, id)); err != nil {
+		result := tx.Where(assignablePolicy, model.DefaultPerformancePolicyKey).
+			Delete(&model.OpenFlarePerformancePolicy{}, id)
+		if err := explicitPolicyWrite(tx, id, result); err != nil {
 			return err
 		}
 		return tx.Table((model.OpenFlareNode{}).TableName()).Where("performance_policy_id = ?", id).
@@ -57,8 +68,9 @@ func DeletePerformancePolicy(ctx context.Context, id uint) error {
 func AssignPerformancePolicy(ctx context.Context, id uint, nodeIDs []string) error {
 	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
 		// Acquire the same write lock used by updates and deletion before touching assignments.
-		policy := tx.Model(&model.OpenFlarePerformancePolicy{}).Where("id = ?", id)
-		if err := performancePolicyWrite(policy.UpdateColumn("updated_at", gorm.Expr("updated_at"))); err != nil {
+		policy := tx.Model(&model.OpenFlarePerformancePolicy{}).Where("id = ?", id).
+			Where(assignablePolicy, model.DefaultPerformancePolicyKey)
+		if err := explicitPolicyWrite(tx, id, policy.UpdateColumn("updated_at", gorm.Expr("updated_at"))); err != nil {
 			return err
 		}
 		nodes := tx.Table((model.OpenFlareNode{}).TableName()).Where("performance_policy_id = ?", id)
@@ -93,12 +105,29 @@ func performancePolicyWrite(result *gorm.DB) error {
 	return nil
 }
 
-// GetNodePerformancePolicy reads the desired settings from the current assignment.
+func explicitPolicyWrite(tx *gorm.DB, id uint, result *gorm.DB) error {
+	if err := performancePolicyWrite(result); !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	var policy model.OpenFlarePerformancePolicy
+	if err := tx.Select("preset_key").Take(&policy, id).Error; err != nil {
+		return err
+	}
+	if policy.IsDefault() {
+		return ErrInheritedPerformancePolicy
+	}
+	return gorm.ErrRecordNotFound
+}
+
+// GetNodePerformancePolicy reads a node's explicit policy or the system default.
 func GetNodePerformancePolicy(ctx context.Context, nodeID string) (string, error) {
 	var policy model.OpenFlarePerformancePolicy
-	err := db.DB(ctx).Model(&policy).Select("of_performance_policies.settings_json").
-		Joins("JOIN of_nodes ON of_nodes.performance_policy_id = of_performance_policies.id").
-		Where("of_nodes.node_id = ? AND of_nodes.engine = 'pingora' AND of_nodes.node_type = 'edge_node'", nodeID).
+	err := db.DB(ctx).Table("of_nodes AS node").
+		Select("COALESCE(assigned.settings_json, inherited.settings_json) AS settings_json").
+		Joins("LEFT JOIN of_performance_policies AS assigned ON assigned.id = node.performance_policy_id").
+		Joins("LEFT JOIN of_performance_policies AS inherited ON inherited.preset_key = ?", model.DefaultPerformancePolicyKey).
+		Where("node.node_id = ? AND node.engine = 'pingora' AND node.node_type = 'edge_node'", nodeID).
+		Where("assigned.id IS NOT NULL OR inherited.id IS NOT NULL").
 		Take(&policy).Error
 	return policy.SettingsJSON, err
 }

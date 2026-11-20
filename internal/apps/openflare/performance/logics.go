@@ -23,6 +23,7 @@ const (
 	errPolicyNotFound  = "Performance policy not found"
 	errPolicyOperation = "Could not complete the performance policy operation"
 	errInvalidNodes    = "All selected nodes must be Pingora edge nodes"
+	errDefaultPolicy   = "The default policy is inherited automatically"
 )
 
 var errInvalidPolicy = errors.New("invalid performance policy parameters")
@@ -37,9 +38,10 @@ type assignmentRequest struct {
 }
 
 type policyView struct {
-	ID       uint                 `json:"id"`
-	Name     string               `json:"name"`
-	Settings performance.Settings `json:"settings"`
+	ID        uint                 `json:"id"`
+	Name      string               `json:"name"`
+	IsDefault bool                 `json:"is_default"`
+	Settings  performance.Settings `json:"settings"`
 }
 
 type policyList struct {
@@ -59,7 +61,7 @@ func listPolicies(ctx context.Context) (*policyList, error) {
 		if decodeErr != nil {
 			return nil, fmt.Errorf("decode performance policy %d: %w", record.ID, decodeErr)
 		}
-		policies = append(policies, policyView{ID: record.ID, Name: record.Name, Settings: settings})
+		policies = append(policies, policyView{ID: record.ID, Name: record.Name, IsDefault: record.IsDefault(), Settings: settings})
 	}
 	return &policyList{Policies: policies, Nodes: nodes, Parameters: performance.Parameters}, nil
 }
@@ -89,7 +91,7 @@ func savePolicy(ctx context.Context, id uint, request policyRequest) (*policyVie
 	if err != nil {
 		return nil, err
 	}
-	return &policyView{ID: record.ID, Name: name, Settings: settings}, nil
+	return &policyView{ID: record.ID, Name: name, IsDefault: record.IsDefault(), Settings: settings}, nil
 }
 
 func assignPolicy(ctx context.Context, id uint, nodeIDs []string) error {

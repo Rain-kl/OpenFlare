@@ -2077,6 +2077,8 @@ definitions:
     properties:
       id:
         type: integer
+      is_default:
+        type: boolean
       name:
         type: string
       settings:
@@ -13155,6 +13157,7 @@ paths:
       - user
   /d/performance-policies:
     get:
+      description: The default policy is inherited by nodes without an explicit assignment.
       responses:
         "200":
           description: OK
@@ -13248,6 +13251,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "409":
+          description: The default performance policy is inherited automatically
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
         "500":
           description: Internal Server Error
           schema:
@@ -13278,6 +13285,10 @@ paths:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "409":
+          description: The default performance policy is inherited automatically
           schema:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
         "500":

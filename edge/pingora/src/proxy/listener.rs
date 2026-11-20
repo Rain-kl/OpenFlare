@@ -90,7 +90,11 @@ pub fn run_server(state: DataPlaneState, control: Runtime, upgrade: bool) -> any
     if let Some(startup) = startup {
         startup.configure_server(&mut conf);
     }
-    tracing::info!(threads = conf.threads, "starting Pingora workers");
+    tracing::info!(
+        threads = conf.threads,
+        upstream_keepalive_pool_size = conf.upstream_keepalive_pool_size,
+        "starting Pingora workers"
+    );
     super::cache::configure_capacity(startup.map(|s| s.cache_capacity_mib));
     let mut server = Server::new_with_opt_and_conf(
         Some(Opt {

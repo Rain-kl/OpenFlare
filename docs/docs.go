@@ -14535,6 +14535,7 @@ const docTemplate = `{
         },
         "/d/performance-policies": {
             "get": {
+                "description": "The default policy is inherited by nodes without an explicit assignment.",
                 "tags": [
                     "Performance Policies"
                 ],
@@ -14689,6 +14690,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
+                    "409": {
+                        "description": "The default performance policy is inherited automatically",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -14734,6 +14741,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "The default performance policy is inherited automatically",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -18032,6 +18045,9 @@ const docTemplate = `{
             "properties": {
                 "id": {
                     "type": "integer"
+                },
+                "is_default": {
+                    "type": "boolean"
                 },
                 "name": {
                     "type": "string"

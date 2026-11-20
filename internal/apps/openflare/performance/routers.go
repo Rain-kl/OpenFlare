@@ -18,6 +18,7 @@ import (
 
 // ListHandler lists Pingora policies, parameter defaults, and eligible nodes.
 // @Summary List Pingora performance policies
+// @Description The default policy is inherited by nodes without an explicit assignment.
 // @Tags Performance Policies
 // @Success 200 {object} response.Any{data=policyList}
 // @Failure 401 {object} response.Any
@@ -73,6 +74,7 @@ func UpdateHandler(c *gin.Context) {
 // @Failure 400 {object} response.Any
 // @Failure 401 {object} response.Any
 // @Failure 404 {object} response.Any
+// @Failure 409 {object} response.Any "The default performance policy is inherited automatically"
 // @Failure 500 {object} response.Any
 // @Router /d/performance-policies/{id}/assign [post]
 func AssignHandler(c *gin.Context) {
@@ -100,6 +102,7 @@ func AssignHandler(c *gin.Context) {
 // @Failure 400 {object} response.Any
 // @Failure 401 {object} response.Any
 // @Failure 404 {object} response.Any
+// @Failure 409 {object} response.Any "The default performance policy is inherited automatically"
 // @Failure 500 {object} response.Any
 // @Router /d/performance-policies/{id}/delete [post]
 func DeleteHandler(c *gin.Context) {
@@ -144,6 +147,8 @@ func abortPolicyError(c *gin.Context, err error) {
 		response.AbortBadRequest(c, err.Error())
 	case errors.Is(err, repository.ErrInvalidPerformancePolicyNodes):
 		response.AbortBadRequest(c, errInvalidNodes)
+	case errors.Is(err, repository.ErrInheritedPerformancePolicy):
+		response.AbortConflict(c, errDefaultPolicy)
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		response.AbortNotFound(c, errPolicyNotFound)
 	default:

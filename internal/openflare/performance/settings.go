@@ -42,6 +42,7 @@ func toggle(group, key string, value bool) Parameter {
 //nolint:mnd // These numbers are the parameter defaults and bounds.
 var Parameters = []Parameter{
 	integer("runtime", "threads", 1, 1, 256),
+	// The existing wire key now enables automatic sizing for both workers and the upstream pool.
 	toggle("runtime", "threads_auto", false),
 	toggle("runtime", "work_stealing", true),
 	integer("runtime", "listener_tasks_per_fd", 1, 1, 32),

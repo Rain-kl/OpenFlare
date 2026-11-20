@@ -45,7 +45,8 @@ pub(crate) struct Settings {
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub(crate) struct Startup {
     pub threads: usize,
-    pub threads_auto: bool,
+    #[serde(rename = "threads_auto")]
+    pub auto_configure: bool,
     pub work_stealing: bool,
     pub listener_tasks_per_fd: usize,
     pub upstream_keepalive_pool_size: usize,
@@ -162,16 +163,91 @@ impl NodePolicy {
     }
 }
 
+const MIB: u64 = 1024 * 1024;
+const GIB: u64 = 1024 * MIB;
+
+fn automatic_runtime(cores: usize, memory_bytes: u64) -> (usize, usize) {
+    // Leave room for memory reserved by the OS on machines sold in whole GiB sizes.
+    let memory_threads = (memory_bytes / (768 * MIB)).clamp(1, 256) as usize;
+    let threads = cores.clamp(1, memory_threads);
+    // Pingora multiplies the configured per-worker size by the number of workers.
+    let memory_pool_per_worker = memory_bytes / (8 * MIB) / threads as u64;
+    let pool_size = memory_pool_per_worker
+        .min(64 * threads as u64)
+        .clamp(1, 1024) as usize;
+    (threads, pool_size)
+}
+
+fn node_memory_limit() -> u64 {
+    let mut system = sysinfo::System::new();
+    system.refresh_memory();
+    let host_memory = match system.total_memory() {
+        0 => GIB,
+        bytes => bytes,
+    };
+
+    #[cfg(target_os = "linux")]
+    if let Some(limit) = std::fs::read_to_string("/proc/self/cgroup")
+        .ok()
+        .and_then(|groups| cgroup_memory_limit(Path::new("/sys/fs/cgroup"), &groups))
+    {
+        return host_memory.min(limit);
+    }
+    host_memory
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn cgroup_memory_limit(mount: &Path, groups: &str) -> Option<u64> {
+    groups
+        .lines()
+        .filter_map(|group| {
+            let (_, rest) = group.split_once(':')?;
+            let (controllers, directory) = rest.split_once(':')?;
+            let (root, limit_file) = if controllers.is_empty() {
+                (mount.to_path_buf(), "memory.max")
+            } else if controllers
+                .split(',')
+                .any(|controller| controller == "memory")
+            {
+                (mount.join("memory"), "memory.limit_in_bytes")
+            } else {
+                return None;
+            };
+
+            let directory = Path::new(directory).strip_prefix("/").ok()?;
+            if directory
+                .components()
+                .any(|component| !matches!(component, std::path::Component::Normal(_)))
+            {
+                return None;
+            }
+
+            directory
+                .ancestors()
+                .filter_map(|ancestor| {
+                    std::fs::read_to_string(root.join(ancestor).join(limit_file))
+                        .ok()?
+                        .trim()
+                        .parse::<u64>()
+                        .ok()
+                })
+                .min()
+        })
+        .min()
+}
+
 impl Startup {
     pub fn configure_server(&self, conf: &mut ServerConf) {
-        conf.threads = if self.threads_auto {
-            std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get)
+        let (threads, keepalive_pool_size) = if self.auto_configure {
+            let cores = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
+            automatic_runtime(cores, node_memory_limit())
         } else {
-            self.threads
+            (self.threads, self.upstream_keepalive_pool_size)
         };
+        conf.threads = threads;
+        conf.upstream_keepalive_pool_size = keepalive_pool_size;
         conf.work_stealing = self.work_stealing;
         conf.listener_tasks_per_fd = self.listener_tasks_per_fd;
-        conf.upstream_keepalive_pool_size = self.upstream_keepalive_pool_size;
         conf.max_retries = self.max_retries;
         conf.runtime_enable_alt_timer = self.runtime_enable_alt_timer;
         conf.fast_timeout_to_tokio_threshold_seconds =
@@ -360,20 +436,61 @@ mod tests {
     use super::*;
 
     #[test]
-    fn automatically_resolves_threads_from_available_cpus() {
+    fn sizes_workers_and_connection_pool_for_the_node() {
+        assert_eq!(automatic_runtime(1, GIB), (1, 64));
+        assert_eq!(automatic_runtime(2, 2 * GIB), (2, 128));
+        assert_eq!(automatic_runtime(2, 2 * GIB - 128 * MIB), (2, 120));
+        assert_eq!(automatic_runtime(4, 8 * GIB), (4, 256));
+        assert_eq!(automatic_runtime(8, 2 * GIB), (2, 128));
+        assert_eq!(automatic_runtime(4, 256 * MIB), (1, 32));
+        assert_eq!(automatic_runtime(0, 0), (1, 1));
+        assert_eq!(automatic_runtime(512, u64::MAX), (256, 1024));
+    }
+
+    #[test]
+    fn reads_the_strictest_parent_cgroup_memory_limit() {
+        let mount = tempfile::tempdir().unwrap();
+        let root = mount.path();
+        let service = root.join("system.slice/openflare-edge.service");
+        std::fs::create_dir_all(&service).unwrap();
+        std::fs::write(root.join("memory.max"), "max").unwrap();
+        std::fs::write(root.join("system.slice/memory.max"), "1073741824").unwrap();
+        std::fs::write(service.join("memory.max"), "2147483648").unwrap();
+        assert_eq!(
+            cgroup_memory_limit(root, "0::/system.slice/openflare-edge.service"),
+            Some(GIB)
+        );
+        assert_eq!(cgroup_memory_limit(root, "0::/../../elsewhere"), None);
+
+        let legacy = root.join("memory/workload");
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("memory.limit_in_bytes"), "536870912").unwrap();
+        assert_eq!(
+            cgroup_memory_limit(root, "3:memory:/workload"),
+            Some(512 * MIB)
+        );
+    }
+
+    #[test]
+    fn applies_automatic_and_manual_settings_to_pingora() {
         let raw = include_str!("../../tests/performance_policy.json");
         let mut settings: Settings =
             serde_json::from_str(raw).expect("default performance settings");
         let mut conf = ServerConf::default();
         settings.startup.threads = 4;
+        settings.startup.upstream_keepalive_pool_size = 123;
         settings.startup.configure_server(&mut conf);
         assert_eq!(conf.threads, 4);
+        assert_eq!(conf.upstream_keepalive_pool_size, 123);
 
-        settings.startup.threads_auto = true;
+        settings.startup.auto_configure = true;
         settings.startup.configure_server(&mut conf);
+        let cores = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
+        let expected = automatic_runtime(cores, node_memory_limit());
+        assert_eq!((conf.threads, conf.upstream_keepalive_pool_size), expected);
         assert_eq!(
-            conf.threads,
-            std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get),
+            pingora::connectors::ConnectorOptions::from_server_conf(&conf).keepalive_pool_size,
+            expected.0 * expected.1
         );
     }
 }

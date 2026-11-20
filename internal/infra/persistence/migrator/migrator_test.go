@@ -126,14 +126,19 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	}
 	ctx := context.Background()
 	policies, _, err := repository.ListPerformancePolicies(ctx)
-	if err != nil || len(policies) != 3 {
+	if err != nil || len(policies) != 4 {
 		t.Fatalf("performance policy seeds: %v, %v", policies, err)
 	}
-	for index, policy := range policies {
+	for index, policy := range policies[:3] {
 		resolved, err := performance.Decode(policy.SettingsJSON)
-		if err != nil || resolved["threads"] != []int{1, 2, 4}[index] {
+		if err != nil || policy.IsDefault() || resolved["threads"] != []int{1, 2, 4}[index] {
 			t.Fatalf("invalid preset %s: %v", policy.Name, err)
 		}
+	}
+	defaultPolicy := policies[3]
+	resolved, err := performance.Decode(defaultPolicy.SettingsJSON)
+	if err != nil || !defaultPolicy.IsDefault() || resolved["threads_auto"] != true {
+		t.Fatalf("invalid default performance policy: %v, %v", defaultPolicy, err)
 	}
 	for _, node := range []model.OpenFlareNode{
 		{NodeID: "test-pingora", Name: "Pingora", Engine: "pingora"},
@@ -156,8 +161,12 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	if err := repository.DeletePerformancePolicy(ctx, id); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := repository.GetNodePerformancePolicy(ctx, "test-pingora"); !errors.Is(err, gorm.ErrRecordNotFound) {
-		t.Fatalf("expected node to return to defaults, got %v", err)
+	settings, err := repository.GetNodePerformancePolicy(ctx, "test-pingora")
+	if err != nil || settings != defaultPolicy.SettingsJSON {
+		t.Fatalf("expected node to inherit the default policy, got %q, %v", settings, err)
+	}
+	if _, err := repository.GetNodePerformancePolicy(ctx, "test-openresty"); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("non-Pingora node was eligible for a performance policy: %v", err)
 	}
 
 	var trustedProxyConfig model.SystemConfig

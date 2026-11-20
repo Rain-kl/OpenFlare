@@ -13,6 +13,7 @@ export interface PerformanceParameter {
 export interface PerformancePolicy {
   id: number;
   name: string;
+  is_default: boolean;
   settings: PerformanceSettings;
 }
 

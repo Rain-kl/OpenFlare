@@ -411,6 +411,23 @@ def main(binary):
                 assert (path / "edge.log").read_text().count("starting Pingora workers") == 2
                 assert "performance.v1" not in server.pulls
 
+                server.performance = {**server.performance, "threads_auto": True,
+                                      "upstream_keepalive_pool_size": 65536}
+                wake()
+
+                def automatic_worker_configuration():
+                    log = re.sub(r"\x1b\[[0-9;]*m", "", (path / "edge.log").read_text())
+                    workers = [line for line in log.splitlines() if "starting Pingora workers" in line]
+                    if len(workers) != 3:
+                        return False
+                    return re.search(r"threads=(\d+) upstream_keepalive_pool_size=(\d+)", workers[-1])
+
+                configured = wait_for(automatic_worker_configuration, seconds=8)
+                assert 1 <= int(configured[1]) <= 256
+                assert 1 <= int(configured[2]) <= 1024
+                assert json.loads(state_file.read_text())["settings"]["threads_auto"] is True
+                wait_for(lambda: http_route()[0] == 301)
+
                 server.heartbeat_interval = 250
                 server.active = release(2, origin, certificate.read_text(), key.read_text())
                 server.active["payload_checksum"] = "invalid candidate"

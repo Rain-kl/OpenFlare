@@ -10,7 +10,10 @@
     "operationFailed": "无法保存更改。",
     "empty": "当前没有性能策略。",
     "assignedCount": "已分配 {count} 个节点",
-    "threadAuto": "自动线程数",
+    "defaultPolicy": "默认策略",
+    "defaultDescription": "现有和新加入的节点在未分配其他策略时使用。",
+    "defaultCount": "{count} 个节点使用此策略",
+    "automaticSummary": "按节点资源自动配置线程与回源连接池",
     "threadCount": "{count} 个工作线程",
     "poolSize": "连接池容量 {count}",
     "assign": "分配节点",
@@ -28,13 +31,12 @@
     "assigned": "节点分配已保存。",
     "deleted": "性能策略已删除。",
     "deleteTitle": "删除「{name}」",
-    "deleteDescription": "使用此策略的节点将恢复默认参数。",
+    "deleteDescription": "使用此策略的节点将改用默认策略。",
     "assignTitle": "为「{name}」分配节点",
-    "assignDescription": "每个节点使用一条策略。选中节点将使用此策略，取消已分配的节点将恢复默认参数。",
+    "assignDescription": "选中节点将使用此策略。取消当前分配后，节点将改用默认策略。",
     "search": "搜索节点名称或 ID",
     "selectAll": "选择筛选结果",
     "noNodes": "没有匹配的 Pingora 节点。",
-    "defaults": "默认参数",
     "applyCount": "保存分配（{count}）",
     "range": "允许范围为 {min} 至 {max}。",
     "groups": {
@@ -56,8 +58,8 @@
         "help": "填入节点的 CPU 核心数作为起点。"
       },
       "threads_auto": {
-        "label": "自动配置线程数",
-        "help": "使用节点进程可用的 CPU 核心数。"
+        "label": "自动配置",
+        "help": "节点启动时根据进程可用的 CPU 核心数和内存上限计算工作线程数与空闲回源连接池容量。"
       },
       "work_stealing": {
         "label": "任务窃取",

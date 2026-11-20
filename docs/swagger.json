@@ -14528,6 +14528,7 @@
         },
         "/d/performance-policies": {
             "get": {
+                "description": "The default policy is inherited by nodes without an explicit assignment.",
                 "tags": [
                     "Performance Policies"
                 ],
@@ -14682,6 +14683,12 @@
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
+                    "409": {
+                        "description": "The default performance policy is inherited automatically",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -14727,6 +14734,12 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "The default performance policy is inherited automatically",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -18025,6 +18038,9 @@
             "properties": {
                 "id": {
                     "type": "integer"
+                },
+                "is_default": {
+                    "type": "boolean"
                 },
                 "name": {
                     "type": "string"

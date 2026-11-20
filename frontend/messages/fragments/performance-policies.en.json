@@ -10,7 +10,10 @@
     "operationFailed": "Could not save changes.",
     "empty": "There are no performance policies.",
     "assignedCount": "{count, plural, one {# assigned node} other {# assigned nodes}}",
-    "threadAuto": "Automatic threads",
+    "defaultPolicy": "Default policy",
+    "defaultDescription": "Applies to existing and newly added nodes without an explicit assignment.",
+    "defaultCount": "{count, plural, one {# node uses this policy} other {# nodes use this policy}}",
+    "automaticSummary": "Automatic worker and upstream pool sizing",
     "threadCount": "{count, plural, one {# worker thread} other {# worker threads}}",
     "poolSize": "Origin pool size {count}",
     "assign": "Assign nodes",
@@ -28,13 +31,12 @@
     "assigned": "Node assignments saved.",
     "deleted": "Performance policy deleted.",
     "deleteTitle": "Delete {name}",
-    "deleteDescription": "Nodes using this policy will return to the default settings.",
+    "deleteDescription": "Nodes using this policy will switch to the default policy.",
     "assignTitle": "Assign nodes to {name}",
-    "assignDescription": "Each node uses one policy. Selected nodes will use this policy. Clearing a current assignment restores the node defaults.",
+    "assignDescription": "Selected nodes will use this policy. Clearing an assignment switches the node to the default policy.",
     "search": "Search node name or ID",
     "selectAll": "Select filtered nodes",
     "noNodes": "No matching Pingora nodes.",
-    "defaults": "Default settings",
     "applyCount": "Save assignments ({count})",
     "range": "Enter a value from {min} to {max}.",
     "groups": {
@@ -56,8 +58,8 @@
         "help": "Start with the node's CPU core count."
       },
       "threads_auto": {
-        "label": "Automatic thread count",
-        "help": "Use the CPU cores available to the node process."
+        "label": "Automatic configuration",
+        "help": "At startup, the node sizes worker threads and the idle upstream connection pool using the CPU cores and memory available to the process."
       },
       "work_stealing": {
         "label": "Work stealing",

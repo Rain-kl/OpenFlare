@@ -149,7 +149,7 @@ export function NodeAssignmentDialog({
                 <p className='break-all text-xs text-muted-foreground'>
                   {node.node_id} ·{' '}
                   {node.policy_id === null
-                    ? t('defaults')
+                    ? t('defaultPolicy')
                     : names.get(node.policy_id)}
                 </p>
               </div>

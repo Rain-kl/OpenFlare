@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -43,12 +44,16 @@ export default function PerformancePage() {
   });
   const [action, setAction] = useState<Action>();
   const [deleting, setDeleting] = useState(false);
-  const policies = query.data?.policies ?? [];
+  const policies = [...(query.data?.policies ?? [])].sort(
+    (left, right) => Number(right.is_default) - Number(left.is_default),
+  );
   const nodes = query.data?.nodes ?? [];
+  const defaultId = policies.find((policy) => policy.is_default)?.id;
   const counts = new Map<number, number>();
   for (const { policy_id } of nodes) {
-    if (policy_id !== null) {
-      counts.set(policy_id, (counts.get(policy_id) ?? 0) + 1);
+    const effectiveId = policy_id ?? defaultId;
+    if (effectiveId !== undefined) {
+      counts.set(effectiveId, (counts.get(effectiveId) ?? 0) + 1);
     }
   }
 
@@ -115,9 +120,16 @@ export default function PerformancePage() {
         {policies.map((policy) => (
           <Card key={policy.id}>
             <CardHeader>
-              <CardTitle className='break-all'>{policy.name}</CardTitle>
+              <CardTitle className='flex flex-wrap items-center gap-2 break-all'>
+                {policy.name}
+                {policy.is_default && (
+                  <Badge variant='secondary'>{t('defaultPolicy')}</Badge>
+                )}
+              </CardTitle>
               <CardDescription>
-                {t('assignedCount', { count: counts.get(policy.id) ?? 0 })}
+                {policy.is_default
+                  ? t('defaultCount', { count: counts.get(policy.id) ?? 0 })
+                  : t('assignedCount', { count: counts.get(policy.id) ?? 0 })}
               </CardDescription>
               <CardAction className='flex gap-1'>
                 <Button
@@ -130,36 +142,38 @@ export default function PerformancePage() {
                     <Pencil />
                   </Link>
                 </Button>
-                <Button
-                  size='icon-sm'
-                  variant='ghost'
-                  aria-label={t('delete')}
-                  onClick={() => setAction({ type: 'delete', policy })}
-                >
-                  <Trash2 />
-                </Button>
+                {!policy.is_default && (
+                  <Button
+                    size='icon-sm'
+                    variant='ghost'
+                    aria-label={t('delete')}
+                    onClick={() => setAction({ type: 'delete', policy })}
+                  >
+                    <Trash2 />
+                  </Button>
+                )}
               </CardAction>
             </CardHeader>
             <CardContent className='flex flex-wrap items-center justify-between gap-3'>
               <p className='text-sm text-muted-foreground'>
                 {policy.settings.threads_auto
-                  ? t('threadAuto')
-                  : t('threadCount', {
-                      count: Number(policy.settings.threads),
-                    })}
-                {' · '}
-                {t('poolSize', {
-                  count: Number(policy.settings.upstream_keepalive_pool_size),
-                })}
+                  ? t('automaticSummary')
+                  : `${t('threadCount', { count: Number(policy.settings.threads) })} · ${t('poolSize', { count: Number(policy.settings.upstream_keepalive_pool_size) })}`}
               </p>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={() => setAction({ type: 'assign', policy })}
-              >
-                <Server data-icon='inline-start' />
-                {t('assign')}
-              </Button>
+              {policy.is_default ? (
+                <p className='text-sm text-muted-foreground'>
+                  {t('defaultDescription')}
+                </p>
+              ) : (
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setAction({ type: 'assign', policy })}
+                >
+                  <Server data-icon='inline-start' />
+                  {t('assign')}
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}

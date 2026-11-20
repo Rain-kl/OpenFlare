@@ -9,7 +9,10 @@ export class PerformanceService extends OpenFlareBaseService {
     return this.get<PerformancePolicies>('/');
   }
 
-  static save(id: number | undefined, policy: Omit<PerformancePolicy, 'id'>) {
+  static save(
+    id: number | undefined,
+    policy: Pick<PerformancePolicy, 'name' | 'settings'>,
+  ) {
     return this.post<PerformancePolicy>(id ? `/${id}/update` : '/', policy);
   }
 
