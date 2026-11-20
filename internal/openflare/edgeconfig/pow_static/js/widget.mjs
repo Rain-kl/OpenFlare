@@ -28,7 +28,9 @@ class OpenFlarePoW extends HTMLElement {
         @media(prefers-color-scheme:dark){:host{color:#eee;--surface:#242424;--line:#555;--accent:#d386b4;--success:#5fbc6d;--error:#ff8080}}
         .box{display:flex;align-items:center;gap:16px;padding:16px;border:1px solid var(--line);border-radius:4px;background:var(--surface);min-height:76px;text-align:left}
         .icon{width:25px;height:25px;flex:none;box-sizing:border-box;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
-        .brand{margin-left:auto;font-size:10px;letter-spacing:.04em;color:inherit;opacity:.65}
+        .brand{margin-left:auto;display:grid;justify-items:center;gap:2px;font-size:10px;letter-spacing:.04em}
+        .brand img{width:24px;height:20px}
+        @media(prefers-color-scheme:dark){.brand img{filter:invert(1)}}
         .track{height:12px;background:var(--line);border-radius:8px;overflow:hidden;margin-top:10px}
         .bar{height:100%;background:var(--accent);width:0;transition:width .25s ease}
         .message{overflow-wrap:anywhere}.value{font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -51,7 +53,10 @@ class OpenFlarePoW extends HTMLElement {
             <div class="track" role="progressbar" aria-label="PoW" aria-valuemin="0" aria-valuemax="100"><div class="bar"></div></div>
             <button type="button" hidden></button>
           </div>
-          <span class="brand">OpenFlare</span>
+          <span class="brand">
+            <img src="/.within.website/x/cmd/anubis/static/img/openflare-mark.svg" alt="">
+            OpenFlare
+          </span>
         </div>`;
       const retry = this.shadowRoot.querySelector('button');
       retry.addEventListener('click', () => window.OpenFlarePoW.retry());

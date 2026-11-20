@@ -2,8 +2,8 @@
 
 import type { ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { WavesIcon } from 'lucide-react';
 
+import { BrandMark } from '@/components/common/brand/brand-mark';
 import { cn } from '@/lib/utils';
 
 interface AuthShellProps {
@@ -48,13 +48,21 @@ export function AuthHeading({
   description,
   siteName = 'OpenFlare',
 }: AuthHeadingProps) {
+  const usesDefaultName = siteName === 'OpenFlare';
+
   return (
     <header className='flex flex-col gap-6 [@media(max-height:700px)]:gap-3'>
       <div className='flex items-center gap-3'>
-        <span className='flex size-9 items-center justify-center rounded-full bg-foreground text-background [@media(max-height:700px)]:size-8'>
-          <WavesIcon aria-hidden='true' />
-        </span>
-        <span className='font-semibold tracking-tight [@media(min-height:761px)]:text-lg'>
+        <BrandMark
+          variant={usesDefaultName ? 'wordmark' : 'icon'}
+          className='h-9 [@media(max-height:700px)]:h-8'
+        />
+        <span
+          className={cn(
+            'font-semibold tracking-tight [@media(min-height:761px)]:text-lg',
+            usesDefaultName && 'sr-only',
+          )}
+        >
           {siteName}
         </span>
       </div>

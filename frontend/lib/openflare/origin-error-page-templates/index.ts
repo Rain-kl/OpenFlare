@@ -1,4 +1,5 @@
 import { runtimeText } from '@/i18n/runtime';
+import { withBrandMark } from '../brand-page';
 /**
  * 内置源站错误页 HTML 模板目录。
  * 每个模板对应本目录下一个独立 `.ts` 模块（export default 返回完整 HTML 的函数）。
@@ -26,7 +27,7 @@ export const ORIGIN_ERROR_PAGE_TEMPLATES: OriginErrorPageTemplate[] = [
       return runtimeText('minimal_white_5636e8a9');
     },
     get html() {
-      return minimalistHtml();
+      return withBrandMark(minimalistHtml());
     },
   },
   {
@@ -35,7 +36,7 @@ export const ORIGIN_ERROR_PAGE_TEMPLATES: OriginErrorPageTemplate[] = [
       return runtimeText('line_topology_22ad450c');
     },
     get html() {
-      return lineStyleHtml();
+      return withBrandMark(lineStyleHtml());
     },
   },
   {
@@ -44,7 +45,7 @@ export const ORIGIN_ERROR_PAGE_TEMPLATES: OriginErrorPageTemplate[] = [
       return runtimeText('bauhaus_5cc69781');
     },
     get html() {
-      return baohausHtml();
+      return withBrandMark(baohausHtml());
     },
   },
 ];

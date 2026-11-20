@@ -1,4 +1,5 @@
 import { runtimeText } from '@/i18n/runtime';
+import { withBrandMark } from '../brand-page';
 /**
  * 内置离线页 HTML 模板目录。
  */
@@ -22,7 +23,7 @@ export const OFFLINE_PAGE_TEMPLATES: OfflinePageTemplate[] = [
       return runtimeText('minimal_white_5636e8a9');
     },
     get html() {
-      return minimalistHtml();
+      return withBrandMark(minimalistHtml());
     },
   },
   {
@@ -31,7 +32,7 @@ export const OFFLINE_PAGE_TEMPLATES: OfflinePageTemplate[] = [
       return runtimeText('line_topology_22ad450c');
     },
     get html() {
-      return lineStyleHtml();
+      return withBrandMark(lineStyleHtml());
     },
   },
   {
@@ -40,7 +41,7 @@ export const OFFLINE_PAGE_TEMPLATES: OfflinePageTemplate[] = [
       return runtimeText('bauhaus_5cc69781');
     },
     get html() {
-      return baohausHtml();
+      return withBrandMark(baohausHtml());
     },
   },
 ];

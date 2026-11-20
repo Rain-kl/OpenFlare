@@ -1,6 +1,11 @@
 <div align="center">
 
-# OpenFlare
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/brand/openflare-horizontal-white.svg">
+    <img src="./docs/assets/brand/openflare-horizontal-black.svg" alt="OpenFlare" width="320">
+  </picture>
+</h1>
 
 **新一代分布式反向代理与边缘安全网关**  
 *Next-Gen Distributed Reverse Proxy & Edge Gateway for Pingora*

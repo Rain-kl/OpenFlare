@@ -55,6 +55,13 @@ pub enum PolicyDecision {
     },
 }
 
+fn with_brand_mark(html: &str) -> String {
+    html.replace(
+        "<!-- openflare-brand -->",
+        include_str!("../../../../internal/openflare/edgeconfig/pow_static/img/openflare-mark.svg"),
+    )
+}
+
 pub fn ip_in_cidr(ip: &str, cidr: &str) -> bool {
     let Ok(ip) = ip.parse::<IpAddr>() else {
         return false;
@@ -433,6 +440,8 @@ mod tests {
             html.contains("正在确认你是不是机器人") || html.contains("正在确认你是不是机器人！")
         );
         assert!(html.contains(r#"<openflare-pow appearance="progress"></openflare-pow>"#));
+        assert!(html.contains(r#"class="brand-icon""#));
+        assert!(!html.contains("<!-- openflare-brand -->"));
         assert!(html.contains("</script>\n</body>"));
     }
 
@@ -444,6 +453,10 @@ mod tests {
             "text/javascript; charset=utf-8"
         );
         assert!(pow_static("css/xess.css").is_some());
+        assert_eq!(
+            pow_static("img/openflare-mark.svg").unwrap().1,
+            "image/svg+xml"
+        );
         assert!(pow_static("locales/challenge.zh-CN.json").is_some());
         assert!(pow_static("../secret").is_none());
         assert!(pow_static("missing.js").is_none());

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { motion } from 'motion/react';
 import { ArrowLeft, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BrandMark } from '@/components/common/brand/brand-mark';
 
 /**
  * 404 Not Found Page
@@ -23,6 +24,9 @@ export default function NotFound() {
       </div>
 
       <div className='container px-6 flex flex-col items-center text-center z-10'>
+        <Link href='/' aria-label='OpenFlare' className='inline-flex'>
+          <BrandMark variant='wordmark' />
+        </Link>
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}

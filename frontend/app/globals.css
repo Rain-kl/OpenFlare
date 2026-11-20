@@ -4,6 +4,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.openflare-brand {
+  background-color: #000;
+  mask: url("/brand/openflare-mark.svg") center / contain no-repeat;
+}
+
+.openflare-brand[data-variant="wordmark"] {
+  mask-image: url("/brand/openflare-wordmark.svg");
+}
+
+.dark .openflare-brand {
+  background-color: #fff;
+}
+
 html[data-locale-pending] {
   overflow: hidden;
 }

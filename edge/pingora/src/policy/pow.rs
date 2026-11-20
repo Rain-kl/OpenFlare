@@ -1,5 +1,6 @@
 use super::{
-    constant_time_equal, cookie_value, hex, ip_in_cidr, query_suffix, safe_redirect, RequestContext,
+    constant_time_equal, cookie_value, hex, ip_in_cidr, query_suffix, safe_redirect,
+    with_brand_mark, RequestContext,
 };
 use crate::protocol::config::{PoWConfig, PoWPageConfig, PoWPathMatch, Route};
 use rand::RngCore;
@@ -34,9 +35,9 @@ fn resolved_pow_page(page: &PoWPageConfig) -> PoWPageConfig {
     }
     if resolved.html.trim().is_empty() {
         resolved.html = if resolved.template == "classic" {
-            POW_CLASSIC_HTML.to_owned()
+            with_brand_mark(POW_CLASSIC_HTML)
         } else {
-            POW_SHIELD_HTML.to_owned()
+            with_brand_mark(POW_SHIELD_HTML)
         };
     }
     resolved

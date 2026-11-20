@@ -27,6 +27,8 @@ export default defineConfig({
   },
 
   head: [
+    ['link', { rel: 'icon', href: '/favicon.ico', sizes: 'any' }],
+    ['link', { rel: 'icon', href: '/brand/openflare-icon.svg', type: 'image/svg+xml' }],
     ['meta', { name: 'theme-color', content: '#10b981' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'OpenFlare' }],
@@ -43,6 +45,11 @@ gtag('config', 'G-TBZPQFMLFH');`
   ],
 
   themeConfig: {
+    logo: {
+      light: '/brand/openflare-icon-black.svg',
+      dark: '/brand/openflare-icon-white.svg',
+      alt: ''
+    },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/Rain-kl/OpenFlare' }
     ],

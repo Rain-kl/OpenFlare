@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ import { useRouter } from 'next/navigation';
 import { SearchDialog } from '@/components/layout/search-dialog';
 import { Kbd } from '@/components/ui/kbd';
 import { LanguageSwitcher } from '@/components/common/language-switcher';
+import { BrandMark } from '@/components/common/brand/brand-mark';
 
 /**
  * 铃铛按钮组件
@@ -122,6 +124,9 @@ export function SiteHeader({
         <div className='flex w-full items-center justify-between md:hidden'>
           <div className='flex items-center gap-2'>
             <SidebarTrigger />
+            <Link href='/' aria-label='OpenFlare' className='flex shrink-0'>
+              <BrandMark className='h-5' />
+            </Link>
             <span className='text-sm font-medium truncate max-w-[120px]'>
               {user?.nickname || user?.username || t('guest')}
             </span>

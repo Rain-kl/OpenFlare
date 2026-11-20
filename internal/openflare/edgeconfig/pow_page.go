@@ -27,9 +27,9 @@ var shieldPoWPage string
 // DefaultPoWPageHTML returns one of the built-in challenge templates.
 func DefaultPoWPageHTML(template string) string {
 	if template == "classic" {
-		return classicPoWPage
+		return withBrandMark(classicPoWPage)
 	}
-	return shieldPoWPage
+	return withBrandMark(shieldPoWPage)
 }
 
 // ValidatePoWPageConfig validates the administrator's page configuration.

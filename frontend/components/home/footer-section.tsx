@@ -5,6 +5,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { LucideIcon } from 'lucide-react';
+import { BrandMark } from '@/components/common/brand/brand-mark';
 
 // GitHub 品牌图标（lucide-react 1.x 移除了品牌图标，这里用内联 SVG 替代）
 const GithubIcon = React.forwardRef<SVGSVGElement, React.ComponentProps<'svg'>>(
@@ -44,13 +45,8 @@ export const FooterSection = React.memo(function FooterSection({
       <div className='container mx-auto max-w-7xl px-6 py-20 lg:py-32'>
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8 mb-20'>
           <div className='lg:col-span-2 space-y-6'>
-            <Link href='/' className='flex items-center gap-2'>
-              <div className='w-10 h-10 p-2 rounded bg-primary text-sm text-primary-foreground flex items-center justify-center font-bold'>
-                OF
-              </div>
-              <span className='text-2xl font-bold tracking-tight text-foreground'>
-                OpenFlare
-              </span>
+            <Link href='/' className='inline-flex' aria-label='OpenFlare'>
+              <BrandMark variant='wordmark' className='h-8' />
             </Link>
             <p className='text-muted-foreground text-base leading-relaxed max-w-sm'>
               {rt('an_open_source_platform_for_managing_edge_317d8f34')}

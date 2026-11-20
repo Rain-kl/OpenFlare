@@ -3,14 +3,22 @@
 
 package edgeconfig
 
-import "strings"
+import (
+	_ "embed"
+	"strings"
+)
+
+//go:embed pow_static/img/openflare-mark.svg
+var brandMark string
+
+func withBrandMark(html string) string {
+	return strings.ReplaceAll(html, "<!-- openflare-brand -->", brandMark)
+}
 
 // OriginErrorPageSupportPath identifies the published origin error HTML asset.
 const OriginErrorPageSupportPath = "error_pages/origin_error.html.tmpl"
 
-// DefaultOriginErrorPageHTML is the built-in default (aligned with frontend minimalist).
-// Placeholders {{status}} and {{host}} are substituted by the edge runtime.
-const DefaultOriginErrorPageHTML = `<!DOCTYPE html>
+const defaultOriginErrorPageTemplate = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -68,7 +76,7 @@ const DefaultOriginErrorPageHTML = `<!DOCTYPE html>
       font-size: 14px;
       font-weight: 500;
     }
-    .brand-icon { width: 24px; height: 24px; fill: currentColor; display: block; }
+    .brand-icon { color: #000; display: block; }
     @media (max-width: 480px) {
       .error-code { font-size: 36px; }
       .error-description { font-size: 18px; }
@@ -83,15 +91,17 @@ const DefaultOriginErrorPageHTML = `<!DOCTYPE html>
   </p>
   <p class="host">{{host}}</p>
   <div class="footer">
-    <svg class="brand-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
-    </svg>
+    <!-- openflare-brand -->
     <span>OpenFlare</span>
   </div>
 </div>
 </body>
 </html>
 `
+
+// DefaultOriginErrorPageHTML is the built-in default (aligned with frontend minimalist).
+// Placeholders {{status}} and {{host}} are substituted by the edge runtime.
+var DefaultOriginErrorPageHTML = withBrandMark(defaultOriginErrorPageTemplate)
 
 // EffectiveOriginErrorPageHTML returns custom HTML when set, otherwise the built-in default.
 func EffectiveOriginErrorPageHTML(cfg ConfigSnapshot) string {

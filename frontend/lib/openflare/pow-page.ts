@@ -1,4 +1,5 @@
 import assets from './pow-assets.generated.json';
+import brandMark from './brand-mark.generated.json';
 import type { PoWPageConfig } from '@/lib/services/openflare/pow';
 
 export const POW_PAGE_KEY = 'pow_page';
@@ -57,10 +58,12 @@ export function previewPoWPage(
       '/.within.website/x/cmd/anubis/static/img/pensive.webp',
       `data:image/webp;base64,${assets.image}`,
     );
-  const source = assets.widget.replace(
-    'export function updateState',
-    'function updateState',
-  );
+  const source = assets.widget
+    .replace('export function updateState', 'function updateState')
+    .replace(
+      '/.within.website/x/cmd/anubis/static/img/openflare-mark.svg',
+      `data:image/svg+xml,${encodeURIComponent(brandMark)}`,
+    );
   const message = JSON.stringify(text.status).replace(/</g, '\\u003c');
   const success = JSON.stringify(text.success).replace(/</g, '\\u003c');
   const runtime = `<script type="module">${source}

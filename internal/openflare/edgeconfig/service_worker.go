@@ -11,8 +11,7 @@ import (
 
 const swDirPrefix = "sw/"
 
-// DefaultSWOfflineHTML is the built-in contact page shown when the domain is blocked.
-const DefaultSWOfflineHTML = `<!DOCTYPE html>
+const defaultSWOfflineTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -23,14 +22,19 @@ const DefaultSWOfflineHTML = `<!DOCTYPE html>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #ffffff; color: #333333; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 48px 24px; }
   h1 { font-size: 28px; font-weight: 700; margin-bottom: 16px; }
   p { font-size: 16px; line-height: 1.7; color: #666666; max-width: 520px; }
+  footer { display: flex; align-items: center; gap: 8px; margin-top: 32px; color: #000; font-size: 14px; }
 </style>
 </head>
 <body>
 <h1>Website temporarily unavailable</h1>
 <p>This domain is temporarily unreachable. Contact the website administrator through another channel for the latest access address.</p>
+<footer><!-- openflare-brand -->OpenFlare</footer>
 </body>
 </html>
 `
+
+// DefaultSWOfflineHTML is the built-in contact page shown when the domain is blocked.
+var DefaultSWOfflineHTML = withBrandMark(defaultSWOfflineTemplate)
 
 // EffectiveSWOfflineHTML returns custom HTML when set, otherwise the built-in default.
 func EffectiveSWOfflineHTML(cfg ConfigSnapshot) string {

@@ -1,6 +1,6 @@
 use super::{
     constant_time_equal, cookie_value, encode_uri, hex, parse_form, percent_decode, query_suffix,
-    safe_redirect, PolicyDecision, RequestContext,
+    safe_redirect, with_brand_mark, PolicyDecision, RequestContext,
 };
 use crate::protocol::config::Route;
 use base64::{engine::general_purpose::STANDARD as Base64, Engine as _};
@@ -90,8 +90,12 @@ pub fn site_auth_login(
             "form-action 'self'; frame-ancestors 'none'; base-uri 'none'".into(),
         ),
     ];
+    let default_html;
     let html = if template.trim().is_empty() {
-        include_str!("../../../../internal/openflare/edgeconfig/site_auth.html")
+        default_html = with_brand_mark(include_str!(
+            "../../../../internal/openflare/edgeconfig/site_auth.html"
+        ));
+        default_html.as_str()
     } else {
         template
     };
