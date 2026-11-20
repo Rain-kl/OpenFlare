@@ -151,9 +151,6 @@ function EditorContent() {
       void queryClient.invalidateQueries({
         queryKey: ['openflare', 'waf', 'rule-groups'],
       });
-      void queryClient.invalidateQueries({
-        queryKey: ['openflare', 'config-versions', 'diff'],
-      });
       toast.success(rule.enabled ? t('ruleEnabled') : t('ruleDisabled'));
     },
   });

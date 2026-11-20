@@ -161,14 +161,6 @@ export const searchData: SearchItemSource[] = [
     keywordKey: 'search.keywords.console-pages',
   },
   {
-    id: 'console-config-versions',
-    titleKey: 'nav.configVersions',
-    descriptionKey: 'search.items.configVersionsDesc',
-    url: '/config-versions',
-    category: 'page',
-    keywordKey: 'search.keywords.console-config-versions',
-  },
-  {
     id: 'console-access-logs',
     titleKey: 'nav.accessLogs',
     descriptionKey: 'search.items.accessLogsDesc',

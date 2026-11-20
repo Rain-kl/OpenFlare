@@ -37,16 +37,12 @@ Deploy the new version and start it. Watch the goose success messages in the sta
 2. Zone details: domains, certificates, associated route IDs.
 3. **Reverse proxy routes**: domain bindings come from Zone Domains, not legacy hand-written fields.
 
-### 4. Config Preview and Release
+### 4. Verify Node Sync
 
-1. Review the config diff / preview in the admin panel.
-2. Verify **per route**: `server_name` set, certificate paths, WAF Route ID, Pages references.
-3. **Allow** the redundant `domain` / `domains` / `cert_ids` on routes in old snapshot JSON to disappear.
-4. **Do not allow** data-plane semantic changes.
-5. After the preview passes, release it; if needed, activate the pre-upgrade version in config versions for config rollback. For database rollback, use the pre-upgrade backup (down migrations do not backfill business domain data).
+After startup, the controller compiles the saved domains, certificates, and routes into a site snapshot. Check the node’s apply records and verify the affected routes before closing the upgrade. Use the pre-upgrade backup for database rollback.
 
 ## Related Docs
 
 * [Zone & Domain Resource Design](../design/zone-design.md)
 * [Create a Reverse Proxy Config](./proxy-config.md)
-* [Publish First Configuration](./first-site.md)
+* [Create Your First Reverse Proxy Rule](./first-site.md)

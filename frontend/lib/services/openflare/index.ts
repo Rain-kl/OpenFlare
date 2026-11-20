@@ -2,7 +2,6 @@ export { OpenFlareBaseService } from './base.service';
 
 export { NodeService } from './node.service';
 export { ProxyRouteService } from './proxy-route.service';
-export { ConfigVersionService } from './config-version.service';
 export { ApplyLogService } from './apply-log.service';
 export { DashboardService } from './dashboard.service';
 export { WafService } from './waf.service';
@@ -28,13 +27,6 @@ export type {
   ApplyLogList,
   ApplyLogListQuery,
   ApplyResult,
-  ConfigDiffResult,
-  ConfigOptionDiffItem,
-  ConfigPreviewResult,
-  ConfigVersionCleanupPayload,
-  ConfigVersionCleanupResult,
-  ConfigVersionDetail,
-  ConfigVersionSummary,
   NodeAgentReleaseInfo,
   NodeAgentUpdatePayload,
   NodeBootstrapToken,
@@ -57,7 +49,6 @@ export type {
   ProxyRoutePoWConfig,
   ProxyRouteZoneDomain,
   ReleaseChannel,
-  SupportFile,
   DashboardOverview,
   DashboardNodeHealth,
   DashboardSummary,
@@ -165,7 +156,6 @@ export type {
 
 import { AccessLogService } from './access-log.service';
 import { ApplyLogService } from './apply-log.service';
-import { ConfigVersionService } from './config-version.service';
 import { DashboardService } from './dashboard.service';
 import { DnsAccountService } from './dns-account.service';
 import { NodeService } from './node.service';
@@ -183,7 +173,6 @@ import { CloudflareService } from './cloudflare.service';
 export const openflareServices = {
   node: NodeService,
   proxyRoute: ProxyRouteService,
-  configVersion: ConfigVersionService,
   applyLog: ApplyLogService,
   dashboard: DashboardService,
   waf: WafService,

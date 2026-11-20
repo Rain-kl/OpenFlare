@@ -22,33 +22,6 @@ type customHeaderInput struct {
 	Value string `json:"value"`
 }
 
-func normalizeSnapshotDomains(domains []string) ([]string, error) {
-	normalized := make([]string, 0, len(domains))
-	seen := make(map[string]struct{}, len(domains))
-	for _, raw := range domains {
-		domain := strings.ToLower(strings.TrimSpace(raw))
-		if domain == "" || strings.Contains(domain, "://") || strings.Contains(domain, "/") {
-			return nil, errors.New("domains payload is invalid")
-		}
-		if _, ok := seen[domain]; ok {
-			continue
-		}
-		seen[domain] = struct{}{}
-		normalized = append(normalized, domain)
-	}
-	if len(normalized) == 0 {
-		return nil, errors.New("domain is required")
-	}
-	return normalized, nil
-}
-
-func isUniqueConstraintError(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(strings.ToLower(err.Error()), "unique")
-}
-
 func decodeStoredUpstreams(raw string, fallbackOriginURL string) ([]string, error) {
 	text := strings.TrimSpace(raw)
 	if text == "" {
@@ -164,25 +137,6 @@ func dedupeSupportFiles(files []SupportFile) []SupportFile {
 	return result
 }
 
-func uintPtrEqual(left *uint, right *uint) bool {
-	if left == nil || right == nil {
-		return left == nil && right == nil
-	}
-	return *left == *right
-}
-
-func uintSliceEqual(left []uint, right []uint) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
-}
-
 func relayAgentAddress(node *model.OpenFlareNode) string {
 	if node == nil {
 		return ""
@@ -210,21 +164,20 @@ func relayAgentAddress(node *model.OpenFlareNode) string {
 	return fmt.Sprintf("%s:%d", addr, port)
 }
 
-func resolveTunnelEdgeUpstreamURL(ctx context.Context) string {
+func resolveTunnelEdgeUpstreamURL(ctx context.Context) (string, error) {
 	nodes, err := repository.ListOpenFlareNodes(ctx)
-	if err == nil {
-		for index := range nodes {
-			node := &nodes[index]
-			if node.NodeType != "tunnel_relay" {
-				continue
-			}
-			addr := relayAgentAddress(node)
-			if addr != "" {
-				return "http://" + addr
+	if err != nil {
+		return "", err
+	}
+	for index := range nodes {
+		node := &nodes[index]
+		if node.NodeType == "tunnel_relay" {
+			if addr := relayAgentAddress(node); addr != "" {
+				return "http://" + addr, nil
 			}
 		}
 	}
-	return "http://127.0.0.1:8080"
+	return "http://127.0.0.1:8080", nil
 }
 
 func listWAFIPGroupsByIDs(ctx context.Context, ids []uint) ([]*model.OpenFlareWAFIPGroup, error) {

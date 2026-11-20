@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -17,8 +18,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func getActiveConfigMetaByEngine(ctx context.Context, engine string) (*protocol.ActiveConfigMeta, error) {
-	version, err := repository.GetActiveConfigVersionByEngine(ctx, engine)
+func getActiveConfigMeta(ctx context.Context) (*protocol.ActiveConfigMeta, error) {
+	version, err := repository.GetActivePingoraConfigMetadata(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -33,6 +34,7 @@ func getActiveConfigMetaByEngine(ctx context.Context, engine string) (*protocol.
 
 // GetActivePingoraConfig returns the dedicated active Pingora configuration.
 func GetActivePingoraConfig(ctx context.Context) (*PingoraConfigResponse, error) {
+	ctx = db.WithPrimaryReads(ctx)
 	version, err := repository.GetActivePingoraConfigVersion(ctx)
 	if err != nil {
 		return nil, err

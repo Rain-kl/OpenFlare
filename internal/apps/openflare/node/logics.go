@@ -357,7 +357,7 @@ func RequestEdgeRestart(ctx context.Context, id uint) (*View, error) {
 	return buildNodeView(node), nil
 }
 
-// RequestForceSync pushes force_sync_config to a connected agent websocket.
+// RequestForceSync sends a forced configuration refresh to a connected Edge.
 func RequestForceSync(ctx context.Context, id uint) (*View, error) {
 	node, err := repository.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
@@ -367,7 +367,7 @@ func RequestForceSync(ctx context.Context, id uint) (*View, error) {
 	if engine != "pingora" {
 		return nil, errors.New(errNodeForceSyncFailed)
 	}
-	_, err = repository.GetActiveConfigVersionByEngine(ctx, engine)
+	_, err = repository.GetActivePingoraConfigMetadata(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("unable to get the currently active configuration version: %s", errNoActiveConfigVersion)

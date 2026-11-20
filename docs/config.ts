@@ -82,7 +82,7 @@ function sidebarGuide(): DefaultTheme.SidebarItem[] {
         { text: 'WAF 自动 IP 组语法', link: 'waf-ip-group-expr' },
         { text: 'Uptime Kuma 监控同步', link: 'uptime-kuma' },
         { text: 'SSO 登录配置', link: 'sso' },
-        { text: '发布第一份配置', link: 'first-site' },
+        { text: '创建第一条反向代理规则', link: 'first-site' },
         { text: '故障排查', link: 'troubleshooting' },
         { text: '引用与致谢', link: 'credits' }
       ]
@@ -129,7 +129,7 @@ function sidebarDesign(): DefaultTheme.SidebarItem[] {
         { text: '系统架构', link: 'architecture' },
         { text: 'Zone 与域名资源设计', link: 'zone-design' },
         { text: 'Cloudflare DNS 指向设计', link: 'cloudflare-pointing' },
-        { text: 'Agent 与发布模型', link: 'agent-design' },
+        { text: '边缘节点', link: 'agent-design' },
         { text: '内网穿透隧道设计', link: 'tunnel-design' },
         { text: 'WAF 设计', link: 'waf-design' },
         { text: 'WAF 可编排规则设计', link: 'waf-orchestration-design' },

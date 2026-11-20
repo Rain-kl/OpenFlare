@@ -15,7 +15,6 @@
         "console-ip-groups": "ip|ip group|ip组|黑名单|白名单|访问控制",
         "console-rate-limits": "限流|rate limit|limit_conn|limit_rate|并发|带宽",
         "console-pages": "pages|静态托管|cdn|网站|部署|static",
-        "console-config-versions": "version|config|版本|发布|回滚|对比|部署",
         "console-access-logs": "log|logs|访问日志|分析|流量|请求",
         "console-apply-logs": "apply|log|logs|应用记录|配置下发|同步|部署历史",
         "console-performance": "performance|性能|调优|优化|参数|连接|超时",

@@ -65,7 +65,7 @@ func TestWAFGraphSnapshotPreservesOrderAndGraphReferences(t *testing.T) {
 	customB := createSnapshotRule(t, ctx, "custom-b", snapshotIPMatchGraph(referenced.ID))
 	require.NoError(t, repository.ReplaceOpenFlareWAFSiteRuleGroupBindings(ctx, route.ID, []uint{customB.ID, customA.ID}))
 
-	snapshot, err := buildSnapshotWAFDocument(ctx, []*model.ProxyRoute{route})
+	snapshot, err := buildSnapshotWAFDocument(ctx, []snapshotRoute{{ID: route.ID, SiteName: route.SiteName}})
 	require.NoError(t, err)
 	require.Len(t, snapshot.Bindings, 1)
 	assert.Equal(t, []uint{customB.ID, customA.ID}, snapshot.Bindings[0].RuleGroupIDs)
@@ -96,7 +96,7 @@ func TestWAFGraphSnapshotEncodesEmptyBindingsAsArrays(t *testing.T) {
 	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
 	createSnapshotZoneDomains(t, ctx, route, route.SiteName)
 
-	snapshot, err := buildSnapshotWAFDocument(ctx, []*model.ProxyRoute{route})
+	snapshot, err := buildSnapshotWAFDocument(ctx, []snapshotRoute{{ID: route.ID, SiteName: route.SiteName}})
 	require.NoError(t, err)
 	require.Len(t, snapshot.Bindings, 1)
 	require.NotNil(t, snapshot.Bindings[0].RuleGroupIDs)

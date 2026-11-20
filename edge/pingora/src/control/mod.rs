@@ -1,9 +1,11 @@
 use crate::config::SnapshotStore;
 pub(crate) mod config_sync;
 mod node_ip;
+mod site_sync;
 mod websocket;
 
-use config_sync::{Manifest, Resource, PERFORMANCE_KEY, SITE_KEY};
+use config_sync::{Manifest, PERFORMANCE_KEY};
+use site_sync::{ActiveConfigMeta, SiteSync};
 
 use crate::config::{self, AppliedConfig};
 use crate::pages::PagesSyncer;
@@ -53,6 +55,7 @@ struct NodePayload<'a> {
     version: &'a str,
     ext_version: &'a str,
     current_version: &'a str,
+    latest_config_version: &'a str,
     openresty_status: &'a str,
     openresty_message: &'a str,
     engine: &'a str,
@@ -99,18 +102,6 @@ struct AgentSettings {
     heartbeat_interval: u32,
     #[serde(default)]
     restart_edge_now: bool,
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-struct ActiveConfigMeta {
-    version: String,
-    checksum: String,
-    #[serde(default)]
-    engine: String,
-    #[serde(default)]
-    release_sequence: i64,
-    #[serde(default)]
-    payload_checksum: String,
 }
 
 fn default_heartbeat_interval() -> u32 {
@@ -228,12 +219,18 @@ impl Runtime {
     async fn run_heartbeats(&self, node_id: &str, wake: &websocket::Wake) {
         let mut interval = Duration::from_secs(3);
         let mut retry = RetryDelay::default();
-        let mut last_error = String::new();
+        let mut site = SiteSync::open(&self.state_dir, self.state.current().as_deref());
         let mut collector = HostCollector::new(self.state_dir.clone());
         loop {
             let current = self.state.current();
             let response = self
-                .heartbeat(node_id, current.as_deref(), &last_error, &mut collector)
+                .heartbeat(
+                    node_id,
+                    current.as_deref(),
+                    site.latest_version(),
+                    site.last_error(),
+                    &mut collector,
+                )
                 .await;
             let response = match response {
                 Ok(response) => response,
@@ -274,67 +271,7 @@ impl Runtime {
             if current.is_some() && self.reconcile_performance(performance_policy.clone()) {
                 return;
             }
-            let force = wake.take_force();
-            if let Some(resource) = manifest.resources.get(SITE_KEY) {
-                match resource
-                    .metadata
-                    .clone()
-                    .map(serde_json::from_value::<ActiveConfigMeta>)
-                    .transpose()
-                {
-                    Ok(Some(target)) => {
-                        let refreshing = force
-                            || current.as_ref().is_none_or(|current| {
-                                current.release_sequence != target.release_sequence
-                            });
-                        match manifest
-                            .ip_groups(self, current.as_deref(), refreshing)
-                            .await
-                        {
-                            Ok(groups) => {
-                                if let Err(error) =
-                                    self.state.apply_ip_groups(&self.state_dir, &groups)
-                                {
-                                    tracing::warn!(%error, "WAF IP group update was not persisted");
-                                }
-                                match self.reconcile(&target, resource, force, &groups).await {
-                                    Ok(applied) => {
-                                        last_error.clear();
-                                        if applied {
-                                            self.report_result(
-                                                node_id,
-                                                &target,
-                                                "success",
-                                                "configuration applied",
-                                            )
-                                            .await;
-                                        }
-                                    }
-                                    Err(error) => {
-                                        last_error = error.to_string();
-                                        tracing::warn!(version = %target.version, %error, "configuration reconciliation failed");
-                                        self.report_result(node_id, &target, "failed", &last_error)
-                                            .await;
-                                    }
-                                }
-                            }
-                            Err(error) => {
-                                last_error = error.to_string();
-                                tracing::warn!(%error, "WAF IP group reconciliation failed");
-                                if force {
-                                    wake.requeue_force();
-                                }
-                            }
-                        }
-                    }
-                    Ok(None) => {
-                        tracing::warn!("site configuration resource has no release metadata")
-                    }
-                    Err(error) => {
-                        tracing::warn!(%error, "invalid site configuration release metadata")
-                    }
-                }
-            }
+            site.reconcile(self, node_id, &manifest, wake).await;
             if current.is_none() && self.reconcile_performance(performance_policy) {
                 return;
             }
@@ -357,54 +294,16 @@ impl Runtime {
             })
     }
 
-    async fn reconcile(
-        &self,
-        target: &ActiveConfigMeta,
-        resource: &Resource,
-        force: bool,
-        ip_groups: &[crate::protocol::config::WafIPGroup],
-    ) -> Result<bool> {
-        anyhow::ensure!(
-            target.engine == "pingora" && target.payload_checksum == resource.sha256,
-            "invalid site snapshot metadata"
-        );
-        let current = self.state.current();
-        if let Some(current) = current.as_deref() {
-            if current.release_sequence > target.release_sequence {
-                anyhow::bail!("control plane advertised an older release");
-            }
-            if current.release_sequence == target.release_sequence {
-                if current.version != target.version
-                    || current.payload_checksum != target.payload_checksum
-                {
-                    anyhow::bail!(
-                        "control plane reused a release sequence for another configuration"
-                    );
-                }
-                if !force {
-                    if current.routes().any(|route| route.pages.is_some()) {
-                        let mut updated = current.clone();
-                        if self.prepare_pages(&mut updated).await? {
-                            self.state.commit(&self.state_dir, updated)?;
-                        }
-                    }
-                    return Ok(false);
+    async fn refresh_pages(&self) -> Result<()> {
+        if let Some(current) = self.state.current() {
+            if current.routes().any(|route| route.pages.is_some()) {
+                let mut updated = (*current).clone();
+                if self.prepare_pages(&mut updated).await? {
+                    self.state.commit(&self.state_dir, updated)?;
                 }
             }
         }
-
-        let body = resource.body(self, SITE_KEY).await?;
-        let mut candidate = config::decode(
-            &target.version,
-            &target.checksum,
-            target.release_sequence,
-            &target.payload_checksum,
-            &body,
-        )?;
-        candidate.merge_ip_groups(ip_groups);
-        self.prepare_pages(&mut candidate).await?;
-        self.state.commit(&self.state_dir, candidate)?;
-        Ok(true)
+        Ok(())
     }
 
     async fn prepare_pages(&self, candidate: &mut AppliedConfig) -> Result<bool> {
@@ -504,6 +403,7 @@ impl Runtime {
                 .current()
                 .as_ref()
                 .map_or("", |config| config.version.as_str()),
+            latest_config_version: "",
             openresty_status: "unknown",
             openresty_message: "Pingora enrollment",
             engine: "pingora",
@@ -534,6 +434,7 @@ impl Runtime {
         &self,
         node_id: &str,
         current: Option<&AppliedConfig>,
+        latest_version: &str,
         last_error: &str,
         collector: &mut HostCollector,
     ) -> Result<Heartbeat> {
@@ -561,6 +462,7 @@ impl Runtime {
             version: env!("CARGO_PKG_VERSION"),
             ext_version: "pingora",
             current_version: current.map_or("", |config| config.version.as_str()),
+            latest_config_version: latest_version,
             openresty_status: status,
             openresty_message: message,
             engine: "pingora",

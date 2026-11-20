@@ -64,14 +64,17 @@ class Controller(http.server.BaseHTTPRequestHandler):
     def data(self, data, status=200):
         self.answer(json.dumps({"error_msg": "", "data": data}).encode(), status)
 
-    def manifest(self):
+    def manifest(self, latest_version):
         if self.server.active is None:
             return {}
         self.server.config_bodies.clear()
         active = self.server.active
         meta = {key: value for key, value in active.items() if key != "payload_json"}
         self.server.config_bodies["sites.v1"] = active["payload_json"]
-        resources = {"sites.v1": {"sha256": active["payload_checksum"], "metadata": meta}}
+        resource = {"sha256": active["payload_checksum"], "revision": active["version"]}
+        if latest_version != active["version"]:
+            resource["metadata"] = meta
+        resources = {"sites.v1": resource}
         def add(key, value, revision=None, inline=True):
             body = json.dumps(value, separators=(",", ":"))
             resources[key] = {"sha256": hashlib.sha256(body.encode()).hexdigest()}
@@ -104,7 +107,7 @@ class Controller(http.server.BaseHTTPRequestHandler):
         elif self.path.endswith("/heartbeat"):
             assert_valid_reported_ip(payload.get("ip"))
             self.server.heartbeats.append(payload)
-            self.data({"config": {"version": 1, "resources": self.manifest()},
+            self.data({"config": {"version": 1, "resources": self.manifest(payload.get("latest_config_version"))},
                        "agent_settings": {"heartbeat_interval": self.server.heartbeat_interval}})
         elif self.path.endswith("/apply-logs"):
             self.server.applies.append(payload)
@@ -116,6 +119,10 @@ class Controller(http.server.BaseHTTPRequestHandler):
             query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             key = query["key"][0]
             self.server.pulls.append(key)
+            if key == "sites.v1" and self.server.site_pull_conflict:
+                self.server.site_pull_conflict = False
+                self.data(None, 409)
+                return
             self.answer(self.server.config_bodies[key].encode(),
                         headers=(("Content-Type", "application/json"),))
         elif self.path == "/api/v1/agent/pages/projects/10/latest/hash":
@@ -166,7 +173,7 @@ def route(origin, rid, host, **options):
     return value
 
 
-def release(seq, origin, certificate, key):
+def release(seq, origin, certificate, key, *, empty=False):
     shared = {
         "routes": [
             route(origin, 1, "edge.test", origin_host="origin.test"),
@@ -203,6 +210,9 @@ def release(seq, origin, certificate, key):
             "bindings": [{"route_id": 7, "rule_group_ids": [1]}],
         },
     }
+    if empty:
+        shared["routes"] = []
+        shared["waf"]["bindings"] = []
     payload = json.dumps({
         "schema_version": 1,
         "contract_version": 3,
@@ -251,6 +261,7 @@ def main(binary):
     server.ip_groups = []
     server.config_bodies = {}
     server.pulls = []
+    server.site_pull_conflict = False
     server.config_ws = None
     server.performance = None
     server.heartbeat_interval = 250
@@ -282,9 +293,9 @@ def main(binary):
         head, body = head_body.split("\n\n", 1)
         return int(status), version, head, body
 
-    def wake():
+    def wake(force=False):
         ws = wait_for(lambda: server.config_ws)
-        payload = b'{"type":"config_changed"}'
+        payload = json.dumps({"type": "config_changed", "payload": {"force": force}}).encode()
         ws.sendall(struct.pack("!BB", 0x81, len(payload)) + payload)
 
     def http_route():
@@ -404,16 +415,57 @@ def main(binary):
                 server.active = release(2, origin, certificate.read_text(), key.read_text())
                 server.active["payload_checksum"] = "invalid candidate"
                 wake()
-                wait_for(lambda: any(log["release_sequence"] == 2 and log["result"] == "failed"
-                                     for log in server.applies))
+                def failed_attempts():
+                    return sum(log["release_sequence"] == 2 and log["result"] == "failed"
+                               for log in server.applies)
+
+                wait_for(lambda: failed_attempts() == 1)
                 assert request("edge.test", use_http2=True)[0] == 200
                 assert json.loads((path / "snapshot.json").read_text())["release_sequence"] == 1
+                wait_for(lambda: any(h.get("latest_config_version") == "pingora-fixture-2"
+                                     and h.get("current_version") == "pingora-fixture-1"
+                                     and h.get("last_error") for h in server.heartbeats))
+
+                def assert_no_retries():
+                    heartbeat_count = len(server.heartbeats)
+                    pull_count = server.pulls.count("sites.v1")
+                    failure_count = failed_attempts()
+                    wait_for(lambda: len(server.heartbeats) >= heartbeat_count + 4)
+                    assert server.pulls.count("sites.v1") == pull_count
+                    assert failed_attempts() == failure_count
+
+                assert_no_retries()
+                wake(force=True)
+                wait_for(lambda: failed_attempts() == 2)
+                assert_no_retries()
 
                 edge.kill()
                 edge.wait(timeout=5)
+                resume_heartbeat = len(server.heartbeats)
                 edge = launch()
                 wait_for(lambda: server.registered_with_node_token)
+                wait_for(lambda: failed_attempts() == 3)
+                assert server.heartbeats[resume_heartbeat]["latest_config_version"] == "pingora-fixture-2"
+                assert request("edge.test", use_http2=True)[0] == 200
+                assert_no_retries()
+
+                server.active = release(3, origin, certificate.read_text(), key.read_text(), empty=True)
+                wake()
+                wait_for(lambda: any(log["release_sequence"] == 3 and log["result"] == "success"
+                                     for log in server.applies))
+                assert http_route()[0] == 421
+                wait_for(lambda: any(h.get("current_version") == "pingora-fixture-3"
+                                     and h.get("latest_config_version") == "pingora-fixture-3"
+                                     and not h.get("last_error") for h in server.heartbeats))
+
+                pull_count = server.pulls.count("sites.v1")
+                server.site_pull_conflict = True
+                server.active = release(4, origin, certificate.read_text(), key.read_text())
+                wake()
                 wait_for(lambda: request("edge.test", use_http2=True)[0] == 200)
+                assert server.pulls.count("sites.v1") == pull_count + 2
+                assert not any(log["release_sequence"] == 4 and log["result"] == "failed"
+                               for log in server.applies)
 
                 edge.kill()
                 edge.wait(timeout=5)

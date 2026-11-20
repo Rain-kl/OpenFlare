@@ -9,24 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// ConfigVersionSummary is the list view for config versions.
-type ConfigVersionSummary struct {
-	ID        string    `json:"id" gorm:"-"`
-	Version   string    `json:"version" gorm:"primaryKey;column:version"`
-	Checksum  string    `json:"checksum"`
-	IsActive  bool      `json:"is_active"`
-	Engine    string    `json:"engine"`
-	CreatedBy string    `json:"created_by"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-// AfterFind hook for ConfigVersionSummary.
-func (cvs *ConfigVersionSummary) AfterFind(_ *gorm.DB) (err error) {
-	cvs.ID = cvs.Version
-	return
-}
-
-// ConfigVersion stores a published OpenResty configuration snapshot.
+// ConfigVersion stores an internal Edge configuration snapshot.
 type ConfigVersion struct {
 	ID               string    `json:"id" gorm:"-"`
 	Version          string    `json:"version" gorm:"primaryKey;size:32;not null"`

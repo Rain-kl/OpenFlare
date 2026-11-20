@@ -1,45 +1,12 @@
 'use client';
 
+import { ArrowLeft, Route } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useCallback, useState } from 'react';
-import { ArrowLeft, Loader2, Route, Upload } from 'lucide-react';
-import { toast } from 'sonner';
 
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type {
-  ConfigDiffResult,
-  ProxyRouteItem,
-} from '@/lib/services/openflare';
-import { ConfigVersionService } from '@/lib/services/openflare';
-
-import { useTranslations } from 'next-intl';
-
-import { getErrorMessage } from '../../components/helpers';
-
-function hasConfigDiff(diff: ConfigDiffResult) {
-  return (
-    diff.added_domains.length > 0 ||
-    diff.removed_domains.length > 0 ||
-    diff.modified_domains.length > 0 ||
-    diff.added_sites.length > 0 ||
-    diff.removed_sites.length > 0 ||
-    diff.modified_sites.length > 0 ||
-    diff.main_config_changed ||
-    diff.waf_config_changed ||
-    diff.changed_option_keys.length > 0 ||
-    !diff.active_version
-  );
-}
+import type { ProxyRouteItem } from '@/lib/services/openflare';
 
 interface RouteHeaderProps {
   route: ProxyRouteItem;
@@ -47,125 +14,28 @@ interface RouteHeaderProps {
 
 export function RouteHeader({ route }: RouteHeaderProps) {
   const t = useTranslations('proxyRoutes');
-  const tc = useTranslations('common');
   const router = useRouter();
-  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
-  const [diff, setDiff] = useState<ConfigDiffResult | null>(null);
-  const [diffLoading, setDiffLoading] = useState(false);
-  const [publishing, setPublishing] = useState(false);
-
-  const loadDiff = useCallback(async () => {
-    setDiffLoading(true);
-    try {
-      const diffData = await ConfigVersionService.diff();
-      setDiff(diffData);
-      return diffData;
-    } catch (error) {
-      const message = getErrorMessage(error, t('requestFailed'));
-      toast.error(t('diffFailed'), { description: message });
-      return null;
-    } finally {
-      setDiffLoading(false);
-    }
-  }, [t]);
-
-  const handlePublishClick = useCallback(async () => {
-    const diffData = diff ?? (await loadDiff());
-    if (!diffData) {
-      return;
-    }
-    if (!hasConfigDiff(diffData)) {
-      toast.info(t('noPublishNeeded'));
-      return;
-    }
-    setPublishConfirmOpen(true);
-  }, [diff, loadDiff, t]);
-
-  const handlePublish = useCallback(async () => {
-    setPublishing(true);
-    try {
-      const version = await ConfigVersionService.publish();
-      toast.success(t('publishSuccess'), {
-        description: t('versionLabel', { version: version.version }),
-      });
-      setPublishConfirmOpen(false);
-      setDiff(null);
-    } catch (error) {
-      toast.error(t('publishFailed'), {
-        description: getErrorMessage(error, t('requestFailed')),
-      });
-    } finally {
-      setPublishing(false);
-    }
-  }, [t]);
 
   return (
-    <>
-      <div className='space-y-4'>
-        <Button
-          variant='ghost'
-          size='sm'
-          className='h-8 gap-1.5 px-0 text-xs'
-          onClick={() => router.back()}
-        >
-          <ArrowLeft className='size-3.5' />
-          {t('back')}
-        </Button>
-
-        <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
-          <div className='flex items-center gap-2'>
-            <Route className='size-5 text-primary' />
-            <div className='flex flex-wrap items-center gap-2'>
-              <h1 className='text-2xl font-semibold tracking-tight'>
-                {route.site_name}
-              </h1>
-              <Badge variant={route.enabled ? 'default' : 'secondary'}>
-                {route.enabled ? t('enabled') : t('disabled')}
-              </Badge>
-            </div>
-          </div>
-
-          <div className='flex flex-wrap gap-2'>
-            <Button
-              size='sm'
-              className='h-8 gap-1.5 text-xs'
-              disabled={publishing || diffLoading}
-              onClick={() => void handlePublishClick()}
-            >
-              {publishing || diffLoading ? (
-                <Loader2 className='size-3.5 animate-spin' />
-              ) : (
-                <Upload className='size-3.5' />
-              )}
-              {t('publish')}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <AlertDialog
-        open={publishConfirmOpen}
-        onOpenChange={setPublishConfirmOpen}
+    <div className='space-y-4'>
+      <Button
+        variant='ghost'
+        size='sm'
+        className='h-8 gap-1.5 px-0 text-xs'
+        onClick={() => router.back()}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('publishTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('publishDesc')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={publishing}>
-              {tc('cancel')}
-            </AlertDialogCancel>
-            <Button onClick={() => void handlePublish()} disabled={publishing}>
-              {publishing ? (
-                <Loader2 className='size-4 animate-spin' />
-              ) : (
-                t('confirmPublish')
-              )}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+        <ArrowLeft className='size-3.5' />
+        {t('back')}
+      </Button>
+      <div className='flex flex-wrap items-center gap-2'>
+        <Route className='size-5 text-primary' />
+        <h1 className='text-2xl font-semibold tracking-tight'>
+          {route.site_name}
+        </h1>
+        <Badge variant={route.enabled ? 'default' : 'secondary'}>
+          {route.enabled ? t('enabled') : t('disabled')}
+        </Badge>
+      </div>
+    </div>
   );
 }

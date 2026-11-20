@@ -185,4 +185,4 @@ Excluding trusted IPs:
 
 Start with a shorter lookback and higher thresholds to observe hits, then tune gradually. The admin IP group page supports clicking **Test Rule** before saving to directly view the IPs hit in the current window; when the auto IP group actually runs, it overwrites the group's IP list. To keep certain addresses long-term, put them in a manual IP group and reference both the manual and auto groups in the WAF rule group.
 
-Auto IP group updates don't require republishing a config version. Online Agents receive the changed IP groups via WebSocket and update the local `waf_ip_groups.json`; when the WebSocket is unavailable, the Agent reports the local IP group checksum in the next heartbeat and the Server only returns the groups whose checksums differ.
+When an IP group changes, the controller notifies online nodes to refresh the configuration manifest. Nodes use the digest to fetch changed groups. Periodic heartbeats continue detecting changes during WebSocket outages.

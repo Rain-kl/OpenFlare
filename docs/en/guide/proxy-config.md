@@ -1,6 +1,6 @@
 # Create a Reverse Proxy Config
 
-You will learn: how to create and publish a reverse proxy website configuration from scratch, step by step, in OpenFlare. This guide walks you through certificate import and application, origin definition, route rule configuration, version release, and connectivity verification.
+Prepare certificates and origins, create a reverse proxy route, and verify it on the edge.
 
 ---
 
@@ -11,7 +11,7 @@ In the gateway control plane, follow these steps to add a new reverse proxy rule
 ```text
   [ Step 1. Certificate Management ] ──► [ Step 2. Origin Definition (optional) ] ──► [ Step 3. Add Website Config ]
                                                                    │
-  [ Step 5. Verify Access ] ◄── [ Step 4. Publish & Activate Version ] ◄───────────────┘
+  [ Step 4. Verify Access and Sync ] ◄────────────── ◄───────────────┘
 ```
 
 ---
@@ -50,21 +50,9 @@ Once the certificate and origin are ready, create the core website proxy route:
 
 ---
 
-## Step 4: Publish and Apply the Config
+## Step 4: Verify Sync and Access
 
-Website configs added in the admin panel are only saved in the Server database — **they do not take effect immediately**. You must generate a config version snapshot and distribute it to the Agent edge nodes:
-
-1. Click the **「Preview and Publish」** button in the top-right corner of the control panel.
-2. Review the config file diff, confirming the newly added `server` block and certificate binding rules are correct.
-3. Click **「Confirm Publish」**.
-4. **Agent application mechanism**:
-   * The Agent node on the data plane detects the active version Checksum change in its heartbeat, and automatically pulls the full OpenResty config files and certificate bundle locally.
-   * It automatically runs a local config validation (similar to `openresty -t`); after confirming no syntax errors, it performs a smooth reload.
-   * If reload or validation fails, the Agent safely blocks and rolls back to the previous stable version to keep the node highly available.
-
----
-
-## Step 5: Connectivity and Rollback Verification
+The controller notifies online nodes after a saved change. Nodes fetch and validate the new snapshot before switching traffic. If a candidate fails, the node reports the error and keeps serving the last healthy snapshot.
 
 ### 1. Verify Access
 You can verify the new config takes effect as follows:
@@ -78,12 +66,9 @@ You can verify the new config takes effect as follows:
   curl -I -H "Host: your-domain.com" https://AGENT_NODE_IP --insecure
   ```
 
-### 2. One-Click Second-Level Rollback
-If the released config causes an online business issue:
-1. Navigate to the **「Version Release」** menu on the left.
-2. Find the previous stable version before the release in the history list.
-3. Click **「Activate」**.
-4. All online Agent nodes will automatically reload the historical config within seconds for second-level risk avoidance.
+### 2. Recover from an Application Error
+
+Check **Apply Records** on the node details page. Correct and save configuration errors to trigger another sync. After fixing a node issue, select **Force Sync** to retry the same configuration.
 
 ---
 
@@ -107,11 +92,11 @@ Similar to Cloudflare Cache Everything: the path is no longer limited by extensi
 
 ### How It Takes Effect
 
-The cache switch and strategy are written into the config snapshot. After saving the site, you must **publish and activate the config version** for the Agent to apply it. Changing the UI only without publishing leaves nodes on the old rules.
+Saved cache settings automatically sync to edge nodes.
 
 ### Quick Self-Check
 
 1. Global cache on, site cache on, strategy「Standard static assets」.  
-2. Publish the config and confirm nodes applied successfully.  
+2. Save the settings and confirm that nodes applied them.
 3. Request the same `/assets/app.js` (or a hashed immutable path) twice with a login cookie; the `cache_status` in access logs should be **HIT** on the second request.  
 4. If still「not cached」: check whether the strategy matches the path extension, whether it is a non-GET request, whether the origin returns `Set-Cookie` / `private`, and whether the node applied the new version. More in [Troubleshooting · Edge Cache](./troubleshooting.md#edge-cache-hit-rate-anomalies).

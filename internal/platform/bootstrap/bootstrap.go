@@ -168,9 +168,7 @@ func Init(ctx context.Context, opts Options) {
 		}
 		if opts.API {
 			websocket.StartConfigChangeListener(ctx)
-			if err := config_version.EnsureActivePingoraRelease(ctx); err != nil {
-				logger.ErrorF(ctx, "[Bootstrap] promote the active site snapshot to Pingora: %v", err)
-			}
+			lifecycle.OnShutdown("live edge snapshot", config_version.StartRefreshLoop(ctx))
 			logwriter.Init(ctx)
 			admin_status.RegisterBatchWriterStatsProvider(logwriter.WriterStats)
 		}

@@ -30,27 +30,14 @@ func TestIndependentPoWPolicySnapshot(t *testing.T) {
 	if err := repository.SaveOpenFlarePoWPolicy(ctx, model.OpenFlarePoWPolicy{RouteID: route.ID, Enabled: true, Config: string(raw)}); err != nil {
 		t.Fatal(err)
 	}
-	bundle, err := buildCurrentConfigBundle(ctx, true)
+	bundle, err := buildCurrentConfigBundle(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(bundle.SnapshotRoutes) != 1 || !bundle.SnapshotRoutes[0].PoWEnabled || bundle.SnapshotRoutes[0].PoWConfig == nil {
 		t.Fatalf("buildCurrentConfigBundle(independent PoW) routes = %+v, want published standalone policy", bundle.SnapshotRoutes)
 	}
-	if !strings.Contains(bundle.RouteConfig, `"pow_enabled":true`) {
+	if !strings.Contains(bundle.SnapshotJSON, `"pow_enabled":true`) {
 		t.Error("buildCurrentConfigBundle(independent PoW) omitted challenge endpoints")
-	}
-	left := bundle.SnapshotRoutes[0]
-	right := left
-	changedConfig := *left.PoWConfig
-	changedConfig.PathRules = &edgeconfig.PoWPathRules{Mode: "blacklist", Blacklist: []edgeconfig.PoWPathMatch{{Type: "exact", Value: "/login"}}}
-	right.PoWConfig = &changedConfig
-	if snapshotRouteConfigEqual(left, right) {
-		t.Error("snapshotRouteConfigEqual(changed PoW paths) = true, want false")
-	}
-	right = left
-	right.PoWEnabled = false
-	if snapshotRouteConfigEqual(left, right) {
-		t.Error("snapshotRouteConfigEqual(disabled PoW) = true, want false")
 	}
 }

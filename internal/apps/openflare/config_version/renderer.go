@@ -19,10 +19,8 @@ import (
 type SupportFile = edgeconfig.SupportFile
 
 type renderedSnapshot struct {
-	MainConfig   string
-	RouteConfig  string
-	SupportFiles []SupportFile
-	Checksum     string
+	SupportFilesJSON string
+	Checksum         string
 }
 
 func renderSnapshotConfig(sourceJSON string, certificateFiles []SupportFile) (*renderedSnapshot, error) {
@@ -53,19 +51,9 @@ func renderSnapshotConfig(sourceJSON string, certificateFiles []SupportFile) (*r
 		return nil, err
 	}
 	digest := sha256.Sum256([]byte(payload))
-	mainConfig, err := json.Marshal(settings)
-	if err != nil {
-		return nil, err
-	}
-	routes, err := json.Marshal(document.Routes)
-	if err != nil {
-		return nil, err
-	}
 	return &renderedSnapshot{
-		MainConfig:   string(mainConfig),
-		RouteConfig:  string(routes),
-		SupportFiles: files,
-		Checksum:     hex.EncodeToString(digest[:]),
+		SupportFilesJSON: string(encoded),
+		Checksum:         hex.EncodeToString(digest[:]),
 	}, nil
 }
 

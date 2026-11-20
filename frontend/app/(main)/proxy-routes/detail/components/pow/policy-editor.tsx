@@ -47,12 +47,7 @@ export function PolicyEditor({
     mutationFn: () => PoWService.save(draft),
     onSuccess: async () => {
       toast.success(t('saved'));
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['openflare', 'pow'] }),
-        queryClient.invalidateQueries({
-          queryKey: ['openflare', 'config-versions'],
-        }),
-      ]);
+      await queryClient.invalidateQueries({ queryKey: ['openflare', 'pow'] });
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : t('saveFailed')),

@@ -101,9 +101,9 @@ Requests matching the API prefix go through the reverse proxy; other requests co
 
 1. Create or edit a proxy rule.
 2. Set the origin type to **Pages** and select the Pages **project**.
-3. Preview the config, then publish and activate.
+3. Save the route and open the bound domain after the node applies it.
 
-The route binds to a stable project ID, not a specific deployment. The first publish gives the Agent the project anchor; afterwards, local uploads, source syncs, auto-updates, or manual rollbacks only change the project's active deployment — the Agent converges via the latest hash reconciliation without needing to republish the main config.
+A route uses the Pages project ID. Nodes fetch and verify deployment packages as deployments are activated, updated, or rolled back.
 
 ## Operations, Status, and Rollback
 

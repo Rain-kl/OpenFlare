@@ -19,7 +19,6 @@ import {
   Route,
   Server,
   Globe,
-  GitBranch,
   ScrollText,
   Gauge,
 } from 'lucide-react';
@@ -114,12 +113,6 @@ const MENU_GROUPS: MenuGroup[] = [
         labelKey: 'pages',
         descKey: 'descPages',
         icon: FileText,
-      },
-      {
-        path: '/config-versions',
-        labelKey: 'configVersions',
-        descKey: 'descConfigVersions',
-        icon: GitBranch,
       },
       {
         path: '/access-logs',

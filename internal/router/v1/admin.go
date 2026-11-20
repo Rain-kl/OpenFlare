@@ -18,6 +18,7 @@ import (
 	admin_updater "github.com/Rain-kl/Wavelet/internal/apps/admin/updater"
 	admin_user "github.com/Rain-kl/Wavelet/internal/apps/admin/user"
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/config_version"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/gin-gonic/gin"
 )
@@ -118,7 +119,7 @@ func registerAdminIAMRoutes(adminRouter *gin.RouterGroup) {
 // registerAdminConfigRoutes registers system configurations and template settings.
 func registerAdminConfigRoutes(adminRouter *gin.RouterGroup) {
 	// System configs
-	configs := adminRouter.Group("/system-configs")
+	configs := adminRouter.Group("/system-configs", config_version.WakeAfterWrite)
 	{
 		configs.GET("", system_config.ListSystemConfigs)
 		configs.POST("", system_config.CreateSystemConfig)

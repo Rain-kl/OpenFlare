@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/openflare/performance"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
@@ -55,7 +56,8 @@ var configProviders = []configProvider{
 	{key: ipGroupPrefix, prefix: true, describe: describeIPGroups},
 }
 
-func configManifest(ctx context.Context, node *model.OpenFlareNode) *protocol.ConfigManifest {
+func configManifest(ctx context.Context, node *model.OpenFlareNode, latestSiteRevision string) *protocol.ConfigManifest {
+	ctx = db.WithPrimaryReads(ctx)
 	manifest := &protocol.ConfigManifest{Version: protocol.EdgeConfigSyncVersion, Resources: make(map[string]protocol.ConfigResource)}
 	remaining := maxManifestInlineBytes
 	for _, provider := range configProviders {
@@ -66,6 +68,9 @@ func configManifest(ctx context.Context, node *model.OpenFlareNode) *protocol.Co
 		}
 		for _, key := range slices.Sorted(maps.Keys(resources)) {
 			resource := resources[key].ConfigResource
+			if key == snapshotKey && latestSiteRevision != "" && resource.Revision == latestSiteRevision {
+				resource.Metadata = nil
+			}
 			if len(resource.InlineJSON) > remaining {
 				resource.InlineJSON = ""
 			}
@@ -77,6 +82,7 @@ func configManifest(ctx context.Context, node *model.OpenFlareNode) *protocol.Co
 }
 
 func pullConfigResource(ctx context.Context, node *model.OpenFlareNode, key, digest string) (string, error) {
+	ctx = db.WithPrimaryReads(ctx)
 	for _, provider := range configProviders {
 		if provider.key != key && (!provider.prefix || !strings.HasPrefix(key, provider.key)) {
 			continue
@@ -126,7 +132,7 @@ func resourceDigest(body string) string {
 }
 
 func describeSiteSnapshot(ctx context.Context, _ *model.OpenFlareNode) (map[string]configResource, error) {
-	meta, err := getActiveConfigMetaByEngine(ctx, enginePingora)
+	meta, err := getActiveConfigMeta(ctx)
 	if isActiveConfigNotFound(err) {
 		return nil, nil
 	}
@@ -135,7 +141,7 @@ func describeSiteSnapshot(ctx context.Context, _ *model.OpenFlareNode) (map[stri
 	}
 	return map[string]configResource{
 		snapshotKey: {
-			ConfigResource: protocol.ConfigResource{SHA256: meta.PayloadChecksum, Metadata: meta},
+			ConfigResource: protocol.ConfigResource{SHA256: meta.PayloadChecksum, Revision: meta.Version, Metadata: meta},
 			pull: func(ctx context.Context) (string, error) {
 				active, err := GetActivePingoraConfig(ctx)
 				if err != nil {

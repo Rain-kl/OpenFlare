@@ -15,7 +15,6 @@
         "console-ip-groups": "ip|ip группа",
         "console-rate-limits": "лимиты|скорость|ограничение|limit_conn|limit_rate",
         "console-pages": "страницы|cdn|статические|pages|static",
-        "console-config-versions": "версия|конфигурация|config|versions",
         "console-access-logs": "журнал|журналы",
         "console-apply-logs": "применить|журнал|журналы",
         "console-performance": "производительность",

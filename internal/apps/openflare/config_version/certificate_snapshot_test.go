@@ -84,13 +84,13 @@ func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {
 	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &route.ID, Domain: "one.example.com", CertID: &first.ID}).Error)
 	require.NoError(t, db.DB(ctx).Create(&model.ZoneDomain{ZoneID: zone.ID, ProxyRouteID: &route.ID, Domain: "two.example.com", CertID: &second.ID}).Error)
 
-	bundle, err := buildCurrentConfigBundle(ctx, true)
+	bundle, err := buildCurrentConfigBundle(ctx)
 	require.NoError(t, err)
 	require.Len(t, bundle.SnapshotRoutes, 1)
 	assert.Equal(t, []string{"one.example.com", "two.example.com"}, bundle.SnapshotRoutes[0].Domains)
 	assert.Equal(t, []uint{first.ID, second.ID}, bundle.SnapshotRoutes[0].DomainCertIDs)
-	assert.Contains(t, bundle.RouteConfig, "one.example.com")
-	assert.Contains(t, bundle.RouteConfig, "two.example.com")
+	assert.Contains(t, bundle.SnapshotJSON, "one.example.com")
+	assert.Contains(t, bundle.SnapshotJSON, "two.example.com")
 }
 
 func generateTestCertKeyPairForSnapshot(t *testing.T) (certPEM string, keyPEM string) {

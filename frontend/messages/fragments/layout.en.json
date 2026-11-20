@@ -28,7 +28,6 @@
       "ipGroups": "IP Groups",
       "rateLimits": "Rate Limits",
       "pages": "Pages",
-      "configVersions": "Releases",
       "accessLogs": "Access Logs",
       "performance": "Performance policies",
       "applyLogs": "Apply Logs"
@@ -103,7 +102,6 @@
         "ipGroupsDesc": "Define IP lists for allow/deny control in WAF or routes",
         "rateLimitsDesc": "Configure default concurrency and bandwidth limits for edge sites",
         "pagesDesc": "Upload or deploy static sites with global CDN hosting",
-        "configVersionsDesc": "View, compare, publish, and roll back configuration versions",
         "accessLogsDesc": "Search full-site access logs and network analytics",
         "applyLogsDesc": "View history of node config delivery, sync, and activation",
         "performanceDesc": "Tune connections, proxy timeouts, and core performance settings",

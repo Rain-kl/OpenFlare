@@ -28,7 +28,6 @@
       "ipGroups": "IP 组",
       "rateLimits": "限流",
       "pages": "Pages",
-      "configVersions": "版本发布",
       "accessLogs": "访问日志",
       "performance": "性能策略",
       "applyLogs": "应用日志"
@@ -103,7 +102,6 @@
         "ipGroupsDesc": "定义 IP 地址列表以在 WAF 或路由中实现黑白名单控制",
         "rateLimitsDesc": "配置边缘站点默认并发与带宽限流策略",
         "pagesDesc": "上传或部署静态网页，提供全球 CDN 加速托管",
-        "configVersionsDesc": "查看、对比、发布与回滚系统配置版本",
         "accessLogsDesc": "查看并检索全量网站访问请求日志与网络分析数据",
         "applyLogsDesc": "查看节点配置下发、同步与生效的历史记录",
         "performanceDesc": "调优网络连接、代理超时与核心系统性能参数",

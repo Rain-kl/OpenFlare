@@ -229,12 +229,23 @@ func buildDSN(host string, port int, username, password string) string {
 	return pqURL.String()
 }
 
+type primaryReadsContextKey struct{}
+
+// WithPrimaryReads keeps configuration assembly reads on the same database as writes.
+func WithPrimaryReads(ctx context.Context) context.Context {
+	return context.WithValue(ctx, primaryReadsContextKey{}, true)
+}
+
 // DB 返回带上下文追踪的 GORM 数据库实例
 func DB(ctx context.Context) *gorm.DB {
 	if db == nil {
 		return nil
 	}
-	return db.WithContext(ctx)
+	conn := db.WithContext(ctx)
+	if ctx != nil && ctx.Value(primaryReadsContextKey{}) == true {
+		return conn.Clauses(dbresolver.Write)
+	}
+	return conn
 }
 
 // SetDB sets the package-level database instance for testing.

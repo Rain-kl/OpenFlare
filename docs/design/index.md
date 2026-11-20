@@ -27,7 +27,7 @@ OpenFlare 适合需要统一管理多台 Pingora 代理节点、构建自建高�
 | **边缘缓存** | Pingora 节点内存缓存；默认 static 扩展名 + 源站头/Set-Cookie 闸门 + 默认 Edge TTL（对标 CF 默认模型） | [边缘缓存策略设计](./edge-cache-design.md) |
 | **Zone 与域名管理** | 以可注册根域为管理入口，聚合明确域名、域名证书与反代路由 | [Zone 与域名资源设计](./zone-design.md) |
 | **Cloudflare DNS 指向** | 以 ZoneDomain 为粒度，将单条 Cloudflare A 记录幂等指向边缘节点 IPv4；支持连接配置、分组、成员橙云与异步同步，一期不含自动故障切换 | [Cloudflare DNS 指向设计](./cloudflare-pointing.md) |
-| **配置版本控制** | 支持全局单一激活版本的预览、发布、不可变快照历史与秒级一键回滚 | [Agent 与发布模型](./agent-design.md) |
+| **边缘配置同步** | 保存后自动同步，节点原子应用并保留最后一份健康快照 | [Pingora 边缘节点设计](./pingora-edge-design.md) |
 | **WAF 安全防护** | 支持可视化 DAG 编排规则、手动/自动/订阅型 IP 组、GeoIP 匹配与 PoW CC 防护 | [WAF 设计](./waf-design.md) / [WAF 可编排规则设计](./waf-orchestration-design.md) / [WAF 使用指南](../guide/waf-usage.md) |
 | **内网穿透** | 通过中继节点（Relay）与内网客户端（OpenFlared），反向穿透暴露内网 Web 服务 | [内网穿透设计](./tunnel-design.md) / [穿透使用指南](../guide/tunnel-usage.md) |
 | **Pages 静态托管** | 支持上传或从 Remote URL、公开 GitHub Release 同步预构建产物；GitHub latest 可定时检查并可选自动发布。不可变部署由边缘节点拉取并由 Pingora 本地服务，支持回滚、API 反代与 SPA Fallback | [Pages 静态托管设计](./pages-design.md) / [Pages 使用指南](../guide/pages-usage.md) |
@@ -50,11 +50,11 @@ OpenFlare 适合需要统一管理多台 Pingora 代理节点、构建自建高�
 ### 2. WAF 安全边界
 * **白名单优先原则**：白名单拥有绝对匹配权。若未命中白名单规则，才依次触发全局和自定义黑名单过滤。
 * **GeoIP 弱依赖性**：地域准入解析完全依赖节点本地 MaxMind 库。当 GeoIP 异常或解析失败时，系统必须自动忽略地域规则，**绝对不能**破坏 IP 组过滤和反代主链路的可用性。
-* **运行时数据解耦**：Pingora 通过内存快照执行规则，不与 Server 数据库通信。IP 组成员同步与版本发布解耦，通过 Checksum 差分拉取以实现零重载平滑生效。
+* **运行时数据解耦**：Pingora 通过内存快照执行规则，不与 Server 数据库通信。IP 组成员可独立于站点快照更新，通过 Checksum 差分拉取以实现零重载平滑生效。
 
 ### 3. 内网穿透边界
 * **仅限 HTTP 流量**：穿透组件仅支持 HTTP/HTTPS 协议（底层依靠 frp 虚拟主机 Vhost 机制实现单端口域名路由复用），暂不支持单独的 TCP/UDP 端口分配。
-* **中继配置动态化控制**：中继节点（Relay）在连接至 Server 后，可通过心跳周期性动态拉取并同步全局系统配置（例如是否开启内嵌 FRPS Web UI 及其监听端口），但不直接纳入控制面的不可变配置版本发布体系。
+* **中继配置动态化控制**：中继节点（Relay）在连接至 Server 后，可通过心跳周期性动态拉取并同步全局系统配置（例如是否开启内嵌 FRPS Web UI 及其监听端口），随独立的中继配置协议下发。
 * **Tunnel 与 Node 体系隔离**：Tunnel 客户端在内网发起出向建连，与控制面托管的边缘 Node（公网节点）是独立的实体，使用专属的 `tunnel_token` 进行鉴权。
 
 ### 4. Pages 静态托管边界
@@ -63,7 +63,7 @@ OpenFlare 适合需要统一管理多台 Pingora 代理节点、构建自建高�
 * **构建与运行时边界**：当前不从外部 Git 仓库拉取源码或执行构建，也不提供边缘 Serverless、动态 SSR 或二级预览域名。未来仓库集成必须使用独立 `git_repository` Provider 与 Server 侧隔离 build executor，只向统一 artifact 管线输出受限产物；Agent 不接收仓库凭据、外部 URL 或 clone/install/build 命令。
 
 ### 5. 系统与版本边界
-* **全局单一激活版本**：所有节点拉取并消费同一份全局激活配置。不进行按节点分组的差异化配置发布。
+* **站点快照**：所有边缘节点同步同一份站点快照，各节点按分配的性能策略运行。
 * **单租户架构**：OpenFlare 仅供单团队在受信任的内部网络部署使用。采用单租户设计，不支持细粒度的多用户角色或多租户资源隔离。
 * **外部基础设施依赖性**：Server **必须依赖**外部 Redis（或 Valkey），用于分布式协调、Asynq 队列与系统缓存。关系库为 PostgreSQL，或关闭 `database.enabled` 时使用 SQLite。ClickHouse **可选**：不启用时，访问日志与可观测时序由当前日志主库（随业务主库）承接；启用后可通过「切换日志数据库」任务迁到 ClickHouse。系统不支持脱离 Redis 运行。详情见 [日志存储解耦](./logstore.md)。
 
@@ -175,6 +175,6 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 * 产品范围或系统边界变化：更新本文档（[产品边界](./index.md)）。
 * 日志存储、日志表判定或切换协议变化：更新 [日志存储解耦](./logstore.md)。
 * 系统结构、组件分工变化：更新 [系统架构](./architecture.md)。
-* 发布、同步、回滚与 Agent 模型变化：更新 [Agent 与发布模型](./agent-design.md)。
+* 配置同步和节点恢复逻辑记录于 [Pingora 边缘节点设计](./pingora-edge-design.md)。
 * 部署方式变化：更新 [部署说明](../deployment/deployment.md) 与 README。
 * 配置项变化：更新 [配置项参考](../reference/configuration.md)。

@@ -51,12 +51,7 @@ export default function WafPage() {
   });
 
   const invalidate = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ruleGroupsQueryKey }),
-      queryClient.invalidateQueries({
-        queryKey: ['openflare', 'config-versions', 'diff'],
-      }),
-    ]);
+    await queryClient.invalidateQueries({ queryKey: ruleGroupsQueryKey });
   };
 
   const createMutation = useMutation({

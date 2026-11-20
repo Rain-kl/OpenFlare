@@ -160,7 +160,7 @@ The installer creates the `openflare-edge` systemd service. It listens on TCP po
 After starting the control panel and connecting an Agent node, you've successfully built the base runtime environment of the OpenFlare gateway. Continue with these two guides to deploy your first reverse proxy site:
 
 1. **Publish your first website**:
-   * See [Publish First Configuration](./first-site.md). It guides you to publish your first proxy rule in the simplest way (plain HTTP) and verify the node applied it.
+   * See [Create Your First Reverse Proxy Rule](./first-site.md). It guides you to create your first proxy rule over HTTP and verify the node applied it.
 2. **Full reverse proxy config (HTTPS & origin management)**:
    * See [Create a Reverse Proxy Config](./proxy-config.md). It guides you from certificate import/application to domain HTTPS certificate binding, origin management, and preview release.
 
@@ -171,7 +171,7 @@ After starting the control panel and connecting an Agent node, you've successful
 Handle in this order:
 
 1. Upgrade Server and Agent to the latest version; confirm whether the problem persists.
-2. Re-publish and activate a config version, wait for the node to apply.
+2. Check the node’s apply records and save any configuration corrections.
 3. Run「Force Sync」on the target node in the node detail page to push an immediate config pull.
 4. Rebuild or reinstall the Agent (re-run the install script).
 5. If none of the above works, file a [GitHub Issue](https://github.com/Rain-kl/OpenFlare/issues) with the Server logs and node apply records.

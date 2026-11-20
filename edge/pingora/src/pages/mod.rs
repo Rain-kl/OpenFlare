@@ -5,7 +5,7 @@ pub use serving::{pages_api_target, resources_ready, serve_pages, validate};
 
 use crate::protocol::config::PagesDeployment;
 use anyhow::{bail, Context, Result};
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File};
@@ -133,9 +133,7 @@ impl PagesSyncer {
             .header("X-Agent-Token", &self.token)
             .send()
             .await?;
-        if response.status() != StatusCode::OK {
-            bail!("Pages package download returned HTTP {}", response.status());
-        }
+        let response = response.error_for_status()?;
         let releases = self
             .pages_dir
             .join("projects")
@@ -179,11 +177,7 @@ impl PagesSyncer {
 }
 
 async fn decode_json<T: for<'de> Deserialize<'de>>(response: reqwest::Response) -> Result<T> {
-    let status = response.status();
-    let body = response.text().await?;
-    if status != StatusCode::OK {
-        bail!("server returned HTTP {status}: {body}");
-    }
+    let body = response.error_for_status()?.text().await?;
     let decoded: ApiResponse<T> = serde_json::from_str(&body)?;
     if !decoded.error_msg.is_empty() {
         bail!("server returned error: {}", decoded.error_msg);

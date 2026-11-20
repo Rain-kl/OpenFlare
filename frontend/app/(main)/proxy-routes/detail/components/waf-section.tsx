@@ -152,9 +152,6 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
         queryClient.invalidateQueries({
           queryKey: ['openflare', 'waf', 'rule-groups'],
         }),
-        queryClient.invalidateQueries({
-          queryKey: ['openflare', 'config-versions', 'diff'],
-        }),
       ]);
     },
     onError: (error) => {

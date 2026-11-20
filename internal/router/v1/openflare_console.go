@@ -33,7 +33,7 @@ func openFlareAdminMiddlewares() []gin.HandlerFunc {
 }
 
 func registerOpenFlareConsoleRoutes(apiV1Router *gin.RouterGroup) {
-	group := apiV1Router.Group("/d")
+	group := apiV1Router.Group("/d", config_version.WakeAfterWrite)
 	registerOpenFlareSystemRoutes(group)
 	registerOpenFlareTrafficRoutes(group)
 	registerOpenFlareNodeRoutes(group)
@@ -122,18 +122,6 @@ func registerOpenFlareTrafficRoutes(apiGroup *gin.RouterGroup) {
 	zoneGroup.POST("/:id/domains/:domainId/update", zone.UpdateDomainHandler)
 	zoneGroup.POST("/:id/domains/:domainId/delete", zone.DeleteDomainHandler)
 
-	configVersionGroup := apiGroup.Group("/config-versions")
-	configVersionGroup.Use(openFlareAdminMiddlewares()...)
-	{
-		httpx.RegisterCollection(configVersionGroup, "GET", config_version.ListConfigVersionsHandler)
-		configVersionGroup.GET("/active", config_version.GetActiveConfigVersionHandler)
-		configVersionGroup.GET("/preview", config_version.PreviewConfigVersionHandler)
-		configVersionGroup.GET("/diff", config_version.DiffConfigVersionHandler)
-		configVersionGroup.GET("/:id", config_version.GetConfigVersionHandler)
-		configVersionGroup.POST("/publish", config_version.PublishConfigVersionHandler)
-		configVersionGroup.POST("/:id/activate", config_version.ActivateConfigVersionHandler)
-		configVersionGroup.POST("/cleanup", config_version.CleanupConfigVersionsHandler)
-	}
 }
 
 func registerOpenFlareNodeRoutes(apiGroup *gin.RouterGroup) {

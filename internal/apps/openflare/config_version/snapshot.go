@@ -100,24 +100,17 @@ type snapshotDocument struct {
 }
 
 type configBundle struct {
-	Routes         []*model.ProxyRoute
-	SnapshotRoutes []snapshotRoute
-	WAFSnapshot    snapshotWAFDocument
-	EdgeSettings   edgeSettingsSnapshot
-	SnapshotJSON   string
-	MainConfig     string
-	RouteConfig    string
-	SupportFiles   []SupportFile
-	Checksum       string
+	SnapshotRoutes   []snapshotRoute
+	WAFSnapshot      snapshotWAFDocument
+	SnapshotJSON     string
+	SupportFilesJSON string
+	Checksum         string
 }
 
-func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configBundle, error) {
+func buildCurrentConfigBundle(ctx context.Context) (*configBundle, error) {
 	routes, err := repository.ListEnabledProxyRoutes(ctx)
 	if err != nil {
 		return nil, err
-	}
-	if requireRoutes && len(routes) == 0 {
-		return nil, errors.New(errNoEnabledRoutes)
 	}
 	snapshotRoutes, err := buildSnapshotRoutes(ctx, routes)
 	if err != nil {
@@ -126,11 +119,14 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 	if err := attachSnapshotPoWPolicies(ctx, snapshotRoutes); err != nil {
 		return nil, err
 	}
-	wafSnapshot, err := buildSnapshotWAFDocument(ctx, routes)
+	wafSnapshot, err := buildSnapshotWAFDocument(ctx, snapshotRoutes)
 	if err != nil {
 		return nil, err
 	}
-	edgeSettings := buildEdgeSettingsSnapshot(ctx)
+	edgeSettings, err := buildEdgeSettingsSnapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
 	snapshotDoc := snapshotDocument{
 		Routes:       snapshotRoutes,
 		EdgeSettings: edgeSettings,
@@ -151,27 +147,24 @@ func buildCurrentConfigBundle(ctx context.Context, requireRoutes bool) (*configB
 	}
 
 	return &configBundle{
-		Routes:         routes,
-		SnapshotRoutes: snapshotRoutes,
-		WAFSnapshot:    wafSnapshot,
-		EdgeSettings:   edgeSettings,
-		SnapshotJSON:   string(snapshotJSON),
-		MainConfig:     rendered.MainConfig,
-		RouteConfig:    rendered.RouteConfig,
-		SupportFiles:   rendered.SupportFiles,
-		Checksum:       rendered.Checksum,
+		SnapshotRoutes:   snapshotRoutes,
+		WAFSnapshot:      wafSnapshot,
+		SnapshotJSON:     string(snapshotJSON),
+		SupportFilesJSON: rendered.SupportFilesJSON,
+		Checksum:         rendered.Checksum,
 	}, nil
 }
 
 func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 	items := make([]snapshotRoute, 0, len(routes))
+	var relayURL string
 	for _, route := range routes {
 		zoneDomains, err := repository.ListZoneDomainsByRouteID(ctx, route.ID)
 		if err != nil {
 			return nil, err
 		}
 		if len(zoneDomains) == 0 {
-			return nil, fmt.Errorf("route %s has no zone domains", route.SiteName)
+			continue
 		}
 		domains := make([]string, 0, len(zoneDomains))
 		domainCertIDs := make([]uint, 0, len(zoneDomains))
@@ -200,7 +193,13 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 		var pagesDeployment *edgeconfig.PagesDeployment
 		switch upstreamType {
 		case "tunnel":
-			originURL = resolveTunnelEdgeUpstreamURL(ctx)
+			if relayURL == "" {
+				relayURL, err = resolveTunnelEdgeUpstreamURL(ctx)
+				if err != nil {
+					return nil, err
+				}
+			}
+			originURL = relayURL
 			upstreams = []string{originURL}
 			tunnelNodeID = route.TunnelNodeID
 			tunnelTargetAddr = strings.TrimSpace(route.TunnelTargetAddr)
@@ -277,10 +276,7 @@ func attachSnapshotPoWPolicies(ctx context.Context, routes []snapshotRoute) erro
 	return nil
 }
 
-func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (snapshotWAFDocument, error) {
-	if err := waf.EnsureDefaultRuleGroup(ctx); err != nil {
-		return snapshotWAFDocument{}, err
-	}
+func buildSnapshotWAFDocument(ctx context.Context, routes []snapshotRoute) (snapshotWAFDocument, error) {
 	groups, err := repository.ListOpenFlareWAFRuleGroups(ctx)
 	if err != nil {
 		return snapshotWAFDocument{}, err
@@ -317,16 +313,6 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []*model.ProxyRoute) (
 	}
 	enabledRouteSiteNames := make(map[uint]string, len(routes))
 	for _, route := range routes {
-		if route == nil {
-			continue
-		}
-		domains, domainErr := repository.ListZoneDomainsByRouteID(ctx, route.ID)
-		if domainErr != nil {
-			return snapshotWAFDocument{}, domainErr
-		}
-		if len(domains) == 0 {
-			return snapshotWAFDocument{}, fmt.Errorf("route %s has no zone domains", route.SiteName)
-		}
 		enabledRouteSiteNames[route.ID] = route.SiteName
 	}
 	rawBindings, err := repository.ListOpenFlareWAFRuleGroupBindings(ctx)
@@ -446,9 +432,28 @@ func decodeIPList(raw string) ([]string, error) {
 	return items, nil
 }
 
-func buildEdgeSettingsSnapshot(ctx context.Context) edgeSettingsSnapshot {
+func buildEdgeSettingsSnapshot(ctx context.Context) (edgeSettingsSnapshot, error) {
+	values, err := repository.LoadEdgeSnapshotSettings(ctx, []string{
+		model.ConfigKeyEdgeDefaultLimitConnPerServer,
+		model.ConfigKeyEdgeDefaultLimitConnPerIP,
+		model.ConfigKeyEdgeDefaultLimitRate,
+		model.ConfigKeyEdgeDefaultLimitReqPerIP,
+		model.ConfigKeyEdgeTrustedProxyCIDRs,
+		model.ConfigKeyOriginErrorPageEnabled,
+		model.ConfigKeyOriginErrorPageStatusCodes,
+		model.ConfigKeyOriginErrorPageHTML,
+		model.ConfigKeyOriginErrorPageGetOnly,
+		model.ConfigKeyPoWPage,
+		model.ConfigKeySiteAuthHTML,
+		model.ConfigKeySWOfflineEnabled,
+		model.ConfigKeySWOfflineHTML,
+		model.ConfigKeySWOfflineDomains,
+	})
+	if err != nil {
+		return edgeSettingsSnapshot{}, err
+	}
 	getNonNegIntConfig := func(key string, defaultVal int) int {
-		val, err := repository.GetIntByKey(ctx, key)
+		val, err := strconv.Atoi(values[key])
 		if err != nil || val < 0 {
 			return defaultVal
 		}
@@ -456,7 +461,7 @@ func buildEdgeSettingsSnapshot(ctx context.Context) edgeSettingsSnapshot {
 	}
 
 	getBoolConfig := func(key string, defaultVal bool) bool {
-		val, err := repository.GetBoolByKey(ctx, key)
+		val, err := strconv.ParseBool(values[key])
 		if err != nil {
 			return defaultVal
 		}
@@ -464,27 +469,17 @@ func buildEdgeSettingsSnapshot(ctx context.Context) edgeSettingsSnapshot {
 	}
 
 	getStringConfig := func(key string, defaultVal string) string {
-		config, err := repository.GetSystemConfigByKey(ctx, key)
-		if err != nil {
-			return defaultVal
+		if value, ok := values[key]; ok {
+			return value
 		}
-		return config.Value
-	}
-
-	getStringSliceConfig := func(key string, defaultVal []string) []string {
-		config, err := repository.GetSystemConfigByKey(ctx, key)
-		if err != nil {
-			return defaultVal
-		}
-		var values []string
-		if err := json.Unmarshal([]byte(config.Value), &values); err != nil {
-			return defaultVal
-		}
-		return values
+		return defaultVal
 	}
 
 	snapshot := edgeSettingsSnapshot{CacheStaticExtensions: edgeconfig.DefaultStaticCacheExtensions}
-	snapshot.TrustedProxyCIDRs = getTrustedProxyCIDRsConfig(ctx)
+	snapshot.TrustedProxyCIDRs = edgeconfig.DefaultTrustedProxyCIDRs()
+	if value, ok := values[model.ConfigKeyEdgeTrustedProxyCIDRs]; ok {
+		snapshot.TrustedProxyCIDRs = parseTrustedProxyCIDRs(value)
+	}
 	snapshot.DefaultLimitConnPerServer = getNonNegIntConfig(model.ConfigKeyEdgeDefaultLimitConnPerServer, 0)
 	snapshot.DefaultLimitConnPerIP = getNonNegIntConfig(model.ConfigKeyEdgeDefaultLimitConnPerIP, 0)
 	snapshot.DefaultLimitRate = strings.ToLower(strings.TrimSpace(getStringConfig(model.ConfigKeyEdgeDefaultLimitRate, "")))
@@ -497,14 +492,17 @@ func buildEdgeSettingsSnapshot(ctx context.Context) edgeSettingsSnapshot {
 	snapshot.OriginErrorPageGetOnly = getBoolConfig(model.ConfigKeyOriginErrorPageGetOnly, false)
 	snapshot.SWOfflineEnabled = getBoolConfig(model.ConfigKeySWOfflineEnabled, false)
 	snapshot.SWOfflineHTML = getStringConfig(model.ConfigKeySWOfflineHTML, "")
-	snapshot.SWOfflineDomains = getStringSliceConfig(model.ConfigKeySWOfflineDomains, nil)
+	var offlineDomains []string
+	if json.Unmarshal([]byte(values[model.ConfigKeySWOfflineDomains]), &offlineDomains) == nil {
+		snapshot.SWOfflineDomains = offlineDomains
+	}
 	if snapshot.DefaultLimitRate == "0" {
 		snapshot.DefaultLimitRate = ""
 	}
 	if snapshot.DefaultLimitReqPerIP == "0" {
 		snapshot.DefaultLimitReqPerIP = ""
 	}
-	return snapshot
+	return snapshot, nil
 }
 
 func parseTrustedProxyCIDRs(value string) []string {
@@ -513,18 +511,6 @@ func parseTrustedProxyCIDRs(value string) []string {
 		return []string{}
 	}
 	return cidrs
-}
-
-func getTrustedProxyCIDRsConfig(ctx context.Context) []string {
-	config, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyEdgeTrustedProxyCIDRs)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return edgeconfig.DefaultTrustedProxyCIDRs()
-	}
-	if err != nil {
-		logger.ErrorF(ctx, "[OpenFlareConfig] read trusted proxy CIDRs failed: error=%v", err)
-		return []string{}
-	}
-	return parseTrustedProxyCIDRs(config.Value)
 }
 
 func parsePoWPageConfig(ctx context.Context, raw string) edgeconfig.PoWPageConfig {

@@ -15,7 +15,6 @@
         "console-ip-groups": "ip|ip group",
         "console-rate-limits": "rate limit|limit_conn|limit_rate",
         "console-pages": "pages|cdn|static",
-        "console-config-versions": "version|config",
         "console-access-logs": "log|logs",
         "console-apply-logs": "apply|log|logs",
         "console-performance": "performance",

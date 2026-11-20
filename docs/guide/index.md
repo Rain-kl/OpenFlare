@@ -9,7 +9,7 @@ OpenFlare 是新一代分布式反向代理与边缘安全网关。它将传统 
 如果你第一次接触 OpenFlare，按下面顺序阅读：
 
 1. [快速开始](./quick-start.md)：用 Docker Compose 启动 Server，登录管理端，并接入第一个 Agent。
-2. [发布第一份配置](./first-site.md)：快速新建一条最基础的 HTTP 反代站点规则，并验证节点生效状态。
+2. [创建第一条反向代理规则](./first-site.md)：快速新建一条最基础的 HTTP 反代站点规则，并验证节点生效状态。
 3. [新建反代配置](./proxy-config.md)：一步一步了解如何从证书导入与申请开始，配置 HTTPS 加密、上游源站与边缘缓存。
 4. [Zone 域名迁移](./zone-domain-migration.md)：从旧托管域名/路由内嵌域名升级到 Zone 模型（goose 自动导入），含备份、验收与回滚说明。
 5. [Pages 静态托管使用](./pages-usage.md)：了解静态项目 ZIP 上传限制、SPA Fallback、以及内置 API 反向代理配置。
@@ -26,7 +26,7 @@ OpenFlare 是新一代分布式反向代理与边缘安全网关。它将传统 
 | 你想做什么 | 推荐入口 |
 | --- | --- |
 | 5 分钟内跑起管理端 | [快速开始](./quick-start.md) |
-| 发布第一条反向代理配置 | [发布第一份配置](./first-site.md) |
+| 创建首个 HTTP 站点 | [创建第一条反向代理规则](./first-site.md) |
 | 配置域名证书、反代与边缘缓存 | [新建反代配置](./proxy-config.md)（含缓存说明） |
 | 静态资源不命中缓存 | [故障排查 · 边缘缓存](./troubleshooting.md#边缘缓存命中率异常) |
 | 托管单页应用或静态网站 | [Pages 静态托管使用](./pages-usage.md) |

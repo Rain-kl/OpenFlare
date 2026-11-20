@@ -9,7 +9,7 @@ OpenFlare is a self-hosted OpenResty control plane. It brings reverse proxy webs
 If you're new to OpenFlare, read in this order:
 
 1. [Quick Start](./quick-start.md): start the Server with Docker Compose, log in to the admin panel, and connect your first Agent.
-2. [Publish First Configuration](./first-site.md): quickly create a basic HTTP reverse proxy site rule and verify the node applied it.
+2. [Create Your First Reverse Proxy Rule](./first-site.md): quickly create a basic HTTP reverse proxy site rule and verify the node applied it.
 3. [Create a Reverse Proxy Config](./proxy-config.md): step by step, from certificate import and application to HTTPS, upstream origins, and edge cache.
 4. [Zone Domain Migration](./zone-domain-migration.md): upgrade from legacy managed domains / inline route domains to the Zone model (automatic goose import), with backup, acceptance, and rollback notes.
 5. [Pages Static Hosting Usage](./pages-usage.md): static project ZIP upload limits, SPA Fallback, and built-in API reverse proxy config.
@@ -26,7 +26,7 @@ If you're new to OpenFlare, read in this order:
 | What you want to do | Recommended Entry |
 | --- | --- |
 | Get the admin panel running in 5 minutes | [Quick Start](./quick-start.md) |
-| Publish your first reverse proxy config | [Publish First Configuration](./first-site.md) |
+| Set up your first HTTP site | [Create Your First Reverse Proxy Rule](./first-site.md) |
 | Configure domain certs, reverse proxy, and edge cache | [Create a Reverse Proxy Config](./proxy-config.md) (incl. cache notes) |
 | Static assets not hitting cache | [Troubleshooting · Edge Cache](./troubleshooting.md#edge-cache-hit-rate-anomalies) |
 | Host an SPA or static website | [Pages Static Hosting Usage](./pages-usage.md) |

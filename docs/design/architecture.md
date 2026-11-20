@@ -65,7 +65,7 @@ Pingora Edge (Agent, TLS/WAF)
 
 | 组件            | 职责                                                                   | 详细设计参考 |
 | --------------- | ---------------------------------------------------------------------- | ------------ |
-| **Server**      | 管理端 UI/API、控制面状态持久化、配置编译渲染、发布版本控制、Pages 部署包存储、Cloudflare A 记录指向、访问日志入库与业务流量聚合、Uptime Kuma 监控同步与登录验证码防护 | [Agent 与发布模型](./agent-design.md) / [Cloudflare DNS 指向设计](./cloudflare-pointing.md) / [边缘可观测与业务流量统计](./observability-design.md) / [Uptime Kuma 监控同步设计](./kuma-design.md) / [登录验证码设计](./login-captcha.md) |
+| **Server**      | 管理端 UI/API、控制面状态持久化、配置编译与自动同步、Pages 部署包存储、Cloudflare A 记录指向、访问日志入库与业务流量聚合、Uptime Kuma 监控同步与登录验证码防护 | [Pingora 边缘节点设计](./pingora-edge-design.md) / [Cloudflare DNS 指向设计](./cloudflare-pointing.md) / [边缘可观测与业务流量统计](./observability-design.md) / [Uptime Kuma 监控同步设计](./kuma-design.md) / [登录验证码设计](./login-captcha.md) |
 | **Pingora Edge**   | 接收真实流量，执行 WAF 过滤、PoW 防护、Basic Auth 认证、静态/反代服务与可选源站错误页 | [WAF 设计](./waf-design.md) / [Pages 设计](./pages-design.md) / [源站错误页设计](./origin-error-page.md) |
 | **Relay**       | 部署于边缘节点，管理 `frps` 守护进程生命周期，接受心跳派发的穿透中继配置 | [内网穿透设计](./tunnel-design.md) |
 | **OpenFlared**  | 部署于内网，管理 `frpc` 进程组，向多个 Relay 建立反向隧道，上报连接状态 | [内网穿透设计](./tunnel-design.md) |
@@ -83,7 +83,7 @@ Pingora Edge (Agent, TLS/WAF)
 * 提供可选的 Cloudflare DNS 指向控制面：以 ZoneDomain 为成员维护分组期望状态，通过 Asynq 将单条 A 记录幂等同步到当前生效节点 IPv4；节点 IP 变化只做 best-effort 入队，一期不执行自动故障切换。
 * 后台集成 Uptime Kuma 监控同步服务，自动为可用站点维护 HTTP 探测任务。
 * 启动入口为 `cmd/server/main.go` + `cmd/server/cli/`（`api` / `worker` / `scheduler` / `all`）；OpenFlare 业务在 `internal/apps/openflare/`，边缘协议处理在 `internal/apps/openflare/{agent,relay,flared}/`，边缘端侧运行时在 `edge/pingora/` 与 `internal/edge/{common,relay,flared}/`。
-* *详细设计请参阅：[Agent 与发布模型设计](./agent-design.md) 以及 [Uptime Kuma 监控同步设计](./kuma-design.md)*
+* *详细设计请参阅：[Pingora 边缘节点设计](./pingora-edge-design.md) 以及 [Uptime Kuma 监控同步设计](./kuma-design.md)*
 
 ### 2. Pingora Edge（数据面）
 
@@ -99,9 +99,9 @@ Pingora Edge (Agent, TLS/WAF)
 
 ## 数据与请求流概览
 
-### 1. 配置发布与同步流
+### 1. 配置保存与同步流程
 ```text
-管理端修改配置 -> 发布新版本 -> 生成全局唯一 Checksum 激活版本
+管理端保存配置 -> 自动编译并按摘要更新站点快照
                                  |
               +------------------+------------------+
               | (WebSocket 广播或周期 Heartbeat)      |
@@ -112,7 +112,7 @@ Pingora Edge (Agent, TLS/WAF)
   校验并原子切换内存快照          平滑重载或拉起 frpc 进程
   上报应用状态 (Success / Error)           上报隧道连接状态与活跃指标
 ```
-* *同步与自愈的精细时序及回滚模型详见：[Agent 与发布模型设计](./agent-design.md)*
+* *同步与自愈的精细时序及回滚模型详见：[Pingora 边缘节点设计](./pingora-edge-design.md)*
 
 ### 2. 静态托管与 API 代理流
 * 静态资源解压落地于 Agent 节点的 `projects/{project_id}/current` 下（按项目 latest 拉取，仅保留最新包），Pingora 从本地部署文件提供静态服务。
@@ -182,7 +182,7 @@ Pingora 健康与连接数 --> 边缘健康（瞬时，不作 24h 业务总量�
 
 | 决策                           | 原因                                                                        |
 | ------------------------------ | --------------------------------------------------------------------------- |
-| 完整配置版本，而不是在线 patch | 让预览、激活、历史和回滚有稳定边界，保证节点状态一致                        |
+| 完整站点快照 | 为校验、原子切换和本地恢复提供一致的边界                        |
 | Agent 主动拉取                 | Server 不需要 SSH 权限，降低安全风险；支持 HTTP 与 WebSocket 双协议灵活切换 |
 | 全局单激活版本                 | 降低控制面复杂度，保证所有节点默认一致；提供一键秒级回滚的稳定机制           |
 | Zone 域名与路由策略分离        | Zone 提供根域入口与域名边界；路由仍可复用同一套站点级策略并按域名绑定证书        |

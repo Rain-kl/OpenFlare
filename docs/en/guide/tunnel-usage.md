@@ -30,7 +30,7 @@ To publish an intranet service to the public, follow this order:
 3. Deploy and start the **tunnel client (OpenFlared)** on the intranet server.
 4. Confirm the Tunnel node's status shows「Online」in the admin panel.
 5. Add or edit a rule in **「Rule Management」**; in the「Reverse Proxy」tab choose origin mode **「Intranet Tunnel」**, bind the Tunnel node, and enter the intranet service port (e.g. `127.0.0.1:8080`).
-6. Publish and activate the new version.
+6. Save the route and wait for edge nodes to sync.
 7. Access via the public domain to verify the tunnel link.
 
 ---
@@ -116,15 +116,9 @@ Now configure public reverse proxying and domain access for your intranet servic
 5. Fill in the **intranet target address** (a local address/port reachable by the intranet client, e.g. `127.0.0.1:8080`) and **intranet protocol** (usually `http`).
 6. Configure other regular site options and save.
 
-### Step 5: Publish and Apply
+### Step 5: Verify Public Access
 
-To let the gateway's OpenResty match and route domain traffic, publish a new config version:
-
-1. Click **「Preview and Publish」** in the top-right nav; confirm the generated site config is correct.
-2. In the dialog, click **「Confirm Publish」**.
-3. The public-edge Agent now pulls the latest route: it forwards requests to the same-host `openflare-relay (frps)` vhost port.
-4. The intranet client `openflared (frpc)` receives the relayed packets and safely forwards them to the intranet `127.0.0.1:8080` service, returning the response along the same path.
-5. Visit the domain in a public browser to confirm the intranet service displays.
+After you save the route, Pingora Edge syncs automatically and forwards matching requests to the relay virtual host port. Open the bound domain to verify the origin responds through the tunnel.
 
 ---
 
@@ -139,7 +133,7 @@ To map multiple services in one intranet environment (e.g. `127.0.0.1:80` blog, 
 2. Create three separate website configs in the admin panel (each bound to its own public domain).
 3. Select **the same tunnel** as the origin mode for all three.
 4. Fill in the corresponding different ports or LAN IPs in each intranet target address (e.g. `127.0.0.1:80`, `127.0.0.1:8080`, `192.168.1.120:9000`).
-5. Publish and activate — one tunnel, many uses.
+5. Save the routes and verify each domain after the nodes sync.
 
 ### 2. Gateway Security Features Stack Seamlessly
 

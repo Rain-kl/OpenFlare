@@ -2,7 +2,7 @@
 
 你会学到：如何使用 Docker（分为快速启动、生产推荐、进阶版）部署，以及如何从源码本地部署 OpenFlare Server。
 
-OpenFlare Server 是 Gin + GORM 单体控制面，负责管理端 UI、管理 API、Agent API、配置渲染、版本发布、数据存储与聚合查询。
+OpenFlare Server 是 Gin + GORM 单体控制面，负责管理端 UI、管理 API、Agent API、配置渲染、边缘配置同步、数据存储与聚合查询。
 
 > [!IMPORTANT]
 > **关于外部依赖**：

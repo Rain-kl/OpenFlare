@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPublishConfigVersionCreatesAlignedPingoraPayload(t *testing.T) {
+func TestRefreshSiteSnapshotCreatesAlignedPingoraPayload(t *testing.T) {
 	cleanup := setupConfigVersionTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -54,20 +54,18 @@ func TestPublishConfigVersionCreatesAlignedPingoraPayload(t *testing.T) {
 		Description: "PoW challenge page",
 	}).Error)
 
-	published, err := PublishConfigVersion(ctx, "tester", false)
-	require.NoError(t, err)
+	require.NoError(t, RefreshSiteSnapshot(ctx))
 	pingoraVersion, err := repository.GetActivePingoraConfigVersion(ctx)
 	require.NoError(t, err)
-	require.Equal(t, published.Version, pingoraVersion.Version)
 	require.Equal(t, int64(1), pingoraVersion.ReleaseSequence)
 
 	require.Empty(t, pingoraVersion.SourceVersion)
 	require.NotEmpty(t, pingoraVersion.SnapshotJSON)
-	payloadJSON, err := edgeconfig.Encode(published.SnapshotJSON, published.SupportFilesJSON)
+	payloadJSON, err := edgeconfig.Encode(pingoraVersion.SnapshotJSON, pingoraVersion.SupportFilesJSON)
 	require.NoError(t, err)
 	var payload edgeconfig.Envelope
 	require.NoError(t, json.Unmarshal([]byte(payloadJSON), &payload))
-	assert.JSONEq(t, published.SnapshotJSON, string(payload.Snapshot))
+	assert.JSONEq(t, pingoraVersion.SnapshotJSON, string(payload.Snapshot))
 	var snapshot snapshotDocument
 	require.NoError(t, json.Unmarshal(payload.Snapshot, &snapshot))
 	require.Len(t, snapshot.Routes, 1)
@@ -79,39 +77,4 @@ func TestPublishConfigVersionCreatesAlignedPingoraPayload(t *testing.T) {
 	digest := sha256.Sum256([]byte(payloadJSON))
 	assert.Equal(t, hex.EncodeToString(digest[:]), pingoraVersion.PayloadChecksum)
 
-	_, err = PublishConfigVersion(ctx, "tester", true)
-	require.NoError(t, err)
-	nextEdge, err := repository.GetActivePingoraConfigVersion(ctx)
-	require.NoError(t, err)
-	require.Equal(t, int64(2), nextEdge.ReleaseSequence)
-	rolledBack, err := ActivateConfigVersion(ctx, pingoraVersion.Version)
-	require.NoError(t, err)
-	assert.Equal(t, int64(3), rolledBack.ReleaseSequence)
-	assert.Empty(t, rolledBack.SourceVersion)
-	assert.Equal(t, published.SnapshotJSON, rolledBack.SnapshotJSON)
-	assert.Equal(t, pingoraVersion.PayloadChecksum, rolledBack.PayloadChecksum)
-	active, err := repository.GetActiveConfigVersion(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, rolledBack.Version, active.Version)
-}
-
-func TestPromotePublishedSiteSnapshotOnce(t *testing.T) {
-	t.Cleanup(setupConfigVersionTestDB(t))
-	ctx := context.Background()
-	historical := model.ConfigVersion{
-		Version: "20261119-001", Engine: "openresty", IsActive: true,
-		SnapshotJSON:     `{"routes":[],"openresty_config":{"worker_connections":999},"waf":{}}`,
-		SupportFilesJSON: "[]",
-		Checksum:         "historical-digest",
-	}
-	require.NoError(t, db.DB(ctx).Create(&historical).Error)
-	require.NoError(t, EnsureActivePingoraRelease(ctx))
-	require.NoError(t, EnsureActivePingoraRelease(ctx))
-	active, err := repository.GetActiveConfigVersion(ctx)
-	require.NoError(t, err)
-	assert.Empty(t, active.SourceVersion)
-	assert.Contains(t, active.SnapshotJSON, `"edge_config"`)
-	assert.NotContains(t, active.SnapshotJSON, "worker_connections")
-	assert.Equal(t, int64(1), active.ReleaseSequence)
-	assert.NotEmpty(t, active.PayloadChecksum)
 }

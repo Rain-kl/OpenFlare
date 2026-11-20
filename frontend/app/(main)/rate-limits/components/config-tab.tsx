@@ -1,9 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Gauge, Loader2, Save } from 'lucide-react';
+import { Gauge, Loader2, Save } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -141,15 +140,7 @@ export function ConfigTab() {
     },
     onSuccess: async () => {
       toast.success(t('config.saved'));
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: optionsQueryKey }),
-        queryClient.invalidateQueries({
-          queryKey: ['openflare', 'config-preview'],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['openflare', 'config-versions'],
-        }),
-      ]);
+      await queryClient.invalidateQueries({ queryKey: optionsQueryKey });
       setSaving(false);
     },
     onError: (error) => {
@@ -188,15 +179,6 @@ export function ConfigTab() {
 
   return (
     <div className='space-y-4'>
-      <div className='flex justify-end'>
-        <Button variant='outline' size='sm' asChild>
-          <Link href='/config-versions'>
-            <ExternalLink className='size-3.5 mr-1' />
-            {t('config.preview')}
-          </Link>
-        </Button>
-      </div>
-
       <Card className='border-dashed shadow-none'>
         <CardHeader className='flex flex-row items-center justify-between'>
           <div>

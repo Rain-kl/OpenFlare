@@ -4,12 +4,14 @@
 package agent
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
@@ -129,10 +131,11 @@ func GetPagesProjectLatestHashHandler(c *gin.Context) {
 		return
 	}
 
-	if !allowPagesProject(c, projectID) {
+	ctx := db.WithPrimaryReads(c.Request.Context())
+	if !allowPagesProject(ctx, c, projectID) {
 		return
 	}
-	metadata, err := pages.GetProjectLatestPackageMetadata(c.Request.Context(), projectID)
+	metadata, err := pages.GetProjectLatestPackageMetadata(ctx, projectID)
 	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
@@ -164,10 +167,11 @@ func DownloadPagesProjectLatestPackageHandler(c *gin.Context) {
 		return
 	}
 
-	if !allowPagesProject(c, projectID) {
+	ctx := db.WithPrimaryReads(c.Request.Context())
+	if !allowPagesProject(ctx, c, projectID) {
 		return
 	}
-	packageObj, err := pages.OpenProjectLatestPackage(c.Request.Context(), projectID)
+	packageObj, err := pages.OpenProjectLatestPackage(ctx, projectID)
 	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}
@@ -179,12 +183,12 @@ func DownloadPagesProjectLatestPackageHandler(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, packageObj.ContentLength, packageObj.ContentType, packageObj.Body, nil)
 }
 
-func allowPagesProject(c *gin.Context, projectID uint) bool {
+func allowPagesProject(ctx context.Context, c *gin.Context, projectID uint) bool {
 	node, ok := NodeFromContext(c)
 	if !ok || node.Engine != enginePingora {
 		return true
 	}
-	allowed, err := pingoraPagesProjectAllowed(c.Request.Context(), projectID)
+	allowed, err := pingoraPagesProjectAllowed(ctx, projectID)
 	if httpx.AbortBadRequestOnError(c, err) {
 		return false
 	}

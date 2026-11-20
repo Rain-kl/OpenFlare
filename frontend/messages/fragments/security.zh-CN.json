@@ -225,7 +225,7 @@
       "nameRequired": "请输入 IP 组名称",
       "type": "类型",
       "enable": "启用 IP 组",
-      "enableDesc": "关闭后保留配置，但发布时不会展开到 WAF 运行时名单。",
+      "enableDesc": "关闭后，WAF 会停用该 IP 组并保留其配置。",
       "subscriptionUrl": "订阅 URL",
       "subscriptionUrlRequired": "订阅类型需要填写订阅 URL",
       "subscriptionFormat": "订阅格式",
@@ -311,9 +311,8 @@
       "saved": "限流参数已保存",
       "saveFailed": "保存失败",
       "loading": "加载限流参数...",
-      "preview": "查看配置预览",
       "title": "全局默认限流",
-      "description": "0 或留空表示默认关闭；站点未单独配置时将继承当前设置。修改后需在版本发布中使其生效。",
+      "description": "填 0 或留空表示默认关闭。站点在未单独设置时继承全局值，保存后自动同步到边缘节点。",
       "save": "保存",
       "connPerServer": "默认并发限制（每站点）",
       "connPerServerHint": "站点最大并发连接数默认值",
@@ -963,7 +962,7 @@
       "heartbeat": "心跳间隔 ({duration})",
       "offline": "离线阈值 ({duration})",
       "wsUpgrade": "开启 WS 连接升级",
-      "wsUpgradeDesc": "HTTP 心跳成功后尝试升级为 WebSocket，配置发布可即时通知。",
+      "wsUpgradeDesc": "通过 WebSocket 通知在线节点立即同步配置变更。",
       "updateRepo": "Agent 更新仓库"
     },
     "geo": {

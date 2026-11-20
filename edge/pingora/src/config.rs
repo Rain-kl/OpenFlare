@@ -172,9 +172,6 @@ fn validate(config: &Config) -> Result<()> {
         bail!("configuration does not declare required capability {PROXY_CAPABILITY}");
     }
     crate::policy::validate_waf(&config.waf)?;
-    if config.routes.is_empty() {
-        bail!("configuration has no routes");
-    }
     for route in &config.routes {
         if !route.enabled {
             continue;

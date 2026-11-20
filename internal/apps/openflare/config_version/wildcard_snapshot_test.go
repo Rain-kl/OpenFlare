@@ -48,7 +48,7 @@ func TestWildcardDomainConfigBundle(t *testing.T) {
 	if err := repository.ReplaceZoneDomainRouteBindings(ctx, route.ID, []uint{domain.ID}); err != nil {
 		t.Fatal(err)
 	}
-	bundle, err := buildCurrentConfigBundle(ctx, true)
+	bundle, err := buildCurrentConfigBundle(ctx)
 	if err != nil {
 		t.Fatalf("buildCurrentConfigBundle(wildcard) error = %v", err)
 	}
@@ -59,7 +59,7 @@ func TestWildcardDomainConfigBundle(t *testing.T) {
 	if len(doc.Routes) != 1 || !slices.Equal(doc.Routes[0].Domains, []string{domain.Domain}) || !slices.Equal(doc.Routes[0].DomainCertIDs, []uint{cert.ID}) {
 		t.Fatalf("snapshot routes = %+v, want wildcard domain and its certificate", doc.Routes)
 	}
-	if !strings.Contains(bundle.RouteConfig, "*.s3.example.com") || !strings.Contains(bundle.RouteConfig, `"enable_https":true`) {
-		t.Errorf("wildcard bundle missing HTTPS server: %s", bundle.RouteConfig)
+	if !strings.Contains(bundle.SnapshotJSON, "*.s3.example.com") || !strings.Contains(bundle.SnapshotJSON, `"enable_https":true`) {
+		t.Errorf("wildcard bundle missing HTTPS server: %s", bundle.SnapshotJSON)
 	}
 }

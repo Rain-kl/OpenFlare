@@ -21,7 +21,7 @@ The orchestration area defaults to a compact height and smaller initial zoom; yo
 
 ## Binding and Effect
 
-Enabled global rules always execute first; route-bound custom rules execute strictly in list order. After adjusting the order, you must publish a config version for the rule topology to take effect with the OpenResty reload.
+Enabled global rules always execute first; route-bound custom rules execute strictly in list order. After you save the order, Pingora Edge receives the changes in the next site snapshot.
 
 IP group members are dynamic resources. The Agent checks the checksum every 5 seconds and updates in-memory snapshots across workers on change — no rule republish or reload needed. Manual, subscription, and auto IP groups can all be referenced by IP-match nodes. A single full IP group runtime snapshot is capped at 20 MiB; exceeding the cap makes publish or sync return an error and keeps using the previous valid snapshot.
 

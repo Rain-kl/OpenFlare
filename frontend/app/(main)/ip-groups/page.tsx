@@ -73,9 +73,6 @@ export default function WafIPGroupsPage() {
       queryClient.invalidateQueries({
         queryKey: ['openflare', 'waf', 'rule-groups'],
       }),
-      queryClient.invalidateQueries({
-        queryKey: ['openflare', 'config-versions', 'diff'],
-      }),
     ]);
   };
 

@@ -23,7 +23,7 @@ pub(super) struct Resource {
     #[serde(default)]
     pub inline_json: String,
     #[serde(default)]
-    revision: String,
+    pub revision: String,
 }
 
 impl Resource {

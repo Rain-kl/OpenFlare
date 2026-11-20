@@ -25,7 +25,7 @@ pg_dump "$DATABASE_URL" > openflare-pre-zone-$(date +%Y%m%d).sql
 # 或复制备份卷 / 快照；SQLite 则复制 data 目录中的库文件
 ```
 
-可选：在管理端记下当前**激活配置版本号**与 checksum，便于配置回滚对比。
+可在节点详情记录当前配置修订和最近一次成功的应用记录，作为升级后核对依据。
 
 ### 2. 升级并启动 Server
 
@@ -37,16 +37,12 @@ pg_dump "$DATABASE_URL" > openflare-pre-zone-$(date +%Y%m%d).sql
 2. Zone 详情：域名、证书、关联路由 ID。
 3. **反代路由**：域名绑定来自 Zone 域名，而非旧手写字段。
 
-### 4. 配置预览与发布
+### 4. 验证节点同步
 
-1. 在管理端查看配置差异 / 预览。
-2. **逐路由**核对：`server_name` 集合、证书路径、WAF Route ID、Pages 引用。
-3. **允许**旧快照 JSON 中路由上的冗余 `domain` / `domains` / `cert_ids` 消失。
-4. **不允许**数据面语义变化。
-5. 预览通过后发布；需要时在配置版本中激活升级前版本做配置回滚。数据库回退请使用升级前备份（Down 迁移不回填业务域名数据）。
+控制端启动后会从已提交的域名、证书和路由生成站点快照。检查节点「应用记录」，并验证域名匹配、证书、WAF 和 Pages 的实际行为。数据库回退需使用升级前的备份。
 
 ## 相关文档
 
 * [Zone 与域名资源设计](../design/zone-design.md)
 * [新建反代配置](./proxy-config.md)
-* [发布第一份配置](./first-site.md)
+* [创建第一条反向代理规则](./first-site.md)

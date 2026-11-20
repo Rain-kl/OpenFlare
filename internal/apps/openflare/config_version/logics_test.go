@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
@@ -39,12 +38,14 @@ func setupConfigVersionTestDB(t *testing.T) func() {
 		&model.Zone{},
 		&model.ZoneDomain{},
 		&model.ConfigVersion{},
+		&model.EdgeSnapshotState{},
 		&model.OpenFlareWAFRuleGroup{},
 		&model.OpenFlareWAFRuleGroupBinding{},
 		&model.OpenFlareWAFIPGroup{},
 		&model.SystemConfig{},
 	))
 
+	require.NoError(t, sqliteDB.Create(&model.EdgeSnapshotState{ID: 1, SourceRevision: 1}).Error)
 	db.SetDB(sqliteDB)
 	return func() {
 		db.SetDB(nil)
@@ -63,83 +64,6 @@ func createSnapshotZoneDomains(t *testing.T, ctx context.Context, route *model.P
 			Domain:       domain,
 		}).Error)
 	}
-}
-
-func TestListConfigVersionsOrdersByCreatedAtDesc(t *testing.T) {
-	cleanup := setupConfigVersionTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-	conn := db.DB(ctx)
-	require.NotNil(t, conn)
-
-	newer := &model.ConfigVersion{
-		Version:        "20260102-001",
-		SnapshotJSON:   "{}",
-		RenderedConfig: "route {}",
-		Checksum:       "checksum-newer",
-		CreatedBy:      "tester",
-		CreatedAt:      time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC),
-	}
-	older := &model.ConfigVersion{
-		Version:        "20260101-001",
-		SnapshotJSON:   "{}",
-		RenderedConfig: "route {}",
-		Checksum:       "checksum-older",
-		CreatedBy:      "tester",
-		CreatedAt:      time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
-	}
-	require.NoError(t, conn.Create(newer).Error)
-	require.NoError(t, conn.Create(older).Error)
-
-	versions, err := ListConfigVersions(ctx)
-	require.NoError(t, err)
-	require.Len(t, versions, 2)
-	assert.Equal(t, newer.Version, versions[0].Version)
-	assert.Equal(t, older.Version, versions[1].Version)
-}
-
-func TestPublishConfigVersionCreatesVersion(t *testing.T) {
-	cleanup := setupConfigVersionTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-
-	route := &model.ProxyRoute{
-		SiteName:  "publish-site",
-		OriginURL: "http://origin.publish.example.com:8080",
-		Upstreams: `["http://origin.publish.example.com:8080"]`,
-		Enabled:   true,
-	}
-	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
-	createSnapshotZoneDomains(t, ctx, route, "publish.example.com")
-
-	version, err := PublishConfigVersion(ctx, "tester", false)
-	require.NoError(t, err)
-	require.NotNil(t, version)
-	assert.NotEmpty(t, version.ID)
-	assert.True(t, version.IsActive)
-	assert.Equal(t, "tester", version.CreatedBy)
-	assert.NotEmpty(t, version.Version)
-	assert.NotEmpty(t, version.Checksum)
-	assert.NotEmpty(t, version.SnapshotJSON)
-	assert.NotEmpty(t, version.RenderedConfig)
-
-	var snapshot snapshotDocument
-	require.NoError(t, json.Unmarshal([]byte(version.SnapshotJSON), &snapshot))
-	require.Len(t, snapshot.Routes, 1)
-	assert.Equal(t, "publish-site", snapshot.Routes[0].SiteName)
-	assert.Equal(t, []string{"publish.example.com"}, snapshot.Routes[0].Domains)
-
-	active, err := GetActiveConfigVersion(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, version.ID, active.ID)
-
-	_, err = PublishConfigVersion(ctx, "tester", false)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), errNoChangesToPublish)
-
-	forced, err := PublishConfigVersion(ctx, "tester", true)
-	require.NoError(t, err)
-	assert.NotEqual(t, version.ID, forced.ID)
 }
 
 func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
@@ -163,7 +87,7 @@ func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
 	customGroup := createSnapshotRule(t, ctx, "pow-group", waf.DefaultRuleGraph())
 	require.NoError(t, repository.ReplaceOpenFlareWAFRuleGroupBindings(ctx, customGroup.ID, []uint{route.ID}))
 
-	bundle, err := buildCurrentConfigBundle(ctx, true)
+	bundle, err := buildCurrentConfigBundle(ctx)
 	require.NoError(t, err)
 	require.Len(t, bundle.SnapshotRoutes, 1)
 	assert.Equal(t, "example.com", bundle.SnapshotRoutes[0].SiteName)
@@ -190,7 +114,7 @@ func TestBuildSnapshotWAFDocumentUsesNormalizedSiteNames(t *testing.T) {
 	assert.Equal(t, route.ID, wafRuntime.Bindings[0].RouteID)
 	assert.Equal(t, "example.com", wafRuntime.Bindings[0].SiteName)
 	assert.Equal(t, []uint{customGroup.ID}, wafRuntime.Bindings[0].RuleGroupIDs)
-	assert.Contains(t, bundle.RouteConfig, `"site_name":"example.com"`)
+	assert.Contains(t, bundle.SnapshotJSON, `"site_name":"example.com"`)
 }
 
 func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testing.T) {
@@ -215,7 +139,7 @@ func TestBuildCurrentConfigBundleEnablesGlobalPoWWithoutExplicitBinding(t *testi
 	globalGroup.Graph = string(graphJSON)
 	require.NoError(t, db.DB(ctx).Model(globalGroup).Update("graph", globalGroup.Graph).Error)
 
-	bundle, err := buildCurrentConfigBundle(ctx, true)
+	bundle, err := buildCurrentConfigBundle(ctx)
 	require.NoError(t, err)
 	var document edgeconfig.Document
 	require.NoError(t, json.Unmarshal([]byte(bundle.SnapshotJSON), &document))

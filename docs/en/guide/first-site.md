@@ -1,8 +1,8 @@
-# Publish First Configuration
+# Create Your First Reverse Proxy Rule
 
-You will learn: how to create the first reverse proxy rule in the simplest way, publish a config version, and confirm the Agent has pulled and applied the config.
+Create a basic HTTP site and verify that Pingora Edge applied its configuration.
 
-OpenFlare's release chain centers on "immutable config versions". After you modify rules in the admin panel, you must publish and activate a new version for online Agents to auto-sync and apply.
+After you save a rule, the controller automatically notifies online edge nodes to sync.
 
 ---
 
@@ -41,28 +41,14 @@ For a quick verification, deploy a basic HTTP reverse proxy site first:
 
 ---
 
-## Step 2: Preview and Publish a Config Version
+## Step 2: Verify the Edge Applied the Configuration
 
-The new website config is still a draft in the Server database and needs a released version to be distributed to the data plane:
+Online nodes sync when notified. Nodes with a disconnected WebSocket discover changes through their periodic heartbeat.
 
-1. Click the **「Preview and Publish」** button in the top-right of the control panel; the system shows the physical config file diff for the newly added route.
-2. After confirming the rendered config is correct, click **「Confirm Publish」**.
-3. The control plane generates a unique config version number (format `YYYYMMDD-NNN`).
-
----
-
-## Step 3: Verify the Agent Applied It
-
-After publishing, the control plane immediately notifies online Agents via WebSocket (if the WebSocket is offline, the Agent detects it as a diff in its heartbeat):
-
-1. **Admin-side verification**: go to「Node Management」-> click the node to open details; check that the**current version number** has changed to the just-published latest active version and the「Apply Records」show success.
+1. **Admin-side verification**: go to「Node Management」-> click the node to open details; check that the latest entry in **Apply Records** shows success.
 2. **Edge node verification**: check application via logs on the Agent host:
    ```bash
-   # If the Agent is Docker-deployed
-   docker logs openflare-agent
-   
-   # If the Agent is deployed with local systemd
-   journalctl -u openflare-agent -n 50 --no-pager
+   journalctl -u openflare-edge -n 50 --no-pager
    ```
 3. **Connectivity test**:
    On the client machine, use `curl` with a test Host header against the Agent node's IP for final verification:

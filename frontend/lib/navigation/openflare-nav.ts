@@ -2,7 +2,6 @@ import type { LucideIcon } from 'lucide-react';
 import {
   FileText,
   Gauge,
-  GitBranch,
   Globe,
   LayoutDashboard,
   Route,
@@ -101,12 +100,6 @@ export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
     url: '/pages',
     icon: FileText,
     childUrls: ['/pages/detail'],
-  },
-  {
-    kind: 'item',
-    titleKey: 'configVersions',
-    url: '/config-versions',
-    icon: GitBranch,
   },
   {
     kind: 'item',

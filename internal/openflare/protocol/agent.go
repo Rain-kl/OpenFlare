@@ -65,25 +65,26 @@ const (
 // schema_version 2: host_metrics + edge_health + access_logs facts only (no business pre-aggregation).
 // Agents are destroy/rebuild upgraded; no wire-level compatibility aliases.
 type NodePayload struct {
-	SchemaVersion     int                           `json:"schema_version,omitempty"`
-	NodeID            string                        `json:"node_id"`
-	Name              string                        `json:"name"`
-	IP                string                        `json:"ip"`
-	Version           string                        `json:"version"`
-	ExtVersion        string                        `json:"ext_version"`
-	CurrentVersion    string                        `json:"current_version"`
-	LastError         string                        `json:"last_error"`
-	OpenrestyStatus   string                        `json:"openresty_status"`
-	OpenrestyMessage  string                        `json:"openresty_message"`
-	Profile           *NodeSystemProfile            `json:"profile,omitempty"`
-	HostMetrics       *NodeMetricSnapshot           `json:"host_metrics,omitempty"`
-	EdgeHealth        *NodeEdgeHealth               `json:"edge_health,omitempty"`
-	AccessLogs        []NodeAccessLog               `json:"access_logs,omitempty"`
-	Buffered          []BufferedObservabilityRecord `json:"buffered,omitempty"`
-	HealthEvents      []NodeHealthEvent             `json:"health_events"`
-	Engine            string                        `json:"engine,omitempty"`
-	ContractVersion   int                           `json:"contract_version,omitempty"`
-	ConfigSyncVersion int                           `json:"config_sync_version"`
+	SchemaVersion       int                           `json:"schema_version,omitempty"`
+	NodeID              string                        `json:"node_id"`
+	Name                string                        `json:"name"`
+	IP                  string                        `json:"ip"`
+	Version             string                        `json:"version"`
+	ExtVersion          string                        `json:"ext_version"`
+	CurrentVersion      string                        `json:"current_version"`
+	LatestConfigVersion string                        `json:"latest_config_version,omitempty"`
+	LastError           string                        `json:"last_error"`
+	OpenrestyStatus     string                        `json:"openresty_status"`
+	OpenrestyMessage    string                        `json:"openresty_message"`
+	Profile             *NodeSystemProfile            `json:"profile,omitempty"`
+	HostMetrics         *NodeMetricSnapshot           `json:"host_metrics,omitempty"`
+	EdgeHealth          *NodeEdgeHealth               `json:"edge_health,omitempty"`
+	AccessLogs          []NodeAccessLog               `json:"access_logs,omitempty"`
+	Buffered            []BufferedObservabilityRecord `json:"buffered,omitempty"`
+	HealthEvents        []NodeHealthEvent             `json:"health_events"`
+	Engine              string                        `json:"engine,omitempty"`
+	ContractVersion     int                           `json:"contract_version,omitempty"`
+	ConfigSyncVersion   int                           `json:"config_sync_version"`
 }
 
 // NodeEdgeHealth is an instantaneous OpenResty health snapshot (L2).

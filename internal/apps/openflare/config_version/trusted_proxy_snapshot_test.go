@@ -13,7 +13,7 @@ import (
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
-	"github.com/Rain-kl/Wavelet/pkg/cache/ram"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTrustedProxyCIDRsSurviveSnapshotEncoding(t *testing.T) {
@@ -38,7 +38,9 @@ func TestTrustedProxyCIDRConfigMissingAndExplicitEmpty(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	missing := buildEdgeSettingsSnapshot(ctx).TrustedProxyCIDRs
+	snapshot, err := buildEdgeSettingsSnapshot(ctx)
+	require.NoError(t, err)
+	missing := snapshot.TrustedProxyCIDRs
 	if len(missing) != 22 || !slices.Equal(missing, edgeconfig.DefaultTrustedProxyCIDRs()) {
 		t.Fatalf("missing database key defaults to %#v, want the 22 Cloudflare ranges", missing)
 	}
@@ -46,44 +48,27 @@ func TestTrustedProxyCIDRConfigMissingAndExplicitEmpty(t *testing.T) {
 	if err := db.DB(ctx).Create(&model.SystemConfig{Key: model.ConfigKeyEdgeTrustedProxyCIDRs, Value: `[]`, Type: "business"}).Error; err != nil {
 		t.Fatal(err)
 	}
-	explicitEmpty := buildEdgeSettingsSnapshot(ctx).TrustedProxyCIDRs
+	snapshot, err = buildEdgeSettingsSnapshot(ctx)
+	require.NoError(t, err)
+	explicitEmpty := snapshot.TrustedProxyCIDRs
 	if explicitEmpty == nil || len(explicitEmpty) != 0 {
 		t.Fatalf("explicit [] must remain a non-nil empty list, got %#v", explicitEmpty)
 	}
-	payload, err := json.Marshal(snapshotDocument{EdgeSettings: buildEdgeSettingsSnapshot(ctx)})
+	payload, err := json.Marshal(snapshotDocument{EdgeSettings: snapshot})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(payload), `"trusted_proxy_cidrs":[]`) {
 		t.Fatalf("explicit empty list was omitted from snapshot: %s", payload)
 	}
-	rendered, err := renderSnapshotConfig(string(payload), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(rendered.MainConfig, `"trusted_proxy_cidrs":[]`) {
-		t.Fatal("explicit empty list still trusts proxy ranges")
-	}
 
 	if err := db.DB(ctx).Model(&model.SystemConfig{}).Where("key = ?", model.ConfigKeyEdgeTrustedProxyCIDRs).Update("value", "invalid").Error; err != nil {
 		t.Fatal(err)
 	}
-	ram.ResetForTest()
-	malformed := buildEdgeSettingsSnapshot(ctx).TrustedProxyCIDRs
+	snapshot, err = buildEdgeSettingsSnapshot(ctx)
+	require.NoError(t, err)
+	malformed := snapshot.TrustedProxyCIDRs
 	if malformed == nil || len(malformed) != 0 {
 		t.Fatalf("malformed configuration must fail closed, got %#v", malformed)
 	}
-}
-
-func TestTrustedProxyCIDRDiffTreatsLegacyNilAsCloudflareDefaults(t *testing.T) {
-	diffs := diffEdgeSettingDetails(edgeSettingsSnapshot{}, edgeSettingsSnapshot{TrustedProxyCIDRs: []string{}})
-	for _, diff := range diffs {
-		if diff.Key == "EdgeTrustedProxyCIDRs" {
-			if diff.PreviousValue == diff.CurrentValue {
-				t.Fatal("legacy nil and explicit empty list should have different effective values")
-			}
-			return
-		}
-	}
-	t.Fatal("trusted proxy CIDR change was not included in config diff")
 }

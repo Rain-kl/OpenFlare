@@ -12,10 +12,10 @@ First determine which layer the problem is in: browser, Server, database, Agent,
 | Login abnormal | default account, Session Cookie, Server logs |
 | Data won't save | DB connection, SQLite file permissions, PostgreSQL health |
 | Agent offline | Agent logs, Token, Server address, network connectivity |
-| Node not updated after release | active version, node heartbeat, apply records |
+| Node not updated after saving | node heartbeat, apply records, controller compilation logs |
 | OpenResty apply failure | apply records, Agent logs, certificates, upstream addresses, port usage |
 | Access analytics empty | OpenResty container state, observability port, Agent backfill logs |
-| Static assets never hit cache | global/site cache switch, policy extensions, whether config released, access log `cache_status`, origin Set-Cookie / Cache-Control |
+| Static assets never hit cache | global/site cache switch, policy extensions, whether the node applied the latest configuration, access log `cache_status`, origin Set-Cookie / Cache-Control |
 
 ## Server Won't Start
 
@@ -120,25 +120,12 @@ If logs say the Token is invalid, prepare a new Token in the admin panel, update
 systemctl restart openflare-agent
 ```
 
-## Node Didn't Apply the New Version After Release
+## Node Did Not Apply the Saved Configuration
 
-Check in order:
-
-1. Is the target version activated in the version page?
-2. Is the node online, and did the last heartbeat time update?
-3. Do the apply records show success, warning, or failure for the target version?
-4. Is the website config enabled? Disabled sites don't participate in release rendering.
-5. Do Agent logs show pull, validation, reload, or rollback messages?
-
-View Agent logs:
-
-```bash
-journalctl -u openflare-agent -f
-```
-
-Note: once a target `version + checksum` fails to apply and rolls back, the Agent blocks retrying that target in local state. After fixing the config, republish to generate a new checksum, or activate an older version to roll back.
-
-If this is the Agent's first config apply with no historical `nginx.conf` to roll back to, the failed target is still blocked, but the Agent enters a safe fallback runtime. The apply records and Agent logs will contain `fallback runtime started`; OpenResty only listens on port `80` and returns `503` with `OpenFlare: No Valid Configuration` for everything, while keeping the local `stub_status` health endpoint. After fixing the config and republishing a new version, the Agent overwrites the fallback config and resumes normal proxying.
+1. Confirm that the site is enabled and the node's heartbeat is current.
+2. Check **Apply Records** on the node details page for a validation error. The node keeps serving the last healthy snapshot.
+3. If the controller could not compile the snapshot, check its logs for `refresh live edge snapshot`, then correct and save the configuration.
+4. After fixing the node environment, select **Force Sync** or restart the node to retry the same revision.
 
 ## OpenResty Apply Failure
 
@@ -198,7 +185,7 @@ Access log cache three states: **hit** (HIT/STALE/REVALIDATED/UPDATING), **origi
 
 1. Global OpenResty cache enabled in **Performance Settings**.  
 2. Site **Cache** enabled and policy matches the path (「Standard static assets」covers only built-in extensions, **not HTML/JSON**; `.js.map`'s extension is `map`, in the default table).  
-3. Config version **published and activated**, node apply records succeeded (changing cache rules without publishing leaves nodes on old bypass logic).  
+3. The node applied the latest saved configuration successfully.
 4. Request method is **GET** (non-GET is never cached).  
 5. Origin doesn't return **`Set-Cookie`** for the target URL (if so, not written to the edge).  
 6. Origin doesn't declare **`Cache-Control: private` / `no-store`** (shared caches won't store).  
@@ -208,7 +195,6 @@ Access log cache three states: **hit** (HIT/STALE/REVALIDATED/UPDATING), **origi
 
 | Symptom | Explanation |
 | --- | --- |
-| Everything「not cached」after login, never republished | old config bypassed session cookies; after upgrade you must republish node configs |
 | `/api/foo` or `/index.html` not cached under `static` | expected (extension not in the default cacheable table) |
 | HTML cross-user leakage after switching to `all` | origin didn't forbid shared caching; switch back to `static` or add `private`/`no-store` to dynamic responses |
 | URLs with `?v=` have low hit rates | default cache key includes the full `$request_uri`; different query = different object |

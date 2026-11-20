@@ -6,28 +6,12 @@ package repository
 import (
 	"context"
 	"errors"
-	"fmt"
-	"time"
 
 	"gorm.io/gorm"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 )
-
-// ListConfigVersionSummaries returns config version summaries ordered by created_at desc.
-func ListConfigVersionSummaries(ctx context.Context) ([]*model.ConfigVersionSummary, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	var versions []*model.ConfigVersionSummary
-	err := conn.Model(&model.ConfigVersion{}).
-		Select("version", "checksum", "is_active", "engine", "created_by", "created_at").
-		Order("created_at desc, version desc").
-		Find(&versions).Error
-	return versions, err
-}
 
 // GetConfigVersionByVersion returns a config version by version string.
 func GetConfigVersionByVersion(ctx context.Context, version string) (*model.ConfigVersion, error) {
@@ -88,73 +72,20 @@ func GetActivePingoraConfigVersion(ctx context.Context) (*model.ConfigVersion, e
 	return GetActiveConfigVersionByEngine(ctx, "pingora")
 }
 
-// GetLatestConfigVersionByPrefix returns the latest version string matching a date prefix.
-func GetLatestConfigVersionByPrefix(ctx context.Context, prefix string) (string, error) {
-	conn := db.DB(ctx)
+// GetActivePingoraConfigMetadata reads only the fields carried in a configuration manifest.
+func GetActivePingoraConfigMetadata(ctx context.Context) (*model.ConfigVersion, error) {
+	conn := db.DB(db.WithPrimaryReads(ctx))
 	if conn == nil {
-		return "", errors.New(errDatabaseNotInitialized)
+		return nil, errors.New(errDatabaseNotInitialized)
 	}
 	var version model.ConfigVersion
-	err := conn.Model(&model.ConfigVersion{}).
-		Select("version").
-		Where("version LIKE ?", prefix+"-%").
-		Order("version desc").
-		First(&version).Error
-	if err != nil {
-		return "", err
-	}
-	return version.Version, nil
-}
-
-// PublishConfigVersionTx atomically publishes the only active edge release.
-func PublishConfigVersionTx(ctx context.Context, version *model.ConfigVersion) error {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return errors.New(errDatabaseNotInitialized)
-	}
-	return conn.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.ConfigVersion{}).Where("is_active = ?", true).Update("is_active", false).Error; err != nil {
-			return err
-		}
-		version.Engine = enginePingora
-		if err := assignPingoraReleaseSequence(tx, version); err != nil {
-			return err
-		}
-		if version.Version == "" {
-			version.Version = fmt.Sprintf("pingora-r%d", version.ReleaseSequence)
-		}
-		return tx.Create(version).Error
-	})
+	err := conn.Select("version", "checksum", "engine", "release_sequence", "payload_checksum").
+		Where("is_active = ? AND engine = ?", true, enginePingora).
+		Order("release_sequence desc, version desc").Take(&version).Error
+	return &version, err
 }
 
 const enginePingora = "pingora"
-
-// EnsureActivePingoraRelease promotes the current published snapshot once across controllers.
-func EnsureActivePingoraRelease(ctx context.Context, previous, version *model.ConfigVersion) error {
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		// Claim the historical active pointer before inserting the replacement.
-		claimed := tx.Model(&model.ConfigVersion{}).
-			Where("engine = ? AND version = ? AND is_active = ?", previous.Engine, previous.Version, true).
-			Update("is_active", false)
-		if claimed.Error != nil || claimed.RowsAffected == 0 {
-			return claimed.Error
-		}
-		if err := deactivateActiveConfigVersion(tx, enginePingora); err != nil {
-			return err
-		}
-		if err := assignPingoraReleaseSequence(tx, version); err != nil {
-			return err
-		}
-		version.Version = fmt.Sprintf("pingora-r%d", version.ReleaseSequence)
-		return tx.Create(version).Error
-	})
-}
-
-func deactivateActiveConfigVersion(tx *gorm.DB, engine string) error {
-	return tx.Model(&model.ConfigVersion{}).
-		Where("is_active = ? AND engine = ?", true, engine).
-		Update("is_active", false).Error
-}
 
 func assignPingoraReleaseSequence(tx *gorm.DB, version *model.ConfigVersion) error {
 	var latest int64
@@ -164,59 +95,6 @@ func assignPingoraReleaseSequence(tx *gorm.DB, version *model.ConfigVersion) err
 	}
 	version.ReleaseSequence = latest + 1
 	return nil
-}
-
-// ActivateConfigVersionTx restores an existing snapshot. Pingora rollbacks are new releases.
-func ActivateConfigVersionTx(ctx context.Context, version string) (*model.ConfigVersion, error) {
-	conn := db.DB(ctx)
-	if conn == nil {
-		return nil, errors.New(errDatabaseNotInitialized)
-	}
-	var target model.ConfigVersion
-	err := conn.Transaction(func(tx *gorm.DB) error {
-		if err := tx.First(&target, "version = ?", version).Error; err != nil {
-			return err
-		}
-		if target.Engine != enginePingora || target.PayloadChecksum == "" {
-			return errors.New("the selected version is not a Pingora edge release")
-		}
-		if err := deactivateActiveConfigVersion(tx, target.Engine); err != nil {
-			return err
-		}
-		target.IsActive = true
-		if err := assignPingoraReleaseSequence(tx, &target); err != nil {
-			return err
-		}
-		target.Version = fmt.Sprintf("pingora-r%d", target.ReleaseSequence)
-		target.CreatedAt = time.Time{}
-		return tx.Create(&target).Error
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &target, nil
-}
-
-// DeleteConfigVersionsByVersions removes config versions by versions.
-func DeleteConfigVersionsByVersions(ctx context.Context, versions []string) (int64, error) {
-	if len(versions) == 0 {
-		return 0, nil
-	}
-	conn := db.DB(ctx)
-	if conn == nil {
-		return 0, errors.New(errDatabaseNotInitialized)
-	}
-	// Delete release records before considering their snapshots. A retained
-	// release owns a reference even when its source is older than keepCount.
-	var deleted int64
-	err := conn.Transaction(func(tx *gorm.DB) error {
-		references := tx.Model(&model.ConfigVersion{}).Select("source_version").Where("source_version <> ''")
-		result := tx.Where("version IN ? AND is_active = ? AND version NOT IN (?)", versions, false, references).
-			Delete(&model.ConfigVersion{})
-		deleted = result.RowsAffected
-		return result.Error
-	})
-	return deleted, err
 }
 
 // ListEnabledProxyRoutes returns enabled proxy routes ordered by id asc.

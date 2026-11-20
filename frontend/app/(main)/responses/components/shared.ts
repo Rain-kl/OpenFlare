@@ -87,13 +87,5 @@ export async function invalidateResponseQueries(queryClient: {
     queryKey: readonly unknown[];
   }) => Promise<unknown>;
 }) {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: OPTIONS_QUERY_KEY }),
-    queryClient.invalidateQueries({
-      queryKey: ['openflare', 'config-preview'],
-    }),
-    queryClient.invalidateQueries({
-      queryKey: ['openflare', 'config-versions'],
-    }),
-  ]);
+  await queryClient.invalidateQueries({ queryKey: OPTIONS_QUERY_KEY });
 }

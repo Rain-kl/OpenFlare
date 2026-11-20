@@ -186,7 +186,7 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 	PersistHeartbeatObservability(ctx, authNode.NodeID, payload, reportedAt)
 
 	return &HeartbeatResponse{
-		Config:        configManifest(ctx, authNode),
+		Config:        configManifest(ctx, authNode, payload.LatestConfigVersion),
 		Node:          authNode,
 		AgentSettings: buildAgentSettings(ctx, restartEdgeNow),
 	}, nil

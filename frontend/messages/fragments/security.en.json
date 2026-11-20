@@ -225,7 +225,7 @@
       "nameRequired": "Enter an IP group name",
       "type": "Type",
       "enable": "Enable IP group",
-      "enableDesc": "When disabled, the configuration is kept but not expanded into the WAF runtime list on publish.",
+      "enableDesc": "Disabling this setting deactivates the IP group in WAF and retains its configuration.",
       "subscriptionUrl": "Subscription URL",
       "subscriptionUrlRequired": "Subscription type requires a URL",
       "subscriptionFormat": "Subscription format",
@@ -311,9 +311,8 @@
       "saved": "Rate-limit settings saved",
       "saveFailed": "Save failed",
       "loading": "Loading rate-limit settings...",
-      "preview": "View config preview",
       "title": "Global default rate limits",
-      "description": "0 or empty means disabled by default. Sites without their own settings inherit these values. Publish a release to apply changes.",
+      "description": "Enter 0 or leave blank to disable the default. Sites without individual limits inherit these settings. Saved changes sync automatically to edge nodes.",
       "save": "Save",
       "connPerServer": "Default concurrency (per site)",
       "connPerServerHint": "Default maximum concurrent connections per site",
@@ -963,7 +962,7 @@
       "heartbeat": "Heartbeat interval ({duration})",
       "offline": "Offline threshold ({duration})",
       "wsUpgrade": "Enable WebSocket upgrade",
-      "wsUpgradeDesc": "After a successful HTTP heartbeat, try upgrading to WebSocket so config publishes can notify immediately.",
+      "wsUpgradeDesc": "Notify online nodes of configuration changes immediately over WebSocket.",
       "updateRepo": "Agent update repository"
     },
     "geo": {

@@ -57,7 +57,7 @@ func TestBuildSnapshotRoutesPages(t *testing.T) {
 	require.NoError(t, repository.CreateProxyRouteRecord(ctx, route))
 	createSnapshotZoneDomains(t, ctx, route, "speedtest.arctel.net")
 
-	bundle, err := buildCurrentConfigBundle(ctx, true)
+	bundle, err := buildCurrentConfigBundle(ctx)
 	require.NoError(t, err)
 	require.Len(t, bundle.SnapshotRoutes, 1)
 
