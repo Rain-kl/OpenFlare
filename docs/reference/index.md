@@ -8,4 +8,5 @@
 | --- | --- |
 | [配置项](./configuration.md) | Server 环境变量、命令行参数、运行时 Option 与 Agent 配置字段 |
 | [命令与脚本](./cli.md) | 常用启动、构建、测试、安装和卸载命令 |
+| [Pingora 性能实测](./pingora-benchmark.md) | 双节点公网直连测试，以及完整 WAF、仅 IP 匹配和关闭 WAF 的性能对照 |
 | [仓库结构](../design/index.md#仓库结构) | monorepo 各目录职责与分层说明（`cmd/server/`、`cmd/agent/`、`internal/`、`frontend/` 等） |

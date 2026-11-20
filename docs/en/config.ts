@@ -96,7 +96,8 @@ function sidebarReference(): DefaultTheme.SidebarItem[] {
       items: [
         { text: 'Overview', link: '' },
         { text: 'Configuration Options', link: 'configuration' },
-        { text: 'CLI Commands', link: 'cli' }
+        { text: 'CLI Commands', link: 'cli' },
+        { text: 'Pingora Performance Benchmarks', link: 'pingora-benchmark' }
       ]
     }
   ]

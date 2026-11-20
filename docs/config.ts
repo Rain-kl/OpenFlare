@@ -97,7 +97,8 @@ function sidebarReference(): DefaultTheme.SidebarItem[] {
       items: [
         { text: '概览', link: '' },
         { text: '配置项', link: 'configuration' },
-        { text: '命令与脚本', link: 'cli' }
+        { text: '命令与脚本', link: 'cli' },
+        { text: 'Pingora 性能实测', link: 'pingora-benchmark' }
       ]
     }
   ]

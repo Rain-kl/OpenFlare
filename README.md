@@ -26,10 +26,10 @@
 
 **OpenFlare** is a modern, open-source **distributed reverse proxy and edge security gateway platform** designed for multi-server infrastructures and edge clusters.
 
-Rather than a simple single-host admin panel, OpenFlare provides Pingora edge nodes with **centralized cluster orchestration, dynamic zero-reload sync, line-rate edge WAF defense, and secure in-network tunneling**:
+Rather than a simple single-host admin panel, OpenFlare provides Pingora edge nodes with **centralized cluster orchestration, dynamic zero-reload sync, edge WAF protection, and secure in-network tunneling**:
 
 * ⚡ **Zero-Reload Dynamic Orchestration**: Centralized control plane manages any number of edge nodes. Synchronize rule diffs in milliseconds with zero Nginx reload disruptions.
-* 🛡️ **Built-in Edge Security & Anti-CC (Turnstile Alternative)**: Comprehensive WAF rule engine, MaxMind GeoIP regional ACLs, and **client-side cryptographic Proof of Work (PoW) challenges** to eliminate botnets and CC attacks at line rate.
+* 🛡️ **Built-in Edge Security & Anti-CC (Turnstile Alternative)**: A WAF rule engine, MaxMind GeoIP regional ACLs, and **client-side cryptographic Proof of Work (PoW) challenges** help mitigate abusive traffic at the edge.
 * 🚇 **Zero-Trust Tunnels (Cloudflare Tunnel Alternative)**: Securely publish private homelab and internal web services to edge proxies via lightweight `openflared` clients without public IPs or open inbound ports.
 * 📦 **Pages Edge Hosting**: Host static sites and SPAs pulled directly from GitHub Releases or uploaded bundles, distributed across edge nodes with instant rollbacks and fallback routing.
 * 🔒 **Automated Certificates & SSO**: Automatic multi-domain Let's Encrypt certificates via ACME and enterprise single sign-on with GitHub OAuth and standard OIDC.
@@ -108,6 +108,25 @@ flowchart TD
     Client <-->|Encrypted Tunnel| Edge1
     NAS --- Client
 ```
+
+---
+
+## Pingora Performance Benchmarks
+
+**November 20, 2026 · OpenFlare Edge `0.1.8` · Load generator: US-A**
+
+| Measured metric | JP-B | US-C |
+| --- | ---: | ---: |
+| Pingora workers (automatic sizing) | 3 | 1 |
+| Direct public-IP RTT | 115.7 ms | 1.0 ms |
+| Direct HTTPS keep-alive P50 / P95 (40 requests/s) | 117.7 / 120.2 ms | 3.8 / 6.9 ms |
+| Direct HTTP/2 download (30 MiB, median end-to-end rate) | **111 Mbps** | **775 Mbps** |
+| HTTP/2 successful throughput: full WAF / IP only / WAF off | **420 / 486 / 488 requests/s** | **274 / 256 / 283 requests/s** |
+| Edge CPU at 160 requests/s: full WAF / IP only / WAF off | **32.2% / 12.1% / 10.2%** | **25.7% / 9.4% / 8.7%** |
+
+The public-IP tests bypassed Cloudflare. The isolated WAF comparison used a 923 B Pages file, 8 connections × 16 HTTP/2 streams, and no per-IP request-rate limit. CPU percentages are relative to one vCPU.
+
+[Benchmark report: performance policy, per-run results, and methodology.](./docs/en/reference/pingora-benchmark.md)
 
 ---
 

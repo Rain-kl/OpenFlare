@@ -8,4 +8,5 @@ This section consolidates stable runtime, interface, and repository-level inform
 | --- | --- |
 | [Configuration](./configuration.md) | Server env vars, CLI args, runtime Options, and Agent config fields |
 | [Commands & Scripts](./cli.md) | common start, build, test, install, and uninstall commands |
+| [Pingora Performance Benchmarks](./pingora-benchmark.md) | direct public-IP tests on two nodes and a comparison of full WAF, IP matching only, and WAF disabled |
 | [Repository Structure](../design/index.md#repository-structure) | monorepo directory responsibilities and layering (`cmd/server/`, `cmd/agent/`, `internal/`, `frontend/`, etc.) |
