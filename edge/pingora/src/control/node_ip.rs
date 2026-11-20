@@ -72,13 +72,13 @@ struct IpFieldResponse {
 
 impl NodeIpResolver {
     pub(crate) fn new(base_url: &str) -> Result<Self> {
-        let user_agent = concat!("openflare-edge/", env!("CARGO_PKG_VERSION"));
+        let user_agent = crate::edge_user_agent();
         let v4_client = Client::builder()
             .timeout(LOOKUP_TIMEOUT)
             .connect_timeout(LOOKUP_TIMEOUT)
             .redirect(reqwest::redirect::Policy::none())
             .local_address(IpAddr::V4(Ipv4Addr::UNSPECIFIED))
-            .user_agent(user_agent)
+            .user_agent(user_agent.as_str())
             .build()?;
         let v6_client = Client::builder()
             .timeout(LOOKUP_TIMEOUT)

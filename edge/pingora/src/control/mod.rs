@@ -14,6 +14,7 @@ use crate::runtime::{
     Listeners,
 };
 use crate::telemetry::{AccessLogBuffer, HostCollector, HostTelemetry, NodeAccessLog};
+use crate::{edge_user_agent, EDGE_VERSION};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use pingora::server::ShutdownWatch;
@@ -153,7 +154,7 @@ impl Runtime {
         let client = Client::builder()
             .timeout(Duration::from_secs(15))
             .redirect(reqwest::redirect::Policy::none())
-            .user_agent(concat!("openflare-edge/", env!("CARGO_PKG_VERSION")))
+            .user_agent(edge_user_agent())
             .build()?;
         let performance = LivePolicy::new(NodePolicy::load(&state_dir));
         let node_ip = node_ip::NodeIpResolver::new(&base_url)?;
@@ -396,7 +397,7 @@ impl Runtime {
             node_id: "",
             name: "openflare-edge",
             ip: &node_ip,
-            version: env!("CARGO_PKG_VERSION"),
+            version: EDGE_VERSION,
             ext_version: "pingora",
             current_version: self
                 .state
@@ -459,7 +460,7 @@ impl Runtime {
             node_id,
             name: "openflare-edge",
             ip: &node_ip,
-            version: env!("CARGO_PKG_VERSION"),
+            version: EDGE_VERSION,
             ext_version: "pingora",
             current_version: current.map_or("", |config| config.version.as_str()),
             latest_config_version: latest_version,

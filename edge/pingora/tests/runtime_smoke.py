@@ -94,6 +94,9 @@ class Controller(http.server.BaseHTTPRequestHandler):
             self.answer(body)
             return
         payload = json.loads(body)
+        if self.path.endswith(("/register", "/heartbeat")):
+            assert payload["version"] == self.server.binary_version
+            assert self.headers["User-Agent"] == f"openflare-edge/{self.server.binary_version}"
         if self.path.endswith("/register"):
             assert payload["engine"] == "pingora"
             assert payload["contract_version"] == 3
@@ -276,7 +279,11 @@ def browser_proof(boot):
 
 
 def main(binary):
+    version_output = subprocess.check_output([binary, "--version"], text=True).strip()
+    name, _, version = version_output.partition(" ")
+    assert name == "openflare-edge" and version, version_output
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Controller)
+    server.binary_version = version
     server.heartbeats = []
     server.applies = []
     server.registered_with_node_token = False
@@ -369,7 +376,9 @@ def main(binary):
             try:
                 wait_for(lambda: ready.exists())
                 wait_for(lambda: any(item["result"] == "success" for item in server.applies))
-                assert json.loads(ready.read_text())["applied_version"] == server.active["version"]
+                ready_state = json.loads(ready.read_text())
+                assert ready_state["binary_version"] == version
+                assert ready_state["applied_version"] == server.active["version"]
                 assert json.loads((path / "identity.json").read_text())["agent_token"] == "node-credential"
                 assert http_route() == (301, "https://edge.test/test?query=1")
                 assert request("edge.test", "/test?query=1", use_http2=True)[::3] == (

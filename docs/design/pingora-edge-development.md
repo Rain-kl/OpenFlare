@@ -29,6 +29,8 @@ cargo build --manifest-path edge/pingora/Cargo.toml --locked
 python3 edge/pingora/tests/runtime_smoke.py edge/pingora/target/debug/openflare-edge
 ```
 
+直接使用 Cargo 构建时，二进制版本默认为 `dev`。复现发布构建时，可在编译命令前设置 `OPENFLARE_EDGE_VERSION=0.1.3`，其值取自发布标签并去掉 `edge-v` 前缀。
+
 烟测使用本地模拟主控和源站，覆盖注册、配置确认、HTTPS 跳转、按域名协商 HTTP/2、站点认证、PoW 浏览器协议、WAF IP 组、Pages 切换、缓存命中和离线重启。烟测也覆盖 WebSocket 唤醒、按哈希拉取、性能参数热更新和工作线程自动重载。
 
 ```bash

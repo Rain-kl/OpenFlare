@@ -9,7 +9,7 @@ OpenFlare Edge 使用独立的 `edge-v*` 版本标签，与主控和 Go Agent �
 - `openflare-edge_edge-v0.1.2_linux_amd64.tar.gz`
 - `openflare-edge_edge-v0.1.2_linux_arm64.tar.gz`
 
-归档内包含 `openflare-edge` 二进制、`VERSION`、`SHA256SUMS`、许可证、安装、卸载和 GeoIP 下载脚本。CI 会校验 `edge-v` 标签必须与 Rust 包版本一致，避免下载页与 `--version` 展示不同版本。
+归档内包含 `openflare-edge` 二进制、`VERSION`、`SHA256SUMS`、许可证、安装、更新、卸载和 GeoIP 下载脚本。推送 `edge-v<主版本>.<次版本>.<修订号>` 标签会触发发布。手动运行发布工作流时，填写已存在的 Edge 标签，工作流将构建该标签对应的提交。归档名和 `VERSION` 保留完整标签；例如标签为 `edge-v0.1.3` 时，`openflare-edge --version` 和节点上报的版本均为 `0.1.3`。发版无需修改 `Cargo.toml` 或 `Cargo.lock`。
 
 ## 安装
 

@@ -12,8 +12,17 @@ mod proxy;
 mod runtime;
 mod telemetry;
 
+const EDGE_VERSION: &str = match option_env!("OPENFLARE_EDGE_VERSION") {
+    Some(version) => version,
+    None => "dev",
+};
+
+fn edge_user_agent() -> String {
+    format!("openflare-edge/{EDGE_VERSION}")
+}
+
 #[derive(Debug, Parser)]
-#[command(name = "openflare-edge", version)]
+#[command(name = "openflare-edge", version = EDGE_VERSION)]
 struct Cli {
     #[command(subcommand)]
     command: Command,

@@ -3,6 +3,7 @@ pub(crate) mod performance;
 use crate::{
     config::{self, SnapshotStore},
     telemetry::tcp_sockets,
+    EDGE_VERSION,
 };
 use anyhow::{Context, Result};
 use serde::Serialize;
@@ -117,7 +118,7 @@ pub async fn announce_ready(
         &state_dir.join("ready.json"),
         &Ready {
             pid: std::process::id(),
-            binary_version: env!("CARGO_PKG_VERSION"),
+            binary_version: EDGE_VERSION,
             applied_version: &current.version,
             payload_checksum: &current.payload_checksum,
         },
