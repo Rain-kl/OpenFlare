@@ -16,6 +16,7 @@ import type {
   WAFIPGroupSyncResult,
   WAFCreateRulePayload,
   WAFRule,
+  WAFRuleGroupSite,
   WAFSaveRuleGraphPayload,
   WAFSiteRuleGroups,
   WAFUpdateRuleMetaPayload,
@@ -25,6 +26,12 @@ export const attackGroupsQueryKey = [
   'openflare',
   'waf',
   'attack-groups',
+] as const;
+
+export const ruleGroupSitesQueryKey = [
+  'openflare',
+  'waf',
+  'rule-group-sites',
 ] as const;
 
 export class WafService extends OpenFlareBaseService {
@@ -69,6 +76,20 @@ export class WafService extends OpenFlareBaseService {
 
   static async getRule(id: number): Promise<WAFRule> {
     return this.get<WAFRule>(`/rule-groups/${id}`);
+  }
+
+  static async listRuleGroupSites(id: number): Promise<WAFRuleGroupSite[]> {
+    return this.get<WAFRuleGroupSite[]>(`/rule-groups/${id}/sites`);
+  }
+
+  static async removeRuleGroupSites(
+    id: number,
+    routeIds: number[],
+  ): Promise<{ removed_count: number }> {
+    return this.post<{ removed_count: number }>(
+      `/rule-groups/${id}/sites/remove`,
+      { ids: routeIds },
+    );
   }
 
   static async createRule(payload: WAFCreateRulePayload): Promise<WAFRule> {

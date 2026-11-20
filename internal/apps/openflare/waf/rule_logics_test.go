@@ -124,6 +124,82 @@ func TestCreateRuleCreatesDefaultGraph(t *testing.T) {
 	assert.Equal(t, DefaultRuleGraph(), rule.Graph)
 }
 
+func TestRuleGroupSitesHandlersListAndRemoveSelectedBindings(t *testing.T) {
+	cleanup := setupWAFTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	conn := db.DB(ctx)
+	require.NoError(t, conn.AutoMigrate(&model.ProxyRoute{}, &model.ZoneDomain{}))
+	routes := []model.ProxyRoute{
+		{SiteName: "Alpha", OriginURL: "https://origin.example"},
+		{SiteName: "Beta", OriginURL: "https://origin.example"},
+		{SiteName: "Gamma", OriginURL: "https://origin.example"},
+	}
+	require.NoError(t, conn.Create(&routes).Error)
+	require.NoError(t, conn.Create(&model.ZoneDomain{ZoneID: 1, ProxyRouteID: &routes[0].ID, Domain: "alpha.example"}).Error)
+
+	group, err := CreateRule(ctx, CreateRuleInput{Name: "guard"})
+	require.NoError(t, err)
+	other, err := CreateRule(ctx, CreateRuleInput{Name: "other"})
+	require.NoError(t, err)
+	last, err := CreateRule(ctx, CreateRuleInput{Name: "last"})
+	require.NoError(t, err)
+	require.NoError(t, repository.ReplaceOpenFlareWAFSiteRuleGroupBindings(ctx, routes[0].ID, []uint{other.ID, group.ID, last.ID}))
+	require.NoError(t, repository.ReplaceOpenFlareWAFSiteRuleGroupBindings(ctx, routes[1].ID, []uint{group.ID}))
+	require.NoError(t, repository.ReplaceOpenFlareWAFSiteRuleGroupBindings(ctx, routes[2].ID, []uint{group.ID}))
+	require.NoError(t, conn.Create(&model.OpenFlareWAFRuleGroupBinding{RuleGroupID: group.ID, ProxyRouteID: 999}).Error)
+	require.NoError(t, EnsureDefaultRuleGroup(ctx))
+	global, err := repository.GetGlobalOpenFlareWAFRuleGroup(ctx)
+	require.NoError(t, err)
+
+	router := gin.New()
+	router.Use(response.ErrorHandlerMiddleware())
+	router.GET("/rules/:id/sites", ListRuleGroupSitesHandler)
+	router.POST("/rules/:id/sites/remove", RemoveRuleGroupSitesHandler)
+	request := func(method string, id uint, suffix string, body []byte, status int) *httptest.ResponseRecorder {
+		t.Helper()
+		url := "/rules/" + strconv.FormatUint(uint64(id), 10) + "/sites" + suffix
+		req := httptest.NewRequest(method, url, bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		require.Equal(t, status, rec.Code, rec.Body.String())
+		return rec
+	}
+	list := func(id uint) []RuleGroupSite {
+		t.Helper()
+		var result struct {
+			Data []RuleGroupSite `json:"data"`
+		}
+		rec := request(http.MethodGet, id, "", nil, http.StatusOK)
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
+		return result.Data
+	}
+	assert.Equal(t, []RuleGroupSite{
+		{ID: routes[0].ID, SiteName: "Alpha", Domains: []string{"alpha.example"}},
+		{ID: routes[1].ID, SiteName: "Beta", Domains: []string{}},
+		{ID: routes[2].ID, SiteName: "Gamma", Domains: []string{}},
+	}, list(group.ID))
+
+	payload, err := json.Marshal(IDsRequest{IDs: []uint{routes[0].ID, routes[1].ID, routes[0].ID}})
+	require.NoError(t, err)
+	request(http.MethodPost, global.ID, "/remove", payload, http.StatusBadRequest)
+	request(http.MethodPost, group.ID, "/remove", []byte(`{"ids":[0]}`), http.StatusBadRequest)
+	result := request(http.MethodPost, group.ID, "/remove", payload, http.StatusOK)
+	assert.JSONEq(t, `{"error_msg":"","data":{"removed_count":2}}`, result.Body.String())
+	assert.Equal(t, []RuleGroupSite{{ID: routes[2].ID, SiteName: "Gamma", Domains: []string{}}}, list(group.ID))
+	assert.Len(t, list(global.ID), 3)
+
+	view, err := GetRule(ctx, group.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []uint{routes[2].ID}, view.AppliedSiteIDs)
+	ids, err := ListSiteRuleGroupIDs(ctx, routes[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, []uint{other.ID, last.ID}, ids)
+	retry := request(http.MethodPost, group.ID, "/remove", payload, http.StatusOK)
+	assert.JSONEq(t, `{"error_msg":"","data":{"removed_count":0}}`, retry.Body.String())
+}
+
 func TestCreateRuleRejectsEmptyName(t *testing.T) {
 	cleanup := setupWAFTestDB(t)
 	defer cleanup()

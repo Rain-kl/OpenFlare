@@ -16,6 +16,8 @@ import {
 import type { WAFRule } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
+import { RuleGroupSitesDialog } from './rule-group-sites-dialog';
+
 interface RuleGroupsTableProps {
   groups: WAFRule[];
   onEdit: (group: WAFRule) => void;
@@ -68,9 +70,7 @@ export function RuleGroupsTable({
             </TableCell>
             <TableCell>{group.graph.nodes.length}</TableCell>
             <TableCell>
-              {group.is_global
-                ? t('allSites')
-                : t('siteCount', { count: group.applied_site_count })}
+              <RuleGroupSitesDialog group={group} />
             </TableCell>
             <TableCell className='text-sm text-muted-foreground'>
               {group.updated_at ? formatDateTime(group.updated_at) : '—'}

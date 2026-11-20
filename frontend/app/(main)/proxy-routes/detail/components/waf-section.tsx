@@ -38,6 +38,7 @@ import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import type { ProxyRouteItem } from '@/lib/services/openflare';
 import { WafService } from '@/lib/services/openflare';
+import { ruleGroupSitesQueryKey } from '@/lib/services/openflare/waf.service';
 
 import { useTranslations } from 'next-intl';
 
@@ -152,6 +153,7 @@ export function WafSection({ route, onSavingChange }: WafSectionProps) {
         queryClient.invalidateQueries({
           queryKey: ['openflare', 'waf', 'rule-groups'],
         }),
+        queryClient.invalidateQueries({ queryKey: ruleGroupSitesQueryKey }),
       ]);
     },
     onError: (error) => {

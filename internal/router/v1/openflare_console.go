@@ -173,6 +173,8 @@ func registerOpenFlareSecurityRoutes(apiGroup *gin.RouterGroup) {
 
 		wafRoute.GET("/rule-groups", waf.ListRulesHandler)
 		wafRoute.GET("/rule-groups/:id", waf.GetRuleHandler)
+		wafRoute.GET("/rule-groups/:id/sites", waf.ListRuleGroupSitesHandler)
+		wafRoute.POST("/rule-groups/:id/sites/remove", waf.RemoveRuleGroupSitesHandler)
 		wafRoute.POST("/rule-groups", waf.CreateRuleHandler)
 		wafRoute.POST("/rule-groups/:id/meta", waf.UpdateRuleMetaHandler)
 		wafRoute.POST("/rule-groups/:id/graph", waf.SaveRuleGraphHandler)

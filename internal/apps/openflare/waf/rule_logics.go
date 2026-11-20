@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -52,6 +53,60 @@ type RuleView struct {
 	AppliedSiteCount int       `json:"applied_site_count"`
 	CreatedAt        string    `json:"created_at"`
 	UpdatedAt        string    `json:"updated_at"`
+}
+
+// RuleGroupSite identifies a proxy route and its bound domains.
+type RuleGroupSite struct {
+	ID       uint     `json:"id"`
+	SiteName string   `json:"site_name"`
+	Domains  []string `json:"domains"`
+}
+
+// RemoveRuleGroupSitesResult reports how many bindings were removed.
+type RemoveRuleGroupSitesResult struct {
+	RemovedCount int64 `json:"removed_count"`
+}
+
+// ListRuleGroupSites lists explicitly bound sites, or every site for the global rule.
+func ListRuleGroupSites(ctx context.Context, id uint) ([]RuleGroupSite, error) {
+	group, err := repository.GetOpenFlareWAFRuleGroupByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	routes, err := repository.ListOpenFlareWAFRuleGroupSites(ctx, id, group.IsGlobal)
+	if err != nil {
+		return nil, err
+	}
+	sites := make([]RuleGroupSite, 0, len(routes))
+	for _, route := range routes {
+		domains := make([]string, 0, len(route.ZoneDomains))
+		for _, domain := range route.ZoneDomains {
+			domains = append(domains, domain.Domain)
+		}
+		sites = append(sites, RuleGroupSite{ID: route.ID, SiteName: route.SiteName, Domains: domains})
+	}
+	return sites, nil
+}
+
+// RemoveRuleGroupSites removes selected custom rule bindings without rewriting site rules.
+func RemoveRuleGroupSites(ctx context.Context, id uint, routeIDs []uint) (*RemoveRuleGroupSitesResult, error) {
+	if len(routeIDs) == 0 || slices.Contains(routeIDs, 0) {
+		return nil, &RuleValidationError{Err: errors.New(errInvalidRuleSiteIDs)}
+	}
+	group, err := repository.GetOpenFlareWAFRuleGroupByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if group.IsGlobal {
+		return nil, &RuleValidationError{Err: errors.New(errGlobalRuleSites)}
+	}
+	ids := slices.Clone(routeIDs)
+	slices.Sort(ids)
+	removed, err := repository.DeleteOpenFlareWAFRuleGroupSites(ctx, id, slices.Compact(ids))
+	if err != nil {
+		return nil, err
+	}
+	return &RemoveRuleGroupSitesResult{RemovedCount: removed}, nil
 }
 
 // ListRules returns all orchestrated WAF rules.

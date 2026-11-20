@@ -966,6 +966,12 @@ export interface WAFRule {
   updated_at: string;
 }
 
+export interface WAFRuleGroupSite {
+  id: number;
+  site_name: string;
+  domains: string[];
+}
+
 /** @deprecated Legacy fixed-chain rule shape retained for untouched binding consumers. */
 export interface WAFRuleGroup extends WAFRule {
   block_status_code: number;

@@ -76,6 +76,60 @@ func GetRuleHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(rule))
 }
 
+// ListRuleGroupSitesHandler lists websites in a WAF rule group's scope.
+// @Summary 列出 WAF 规则组关联网站
+// @Tags openflare-waf
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "规则组 ID"
+// @Success 200 {object} response.Any{data=[]waf.RuleGroupSite} "网站列表"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/waf/rule-groups/{id}/sites [get]
+func ListRuleGroupSitesHandler(c *gin.Context) {
+	id, ok := httpx.IDParam(c)
+	if !ok {
+		return
+	}
+	sites, err := ListRuleGroupSites(c.Request.Context(), id)
+	if handleRuleError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(sites))
+}
+
+// RemoveRuleGroupSitesHandler removes selected bindings for a custom WAF rule group.
+// @Summary 批量解除 WAF 规则组的网站绑定
+// @Tags openflare-waf
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "规则组 ID"
+// @Param request body waf.IDsRequest true "待解绑的代理路由 ID 列表"
+// @Success 200 {object} response.Any{data=waf.RemoveRuleGroupSitesResult} "解绑结果"
+// @Failure 400 {object} response.Any "参数错误或规则组是全局规则组"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/waf/rule-groups/{id}/sites/remove [post]
+func RemoveRuleGroupSitesHandler(c *gin.Context) {
+	id, ok := httpx.IDParam(c)
+	if !ok {
+		return
+	}
+	var request IDsRequest
+	if !httpx.BindJSON(c, &request) {
+		return
+	}
+	result, err := RemoveRuleGroupSites(c.Request.Context(), id, request.IDs)
+	if handleRuleError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(result))
+}
+
 // CreateRuleHandler creates an orchestrated WAF rule from a name only.
 // @Summary 创建 WAF 规则
 // @Tags openflare-waf

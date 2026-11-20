@@ -6,6 +6,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"gorm.io/gorm"
@@ -224,22 +225,72 @@ func DeleteOpenFlareWAFIPGroup(ctx context.Context, id uint) error {
 	return conn.Delete(&model.OpenFlareWAFIPGroup{}, id).Error
 }
 
-// ListOpenFlareWAFRuleGroupBindings returns all bindings.
+// ListOpenFlareWAFRuleGroupBindings returns bindings to existing proxy routes.
 func ListOpenFlareWAFRuleGroupBindings(ctx context.Context) ([]model.OpenFlareWAFRuleGroupBinding, error) {
-	conn, err := wafDB(ctx)
+	conn, err := wafDB(db.WithPrimaryReads(ctx))
 	if err != nil {
 		return nil, err
 	}
 	var bindings []model.OpenFlareWAFRuleGroupBinding
-	if err = conn.Order("sequence asc").Order("id asc").Find(&bindings).Error; err != nil {
+	routeIDs := conn.Session(&gorm.Session{}).Model(&model.ProxyRoute{}).Select("id")
+	if err = conn.Session(&gorm.Session{}).Where("proxy_route_id IN (?)", routeIDs).
+		Order("sequence asc").Order("id asc").Find(&bindings).Error; err != nil {
 		return nil, err
 	}
 	return bindings, nil
 }
 
+// ListOpenFlareWAFRuleGroupSites returns proxy routes in the rule group's scope.
+func ListOpenFlareWAFRuleGroupSites(ctx context.Context, groupID uint, global bool) ([]model.ProxyRoute, error) {
+	conn, err := wafDB(db.WithPrimaryReads(ctx))
+	if err != nil {
+		return nil, err
+	}
+	query := conn.Session(&gorm.Session{}).Model(&model.ProxyRoute{}).Select("id", "site_name").
+		Preload("ZoneDomains", func(tx *gorm.DB) *gorm.DB {
+			return tx.Select("proxy_route_id", "domain").Order("domain ASC")
+		}).Order("site_name ASC").Order("id ASC")
+	if !global {
+		boundRouteIDs := conn.Session(&gorm.Session{}).Model(&model.OpenFlareWAFRuleGroupBinding{}).
+			Select("proxy_route_id").Where("rule_group_id = ?", groupID)
+		query = query.Where("id IN (?)", boundRouteIDs)
+	}
+	var routes []model.ProxyRoute
+	if err = query.Find(&routes).Error; err != nil {
+		return nil, err
+	}
+	return routes, nil
+}
+
+// DeleteOpenFlareWAFRuleGroupSites removes one group's bindings to the selected routes.
+func DeleteOpenFlareWAFRuleGroupSites(ctx context.Context, groupID uint, routeIDs []uint) (int64, error) {
+	// Keep each statement below the database's bind-parameter limit.
+	const batchSize = 500
+	conn, err := wafDB(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var removed int64
+	err = conn.Transaction(func(tx *gorm.DB) error {
+		for batch := range slices.Chunk(routeIDs, batchSize) {
+			result := tx.Where("rule_group_id = ? AND proxy_route_id IN ?", groupID, batch).
+				Delete(&model.OpenFlareWAFRuleGroupBinding{})
+			if result.Error != nil {
+				return result.Error
+			}
+			removed += result.RowsAffected
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return removed, nil
+}
+
 // ListOpenFlareWAFRuleGroupBindingsByRouteID returns bindings for a proxy route.
 func ListOpenFlareWAFRuleGroupBindingsByRouteID(ctx context.Context, routeID uint) ([]model.OpenFlareWAFRuleGroupBinding, error) {
-	conn, err := wafDB(ctx)
+	conn, err := wafDB(db.WithPrimaryReads(ctx))
 	if err != nil {
 		return nil, err
 	}
