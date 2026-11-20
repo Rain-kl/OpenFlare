@@ -39,4 +39,4 @@ openflare-edge run \
   --state-dir /var/lib/openflare-edge
 ```
 
-预分配节点使用 `--token-type node`。已保存专属凭证的节点从状态目录恢复身份。Linux 安装包使用 `edge-v*` 标签，包含 `amd64` 和 `arm64` 产物。安装脚本保留上一二进制和有效快照，使用 systemd 就绪回执确认切换。
+预分配节点使用 `--token-type node`。已保存专属凭证的节点从状态目录恢复身份。Linux 安装包使用 `edge-v*` 标签，包含 `amd64` 和 `arm64` 产物。安装和更新脚本原子替换单个二进制，并使用 systemd 就绪回执验证启动。节点从独立的状态目录恢复有效快照。

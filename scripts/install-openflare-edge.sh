@@ -105,7 +105,11 @@ DOWNLOAD_URL="$(printf '%s' "$RELEASE_JSON" | grep '"browser_download_url"' | gr
 [[ -n "$DOWNLOAD_URL" ]] || die "release asset not found: $ASSET"
 
 TMP_DIR="$(mktemp -d "/tmp/openflare-edge.XXXXXX")"
-cleanup() { rm -rf "$TMP_DIR"; }
+STAGED_BIN=""
+cleanup() {
+  if [[ -n "$STAGED_BIN" ]]; then rm -f -- "$STAGED_BIN"; fi
+  rm -rf -- "$TMP_DIR"
+}
 trap cleanup EXIT
 log "downloading ${ASSET}"
 curl -fsSL -o "$TMP_DIR/$ASSET" "$DOWNLOAD_URL"
@@ -120,6 +124,7 @@ PACKAGE_DIR="$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type d -name "openflare-
 mkdir -p "$INSTALL_DIR" "$STATE_DIR"
 exec 9>"$INSTALL_DIR/.install.lock"
 flock -x 9
+STAGED_BIN="$INSTALL_DIR/.openflare-edge.new"
 if [[ -x "$PACKAGE_DIR/scripts/fetch-agent-geoip-mmdb.sh" ]]; then
   log "refreshing GeoIP databases"
   GEOIP_OUT_DIR="$STATE_DIR" "$PACKAGE_DIR/scripts/fetch-agent-geoip-mmdb.sh" || die "failed to download GeoIP databases"
@@ -147,82 +152,43 @@ else
 fi
 chown -R openflare-edge:openflare-edge "$STATE_DIR" 2>/dev/null || true
 
-RELEASES_DIR="${INSTALL_DIR}/releases"
-RELEASE_DIR="${RELEASES_DIR}/${VERSION}"
-CURRENT="${INSTALL_DIR}/current"
-VERIFIED_FILE="${INSTALL_DIR}/verified-releases"
-PREVIOUS_TARGET=""
-if [[ -e "$CURRENT" || -L "$CURRENT" ]]; then
-  PREVIOUS_TARGET="$(readlink "$CURRENT")" || die "current must be a symbolic link"
-fi
-installed_release() {
-  is_release_tag "$1" && [[ -x "$RELEASES_DIR/$1/openflare-edge" ]]
-}
+BIN="$INSTALL_DIR/current"
+
 service_ready() {
-  local version="$1" pid executable
+  local pid
   [[ -r "$STATE_DIR/ready.json" ]] || return 1
   systemctl is-active --quiet openflare-edge || return 1
   pid="$(systemctl show -p MainPID --value openflare-edge)" || return 1
   [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
-  executable="$(readlink -f -- "$RELEASES_DIR/$version/openflare-edge")" || return 1
-  [[ "$(readlink "/proc/$pid/exe" 2>/dev/null)" == "$executable" ]] &&
+  [[ "$BIN" -ef "/proc/$pid/exe" ]] &&
     grep -Eq '"pid":'"$pid"'[,}]' "$STATE_DIR/ready.json" &&
-    grep -Fq '"binary_version":"'"${version#edge-v}"'"' "$STATE_DIR/ready.json"
+    grep -Fq '"binary_version":"'${VERSION#edge-v}'"' "$STATE_DIR/ready.json"
 }
-last_verified=""
-previous_verified=""
-rollback_target="$PREVIOUS_TARGET"
-if [[ "$CREATE_SERVICE" == true ]]; then
-  verified=()
-  if [[ -f "$VERIFIED_FILE" ]]; then mapfile -t verified < "$VERIFIED_FILE"; fi
-  if installed_release "${verified[0]:-}"; then last_verified="${verified[0]}"; fi
-  if installed_release "${verified[1]:-}" && [[ "${verified[1]}" != "$last_verified" ]]; then
-    previous_verified="${verified[1]}"
-  fi
-  if [[ -z "$last_verified" ]]; then
-    last_verified="$previous_verified"
-    previous_verified=""
-  fi
-  before="${PREVIOUS_TARGET#releases/}"
-  before="${before%/openflare-edge}"
-  if [[ "$PREVIOUS_TARGET" != "releases/$before/openflare-edge" ]]; then before=""; fi
-  for candidate in "$before" "$last_verified" "$previous_verified"; do
-    installed_release "$candidate" && service_ready "$candidate" || continue
-    # A manual install may have moved current without restarting the service.
-    rollback_target="releases/$candidate/openflare-edge"
-    if [[ "$candidate" != "$last_verified" ]]; then
-      previous_verified="$last_verified"
-      last_verified="$candidate"
-    fi
-    break
-  done
-fi
-if [[ -e "$RELEASE_DIR/openflare-edge" ]]; then
-  cmp -s "$PACKAGE_DIR/openflare-edge" "$RELEASE_DIR/openflare-edge" ||
-    die "a different binary is already installed for ${VERSION}"
-else
-  mkdir -p "$RELEASE_DIR"
-  install -m 0755 "$PACKAGE_DIR/openflare-edge" "$RELEASE_DIR/openflare-edge"
-fi
 
-switch_release() {
-  ln -sfn -- "$1" "${INSTALL_DIR}/.current.tmp"
-  mv -Tf "${INSTALL_DIR}/.current.tmp" "$CURRENT"
-}
 for value in "$SERVER_URL" "$INSTALL_TOKEN_FILE" "$STATE_DIR" "$HTTP_LISTEN" "$TLS_LISTEN"; do
   [[ "$value" != *[[:space:]\'\"*?\[\]\{\}\$\`\;\&\|\<\>\#]* ]] || die "argument contains unsupported shell or systemd characters: $value"
 done
 RUN_ARGS=(run --server-url "$SERVER_URL" --token-type "$TOKEN_TYPE" --token-file "$INSTALL_TOKEN_FILE" --state-dir "$STATE_DIR" --http-listen "$HTTP_LISTEN")
 if [[ "$TLS_LISTEN" != "none" ]]; then RUN_ARGS+=(--tls-listen "$TLS_LISTEN"); fi
 
+install -m 0755 "$PACKAGE_DIR/openflare-edge" "$STAGED_BIN"
+mv -Tf -- "$STAGED_BIN" "$BIN"
+
+# Migrate installations that stored each release in its own directory.
+if [[ -d "$INSTALL_DIR/releases" && ! -L "$INSTALL_DIR/releases" ]]; then
+  for release in "$INSTALL_DIR"/releases/edge-v*; do
+    [[ -d "$release" && ! -L "$release" ]] && is_release_tag "${release##*/}" || continue
+    rm -rf -- "$release"
+  done
+  rmdir -- "$INSTALL_DIR/releases" 2>/dev/null || true
+fi
+rm -f -- "$INSTALL_DIR/verified-releases" "$INSTALL_DIR/verified-releases.tmp" "$INSTALL_DIR/.current.tmp"
+
 if [[ "$CREATE_SERVICE" == true ]]; then
   SERVICE_PATH="/etc/systemd/system/openflare-edge.service"
-  if [[ -f "$SERVICE_PATH" ]]; then
-    cp -- "$SERVICE_PATH" "$TMP_DIR/previous.service"
-  fi
   log "writing openflare-edge.service"
   exec_args="${RUN_ARGS[*]}"
-  cat > "$SERVICE_PATH" <<SERVICE_EOF
+  cat > "${SERVICE_PATH}.tmp" <<SERVICE_EOF
 [Unit]
 Description=OpenFlare Edge (Pingora)
 After=network-online.target
@@ -250,7 +216,7 @@ MemoryDenyWriteExecute=true
 RestrictNamespaces=true
 SystemCallFilter=@system-service
 ReadWritePaths=$STATE_DIR
-ExecStart=$INSTALL_DIR/current $exec_args
+ExecStart=$BIN $exec_args
 WorkingDirectory=$STATE_DIR
 Restart=always
 RestartSec=5
@@ -262,58 +228,23 @@ TimeoutStopSec=300
 [Install]
 WantedBy=multi-user.target
 SERVICE_EOF
-  was_active=false
-  if systemctl is-active --quiet openflare-edge; then
-    was_active=true
-  fi
-  switch_release "releases/$VERSION/openflare-edge"
+  chmod 0644 "${SERVICE_PATH}.tmp"
+  mv -Tf -- "${SERVICE_PATH}.tmp" "$SERVICE_PATH"
   systemctl daemon-reload
-  if [[ "$was_active" == true ]]; then
-    service_action=restart
-  else
-    service_action=start
+  if ! systemctl is-active --quiet openflare-edge; then
     systemctl enable openflare-edge
   fi
-  log "waiting for systemd readiness (startup timeout: 90 seconds)"
-  if ! systemctl "$service_action" openflare-edge || ! service_ready "$VERSION"; then
+  log "starting openflare-edge after any running process has stopped (startup timeout: 90 seconds)"
+  if ! systemctl restart openflare-edge || ! service_ready; then
     journalctl -u openflare-edge -n 50 --no-pager || true
-    systemctl stop openflare-edge || die "could not stop the failed release"
-    if [[ -n "$rollback_target" ]]; then switch_release "$rollback_target"; else rm -f -- "$CURRENT"; fi
-    if [[ -f "$TMP_DIR/previous.service" ]]; then
-      install -m 0644 "$TMP_DIR/previous.service" "$SERVICE_PATH"
-    else
-      systemctl disable openflare-edge
-      rm -f -- "$SERVICE_PATH"
-    fi
-    systemctl daemon-reload
-    if [[ "$was_active" == true ]]; then
-      systemctl reset-failed openflare-edge
-      systemctl start openflare-edge || die "rollback service also failed; inspect journalctl -u openflare-edge"
-    fi
-    if [[ "$rollback_target" != "releases/$VERSION/openflare-edge" && "$VERSION" != "$last_verified" && "$VERSION" != "$previous_verified" ]]; then
-      rm -rf -- "$RELEASE_DIR"
-    fi
-    die "upgrade failed; previous installation restored"
+    die "${VERSION} is installed at ${BIN}, but openflare-edge did not become ready"
   fi
-  log "new release is ready"
-
-  if [[ -n "$last_verified" && "$last_verified" != "$VERSION" ]]; then
-    previous_verified="$last_verified"
-  fi
-  printf '%s\n%s\n' "$VERSION" "$previous_verified" > "$VERIFIED_FILE.tmp"
-  mv -Tf -- "$VERIFIED_FILE.tmp" "$VERIFIED_FILE"
-  for release in "$RELEASES_DIR"/edge-v*; do
-    tag="${release##*/}"
-    [[ -d "$release" && ! -L "$release" ]] && is_release_tag "$tag" || continue
-    if [[ "$tag" != "$VERSION" && "$tag" != "$previous_verified" ]]; then rm -rf -- "$release"; fi
-  done
-  if [[ -n "$previous_verified" ]]; then log "retained rollback release ${previous_verified}"; fi
+  log "openflare-edge is ready"
 else
-  switch_release "releases/$VERSION/openflare-edge"
   log "manual start command:"
-  printf '  %s/current' "$INSTALL_DIR"
+  printf '  %q' "$BIN"
   printf ' %q' "${RUN_ARGS[@]}"
   printf '\n'
 fi
 
-log "installed ${VERSION} to ${INSTALL_DIR}/releases/${VERSION}"
+log "installed ${VERSION} at ${BIN}"

@@ -96,28 +96,32 @@ fi
 VERSION="$(printf '%s' "$RELEASE_JSON" | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
 is_release_tag "$VERSION" || die "invalid Edge release version"
 
-RELEASES_DIR="${INSTALL_DIR}/releases"
-RELEASE_DIR="${RELEASES_DIR}/${VERSION}"
-CURRENT="${INSTALL_DIR}/current"
-VERIFIED_FILE="${INSTALL_DIR}/verified-releases"
-
-PREVIOUS_TARGET="$(readlink "$CURRENT")" || die "current must be a symbolic link"
+BIN="$INSTALL_DIR/current"
 
 service_ready() {
-  local version="$1" pid executable
+  local pid
   [[ -r "$STATE_DIR/ready.json" ]] || return 1
   systemctl is-active --quiet "$SERVICE_NAME" || return 1
   pid="$(systemctl show -p MainPID --value "$SERVICE_NAME")" || return 1
   [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
-  executable="$(readlink -f -- "$RELEASES_DIR/$version/openflare-edge")" || return 1
-  [[ "$(readlink "/proc/$pid/exe" 2>/dev/null)" == "$executable" ]] &&
+  [[ "$BIN" -ef "/proc/$pid/exe" ]] &&
     grep -Eq '"pid":'"$pid"'[,}]' "$STATE_DIR/ready.json" &&
-    grep -Fq '"binary_version":"'"${version#edge-v}"'"' "$STATE_DIR/ready.json"
+    grep -Fq '"binary_version":"'${VERSION#edge-v}'"' "$STATE_DIR/ready.json"
 }
 
-if [[ "$PREVIOUS_TARGET" == "releases/${VERSION}/openflare-edge" && -x "${RELEASE_DIR}/openflare-edge" ]]; then
-  if [[ "$HAS_SYSTEMD_SERVICE" != true ]] || service_ready "$VERSION"; then
+exec 9>"$INSTALL_DIR/.install.lock"
+flock -x 9
+STAGED_BIN="$INSTALL_DIR/.openflare-edge.new"
+rm -f -- "$STAGED_BIN"
+
+# A legacy symlink still needs to be converted even when the release is current.
+if [[ -x "$BIN" && ! -L "$BIN" && ! -e "$INSTALL_DIR/verified-releases" && ! -d "$INSTALL_DIR/releases" ]]; then
+  if [[ "$HAS_SYSTEMD_SERVICE" == true ]] && service_ready; then
     log "already running ${VERSION}; nothing to update"
+    exit 0
+  fi
+  if [[ "$HAS_SYSTEMD_SERVICE" != true && "$("$BIN" --version)" == "openflare-edge ${VERSION#edge-v}" ]]; then
+    log "already installed ${VERSION}; nothing to update"
     exit 0
   fi
 fi
@@ -127,7 +131,7 @@ DOWNLOAD_URL="$(printf '%s' "$RELEASE_JSON" | grep '"browser_download_url"' | gr
 [[ -n "$DOWNLOAD_URL" ]] || die "release asset not found: $ASSET"
 
 TMP_DIR="$(mktemp -d "/tmp/openflare-edge-update.XXXXXX")"
-cleanup() { rm -rf "$TMP_DIR"; }
+cleanup() { rm -rf -- "$TMP_DIR"; rm -f -- "$STAGED_BIN"; }
 trap cleanup EXIT
 
 log "downloading ${ASSET}"
@@ -140,105 +144,32 @@ PACKAGE_DIR="$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type d -name "openflare-
 [[ "$("$PACKAGE_DIR/openflare-edge" config-sync-version 2>/dev/null || true)" == 1 ]] ||
   die "${VERSION} does not support configuration sync protocol v1"
 
-exec 9>"$INSTALL_DIR/.install.lock"
-flock -x 9
+if [[ ! -x "$BIN" || -L "$BIN" ]] || ! cmp -s "$PACKAGE_DIR/openflare-edge" "$BIN"; then
+  install -m 0755 "$PACKAGE_DIR/openflare-edge" "$STAGED_BIN"
+  mv -Tf -- "$STAGED_BIN" "$BIN"
+fi
 
-PREVIOUS_TARGET="$(readlink "$CURRENT")" || die "current must be a symbolic link"
-
-installed_release() {
-  is_release_tag "$1" && [[ -x "$RELEASES_DIR/$1/openflare-edge" ]]
-}
-
-switch_release() {
-  ln -sfn -- "$1" "${INSTALL_DIR}/.current.tmp"
-  mv -Tf "${INSTALL_DIR}/.current.tmp" "$CURRENT"
-}
-
-last_verified=""
-previous_verified=""
-rollback_target="$PREVIOUS_TARGET"
-before="${PREVIOUS_TARGET#releases/}"
-before="${before%/openflare-edge}"
-if [[ "$PREVIOUS_TARGET" != "releases/$before/openflare-edge" ]]; then before=""; fi
+# Migrate installations that stored each release in its own directory.
+if [[ -d "$INSTALL_DIR/releases" && ! -L "$INSTALL_DIR/releases" ]]; then
+  for release in "$INSTALL_DIR"/releases/edge-v*; do
+    [[ -d "$release" && ! -L "$release" ]] && is_release_tag "${release##*/}" || continue
+    rm -rf -- "$release"
+  done
+  rmdir -- "$INSTALL_DIR/releases" 2>/dev/null || true
+fi
+rm -f -- "$INSTALL_DIR/verified-releases" "$INSTALL_DIR/verified-releases.tmp" "$INSTALL_DIR/.current.tmp"
 
 if [[ "$HAS_SYSTEMD_SERVICE" == true ]]; then
-  verified=()
-  if [[ -f "$VERIFIED_FILE" ]]; then mapfile -t verified < "$VERIFIED_FILE"; fi
-  if installed_release "${verified[0]:-}"; then last_verified="${verified[0]}"; fi
-  if installed_release "${verified[1]:-}" && [[ "${verified[1]}" != "$last_verified" ]]; then
-    previous_verified="${verified[1]}"
-  fi
-  if [[ -z "$last_verified" ]]; then
-    last_verified="$previous_verified"
-    previous_verified=""
-  fi
-  for candidate in "$before" "$last_verified" "$previous_verified"; do
-    installed_release "$candidate" && service_ready "$candidate" || continue
-    rollback_target="releases/$candidate/openflare-edge"
-    if [[ "$candidate" != "$last_verified" ]]; then
-      previous_verified="$last_verified"
-      last_verified="$candidate"
+  if ! service_ready; then
+    log "starting ${SERVICE_NAME} after any running process has stopped"
+    if ! systemctl restart "$SERVICE_NAME" || ! service_ready; then
+      journalctl -u "$SERVICE_NAME" -n 50 --no-pager || true
+      die "${VERSION} is installed at ${BIN}, but ${SERVICE_NAME} did not become ready"
     fi
-    break
-  done
-fi
-
-if [[ -e "$RELEASE_DIR/openflare-edge" ]]; then
-  cmp -s "$PACKAGE_DIR/openflare-edge" "$RELEASE_DIR/openflare-edge" ||
-    die "a different binary is already installed for ${VERSION}"
+  fi
+  log "${SERVICE_NAME} is ready"
 else
-  mkdir -p "$RELEASE_DIR"
-  install -m 0755 "$PACKAGE_DIR/openflare-edge" "$RELEASE_DIR/openflare-edge"
+  log "restart your openflare-edge process manually"
 fi
 
-if [[ "$HAS_SYSTEMD_SERVICE" == true ]]; then
-  was_active=false
-  if systemctl is-active --quiet "$SERVICE_NAME"; then
-    was_active=true
-    service_action=restart
-  else
-    service_action=start
-  fi
-
-  switch_release "releases/$VERSION/openflare-edge"
-  log "waiting for systemd readiness (startup timeout: 90 seconds)"
-  if ! systemctl "$service_action" "$SERVICE_NAME" || ! service_ready "$VERSION"; then
-    journalctl -u "$SERVICE_NAME" -n 50 --no-pager || true
-    systemctl stop "$SERVICE_NAME" || die "could not stop the failed release"
-    if [[ -n "$rollback_target" ]]; then switch_release "$rollback_target"; else rm -f -- "$CURRENT"; fi
-    if [[ "$was_active" == true ]]; then
-      systemctl reset-failed "$SERVICE_NAME" || true
-      systemctl start "$SERVICE_NAME" || die "rollback service also failed; inspect journalctl -u ${SERVICE_NAME}"
-    fi
-    if [[ "$rollback_target" != "releases/$VERSION/openflare-edge" && "$VERSION" != "$last_verified" && "$VERSION" != "$previous_verified" ]]; then
-      rm -rf -- "$RELEASE_DIR"
-    fi
-    die "update failed; previous installation restored"
-  fi
-  log "new release is ready"
-
-  if [[ -n "$last_verified" && "$last_verified" != "$VERSION" ]]; then
-    previous_verified="$last_verified"
-  fi
-  printf '%s\n%s\n' "$VERSION" "$previous_verified" > "$VERIFIED_FILE.tmp"
-  mv -Tf -- "$VERIFIED_FILE.tmp" "$VERIFIED_FILE"
-  for release in "$RELEASES_DIR"/edge-v*; do
-    tag="${release##*/}"
-    [[ -d "$release" && ! -L "$release" ]] && is_release_tag "$tag" || continue
-    if [[ "$tag" != "$VERSION" && "$tag" != "$previous_verified" ]]; then rm -rf -- "$release"; fi
-  done
-  if [[ -n "$previous_verified" ]]; then log "retained rollback release ${previous_verified}"; fi
-else
-  switch_release "releases/$VERSION/openflare-edge"
-  if [[ -n "$before" && "$before" != "$VERSION" ]]; then
-    previous_verified="$before"
-    for release in "$RELEASES_DIR"/edge-v*; do
-      tag="${release##*/}"
-      [[ -d "$release" && ! -L "$release" ]] && is_release_tag "$tag" || continue
-      if [[ "$tag" != "$VERSION" && "$tag" != "$previous_verified" ]]; then rm -rf -- "$release"; fi
-    done
-  fi
-  log "updated ${CURRENT} -> releases/${VERSION}/openflare-edge (restart your openflare-edge process manually)"
-fi
-
-log "updated to ${VERSION} in ${RELEASE_DIR}"
+log "updated to ${VERSION} at ${BIN}"

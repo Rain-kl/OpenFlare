@@ -6,14 +6,14 @@ OpenFlare Edge 是独立的 Pingora 边缘节点二进制。节点启动后直�
 
 OpenFlare Edge 使用独立的 `edge-v*` 版本标签，与主控和 Go Agent 的 `v*` 发布隔离。发布工作流同时构建 Linux `amd64` 和 `arm64`：
 
-- `openflare-edge_edge-v0.1.1_linux_amd64.tar.gz`
-- `openflare-edge_edge-v0.1.1_linux_arm64.tar.gz`
+- `openflare-edge_edge-v0.1.2_linux_amd64.tar.gz`
+- `openflare-edge_edge-v0.1.2_linux_arm64.tar.gz`
 
 归档内包含 `openflare-edge` 二进制、`VERSION`、`SHA256SUMS`、许可证、安装、卸载和 GeoIP 下载脚本。CI 会校验 `edge-v` 标签必须与 Rust 包版本一致，避免下载页与 `--version` 展示不同版本。
 
 ## 安装
 
-使用共享配置契约 v3 的控制端要求 Edge `edge-v0.1.1` 或更新版本。安装器会在修改本地服务前拒绝旧发行包。
+使用配置同步协议 v1 的控制端要求 Edge `edge-v0.1.2` 或更新版本。安装器会在修改本地服务前检查发行包的协议版本。
 
 节点详情的「边缘节点部署」提供 Linux 本地部署命令，自动填入控制端 URL 和该节点的 Agent Token。Docker 命令用于部署 OpenResty Agent。迁移现有 OpenResty 节点时，先发布 Pingora 配置并停止旧服务。新版 Edge 使用原节点的 Agent Token 注册时，控制端自动切换该节点的引擎，保留节点 ID 和业务绑定。
 
@@ -32,8 +32,7 @@ sudo bash install-openflare-edge.sh \
 默认安装目录为 `/opt/openflare-edge`，状态目录为 `/var/lib/openflare-edge`。安装脚本会自动识别 `amd64` / `arm64`，从 GitHub Releases 查询最新的 `edge-v*` 版本，校验归档摘要后写入：
 
 ```text
-/opt/openflare-edge/releases/<edge-version>/openflare-edge
-/opt/openflare-edge/current -> releases/<edge-version>/openflare-edge
+/opt/openflare-edge/current
 /var/lib/openflare-edge/identity.json
 /var/lib/openflare-edge/snapshot.json
 /var/lib/openflare-edge/pages/
@@ -42,12 +41,12 @@ sudo bash install-openflare-edge.sh \
 /var/lib/openflare-edge/access-logs.jsonl
 ```
 
-安装或升级时都会尝试刷新 GeoIP 数据库。下载失败会中止安装，避免节点以缺失的地区数据运行。可通过读取 `current` 相对符号链接确认当前版本。
+安装脚本会刷新 GeoIP 数据库，下载失败时中止安装。可执行 `/opt/openflare-edge/current --version` 查看已安装版本。
 
 指定版本安装：
 
 ```bash
-sudo bash install-openflare-edge.sh --version edge-v0.1.1 ...
+sudo bash install-openflare-edge.sh --version edge-v0.1.2 ...
 ```
 
 ## 低权限运行
@@ -77,7 +76,7 @@ systemd 对控制面设置 `Restart=always` 与 `RestartSec=5`。控制面每秒
 
 访问明细由数据面写入带文件锁的 `access-logs.jsonl`，控制面按心跳批量领取并上报。上报成功后删除已确认部分，队列最多保留 2048 条，避免异常重启或升级窗口造成内存增长或明细丢失。
 
-## 升级与回滚
+## 升级
 
 日常仅更新二进制程序时，可直接运行无参数更新脚本，自动识别现有安装目录与状态目录，仅替换程序并重启服务，不改动现有 `openflare-edge.service` 配置、令牌、快照及 GeoIP 数据库：
 
@@ -85,17 +84,11 @@ systemd 对控制面设置 `Restart=always` 与 `RestartSec=5`。控制面每秒
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash
 ```
 
-如需同时修改控制端地址、令牌或监听端口，沿用安装命令 `install-openflare-edge.sh`。脚本校验并安装新二进制，更新 `current` 后重启 systemd 服务。确认服务处于运行状态、主进程指向新二进制且就绪记录与当前进程和版本一致后，脚本只保留当前发行版和上一个通过同样验证的发行版。首次安装通过验证后只保留当前版。重复安装同一版本时继续保留已有的回滚版本。
+安装和更新脚本均在校验归档及配置同步协议后，原子替换 `current` 二进制。每个安装目录只存放当前程序。旧安装首次切换时，会将 `current` 符号链接替换为程序文件，并清理原先的版本目录和验证记录。需要修改控制端地址、令牌或监听端口时，使用安装脚本。
 
-Edge 在监听端口就绪且已加载一份有效配置后通知 systemd。首次部署会等待从控制端同步配置。已有部署可以从磁盘恢复上次成功应用的配置。启动超时后安装器输出服务日志并回滚，运行中的服务正常停止时仍按原有方式处理在途连接。
+systemd 先等待旧进程退出，再启动新进程。已运行的 `v0.1.1` 进程在停止时会等待 300 秒的 Pingora 退出宽限期，从该版本升级时需等待这段时间。自 `v0.1.2` 起，Pingora 的退出宽限期为 2 秒。可运行 `sudo journalctl -fu openflare-edge` 查看重启进度。
 
-新版本启动验证失败时，脚本恢复切换前的版本和服务配置，并重新启动原先运行的服务。`--no-service` 模式保留已下载的发行版，待后续由脚本验证服务后再清理。自动清理的范围为 `releases/` 下的发行版目录。
-
-手动回滚：
-
-```bash
-sudo bash install-openflare-edge.sh --version <retained-edge-version> ...
-```
+Edge 加载有效配置并开始监听后通知 systemd。脚本核验主进程及就绪记录与已安装程序一致。启动或验证失败时，脚本输出服务日志并返回错误，新程序保留在 `current`。修复启动问题后，可重新执行更新命令。`--no-service` 安装完成后需手动启动。
 
 卸载：
 
