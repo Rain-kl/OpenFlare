@@ -26,11 +26,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { formatDateTime } from '@/lib/utils';
-import type {
-  NodeHealthEvent,
-  NodeItem,
-  NodeSystemProfile,
-} from '@/lib/services/openflare';
+import type { NodeHealthEvent, NodeItem } from '@/lib/services/openflare';
 import { NodeService } from '@/lib/services/openflare';
 
 import { CapacityTrendChart } from '../../components/dashboard/capacity-trend-chart';
@@ -38,12 +34,14 @@ import { TrafficTrendChart } from '../../components/dashboard/traffic-trend-char
 import { DiskIOTrendChart } from './disk-io-trend-chart';
 import { DistributionList } from './distribution-list';
 import { NetworkTrendChart } from './network-trend-chart';
+import {
+  NodeResourceSnapshot,
+  NodeSystemDetails,
+} from './node-resource-details';
 import { NodeStatusBadge } from './node-status-badge';
 import {
-  formatBytes,
   formatMetricCount,
   formatPercent,
-  formatRelativeTime,
   formatUptime,
   formatUsageRatio,
   getErrorMessage,
@@ -58,42 +56,6 @@ import {
 
 type HealthEventFilter = 'all' | 'active' | 'resolved';
 type NodeObservabilityVariant = 'edge' | 'compact';
-
-function MetricBar({
-  label,
-  value,
-  progress,
-  hint,
-}: {
-  label: string;
-  value: string;
-  progress?: number | null;
-  hint?: string;
-}) {
-  return (
-    <div className='space-y-2 rounded-lg border px-3 py-3'>
-      <div className='flex items-start justify-between gap-3'>
-        <div>
-          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-            {label}
-          </p>
-          {hint ? (
-            <p className='mt-1 text-xs text-muted-foreground'>{hint}</p>
-          ) : null}
-        </div>
-        <p className='text-sm font-medium'>{value}</p>
-      </div>
-      {progress !== null && progress !== undefined ? (
-        <div className='h-2 overflow-hidden rounded-full bg-muted'>
-          <div
-            className='h-full rounded-full bg-primary transition-[width]'
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 function SummaryStat({
   label,
@@ -112,92 +74,6 @@ function SummaryStat({
         <p className='text-sm text-muted-foreground'>{hint}</p>
       </CardHeader>
     </Card>
-  );
-}
-
-function SystemProfileCard({
-  profile,
-  nodeName,
-}: {
-  profile: NodeSystemProfile;
-  nodeName: string;
-}) {
-  const t = useTranslations('nodes');
-  return (
-    <div className='grid gap-4 md:grid-cols-2'>
-      <div className='space-y-4 rounded-lg border px-4 py-4'>
-        <div>
-          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-            {t('obs.hostname')}
-          </p>
-          <p className='mt-2 text-sm'>{profile.hostname || nodeName}</p>
-        </div>
-        <div>
-          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-            {t('obs.os')}
-          </p>
-          <p className='mt-2 text-sm'>
-            {profile.os_name || 'unknown'}
-            {profile.os_version ? ` ${profile.os_version}` : ''}
-          </p>
-        </div>
-        <div>
-          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-            {t('obs.kernelArch')}
-          </p>
-          <p className='mt-2 text-sm'>
-            {profile.kernel_version || 'unknown'} ·{' '}
-            {profile.architecture || 'unknown'}
-          </p>
-        </div>
-        <div>
-          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-            {t('obs.uptime')}
-          </p>
-          <p className='mt-2 text-sm'>
-            {formatUptime(profile.uptime_seconds, t)}
-          </p>
-        </div>
-      </div>
-
-      <div className='space-y-4 rounded-lg border px-4 py-4'>
-        <div>
-          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-            {t('obs.cpu')}
-          </p>
-          <p className='mt-2 text-sm'>{profile.cpu_model || 'unknown'}</p>
-          <p className='mt-1 text-xs text-muted-foreground'>
-            {t('obs.cpuCores', { count: profile.cpu_cores || 0 })}
-          </p>
-        </div>
-        <div>
-          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-            {t('obs.totalMemory')}
-          </p>
-          <p className='mt-2 text-sm'>
-            {formatBytes(profile.total_memory_bytes)}
-          </p>
-        </div>
-        <div>
-          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-            {t('obs.totalStorage')}
-          </p>
-          <p className='mt-2 text-sm'>
-            {formatBytes(profile.total_disk_bytes)}
-          </p>
-        </div>
-        <div>
-          <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-            {t('obs.reportedAt')}
-          </p>
-          <p className='mt-2 text-sm'>
-            {isMeaningfulTime(profile.reported_at)
-              ? formatDateTime(profile.reported_at)
-              : '—'}
-          </p>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -425,10 +301,6 @@ export function NodeObservability({
   const latestHealthEvent = activeHealthEvents[0] ?? null;
   const dominantStatusCode = statusCodeDistribution[0] ?? null;
   const dominantDomain = topDomains[0] ?? null;
-  const memoryUsageRatio = formatUsageRatio(
-    latestMetric?.memory_used_bytes,
-    latestMetric?.memory_total_bytes,
-  );
   const storageUsageRatio = formatUsageRatio(
     latestMetric?.storage_used_bytes,
     latestMetric?.storage_total_bytes,
@@ -461,7 +333,7 @@ export function NodeObservability({
 
   if (variant === 'compact') {
     return (
-      <div className='space-y-6'>
+      <div className='flex flex-col gap-6'>
         <div className='grid gap-4 md:grid-cols-3'>
           <SummaryStat
             label={t('obs.diag')}
@@ -502,7 +374,7 @@ export function NodeObservability({
             </CardHeader>
             <CardContent>
               {profile ? (
-                <SystemProfileCard profile={profile} nodeName={nodeName} />
+                <NodeSystemDetails profile={profile} nodeName={nodeName} />
               ) : (
                 <p className='text-sm text-muted-foreground'>
                   {t('obs.noProfile')}
@@ -520,41 +392,10 @@ export function NodeObservability({
             </CardHeader>
             <CardContent>
               {latestMetric ? (
-                <div className='grid gap-3 sm:grid-cols-2'>
-                  <MetricBar
-                    label={t('obs.cpu')}
-                    value={formatPercent(latestMetric.cpu_usage_percent)}
-                    progress={latestMetric.cpu_usage_percent}
-                    hint={
-                      isMeaningfulTime(latestMetric.captured_at)
-                        ? t('obs.snapshotAgo', {
-                            time: formatRelativeTime(
-                              latestMetric.captured_at,
-                              t,
-                            ),
-                          })
-                        : undefined
-                    }
-                  />
-                  <MetricBar
-                    label={t('obs.memory')}
-                    value={`${formatBytes(latestMetric.memory_used_bytes)} / ${formatBytes(latestMetric.memory_total_bytes)}`}
-                    progress={memoryUsageRatio}
-                  />
-                  <MetricBar
-                    label={t('obs.storage')}
-                    value={`${formatBytes(latestMetric.storage_used_bytes)} / ${formatBytes(latestMetric.storage_total_bytes)}`}
-                    progress={storageUsageRatio}
-                  />
-                  <MetricBar
-                    label={t('obs.connections')}
-                    value={formatMetricCount(
-                      latestMetric.openresty_connections,
-                    )}
-                    progress={null}
-                    hint={resolvedConnectionHint}
-                  />
-                </div>
+                <NodeResourceSnapshot
+                  metric={latestMetric}
+                  connectionHint={resolvedConnectionHint}
+                />
               ) : (
                 <p className='text-sm text-muted-foreground'>
                   {t('obs.noSnapshot')}
@@ -602,7 +443,7 @@ export function NodeObservability({
   }
 
   return (
-    <div className='space-y-6'>
+    <div className='flex flex-col gap-6'>
       <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
         <SummaryStat
           label={t('obs.diag')}
@@ -671,7 +512,7 @@ export function NodeObservability({
           </CardHeader>
           <CardContent>
             {profile ? (
-              <SystemProfileCard profile={profile} nodeName={nodeName} />
+              <NodeSystemDetails profile={profile} nodeName={nodeName} />
             ) : (
               <p className='text-sm text-muted-foreground'>
                 {t('obs.noProfileLong')}
@@ -688,36 +529,10 @@ export function NodeObservability({
           </CardHeader>
           <CardContent>
             {latestMetric ? (
-              <div className='grid gap-3 sm:grid-cols-2'>
-                <MetricBar
-                  label={t('obs.cpu')}
-                  value={formatPercent(latestMetric.cpu_usage_percent)}
-                  progress={latestMetric.cpu_usage_percent}
-                  hint={
-                    isMeaningfulTime(latestMetric.captured_at)
-                      ? t('obs.snapshotAgo', {
-                          time: formatRelativeTime(latestMetric.captured_at, t),
-                        })
-                      : undefined
-                  }
-                />
-                <MetricBar
-                  label={t('obs.memory')}
-                  value={`${formatBytes(latestMetric.memory_used_bytes)} / ${formatBytes(latestMetric.memory_total_bytes)}`}
-                  progress={memoryUsageRatio}
-                />
-                <MetricBar
-                  label={t('obs.storage')}
-                  value={`${formatBytes(latestMetric.storage_used_bytes)} / ${formatBytes(latestMetric.storage_total_bytes)}`}
-                  progress={storageUsageRatio}
-                />
-                <MetricBar
-                  label={t('obs.connections')}
-                  value={formatMetricCount(latestMetric.openresty_connections)}
-                  progress={null}
-                  hint={resolvedConnectionHint}
-                />
-              </div>
+              <NodeResourceSnapshot
+                metric={latestMetric}
+                connectionHint={resolvedConnectionHint}
+              />
             ) : (
               <p className='text-sm text-muted-foreground'>
                 {t('obs.noSnapshotLong')}
@@ -822,6 +637,7 @@ export function NodeObservability({
         <TrafficTrendChart
           points={trends?.traffic_24h ?? []}
           description={t('obs.trafficTrendDesc')}
+          compactSummary
         />
         <CapacityTrendChart
           points={trends?.capacity_24h ?? []}
@@ -834,87 +650,85 @@ export function NodeObservability({
         <DiskIOTrendChart points={trends?.disk_io_24h ?? []} />
       </div>
 
-      <div className='grid gap-6 xl:grid-cols-[0.95fr_1.05fr]'>
-        <Card className='border-dashed shadow-none'>
-          <CardHeader>
-            <CardTitle className='text-base font-semibold'>
-              {t('obs.structureTitle')}
-            </CardTitle>
-            <CardDescription>{t('obs.structureDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className='mb-6 grid gap-4 md:grid-cols-3'>
-              <div className='rounded-lg border px-4 py-4'>
-                <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-                  {t('obs.mainStatus')}
-                </p>
-                <p className='mt-3 text-2xl font-semibold'>
-                  {dominantStatusCode?.label ?? '—'}
-                </p>
-                <p className='mt-2 text-sm text-muted-foreground'>
-                  {dominantStatusCode
-                    ? t('obs.times', { count: dominantStatusCode.value })
-                    : t('obs.noStatusDist')}
-                </p>
-              </div>
-              <div className='rounded-lg border px-4 py-4'>
-                <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-                  {t('obs.topDomain')}
-                </p>
-                <p className='mt-3 truncate text-2xl font-semibold'>
-                  {dominantDomain?.label ?? '—'}
-                </p>
-                <p className='mt-2 text-sm text-muted-foreground'>
-                  {dominantDomain
-                    ? t('obs.times', { count: dominantDomain.value })
-                    : t('obs.noDomainDist')}
-                </p>
-              </div>
-              <div className='rounded-lg border px-4 py-4'>
-                <p className='text-xs text-muted-foreground uppercase tracking-wide'>
-                  {t('obs.resolvedEvents')}
-                </p>
-                <p className='mt-3 text-2xl font-semibold'>
-                  {resolvedHealthEvents.length}
-                </p>
-                <p className='mt-2 text-sm text-muted-foreground'>
-                  {t('obs.resolvedHint')}
-                </p>
-              </div>
+      <Card className='border-dashed shadow-none'>
+        <CardHeader>
+          <CardTitle className='text-base font-semibold'>
+            {t('obs.structureTitle')}
+          </CardTitle>
+          <CardDescription>{t('obs.structureDesc')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className='mb-6 grid gap-4 md:grid-cols-3'>
+            <div className='rounded-lg border px-4 py-4'>
+              <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+                {t('obs.mainStatus')}
+              </p>
+              <p className='mt-3 text-2xl font-semibold'>
+                {dominantStatusCode?.label ?? '—'}
+              </p>
+              <p className='mt-2 text-sm text-muted-foreground'>
+                {dominantStatusCode
+                  ? t('obs.times', { count: dominantStatusCode.value })
+                  : t('obs.noStatusDist')}
+              </p>
             </div>
-
-            <div className='grid gap-6 xl:grid-cols-2'>
-              <div>
-                <p className='mb-4 text-xs text-muted-foreground uppercase tracking-wide'>
-                  {t('obs.statusDist')}
-                </p>
-                <DistributionList
-                  items={statusCodeDistribution}
-                  emptyMessage={t('obs.noStatusDist')}
-                />
-              </div>
-              <div>
-                <p className='mb-4 text-xs text-muted-foreground uppercase tracking-wide'>
-                  {t('obs.topDomain')}
-                </p>
-                <DistributionList
-                  items={topDomains}
-                  emptyMessage={t('obs.noDomainDist')}
-                />
-              </div>
+            <div className='rounded-lg border px-4 py-4'>
+              <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+                {t('obs.topDomain')}
+              </p>
+              <p className='mt-3 truncate text-2xl font-semibold'>
+                {dominantDomain?.label ?? '—'}
+              </p>
+              <p className='mt-2 text-sm text-muted-foreground'>
+                {dominantDomain
+                  ? t('obs.times', { count: dominantDomain.value })
+                  : t('obs.noDomainDist')}
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <div className='rounded-lg border px-4 py-4'>
+              <p className='text-xs text-muted-foreground uppercase tracking-wide'>
+                {t('obs.resolvedEvents')}
+              </p>
+              <p className='mt-3 text-2xl font-semibold'>
+                {resolvedHealthEvents.length}
+              </p>
+              <p className='mt-2 text-sm text-muted-foreground'>
+                {t('obs.resolvedHint')}
+              </p>
+            </div>
+          </div>
 
-        <HealthEventTimeline
-          events={filteredHealthEvents}
-          allEventsCount={observability?.health_events.length ?? 0}
-          healthEventFilter={healthEventFilter}
-          onFilterChange={setHealthEventFilter}
-          onCleanup={() => setCleanupOpen(true)}
-          cleanupPending={cleanupMutation.isPending}
-        />
-      </div>
+          <div className='grid gap-6 xl:grid-cols-2'>
+            <div>
+              <p className='mb-4 text-xs text-muted-foreground uppercase tracking-wide'>
+                {t('obs.statusDist')}
+              </p>
+              <DistributionList
+                items={statusCodeDistribution}
+                emptyMessage={t('obs.noStatusDist')}
+              />
+            </div>
+            <div>
+              <p className='mb-4 text-xs text-muted-foreground uppercase tracking-wide'>
+                {t('obs.topDomain')}
+              </p>
+              <DistributionList
+                items={topDomains}
+                emptyMessage={t('obs.noDomainDist')}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <HealthEventTimeline
+        events={filteredHealthEvents}
+        allEventsCount={observability?.health_events.length ?? 0}
+        healthEventFilter={healthEventFilter}
+        onFilterChange={setHealthEventFilter}
+        onCleanup={() => setCleanupOpen(true)}
+        cleanupPending={cleanupMutation.isPending}
+      />
 
       <AlertDialog open={cleanupOpen} onOpenChange={setCleanupOpen}>
         <AlertDialogContent>

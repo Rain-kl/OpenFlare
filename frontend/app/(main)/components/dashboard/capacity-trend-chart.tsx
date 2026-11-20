@@ -25,7 +25,7 @@ export function CapacityTrendChart({
 }) {
   const t = useTranslations('dashboard.capacityTrend');
   return (
-    <Card className='border-dashed shadow-none'>
+    <Card className='min-w-0'>
       <CardHeader>
         <CardTitle className='text-sm font-semibold'>
           {title ?? t('title')}
@@ -34,12 +34,13 @@ export function CapacityTrendChart({
           {description ?? t('description')}
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className='flex flex-1 flex-col'>
         <TrendChart
           labels={points.map((point) =>
             formatTrendHour(point.bucket_started_at),
           )}
           yAxisValueFormatter={formatPercent}
+          compactSummary
           series={[
             {
               label: t('avgCpu'),

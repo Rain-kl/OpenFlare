@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 
+import { cn } from '@/lib/utils';
 import { calculateNiceAxisMax, formatCompactNumber } from '@/lib/utils/metrics';
 
 type TrendChartSeries = {
@@ -27,6 +28,7 @@ type TrendChartProps = {
   showSummary?: boolean;
   summaryScope?: TrendChartSummaryScope;
   summaryHint?: string;
+  compactSummary?: boolean;
 };
 
 type TooltipParam = {
@@ -60,6 +62,7 @@ export function TrendChart({
   showSummary = true,
   summaryScope = 'last-point',
   summaryHint,
+  compactSummary = false,
 }: TrendChartProps) {
   const t = useTranslations('dataComponents');
   const option = useMemo<EChartsOption>(() => {
@@ -186,30 +189,59 @@ export function TrendChart({
 
   if (labels.length === 0 || series.length === 0) {
     return (
-      <div className='flex h-[220px] items-center justify-center rounded-3xl border border-dashed bg-muted/30 text-sm text-muted-foreground'>
+      <div
+        className={cn(
+          'mt-auto flex items-center justify-center rounded-3xl border border-dashed bg-muted/30 text-sm text-muted-foreground',
+          compactSummary ? 'box-content py-4' : 'h-[220px]',
+        )}
+        style={compactSummary ? { height } : undefined}
+      >
         {t('noTrend')}
       </div>
     );
   }
 
   return (
-    <div className='space-y-4'>
+    <div
+      className={cn(
+        'flex flex-1 flex-col gap-4',
+        compactSummary && '@container',
+      )}
+    >
       {showSummary ? (
-        <div className='flex flex-wrap gap-3'>
+        <div
+          className={cn(
+            'gap-3',
+            compactSummary
+              ? 'grid grid-cols-2 @min-[26rem]:grid-cols-4'
+              : 'flex flex-wrap',
+          )}
+        >
           {series.map((item) => {
             const summaryValue = resolveSummaryValue(item.values, summaryScope);
             const formatter = item.valueFormatter ?? defaultFormatter;
             return (
               <div
                 key={item.label}
-                className='min-w-[140px] rounded-2xl border bg-card px-4 py-3'
+                className={cn(
+                  compactSummary
+                    ? 'min-w-0'
+                    : 'min-w-[140px] rounded-2xl border bg-card px-4 py-3',
+                )}
               >
                 <div className='flex items-center gap-2'>
                   <span
-                    className='h-2.5 w-2.5 rounded-full'
+                    className='size-2.5 shrink-0 rounded-full'
                     style={{ backgroundColor: item.color }}
                   />
-                  <p className='text-xs tracking-[0.18em] text-muted-foreground uppercase'>
+                  <p
+                    className={cn(
+                      'text-xs text-muted-foreground',
+                      compactSummary
+                        ? 'wrap-anywhere'
+                        : 'tracking-[0.18em] uppercase',
+                    )}
+                  >
                     {item.label}
                   </p>
                 </div>
@@ -227,7 +259,14 @@ export function TrendChart({
         </div>
       ) : null}
 
-      <div className='overflow-hidden rounded-[28px] border bg-linear-to-b from-white/3 to-transparent px-4 py-4 dark:from-white/3'>
+      <div
+        className={cn(
+          'mt-auto overflow-hidden rounded-[28px] border p-4',
+          compactSummary
+            ? 'border-dashed'
+            : 'bg-linear-to-b from-white/3 to-transparent dark:from-white/3',
+        )}
+      >
         <ReactECharts
           option={option}
           notMerge

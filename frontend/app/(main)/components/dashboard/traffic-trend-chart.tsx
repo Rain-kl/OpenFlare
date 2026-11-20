@@ -18,14 +18,16 @@ export function TrafficTrendChart({
   points,
   title,
   description,
+  compactSummary,
 }: {
   points: TrafficTrendPoint[];
   title?: string;
   description?: string;
+  compactSummary?: boolean;
 }) {
   const t = useTranslations('dashboard.trafficTrend');
   return (
-    <Card className='border-dashed shadow-none'>
+    <Card className='min-w-0'>
       <CardHeader>
         <CardTitle className='text-sm font-semibold'>
           {title ?? t('title')}
@@ -34,13 +36,14 @@ export function TrafficTrendChart({
           {description ?? t('description')}
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className='flex flex-1 flex-col'>
         <TrendChart
           labels={points.map((point) =>
             formatTrendHour(point.bucket_started_at),
           )}
           summaryScope='total'
           summaryHint={t('summaryHint')}
+          compactSummary={compactSummary}
           series={[
             {
               label: t('requests'),
