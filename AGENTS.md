@@ -32,6 +32,7 @@
 - 依赖任务/推送注册的测试须显式 `bootstrap.RegisterTasks()` / `RegisterPushDomainEvents()` 等，不依赖 `init()`。
 - API 错误必须 `response.Abort*` + `ErrorHandlerMiddleware`；禁止 Handler 直接 `c.JSON(..., response.Err(...))` 或用 HTTP 200 表示失败。
 - 根据单次任务工作量动态调整测试力度,不要改个文案就去跑全量测试。
+
 ### 文档与 Changelog
 
 - 内容变更同步**中文文档**。
