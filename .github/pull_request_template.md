@@ -1,9 +1,6 @@
 **例行检查**  
 
 <!-- 请在下面的 [ ] 中删除空格并打 x ，表示已完成相关检查 -->
-
-- [ ] 我已阅读并理解 [贡献者公约](https://github.com/Rain-kl/Wavelet/blob/main/CODE_OF_CONDUCT.md)
-- [ ] 我已阅读并同意 [贡献者许可协议 (CLA)](https://github.com/Rain-kl/Wavelet/blob/main/CLA.md)，确认我的贡献将根据项目的 Apache2.0 许可证进行许可
 - [ ] 我知晓如果此 PR 并不做出实质性更改，或可被认为是*为了PR被合并而提交PR*的，则可能不会被合并
 
 **关联信息**
