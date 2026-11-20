@@ -24,6 +24,7 @@ sidebar: false
 ### 💄 其他/体验
 
 - 控制台、浏览器图标、文档站和内置响应页统一使用 OpenFlare 黑白标识，支持深色模式的界面会自动切换为反白标识。
+- 文档站迁移至 Fumadocs 并采用 Next.js 静态导出，可直接由 Cloudflare Pages 托管。
 
 ## [v4.0.0] - 2026-11-20
 

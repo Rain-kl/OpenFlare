@@ -1,4 +1,8 @@
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - fumadocs-core@16.19.5
+  - fumadocs-mdx@15.6.4
+  - fumadocs-ui@16.19.5
 overrides:
   'speech-rule-engine>@xmldom/xmldom': 0.9.12

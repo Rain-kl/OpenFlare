@@ -82,7 +82,7 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 | `frontend/` | Next.js 管理端，构建产物嵌入 Go Server |
 | `pkg/` | 通用基础设施共享库（GeoIP、缓存、邮件、推送、工具函数等） |
 | `scripts/` | Swagger 生成、安装脚本等 |
-| `docs/` | VitePress 文档站与设计基线 |
+| `docs/` | Fumadocs 文档内容、Next.js 静态站点与设计基线 |
 | `docker/` | 各组件 Dockerfile |
 | `tests/integration/` | 跨模块集成测试 |
 | `uploads/`、`data/` | 运行时上传目录与静态数据（`.gitignore` 忽略） |

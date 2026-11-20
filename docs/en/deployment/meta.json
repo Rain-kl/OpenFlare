@@ -1,0 +1,12 @@
+{
+  "title": "Deployment",
+  "pages": [
+    "index",
+    "deployment",
+    "server",
+    "agent",
+    "relay",
+    "openflared",
+    "upgrade"
+  ]
+}

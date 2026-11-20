@@ -1,0 +1,22 @@
+{
+  "title": "指南",
+  "pages": [
+    "index",
+    "quick-start",
+    "first-site",
+    "proxy-config",
+    "certificates",
+    "zone-domain-migration",
+    "pages-usage",
+    "tunnel-usage",
+    "waf-usage",
+    "pow-usage",
+    "waf-ip-group-expr",
+    "performance-policies",
+    "uptime-kuma",
+    "sso",
+    "dashboard-map",
+    "troubleshooting",
+    "credits"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "title": "Design",
+  "pages": [
+    "index",
+    "architecture",
+    "zone-design",
+    "cloudflare-pointing",
+    "agent-design",
+    "tunnel-design",
+    "waf-design",
+    "waf-orchestration-design",
+    "pages-design",
+    "edge-cache-design",
+    "origin-error-page",
+    "observability-design",
+    "observability-transport-model",
+    "observability-data-model",
+    "logstore",
+    "kuma-design",
+    "login-captcha"
+  ]
+}

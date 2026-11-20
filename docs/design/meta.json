@@ -1,0 +1,26 @@
+{
+  "title": "设计",
+  "pages": [
+    "index",
+    "architecture",
+    "zone-design",
+    "cloudflare-pointing",
+    "agent-design",
+    "pingora-edge-design",
+    "pingora-edge-development",
+    "tunnel-design",
+    "waf-design",
+    "waf-orchestration-design",
+    "pow-design",
+    "pages-design",
+    "edge-cache-design",
+    "origin-error-page",
+    "observability-design",
+    "observability-transport-model",
+    "observability-data-model",
+    "logstore",
+    "kuma-design",
+    "login-captcha",
+    "log-language"
+  ]
+}

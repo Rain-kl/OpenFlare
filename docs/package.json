@@ -2,19 +2,32 @@
   "name": "openflare-docs",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.19.0",
   "scripts": {
-    "dev": "vitepress dev",
-    "build": "vitepress build",
-    "preview": "vitepress preview",
-    "lunaria:build": "lunaria build",
-    "lunaria:open": "open-cli .vitepress/dist/_translations/index.html"
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fumadocs-core": "16.19.5",
+    "fumadocs-mdx": "15.6.4",
+    "fumadocs-ui": "16.19.5",
+    "lucide-react": "1.28.0",
+    "next": "16.4.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@lunariajs/core": "^0.1.1",
-    "markdown-it-mathjax3": "^4.3.2",
-    "open-cli": "^8.0.0",
-    "postcss-rtlcss": "^5.7.1",
-    "vitepress": "2.0.0-alpha.17",
-    "vitepress-plugin-llms": "^1.11.0"
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/mdx": "2.0.14",
+    "@types/node": "26.1.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

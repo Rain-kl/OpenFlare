@@ -9,6 +9,9 @@
 .vite_opt_cache
 .vscode
 dist
+out
+.next
+.source
 cache
 temp
 examples-temp

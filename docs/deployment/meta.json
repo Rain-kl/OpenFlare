@@ -1,0 +1,14 @@
+{
+  "title": "部署",
+  "pages": [
+    "index",
+    "quick-start",
+    "deployment",
+    "server",
+    "agent",
+    "openflare-edge",
+    "relay",
+    "openflared",
+    "upgrade"
+  ]
+}
