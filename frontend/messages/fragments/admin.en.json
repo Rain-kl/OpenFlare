@@ -483,6 +483,12 @@
       "noUpgradeNeeded": "Current version does not need an upgrade."
     },
     "operation": {
+      "automationTitle": "CLI and MCP",
+      "automationDescription": "Set the HTTPS origin that AI clients can reach. Save an empty value to disable automation access.",
+      "automationAddress": "External HTTPS origin",
+      "automationConnect": "Open MCP connection instructions",
+      "automationSaved": "Automation settings saved",
+      "automationSaveError": "Could not save automation settings. Enter an HTTPS origin without a path.",
       "whitelistUpdated": "File access whitelist updated",
       "updateWhitelistFailed": "Failed to update whitelist",
       "fileAccessControl": "File access control",

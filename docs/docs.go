@@ -5172,7 +5172,7 @@ const docTemplate = `{
                         "AutomationBearer": []
                     }
                 ],
-                "description": "Read one node and the latest configuration application summary. Pass node_record_id from the list operation. Use the node list search to resolve names or registration identifiers.",
+                "description": "Read one node and its latest configuration application summary. For an edge node, compare current_version with desired_site_version to check whether the controller's current site snapshot has been applied. Pass node_record_id from openflare_node_list.",
                 "produces": [
                     "application/json"
                 ],
@@ -5245,7 +5245,7 @@ const docTemplate = `{
                     "effect": "read",
                     "parameters": {
                         "node_record_id": {
-                            "pattern": "^[1-9][0-9]{0,19}$"
+                            "pattern": "^[1-9][0-9]{0,18}$"
                         }
                     },
                     "scope": "nodes:read"
@@ -5512,7 +5512,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/apps_openflare_automation.setPerformanceBody"
+                            "$ref": "#/definitions/apps_openflare_automation.SetPerformanceBody"
                         }
                     }
                 ],
@@ -5690,7 +5690,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/apps_openflare_automation.createSiteBody"
+                            "$ref": "#/definitions/apps_openflare_automation.CreateSiteBody"
                         }
                     }
                 ],
@@ -5893,7 +5893,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/apps_openflare_automation.setUpstreamsBody"
+                            "$ref": "#/definitions/apps_openflare_automation.SetUpstreamsBody"
                         }
                     }
                 ],
@@ -6071,7 +6071,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/apps_openflare_automation.createZoneBody"
+                            "$ref": "#/definitions/apps_openflare_automation.CreateZoneBody"
                         }
                     }
                 ],
@@ -6256,7 +6256,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/apps_openflare_automation.createDomainBody"
+                            "$ref": "#/definitions/apps_openflare_automation.CreateDomainBody"
                         }
                     }
                 ],
@@ -16876,7 +16876,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/apps_openflare_performance.policyList"
+                                            "$ref": "#/definitions/apps_openflare_performance.PolicyList"
                                         }
                                     }
                                 }
@@ -16931,7 +16931,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/apps_openflare_performance.policyView"
+                                            "$ref": "#/definitions/apps_openflare_performance.PolicyView"
                                         }
                                     }
                                 }
@@ -17120,7 +17120,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/apps_openflare_performance.policyView"
+                                            "$ref": "#/definitions/apps_openflare_performance.PolicyView"
                                         }
                                     }
                                 }
@@ -18615,6 +18615,78 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_automation.CreateDomainBody": {
+            "type": "object",
+            "required": [
+                "hostname"
+            ],
+            "properties": {
+                "certificate_id": {
+                    "description": "Certificate record ID from openflare_certificate_list. Required before binding the hostname to an HTTPS site.",
+                    "type": "string"
+                },
+                "hostname": {
+                    "description": "Exact hostname such as www.example.com, or an explicit wildcard such as *.example.com; omit scheme, port and path.",
+                    "type": "string",
+                    "maxLength": 253,
+                    "minLength": 1
+                }
+            }
+        },
+        "apps_openflare_automation.CreateSiteBody": {
+            "type": "object",
+            "required": [
+                "domain_record_ids",
+                "enable_https",
+                "site_name",
+                "upstreams"
+            ],
+            "properties": {
+                "domain_record_ids": {
+                    "description": "Unbound domain record IDs from openflare_domain_list. Use decimal strings, not hostnames.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enable_https": {
+                    "description": "True enables browser-facing HTTPS and requires a covering certificate on each domain. False serves HTTP only. Independent of upstream URL schemes.",
+                    "type": "boolean"
+                },
+                "origin_host": {
+                    "description": "Optional upstream Host override. If omitted, use normal edge Host handling.",
+                    "type": "string",
+                    "maxLength": 253
+                },
+                "site_name": {
+                    "description": "Unique display name for the new site.",
+                    "type": "string",
+                    "maxLength": 128,
+                    "minLength": 1
+                },
+                "upstreams": {
+                    "description": "Ordered direct HTTP(S) URLs including scheme and optional port. No credentials, query strings or fragments. Multiple upstreams must share a scheme and have no path prefix.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "apps_openflare_automation.CreateZoneBody": {
+            "type": "object",
+            "required": [
+                "root_domain"
+            ],
+            "properties": {
+                "root_domain": {
+                    "description": "Registered root domain such as example.com, without scheme, port or path.",
+                    "type": "string",
+                    "maxLength": 253,
+                    "minLength": 1
+                }
+            }
+        },
         "apps_openflare_automation.DomainBindingResult": {
             "type": "object",
             "properties": {
@@ -18706,7 +18778,13 @@ const docTemplate = `{
                 "current_version": {
                     "type": "string"
                 },
+                "desired_site_version": {
+                    "type": "string"
+                },
                 "ip": {
+                    "type": "string"
+                },
+                "last_heartbeat_at": {
                     "type": "string"
                 },
                 "latest_apply_at": {
@@ -18851,6 +18929,45 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_automation.SetPerformanceBody": {
+            "type": "object",
+            "required": [
+                "key",
+                "value"
+            ],
+            "properties": {
+                "key": {
+                    "description": "Exact parameter key from openflare_performance_list, not a display label.",
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "value": {
+                    "description": "Text representation: a decimal integer within min/max, true/false for a boolean, or an exact choice. Follow the metadata returned by openflare_performance_list.",
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "apps_openflare_automation.SetUpstreamsBody": {
+            "type": "object",
+            "required": [
+                "upstreams"
+            ],
+            "properties": {
+                "origin_host": {
+                    "description": "New upstream Host override. Omit to preserve the existing override or pass an empty string to clear it.",
+                    "type": "string",
+                    "maxLength": 253
+                },
+                "upstreams": {
+                    "description": "Complete replacement list of direct HTTP(S) origin URLs without credentials, query strings or fragments. Multiple upstreams must share a scheme and have no path prefix.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "apps_openflare_automation.SiteList": {
             "type": "object",
             "properties": {
@@ -18953,117 +19070,6 @@ const docTemplate = `{
                 },
                 "zone_id": {
                     "type": "string"
-                }
-            }
-        },
-        "apps_openflare_automation.createDomainBody": {
-            "type": "object",
-            "required": [
-                "hostname"
-            ],
-            "properties": {
-                "certificate_id": {
-                    "description": "Certificate record ID from openflare_certificate_list. Required before binding the hostname to an HTTPS site.",
-                    "type": "string"
-                },
-                "hostname": {
-                    "description": "Exact hostname such as www.example.com, or an explicit wildcard such as *.example.com; omit scheme, port and path.",
-                    "type": "string",
-                    "maxLength": 253,
-                    "minLength": 1
-                }
-            }
-        },
-        "apps_openflare_automation.createSiteBody": {
-            "type": "object",
-            "required": [
-                "domain_record_ids",
-                "enable_https",
-                "site_name",
-                "upstreams"
-            ],
-            "properties": {
-                "domain_record_ids": {
-                    "description": "Unbound domain record IDs from openflare_domain_list. Use decimal strings, not hostnames.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "enable_https": {
-                    "description": "True enables browser-facing HTTPS and requires a covering certificate on each domain. False serves HTTP only. Independent of upstream URL schemes.",
-                    "type": "boolean"
-                },
-                "origin_host": {
-                    "description": "Optional upstream Host override. If omitted, use normal edge Host handling.",
-                    "type": "string",
-                    "maxLength": 253
-                },
-                "site_name": {
-                    "description": "Unique display name for the new site.",
-                    "type": "string",
-                    "maxLength": 128,
-                    "minLength": 1
-                },
-                "upstreams": {
-                    "description": "Ordered direct HTTP(S) URLs including scheme and optional port. No credentials, query strings or fragments. Multiple upstreams must share a scheme and have no path prefix.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "apps_openflare_automation.createZoneBody": {
-            "type": "object",
-            "required": [
-                "root_domain"
-            ],
-            "properties": {
-                "root_domain": {
-                    "description": "Registered root domain such as example.com, without scheme, port or path.",
-                    "type": "string",
-                    "maxLength": 253,
-                    "minLength": 1
-                }
-            }
-        },
-        "apps_openflare_automation.setPerformanceBody": {
-            "type": "object",
-            "required": [
-                "key",
-                "value"
-            ],
-            "properties": {
-                "key": {
-                    "description": "Exact parameter key from openflare_performance_list, not a display label.",
-                    "type": "string",
-                    "maxLength": 128
-                },
-                "value": {
-                    "description": "Text representation: a decimal integer within min/max, true/false for a boolean, or an exact choice. Follow the metadata returned by openflare_performance_list.",
-                    "type": "string",
-                    "maxLength": 128
-                }
-            }
-        },
-        "apps_openflare_automation.setUpstreamsBody": {
-            "type": "object",
-            "required": [
-                "upstreams"
-            ],
-            "properties": {
-                "origin_host": {
-                    "description": "New upstream Host override. Omit to preserve the existing override or pass an empty string to clear it.",
-                    "type": "string",
-                    "maxLength": 253
-                },
-                "upstreams": {
-                    "description": "Complete replacement list of direct HTTP(S) origin URLs without credentials, query strings or fragments. Multiple upstreams must share a scheme and have no path prefix.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },
@@ -20832,22 +20838,7 @@ const docTemplate = `{
                 }
             }
         },
-        "apps_openflare_performance.assignmentRequest": {
-            "type": "object",
-            "required": [
-                "node_ids"
-            ],
-            "properties": {
-                "node_ids": {
-                    "type": "array",
-                    "maxItems": 10000,
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "apps_openflare_performance.policyList": {
+        "apps_openflare_performance.PolicyList": {
             "type": "object",
             "properties": {
                 "nodes": {
@@ -20865,7 +20856,39 @@ const docTemplate = `{
                 "policies": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/apps_openflare_performance.policyView"
+                        "$ref": "#/definitions/apps_openflare_performance.PolicyView"
+                    }
+                }
+            }
+        },
+        "apps_openflare_performance.PolicyView": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "settings": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_performance.Settings"
+                }
+            }
+        },
+        "apps_openflare_performance.assignmentRequest": {
+            "type": "object",
+            "required": [
+                "node_ids"
+            ],
+            "properties": {
+                "node_ids": {
+                    "type": "array",
+                    "maxItems": 10000,
+                    "items": {
+                        "type": "string"
                     }
                 }
             }
@@ -20881,23 +20904,6 @@ const docTemplate = `{
                 },
                 "settings": {
                     "type": "object"
-                }
-            }
-        },
-        "apps_openflare_performance.policyView": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer"
-                },
-                "is_default": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "settings": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_performance.Settings"
                 }
             }
         },

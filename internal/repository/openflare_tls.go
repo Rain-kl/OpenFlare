@@ -9,6 +9,7 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"gorm.io/gorm"
 )
 
 // HasTLSProxyRoutesTable 判断代理规则表是否已迁移。
@@ -37,6 +38,15 @@ func GetTLSCertificateByID(ctx context.Context, id uint) (*model.TLSCertificate,
 	}
 	var certificate model.TLSCertificate
 	if err := conn.First(&certificate, id).Error; err != nil {
+		return nil, err
+	}
+	return &certificate, nil
+}
+
+// GetTLSCertificateByIDTx reads a certificate within an existing transaction.
+func GetTLSCertificateByIDTx(tx *gorm.DB, id uint) (*model.TLSCertificate, error) {
+	var certificate model.TLSCertificate
+	if err := tx.First(&certificate, id).Error; err != nil {
 		return nil, err
 	}
 	return &certificate, nil

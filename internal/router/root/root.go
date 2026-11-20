@@ -17,6 +17,7 @@ var RegisterFrontend = func(_ *gin.Engine) {
 func RegisterRootRoutes(r *gin.Engine) {
 	// 1. Default root routes (/f/:id, /robots.txt, and /swagger/*any)
 	RegisterDefaultRootRoutes(r)
+	registerAutomationRoutes(r)
 
 	// 2. Register frontend serving
 	RegisterFrontend(r)

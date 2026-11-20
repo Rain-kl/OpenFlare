@@ -51,6 +51,21 @@ func UpdatePerformancePolicy(ctx context.Context, policy *model.OpenFlarePerform
 		Select("Name", "SettingsJSON", "UpdatedAt").Updates(policy))
 }
 
+// EditPerformanceSettings reads and updates one policy under its write lock.
+func EditPerformanceSettings(ctx context.Context, id uint, edit func(string) (string, error)) error {
+	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		var policy model.OpenFlarePerformancePolicy
+		if err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).First(&policy, id).Error; err != nil {
+			return err
+		}
+		next, err := edit(policy.SettingsJSON)
+		if err != nil {
+			return err
+		}
+		return tx.Model(&policy).Update("settings_json", next).Error
+	})
+}
+
 // DeletePerformancePolicy removes a policy and clears its node assignments.
 func DeletePerformancePolicy(ctx context.Context, id uint) error {
 	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {

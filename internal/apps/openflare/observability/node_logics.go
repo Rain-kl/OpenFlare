@@ -100,12 +100,15 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 	if err != nil {
 		return nil, err
 	}
-	if view, ok := getCachedNodeObservability(node.NodeID); ok {
-		return view, nil
-	}
-
 	limit := normalizeObservabilityLimit(query.Limit)
-	since := now.Add(-normalizeObservabilityWindow(query.Hours))
+	window := normalizeObservabilityWindow(query.Hours)
+	cacheable := limit == defaultObservabilityLimit && window == defaultObservabilityWindow
+	if cacheable {
+		if view, ok := getCachedNodeObservability(node.NodeID); ok {
+			return view, nil
+		}
+	}
+	since := now.Add(-window)
 
 	profile, err := repository.GetOpenFlareNodeSystemProfile(ctx, node.NodeID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -158,7 +161,9 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 		}
 		view.RelayDashboard = buildRelayDashboardSnapshot(node, latestFrps)
 	}
-	setCachedNodeObservability(node.NodeID, view)
+	if cacheable {
+		setCachedNodeObservability(node.NodeID, view)
+	}
 	return view, nil
 }
 

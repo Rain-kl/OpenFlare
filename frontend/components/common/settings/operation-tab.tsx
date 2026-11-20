@@ -30,6 +30,7 @@ import {
 import services from '@/lib/services';
 import type { SystemConfig } from '@/lib/services/admin';
 import { TemplatesManager } from './templates';
+import { AutomationSettings } from './automation-settings';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -200,6 +201,12 @@ export function OperationTab({
 
   return (
     <div className='space-y-6'>
+      {configs.automation_public_url && (
+        <AutomationSettings
+          key={configs.automation_public_url.value}
+          config={configs.automation_public_url}
+        />
+      )}
       {/* 文件访问白名单设置 */}
       <Card>
         <CardHeader className='border-b border-dashed pb-4'>

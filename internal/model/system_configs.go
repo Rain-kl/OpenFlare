@@ -7,21 +7,22 @@ import "time"
 
 // 配置键常量 - 所有系统配置的 key 定义
 const (
-	ConfigKeyUploadAllowedExtensions          = "upload_allowed_extensions"           // 允许上传的文件扩展名，逗号分隔
-	ConfigKeySiteName                         = "site_name"                           // 站点名称
-	ConfigKeyPasswordLoginEnabled             = "password_login_enabled"              // 是否允许密码登录
-	ConfigKeyRegistrationEnabled              = "registration_enabled"                // 是否允许注册
-	ConfigKeyPasswordRegisterEnabled          = "password_register_enabled"           // 是否允许密码注册
-	ConfigKeyOIDCLoginEnabled                 = "oidc_login_enabled"                  // 是否允许 OIDC 登录
-	ConfigKeyMaxAPIKeysPerUser                = "max_api_keys_per_user"               //nolint:gosec // false positive: config key name. 每个用户最大 API Key 数量
-	ConfigKeyCapLoginEnabled                  = "cap_login_enabled"                   // 是否启用登录人机验证
-	ConfigKeyCapAutoSolve                     = "cap_auto_solve"                      // 打开页面后是否自动开始计算（false 则需用户手动点击）
-	ConfigKeyCapChallengeCount                = "cap_challenge_count"                 // 客户端需求解的 PoW 难题总数，默认 1，推荐 1～5
-	ConfigKeyCapChallengeSize                 = "cap_challenge_size"                  // 人机验证盐值长度
-	ConfigKeyCapChallengeDifficulty           = "cap_challenge_difficulty"            // 人机验证 PoW 难度（目标前缀长度）
-	ConfigKeyCapChallengeTTL                  = "cap_challenge_ttl_seconds"           // 人机验证难题有效时间（秒）
-	ConfigKeyCapTokenTTL                      = "cap_token_ttl_seconds"               //nolint:gosec // false positive: config key name. 人机验证兑换凭证有效时间（秒）
-	ConfigKeyServerAddress                    = "server_address"                      // 服务器地址
+	ConfigKeyUploadAllowedExtensions          = "upload_allowed_extensions" // 允许上传的文件扩展名，逗号分隔
+	ConfigKeySiteName                         = "site_name"                 // 站点名称
+	ConfigKeyPasswordLoginEnabled             = "password_login_enabled"    // 是否允许密码登录
+	ConfigKeyRegistrationEnabled              = "registration_enabled"      // 是否允许注册
+	ConfigKeyPasswordRegisterEnabled          = "password_register_enabled" // 是否允许密码注册
+	ConfigKeyOIDCLoginEnabled                 = "oidc_login_enabled"        // 是否允许 OIDC 登录
+	ConfigKeyMaxAPIKeysPerUser                = "max_api_keys_per_user"     //nolint:gosec // false positive: config key name. 每个用户最大 API Key 数量
+	ConfigKeyCapLoginEnabled                  = "cap_login_enabled"         // 是否启用登录人机验证
+	ConfigKeyCapAutoSolve                     = "cap_auto_solve"            // 打开页面后是否自动开始计算（false 则需用户手动点击）
+	ConfigKeyCapChallengeCount                = "cap_challenge_count"       // 客户端需求解的 PoW 难题总数，默认 1，推荐 1～5
+	ConfigKeyCapChallengeSize                 = "cap_challenge_size"        // 人机验证盐值长度
+	ConfigKeyCapChallengeDifficulty           = "cap_challenge_difficulty"  // 人机验证 PoW 难度（目标前缀长度）
+	ConfigKeyCapChallengeTTL                  = "cap_challenge_ttl_seconds" // 人机验证难题有效时间（秒）
+	ConfigKeyCapTokenTTL                      = "cap_token_ttl_seconds"     //nolint:gosec // false positive: config key name. 人机验证兑换凭证有效时间（秒）
+	ConfigKeyServerAddress                    = "server_address"            // 服务器地址
+	ConfigKeyAutomationPublicURL              = "automation_public_url"
 	ConfigKeySMTPHost                         = "smtp_host"                           // SMTP 服务器地址
 	ConfigKeySMTPPort                         = "smtp_port"                           // SMTP 端口
 	ConfigKeySMTPUsername                     = "smtp_username"                       // SMTP 账户

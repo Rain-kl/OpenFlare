@@ -57,12 +57,12 @@ func Create(ctx context.Context, input Input) (*model.Zone, error) {
 	}
 	root, err := routeidentity.ZoneRoot(domain)
 	if err != nil || root != domain {
-		return nil, errors.New(errZoneRootInvalid)
+		return nil, ErrInvalidZoneRoot
 	}
 	zone := &model.Zone{Domain: domain}
 	if err := repository.CreateZone(ctx, zone); err != nil {
 		if isUnique(err) {
-			return nil, errors.New(errDomainExists)
+			return nil, ErrDomainExists
 		}
 		return nil, err
 	}
@@ -147,17 +147,20 @@ func CreateDomain(ctx context.Context, zoneID uint, input DomainInput) (*model.Z
 	}
 	root, err := routeidentity.ZoneRoot(domain)
 	if err != nil || root != zone.Domain {
-		return nil, errors.New(errDomainOutsideZone)
+		return nil, ErrDomainOutsideZone
 	}
 	if input.CertID != nil {
 		if _, err := repository.GetTLSCertificateByID(ctx, *input.CertID); err != nil {
-			return nil, errors.New(errCertificateNotFound)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrCertificateNotFound
+			}
+			return nil, err
 		}
 	}
 	item := &model.ZoneDomain{ZoneID: zoneID, Domain: domain, CertID: input.CertID}
 	if err := repository.CreateZoneDomain(ctx, item); err != nil {
 		if isUnique(err) {
-			return nil, errors.New(errDomainExists)
+			return nil, ErrDomainExists
 		}
 		return nil, err
 	}

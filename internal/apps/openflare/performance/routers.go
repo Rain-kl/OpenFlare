@@ -20,13 +20,13 @@ import (
 // @Summary List Pingora performance policies
 // @Description The default policy is inherited by nodes without an explicit assignment.
 // @Tags Performance Policies
-// @Success 200 {object} response.Any{data=policyList}
+// @Success 200 {object} response.Any{data=PolicyList}
 // @Failure 401 {object} response.Any
 // @Failure 404 {object} response.Any
 // @Failure 500 {object} response.Any
 // @Router /d/performance-policies [get]
 func ListHandler(c *gin.Context) {
-	result, err := listPolicies(c.Request.Context())
+	result, err := ListPolicies(c.Request.Context())
 	if err != nil {
 		abortPolicyError(c, err)
 		return
@@ -38,7 +38,7 @@ func ListHandler(c *gin.Context) {
 // @Summary Create a Pingora performance policy
 // @Tags Performance Policies
 // @Param request body policyRequest true "Policy name and parameters"
-// @Success 200 {object} response.Any{data=policyView}
+// @Success 200 {object} response.Any{data=PolicyView}
 // @Failure 400 {object} response.Any
 // @Failure 401 {object} response.Any
 // @Failure 404 {object} response.Any
@@ -53,7 +53,7 @@ func CreateHandler(c *gin.Context) {
 // @Tags Performance Policies
 // @Param id path int true "Policy ID"
 // @Param request body policyRequest true "Policy name and parameters"
-// @Success 200 {object} response.Any{data=policyView}
+// @Success 200 {object} response.Any{data=PolicyView}
 // @Failure 400 {object} response.Any
 // @Failure 401 {object} response.Any
 // @Failure 404 {object} response.Any

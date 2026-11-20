@@ -6,6 +6,7 @@ MODULE := $(shell go list -m)
 
 swagger:
 	scripts/swagger.sh
+	go run ./scripts/generate-automation-catalog
 
 license:
 	scripts/update_go_license.sh
@@ -45,6 +46,7 @@ code-check:
 		exit 1; \
 	fi
 	node scripts/generate-attack-rule-ids.mjs --check
+	go run ./scripts/generate-automation-catalog -check
 	golangci-lint run
 	cd frontend && node scripts/generate-pow-assets.mjs --check && node scripts/merge-i18n-fragments.mjs && pnpm check:i18n && pnpm tsc --noEmit --jsx preserve && npx eslint . --max-warnings 0
 

@@ -19,6 +19,7 @@ func RegisterV1Routes(apiV1Router *gin.RouterGroup, apiGroup *gin.RouterGroup) {
 	// 3. OpenFlare management console APIs and Agent/Relay/Tunnel protocol routes
 	registerOpenFlareConsoleRoutes(apiV1Router)
 	registerOpenFlareEdgeRoutes(apiV1Router)
+	registerAutomationRoutes(apiV1Router)
 
 	// 4. Control-plane GeoIP / client IP helper route (/api/geoip)
 	registerGeoIPRoutes(apiGroup)

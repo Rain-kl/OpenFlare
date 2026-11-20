@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/automationcontract"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -35,7 +36,8 @@ func loggerMiddleware() gin.HandlerFunc {
 		// 记录请求路径和 Query
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
-		if raw != "" {
+		isAutomationLogin := path == "/login" && strings.HasPrefix(c.Query("callbackUrl"), automationcontract.OAuthPath+"/")
+		if raw != "" && !strings.HasPrefix(path, automationcontract.OAuthPath+"/") && !isAutomationLogin {
 			path = path + "?" + raw
 		}
 

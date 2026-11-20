@@ -483,6 +483,12 @@
       "noUpgradeNeeded": "当前版本无需升级。"
     },
     "operation": {
+      "automationTitle": "CLI 与 MCP",
+      "automationDescription": "设置 AI 客户端可访问的 HTTPS 地址。留空并保存可停用自动化访问。",
+      "automationAddress": "对外 HTTPS 地址",
+      "automationConnect": "打开 MCP 连接说明",
+      "automationSaved": "自动化设置已保存",
+      "automationSaveError": "保存自动化设置失败。请输入不含路径的 HTTPS 地址。",
       "whitelistUpdated": "文件访问白名单已更新",
       "updateWhitelistFailed": "更新白名单失败",
       "fileAccessControl": "文件访问权限控制",

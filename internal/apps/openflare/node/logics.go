@@ -103,6 +103,7 @@ type View struct {
 	Status                    string     `json:"status"`
 	CurrentVersion            string     `json:"current_version"`
 	LastSeenAt                any        `json:"last_seen_at"`
+	LastHeartbeatAt           *time.Time `json:"-"`
 	LastError                 string     `json:"last_error"`
 	LatestApplyResult         string     `json:"latest_apply_result"`
 	LatestApplyMessage        string     `json:"latest_apply_message"`

@@ -38,18 +38,19 @@ var defaultAccessLogQueryWindow = defaultAccessLogQueryDays * 24 * time.Hour
 
 // AccessLogQuery filters access log list queries.
 type AccessLogQuery struct {
-	NodeID      string `json:"node_id"`
-	RemoteAddr  string `json:"remote_addr"`
-	Host        string `json:"host"`
-	Path        string `json:"path"`
-	StatusCode  int    `json:"status_code"`
-	Since       string `json:"since"`
-	Until       string `json:"until"`
-	Page        int    `json:"page"`
-	PageSize    int    `json:"page_size"`
-	SortBy      string `json:"sort_by"`
-	SortOrder   string `json:"sort_order"`
-	FoldMinutes int    `json:"fold_minutes"`
+	NodeID      string   `json:"node_id"`
+	RemoteAddr  string   `json:"remote_addr"`
+	Host        string   `json:"host"`
+	ExactHosts  []string `json:"-"`
+	Path        string   `json:"path"`
+	StatusCode  int      `json:"status_code"`
+	Since       string   `json:"since"`
+	Until       string   `json:"until"`
+	Page        int      `json:"page"`
+	PageSize    int      `json:"page_size"`
+	SortBy      string   `json:"sort_by"`
+	SortOrder   string   `json:"sort_order"`
+	FoldMinutes int      `json:"fold_minutes"`
 }
 
 // AccessLogView is a single access log row (all business fields from of_node_access_logs).
@@ -908,6 +909,7 @@ func buildModelAccessLogQuery(input AccessLogQuery) (model.OpenFlareAccessLogQue
 		NodeID:     strings.TrimSpace(input.NodeID),
 		RemoteAddr: strings.TrimSpace(input.RemoteAddr),
 		Host:       strings.TrimSpace(input.Host),
+		Hosts:      input.ExactHosts,
 		Path:       strings.TrimSpace(input.Path),
 		StatusCode: input.StatusCode,
 		Since:      since,
@@ -975,6 +977,7 @@ func normalizeAccessLogQuery(input AccessLogQuery) AccessLogQuery {
 		NodeID:      strings.TrimSpace(input.NodeID),
 		RemoteAddr:  strings.TrimSpace(input.RemoteAddr),
 		Host:        strings.TrimSpace(input.Host),
+		ExactHosts:  input.ExactHosts,
 		Path:        strings.TrimSpace(input.Path),
 		StatusCode:  input.StatusCode,
 		Since:       strings.TrimSpace(input.Since),

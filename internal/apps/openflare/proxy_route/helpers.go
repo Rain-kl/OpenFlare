@@ -242,6 +242,8 @@ func parseLeafCertificate(certPEM string) (*x509.Certificate, error) {
 	return leaf, nil
 }
 
+var errCertificateCoverage = errors.New("certificate does not cover domain")
+
 func validateCertificateCoverage(certificate *model.TLSCertificate, domains []string) error {
 	if certificate == nil {
 		return errors.New(errProxyRouteCertNotFound)
@@ -252,7 +254,7 @@ func validateCertificateCoverage(certificate *model.TLSCertificate, domains []st
 	}
 	for _, domain := range domains {
 		if err := leaf.VerifyHostname(domain); err != nil {
-			return fmt.Errorf("certificate does not cover domain %s", domain)
+			return fmt.Errorf("%w %s", errCertificateCoverage, domain)
 		}
 	}
 	return nil

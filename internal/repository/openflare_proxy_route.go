@@ -45,6 +45,37 @@ func GetProxyRouteByID(ctx context.Context, id uint) (*model.ProxyRoute, error) 
 	return &route, nil
 }
 
+// LockProxyRouteTx loads a route with its row lock held for the transaction.
+func LockProxyRouteTx(tx *gorm.DB, id uint) (*model.ProxyRoute, error) {
+	var route model.ProxyRoute
+	if err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).First(&route, id).Error; err != nil {
+		return nil, err
+	}
+	return &route, nil
+}
+
+// LockZoneDomainTx loads the hostname and binding under a row lock.
+func LockZoneDomainTx(tx *gorm.DB, id uint) (*model.ZoneDomain, error) {
+	var domain model.ZoneDomain
+	if err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).First(&domain, id).Error; err != nil {
+		return nil, err
+	}
+	return &domain, nil
+}
+
+// BindZoneDomainTx associates a locked hostname without replacing other bindings.
+func BindZoneDomainTx(tx *gorm.DB, domain *model.ZoneDomain, routeID uint) error {
+	if domain.ProxyRouteID != nil && *domain.ProxyRouteID != routeID {
+		return ErrZoneDomainBoundToAnotherRoute
+	}
+	return tx.Model(domain).Update("proxy_route_id", routeID).Error
+}
+
+// UpdateDirectRouteUpstreamsTx persists the upstream fields of a locked route.
+func UpdateDirectRouteUpstreamsTx(tx *gorm.DB, route *model.ProxyRoute) error {
+	return tx.Model(route).Select("OriginID", "OriginURL", "OriginHost", "Upstreams", "UpdatedAt").Updates(route).Error
+}
+
 // CreateProxyRouteRecord 创建代理规则。
 func CreateProxyRouteRecord(ctx context.Context, route *model.ProxyRoute) error {
 	return CreateProxyRouteRecordTx(db.DB(ctx), route)
@@ -116,7 +147,7 @@ func ClearZoneDomainProxyRouteBindingsTx(tx *gorm.DB, routeID uint) error {
 func ReplaceZoneDomainRouteBindingsTx(tx *gorm.DB, routeID uint, domainIDs []uint) error {
 	var requested []model.ZoneDomain
 	if len(domainIDs) > 0 {
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		if err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
 			Where("id IN ?", domainIDs).
 			Find(&requested).Error; err != nil {
 			return err

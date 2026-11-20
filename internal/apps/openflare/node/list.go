@@ -36,9 +36,16 @@ type ListResult struct {
 	PageSize int     `json:"page_size"`
 }
 
+var errBadListQuery = errors.New(errInvalidNodeListQuery)
+
+// IsInvalidListQuery distinguishes invalid filters from infrastructure failures.
+func IsInvalidListQuery(err error) bool {
+	return errors.Is(err, errBadListQuery)
+}
+
 func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	if query.Page < 0 || query.PageSize < 0 {
-		return query, errors.New(errInvalidNodeListQuery)
+		return query, errBadListQuery
 	}
 	if query.Page == 0 {
 		query.Page = 1
@@ -50,21 +57,21 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 		query.PageSize = maxNodePageSize
 	}
 	if query.Page-1 > int(^uint(0)>>1)/query.PageSize {
-		return query, errors.New(errInvalidNodeListQuery)
+		return query, errBadListQuery
 	}
 	query.Search = strings.TrimSpace(query.Search)
 	if len(query.Search) > maxNodeSearchLength {
-		return query, errors.New(errInvalidNodeListQuery)
+		return query, errBadListQuery
 	}
 	switch query.Status {
 	case "", nodeStatusPending, nodeStatusOnline, nodeStatusOffline:
 	default:
-		return query, errors.New(errInvalidNodeListQuery)
+		return query, errBadListQuery
 	}
 	switch query.NodeType {
 	case "", nodeTypeEdgeNode, nodeTypeTunnelRelay, nodeTypeTunnelClient:
 	default:
-		return query, errors.New(errInvalidNodeListQuery)
+		return query, errBadListQuery
 	}
 	return query, nil
 }

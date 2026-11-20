@@ -1,0 +1,50 @@
+{
+  "zh-CN": {
+    "consent": "授权自动化访问",
+    "connect": "连接 OpenFlare MCP",
+    "consentDetail": "只读排查可查看网站、节点、访问日志和性能指标。日常运营还可创建网站、添加和绑定域名、调整上游与性能参数；授权后可直接执行。实际权限以客户端请求范围为限。",
+    "connectDetail": "复制连接说明并发送给支持远程 MCP 的 AI 客户端。首次连接需要在浏览器授权。",
+    "client": "客户端声明的名称",
+    "callback": "回调地址",
+    "scopes": "请求的权限范围",
+    "read": "授权只读排查",
+    "operate": "授权日常运营",
+    "deny": "拒绝",
+    "copy": "复制给 AI",
+    "copied": "已复制",
+    "revoke": "撤销我的全部自动化授权",
+    "setup": "请在当前 AI 客户端添加名为 %s 的远程 MCP 连接，使用 Streamable HTTP，地址为 %s，预期实例 ID 为 %s。同名同地址时复用，同名异址时保留现有连接并报告冲突。使用客户端原生 OAuth 登录流程，打开授权页让我选择只读排查或日常运营权限。连接后调用 openflare_connection_info 核对实例 ID 并报告实际权限；实例 ID 不符时停止调用。如果无法注册，请指出具体限制和设置入口。"
+  },
+  "en": {
+    "consent": "Authorize automation access",
+    "connect": "Connect to OpenFlare MCP",
+    "consentDetail": "Read-only access covers sites, nodes, access logs, and metrics. Operations access also allows creating sites, adding and binding domains, and changing upstreams and performance settings without per-operation approval. Granted scopes cannot exceed the client request.",
+    "connectDetail": "Copy the connection instructions to an AI client that supports remote MCP. The first connection requires browser authorization.",
+    "client": "Client-provided name",
+    "callback": "Redirect URI",
+    "scopes": "Requested scopes",
+    "read": "Authorize read-only access",
+    "operate": "Authorize operations access",
+    "deny": "Deny",
+    "copy": "Copy for AI",
+    "copied": "Copied",
+    "revoke": "Revoke all my automation grants",
+    "setup": "Add a remote MCP connection named %s to the current AI client using Streamable HTTP at %s. The expected instance ID is %s. Reuse an existing connection with the same name and URL. If the name matches a different URL, keep the existing connection and report the conflict. Use native OAuth sign-in and open the page so I can choose read-only or operations access. After connecting, call openflare_connection_info to verify the instance ID and report the granted scopes. Stop if the instance ID differs. If registration is unavailable, report the specific limitation and relevant settings entry."
+  },
+  "ru": {
+    "consent": "Авторизация автоматизации",
+    "connect": "Подключение OpenFlare MCP",
+    "consentDetail": "Доступ на чтение охватывает сайты, узлы, журналы доступа и метрики. Операционный доступ также позволяет создавать сайты, добавлять и привязывать домены, изменять источники и настройки производительности без подтверждения каждой операции. Разрешения ограничены запросом клиента.",
+    "connectDetail": "Скопируйте инструкцию в ИИ-клиент с поддержкой удалённого MCP. Для первого подключения нужна авторизация в браузере.",
+    "client": "Имя, указанное клиентом",
+    "callback": "URI перенаправления",
+    "scopes": "Запрошенные разрешения",
+    "read": "Разрешить чтение",
+    "operate": "Разрешить операции",
+    "deny": "Отклонить",
+    "copy": "Скопировать для ИИ",
+    "copied": "Скопировано",
+    "revoke": "Отозвать все мои разрешения автоматизации",
+    "setup": "Добавьте в текущий ИИ-клиент удалённое подключение MCP с именем %s, транспортом Streamable HTTP и адресом %s. Ожидаемый идентификатор экземпляра: %s. Повторно используйте подключение с тем же именем и адресом. Если имя совпадает, а адрес отличается, сохраните существующее подключение и сообщите о конфликте. Откройте страницу входа OAuth, чтобы я мог выбрать чтение или операционный доступ. После подключения вызовите openflare_connection_info, проверьте идентификатор экземпляра и сообщите выданные разрешения. При несовпадении идентификатора прекратите вызовы. Если регистрация недоступна, укажите ограничение и соответствующий раздел настроек."
+  }
+}

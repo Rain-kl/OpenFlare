@@ -924,6 +924,67 @@ definitions:
           type: string
         type: array
     type: object
+  apps_openflare_automation.CreateDomainBody:
+    properties:
+      certificate_id:
+        description: Certificate record ID from openflare_certificate_list. Required
+          before binding the hostname to an HTTPS site.
+        type: string
+      hostname:
+        description: Exact hostname such as www.example.com, or an explicit wildcard
+          such as *.example.com; omit scheme, port and path.
+        maxLength: 253
+        minLength: 1
+        type: string
+    required:
+    - hostname
+    type: object
+  apps_openflare_automation.CreateSiteBody:
+    properties:
+      domain_record_ids:
+        description: Unbound domain record IDs from openflare_domain_list. Use decimal
+          strings, not hostnames.
+        items:
+          type: string
+        type: array
+      enable_https:
+        description: True enables browser-facing HTTPS and requires a covering certificate
+          on each domain. False serves HTTP only. Independent of upstream URL schemes.
+        type: boolean
+      origin_host:
+        description: Optional upstream Host override. If omitted, use normal edge
+          Host handling.
+        maxLength: 253
+        type: string
+      site_name:
+        description: Unique display name for the new site.
+        maxLength: 128
+        minLength: 1
+        type: string
+      upstreams:
+        description: Ordered direct HTTP(S) URLs including scheme and optional port.
+          No credentials, query strings or fragments. Multiple upstreams must share
+          a scheme and have no path prefix.
+        items:
+          type: string
+        type: array
+    required:
+    - domain_record_ids
+    - enable_https
+    - site_name
+    - upstreams
+    type: object
+  apps_openflare_automation.CreateZoneBody:
+    properties:
+      root_domain:
+        description: Registered root domain such as example.com, without scheme, port
+          or path.
+        maxLength: 253
+        minLength: 1
+        type: string
+    required:
+    - root_domain
+    type: object
   apps_openflare_automation.DomainBindingResult:
     properties:
       domain:
@@ -983,7 +1044,11 @@ definitions:
     properties:
       current_version:
         type: string
+      desired_site_version:
+        type: string
       ip:
+        type: string
+      last_heartbeat_at:
         type: string
       latest_apply_at:
         type: string
@@ -1078,6 +1143,39 @@ definitions:
       value:
         type: string
     type: object
+  apps_openflare_automation.SetPerformanceBody:
+    properties:
+      key:
+        description: Exact parameter key from openflare_performance_list, not a display
+          label.
+        maxLength: 128
+        type: string
+      value:
+        description: 'Text representation: a decimal integer within min/max, true/false
+          for a boolean, or an exact choice. Follow the metadata returned by openflare_performance_list.'
+        maxLength: 128
+        type: string
+    required:
+    - key
+    - value
+    type: object
+  apps_openflare_automation.SetUpstreamsBody:
+    properties:
+      origin_host:
+        description: New upstream Host override. Omit to preserve the existing override
+          or pass an empty string to clear it.
+        maxLength: 253
+        type: string
+      upstreams:
+        description: Complete replacement list of direct HTTP(S) origin URLs without
+          credentials, query strings or fragments. Multiple upstreams must share a
+          scheme and have no path prefix.
+        items:
+          type: string
+        type: array
+    required:
+    - upstreams
+    type: object
   apps_openflare_automation.SiteList:
     properties:
       results:
@@ -1145,100 +1243,6 @@ definitions:
         type: string
       zone_id:
         type: string
-    type: object
-  apps_openflare_automation.createDomainBody:
-    properties:
-      certificate_id:
-        description: Certificate record ID from openflare_certificate_list. Required
-          before binding the hostname to an HTTPS site.
-        type: string
-      hostname:
-        description: Exact hostname such as www.example.com, or an explicit wildcard
-          such as *.example.com; omit scheme, port and path.
-        maxLength: 253
-        minLength: 1
-        type: string
-    required:
-    - hostname
-    type: object
-  apps_openflare_automation.createSiteBody:
-    properties:
-      domain_record_ids:
-        description: Unbound domain record IDs from openflare_domain_list. Use decimal
-          strings, not hostnames.
-        items:
-          type: string
-        type: array
-      enable_https:
-        description: True enables browser-facing HTTPS and requires a covering certificate
-          on each domain. False serves HTTP only. Independent of upstream URL schemes.
-        type: boolean
-      origin_host:
-        description: Optional upstream Host override. If omitted, use normal edge
-          Host handling.
-        maxLength: 253
-        type: string
-      site_name:
-        description: Unique display name for the new site.
-        maxLength: 128
-        minLength: 1
-        type: string
-      upstreams:
-        description: Ordered direct HTTP(S) URLs including scheme and optional port.
-          No credentials, query strings or fragments. Multiple upstreams must share
-          a scheme and have no path prefix.
-        items:
-          type: string
-        type: array
-    required:
-    - domain_record_ids
-    - enable_https
-    - site_name
-    - upstreams
-    type: object
-  apps_openflare_automation.createZoneBody:
-    properties:
-      root_domain:
-        description: Registered root domain such as example.com, without scheme, port
-          or path.
-        maxLength: 253
-        minLength: 1
-        type: string
-    required:
-    - root_domain
-    type: object
-  apps_openflare_automation.setPerformanceBody:
-    properties:
-      key:
-        description: Exact parameter key from openflare_performance_list, not a display
-          label.
-        maxLength: 128
-        type: string
-      value:
-        description: 'Text representation: a decimal integer within min/max, true/false
-          for a boolean, or an exact choice. Follow the metadata returned by openflare_performance_list.'
-        maxLength: 128
-        type: string
-    required:
-    - key
-    - value
-    type: object
-  apps_openflare_automation.setUpstreamsBody:
-    properties:
-      origin_host:
-        description: New upstream Host override. Omit to preserve the existing override
-          or pass an empty string to clear it.
-        maxLength: 253
-        type: string
-      upstreams:
-        description: Complete replacement list of direct HTTP(S) origin URLs without
-          credentials, query strings or fragments. Multiple upstreams must share a
-          scheme and have no path prefix.
-        items:
-          type: string
-        type: array
-    required:
-    - upstreams
     type: object
   apps_openflare_cloudflare.AvailableDomain:
     properties:
@@ -2399,17 +2403,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  apps_openflare_performance.assignmentRequest:
-    properties:
-      node_ids:
-        items:
-          type: string
-        maxItems: 10000
-        type: array
-    required:
-    - node_ids
-    type: object
-  apps_openflare_performance.policyList:
+  apps_openflare_performance.PolicyList:
     properties:
       nodes:
         items:
@@ -2421,19 +2415,10 @@ definitions:
         type: array
       policies:
         items:
-          $ref: '#/definitions/apps_openflare_performance.policyView'
+          $ref: '#/definitions/apps_openflare_performance.PolicyView'
         type: array
     type: object
-  apps_openflare_performance.policyRequest:
-    properties:
-      name:
-        type: string
-      settings:
-        type: object
-    required:
-    - name
-    type: object
-  apps_openflare_performance.policyView:
+  apps_openflare_performance.PolicyView:
     properties:
       id:
         type: integer
@@ -2443,6 +2428,25 @@ definitions:
         type: string
       settings:
         $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_performance.Settings'
+    type: object
+  apps_openflare_performance.assignmentRequest:
+    properties:
+      node_ids:
+        items:
+          type: string
+        maxItems: 10000
+        type: array
+    required:
+    - node_ids
+    type: object
+  apps_openflare_performance.policyRequest:
+    properties:
+      name:
+        type: string
+      settings:
+        type: object
+    required:
+    - name
     type: object
   apps_openflare_pow.Policy:
     properties:
@@ -8230,9 +8234,10 @@ paths:
         scope: nodes:read
   /api/v1/automation/nodes/{node_record_id}:
     get:
-      description: Read one node and the latest configuration application summary.
-        Pass node_record_id from the list operation. Use the node list search to resolve
-        names or registration identifiers.
+      description: Read one node and its latest configuration application summary.
+        For an edge node, compare current_version with desired_site_version to check
+        whether the controller's current site snapshot has been applied. Pass node_record_id
+        from openflare_node_list.
       operationId: openflare_node_get
       parameters:
       - description: Decimal control-plane record ID returned by openflare_node_list
@@ -8282,7 +8287,7 @@ paths:
         effect: read
         parameters:
           node_record_id:
-            pattern: ^[1-9][0-9]{0,19}$
+            pattern: ^[1-9][0-9]{0,18}$
         scope: nodes:read
   /api/v1/automation/nodes/{node_record_id}/metrics:
     get:
@@ -8450,7 +8455,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/apps_openflare_automation.setPerformanceBody'
+          $ref: '#/definitions/apps_openflare_automation.SetPerformanceBody'
       produces:
       - application/json
       responses:
@@ -8567,7 +8572,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/apps_openflare_automation.createSiteBody'
+          $ref: '#/definitions/apps_openflare_automation.CreateSiteBody'
       produces:
       - application/json
       responses:
@@ -8701,7 +8706,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/apps_openflare_automation.setUpstreamsBody'
+          $ref: '#/definitions/apps_openflare_automation.SetUpstreamsBody'
       produces:
       - application/json
       responses:
@@ -8815,7 +8820,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/apps_openflare_automation.createZoneBody'
+          $ref: '#/definitions/apps_openflare_automation.CreateZoneBody'
       produces:
       - application/json
       responses:
@@ -8935,7 +8940,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/apps_openflare_automation.createDomainBody'
+          $ref: '#/definitions/apps_openflare_automation.CreateDomainBody'
       produces:
       - application/json
       responses:
@@ -15335,7 +15340,7 @@ paths:
             - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/apps_openflare_performance.policyList'
+                  $ref: '#/definitions/apps_openflare_performance.PolicyList'
               type: object
         "401":
           description: Unauthorized
@@ -15368,7 +15373,7 @@ paths:
             - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/apps_openflare_performance.policyView'
+                  $ref: '#/definitions/apps_openflare_performance.PolicyView'
               type: object
         "400":
           description: Bad Request
@@ -15489,7 +15494,7 @@ paths:
             - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
             - properties:
                 data:
-                  $ref: '#/definitions/apps_openflare_performance.policyView'
+                  $ref: '#/definitions/apps_openflare_performance.PolicyView'
               type: object
         "400":
           description: Bad Request

@@ -31,11 +31,16 @@ func WakeAfterWrite(c *gin.Context) {
 	switch c.Request.Method {
 	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
 		if c.Writer.Status() >= http.StatusOK && c.Writer.Status() < http.StatusMultipleChoices {
-			select {
-			case refreshRequested <- struct{}{}:
-			default:
-			}
+			RequestRefresh()
 		}
+	}
+}
+
+// RequestRefresh wakes the snapshot compiler after a committed write.
+func RequestRefresh() {
+	select {
+	case refreshRequested <- struct{}{}:
+	default:
 	}
 }
 

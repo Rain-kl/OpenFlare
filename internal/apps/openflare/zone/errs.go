@@ -3,6 +3,16 @@
 
 package zone
 
+import "errors"
+
+// Validation and conflict errors returned when registering roots and hostnames.
+var (
+	ErrInvalidZoneRoot     = errors.New(errZoneRootInvalid)
+	ErrDomainOutsideZone   = errors.New(errDomainOutsideZone)
+	ErrDomainExists        = errors.New(errDomainExists)
+	ErrCertificateNotFound = errors.New(errCertificateNotFound)
+)
+
 const (
 	errZoneRootInvalid     = "zone must be a valid registered root domain"
 	errDomainOutsideZone   = "domain does not belong to this zone"

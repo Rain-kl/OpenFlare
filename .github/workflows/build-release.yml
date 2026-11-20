@@ -228,6 +228,12 @@ jobs:
 
           go build "${build_args[@]}" "$GO_MAIN"
 
+          cli_name="openflare"
+          if [[ "$GOOS" == "windows" ]]; then
+            cli_name="${cli_name}.exe"
+          fi
+          go build -trimpath -ldflags "$ldflags" -o "dist/$cli_name" ./cmd/openflare
+
       - name: Package artifact
         id: package
         shell: bash
@@ -266,12 +272,26 @@ jobs:
 
           echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
 
+          cli_package="openflare_cli_${VERSION}_${GOOS}_${GOARCH}"
+          mkdir -p "dist/$cli_package"
+          if [[ "$ARCHIVE_FORMAT" == "zip" ]]; then
+            cp dist/openflare.exe "dist/$cli_package/"
+            (cd dist && zip -r "${cli_package}.zip" "$cli_package")
+            cli_artifact="dist/${cli_package}.zip"
+          else
+            cp dist/openflare "dist/$cli_package/"
+            tar -C dist -czf "dist/${cli_package}.tar.gz" "$cli_package"
+            cli_artifact="dist/${cli_package}.tar.gz"
+          fi
+          echo "cli_artifact=$cli_artifact" >> "$GITHUB_OUTPUT"
+
       - name: Upload release artifact
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.create-release.outputs.version }}
           ARTIFACT: ${{ steps.package.outputs.artifact }}
-        run: gh release upload "$RELEASE_TAG" "$ARTIFACT" --clobber
+          CLI_ARTIFACT: ${{ steps.package.outputs.cli_artifact }}
+        run: gh release upload "$RELEASE_TAG" "$ARTIFACT" "$CLI_ARTIFACT" --clobber
 
   build-relay-binaries:
     name: Build relay ${{ matrix.goos }}/${{ matrix.goarch }}

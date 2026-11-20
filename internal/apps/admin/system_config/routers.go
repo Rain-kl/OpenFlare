@@ -16,6 +16,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/cap"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
+	"github.com/Rain-kl/Wavelet/internal/automationcontract"
 	"github.com/Rain-kl/Wavelet/internal/infra/objectstore"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -25,6 +26,7 @@ import (
 )
 
 const maskedConfigValue = "******"
+const errAutomationOrigin = "enter an HTTPS origin without a path, query, or credentials"
 
 // protectedConfigKeyMessage 命中受保护 key 时返回给管理员的业务错误文案。
 const protectedConfigKeyMessage = "this configuration is managed by system tasks and cannot be changed manually"
@@ -178,6 +180,18 @@ func UpdateSystemConfig(c *gin.Context) {
 	if isProtectedConfigKey(key) {
 		response.AbortBadRequest(c, protectedConfigKeyMessage)
 		return
+	}
+	if key == model.ConfigKeyAutomationPublicURL {
+		if req.Value == "disabled" {
+			req.Value = ""
+		} else {
+			origin, err := automationcontract.HTTPSOrigin(req.Value)
+			if err != nil {
+				response.AbortBadRequest(c, errAutomationOrigin)
+				return
+			}
+			req.Value = origin
+		}
 	}
 	if err := updateSystemConfig(c.Request.Context(), key, req); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

@@ -483,6 +483,12 @@
       "noUpgradeNeeded": "Текущая версия не требует обновления."
     },
     "operation": {
+      "automationTitle": "CLI и MCP",
+      "automationDescription": "Укажите адрес HTTPS, доступный для ИИ-клиентов. Чтобы отключить автоматизацию, сохраните пустое значение.",
+      "automationAddress": "Внешний адрес HTTPS",
+      "automationConnect": "Открыть инструкцию по подключению MCP",
+      "automationSaved": "Настройки автоматизации сохранены",
+      "automationSaveError": "Не удалось сохранить настройки автоматизации. Укажите адрес HTTPS без пути.",
       "whitelistUpdated": "Белый список доступа к файлам обновлен.",
       "updateWhitelistFailed": "Не удалось обновить белый список.",
       "fileAccessControl": "Контроль доступа к файлам",

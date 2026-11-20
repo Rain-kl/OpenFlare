@@ -1,0 +1,409 @@
+package automation
+
+import (
+	"bytes"
+	"crypto/x509"
+	"encoding/json"
+	"encoding/pem"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/http/httptest"
+	"net/url"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/config_version"
+	"github.com/Rain-kl/Wavelet/internal/automationcontract"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
+	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
+	"github.com/Rain-kl/Wavelet/internal/infra/persistence/migrator"
+	"github.com/Rain-kl/Wavelet/internal/model"
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
+	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
+	"github.com/Rain-kl/Wavelet/internal/testhelper"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-gonic/gin"
+	"github.com/glebarez/sqlite"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
+	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
+)
+
+func TestOAuthAndReadOnlyTransports(t *testing.T) {
+	server, database := automationTestServer(t)
+	client := server.Client()
+	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
+	client.Jar, _ = cookiejar.New(nil)
+
+	mcpURL := server.URL + "/mcp"
+	reply, err := client.Post(mcpURL, "application/json", strings.NewReader("{}"))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusUnauthorized, reply.StatusCode)
+	require.Contains(t, reply.Header.Get("WWW-Authenticate"), server.URL+metadataPath+"/mcp")
+	require.NoError(t, reply.Body.Close())
+
+	ctx := t.Context()
+	const redirect = "http://127.0.0.1:4321/callback"
+	clientID := registerTestClient(t, client, server.URL, redirect)
+	mcpTokens := authorizeTestClient(t, client, server.URL, clientID, redirect, mcpURL, "nodes:read", "read")
+	apiURL := server.URL + "/api/v1/automation"
+	apiTokens := authorizeTestClient(t, client, server.URL, cliClientID, redirect, apiURL, "", "read")
+
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "automation-test", Version: "1"}, nil)
+	authClient := &http.Client{Transport: authorizationTransport{base: client.Transport, token: mcpTokens.AccessToken}}
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: mcpURL, HTTPClient: authClient, DisableStandaloneSSE: true,
+	}, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, session.Close()) })
+	tools, err := session.ListTools(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, tools.Tools, 2)
+	for _, tool := range tools.Tools {
+		require.True(t, tool.Annotations.ReadOnlyHint)
+		require.NotEqual(t, connectionOperation, tool.Name)
+	}
+
+	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: nodeListOperation, Arguments: map[string]any{"search": "demo-edge"}})
+	require.NoError(t, err)
+	require.False(t, result.IsError, "%v", result.Content)
+	results, err := json.Marshal(result.StructuredContent)
+	require.NoError(t, err)
+	require.Contains(t, string(results), "demo-edge")
+	require.NotContains(t, string(results), "must-not-appear")
+	result, err = session.CallTool(ctx, &mcp.CallToolParams{Name: nodeListOperation, Arguments: map[string]any{"page_size": 101}})
+	require.NoError(t, err)
+	require.True(t, result.IsError)
+
+	checkRead := func(token, path string, status int) string {
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, apiURL+path, nil)
+		require.NoError(t, reqErr)
+		req.Header.Set("Authorization", "Bearer "+token)
+		reply, callErr := client.Do(req)
+		require.NoError(t, callErr)
+		defer reply.Body.Close()
+		body, readErr := io.ReadAll(reply.Body)
+		require.NoError(t, readErr)
+		require.Equal(t, status, reply.StatusCode, "%s", body)
+		return string(body)
+	}
+	checkRead(mcpTokens.AccessToken, "/nodes", http.StatusUnauthorized)
+	checkRead("at_legacy_admin", "/nodes", http.StatusUnauthorized)
+	require.Contains(t, checkRead(apiTokens.AccessToken, "/connection", http.StatusOK), "instance_id")
+	require.Contains(t, checkRead(apiTokens.AccessToken, "/nodes/42", http.StatusOK), `"node_record_id":"42"`)
+	require.NotContains(t, checkRead(apiTokens.AccessToken, "/nodes", http.StatusOK), "must-not-appear")
+	checkRead(apiTokens.AccessToken, "/nodes?page=1&page=2", http.StatusBadRequest)
+	checkRead(apiTokens.AccessToken, "/nodes/42?node_record_id=1", http.StatusBadRequest)
+
+	values := url.Values{"grant_type": {grantRefresh}, "client_id": {cliClientID}, "resource": {apiURL}, "refresh_token": {apiTokens.RefreshToken}}
+	var refreshed tokenResponse
+	postOAuthForm(t, client, server.URL+tokenPath, values, "", http.StatusOK, &refreshed)
+	require.NotEqual(t, apiTokens.RefreshToken, refreshed.RefreshToken)
+	checkRead(apiTokens.AccessToken, "/nodes", http.StatusUnauthorized)
+	checkRead(refreshed.AccessToken, "/nodes", http.StatusOK)
+	postOAuthForm(t, client, server.URL+tokenPath, values, "", http.StatusBadRequest, nil)
+	postOAuthForm(t, client, server.URL+revokePath, url.Values{"client_id": {cliClientID}, "token": {refreshed.RefreshToken}}, "", http.StatusOK, nil)
+	checkRead(refreshed.AccessToken, "/nodes", http.StatusUnauthorized)
+
+	require.NoError(t, database.Model(&model.User{}).Where("id = ?", 991).Update("is_admin", false).Error)
+	_, err = session.ListTools(ctx, nil)
+	require.Error(t, err)
+}
+
+func TestOperationsWorkflow(t *testing.T) {
+	server, _ := automationTestServer(t)
+	client := server.Client()
+	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
+	client.Jar, _ = cookiejar.New(nil)
+	const redirect = "http://127.0.0.1:4321/callback"
+	apiURL, mcpURL := server.URL+"/api/v1/automation", server.URL+"/mcp"
+	readTokens := authorizeTestClient(t, client, server.URL, cliClientID, redirect, apiURL, "", "read")
+	writeTokens := authorizeTestClient(t, client, server.URL, cliClientID, redirect, apiURL, "", "operate")
+	const hostedRedirect = "https://client.example/oauth/callback"
+	clientID := registerTestClient(t, client, server.URL, hostedRedirect)
+	mcpTokens := authorizeTestClient(t, client, server.URL, clientID, hostedRedirect, mcpURL, "", "operate")
+	instanceID := testOperation[ConnectionInfo](t, client, apiURL, writeTokens.AccessToken, "", http.MethodGet, "/connection", "", "", http.StatusOK).InstanceID
+	setup, err := client.Get(server.URL + connectPath)
+	require.NoError(t, err)
+	setupHTML, err := io.ReadAll(setup.Body)
+	require.NoError(t, err)
+	require.NoError(t, setup.Body.Close())
+	require.Equal(t, http.StatusOK, setup.StatusCode)
+	require.Contains(t, string(setupHTML), mcpURL)
+	require.Contains(t, string(setupHTML), instanceID)
+	require.NotContains(t, string(setupHTML), mcpTokens.AccessToken)
+	operations := make(map[string]automationcontract.Operation)
+	for _, operation := range automationcontract.Operations() {
+		operations[operation.ID] = operation
+	}
+	zoneContract := operations["openflare_zone_create"].Revision()
+	zoneBody := `{"root_domain":"example.com"}`
+	testOperation[ZoneSummary](t, client, apiURL, readTokens.AccessToken, instanceID, http.MethodPost, "/zones", zoneContract, zoneBody, http.StatusForbidden)
+	testOperation[ZoneSummary](t, client, apiURL, writeTokens.AccessToken, "wrong-instance", http.MethodPost, "/zones", zoneContract, zoneBody, http.StatusConflict)
+	testOperation[ZoneSummary](t, client, apiURL, writeTokens.AccessToken, instanceID, http.MethodPost, "/zones", "old-contract", zoneBody, http.StatusConflict)
+	testOperation[ZoneSummary](t, client, apiURL, writeTokens.AccessToken, instanceID, http.MethodPost, "/zones", zoneContract, `{"root_domain":"example.com","root_domain":"example.net"}`, http.StatusBadRequest)
+	zone := testOperation[ZoneSummary](t, client, apiURL, writeTokens.AccessToken, instanceID, http.MethodPost, "/zones", zoneContract, zoneBody, http.StatusOK)
+	require.Equal(t, "example.com", zone.RootDomain)
+
+	ctx := t.Context()
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "operations-test", Version: "1"}, nil)
+	session, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: mcpURL, HTTPClient: &http.Client{Transport: authorizationTransport{client.Transport, mcpTokens.AccessToken}}, DisableStandaloneSSE: true}, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, session.Close()) })
+	invoke := func(name string, arguments map[string]any, success bool) []byte {
+		t.Helper()
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: arguments})
+		require.NoError(t, err)
+		content, err := json.Marshal(result.Content)
+		require.NoError(t, err)
+		require.Equal(t, !success, result.IsError, "%s: %s", name, content)
+		encoded, err := json.Marshal(result.StructuredContent)
+		require.NoError(t, err)
+		return encoded
+	}
+	var domain DomainSummary
+	require.NoError(t, json.Unmarshal(invoke("openflare_domain_create", map[string]any{"zone_id": zone.ZoneID, "hostname": "www.example.com"}, true), &domain))
+	args := map[string]any{"site_name": "Example", "domain_record_ids": []string{domain.DomainRecordID}, "upstreams": []string{"http://192.0.2.10:8080"}}
+	invoke("openflare_site_create", args, false)
+	args["enable_https"] = "false"
+	invoke("openflare_site_create", args, false)
+	args["enable_https"] = true
+	invoke("openflare_site_create", args, false)
+	key, err := x509.MarshalPKCS8PrivateKey(server.TLS.Certificates[0].PrivateKey)
+	require.NoError(t, err)
+	certificate := &model.TLSCertificate{
+		Name: "Test certificate", PrimaryDomain: "*.example.com",
+		CertPEM:   string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})),
+		KeyPEM:    string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: key})),
+		NotBefore: server.Certificate().NotBefore, NotAfter: server.Certificate().NotAfter,
+	}
+	require.NoError(t, repository.CreateTLSCertificateRecord(ctx, certificate))
+	certificateID := decimalID(certificate.ID)
+	require.NotContains(t, string(invoke("openflare_certificate_list", nil, true)), "PRIVATE KEY")
+	require.NoError(t, json.Unmarshal(invoke("openflare_domain_create", map[string]any{"zone_id": zone.ZoneID, "hostname": "app.example.com", "certificate_id": certificateID}, true), &domain))
+	args["domain_record_ids"] = []string{domain.DomainRecordID}
+	var created SiteWriteResult
+	require.NoError(t, json.Unmarshal(invoke("openflare_site_create", args, true), &created))
+	require.Equal(t, savedState, created.State)
+	require.True(t, created.Site.HTTPSEnabled)
+	var alias DomainSummary
+	require.NoError(t, json.Unmarshal(invoke("openflare_domain_create", map[string]any{"zone_id": zone.ZoneID, "hostname": "alias.example.com", "certificate_id": certificateID}, true), &alias))
+	invoke("openflare_site_bind_domain", map[string]any{"site_id": created.Site.SiteID, "domain_record_id": alias.DomainRecordID}, true)
+	contract := operations["openflare_site_set_upstreams"].Revision()
+	path := "/sites/" + created.Site.SiteID + "/upstreams"
+	testOperation[SiteWriteResult](t, client, apiURL, writeTokens.AccessToken, instanceID, http.MethodPatch, path, contract, `{"upstreams":["http://192.0.2.20"],"enabled":false}`, http.StatusBadRequest)
+	testOperation[SiteWriteResult](t, client, apiURL, writeTokens.AccessToken, instanceID, http.MethodPatch, path, contract, `{"upstreams":["http://192.0.2.20:65536"]}`, http.StatusBadRequest)
+	changed := testOperation[SiteWriteResult](t, client, apiURL, writeTokens.AccessToken, instanceID, http.MethodPatch, path, contract, `{"upstreams":["https://origin.example.com:8443"]}`, http.StatusOK)
+	require.True(t, changed.Site.Enabled)
+	require.True(t, changed.Site.HTTPSEnabled)
+	require.Len(t, changed.Site.Domains, 2)
+	require.Equal(t, []string{"https://origin.example.com:8443"}, changed.Site.Upstreams)
+	require.NoError(t, config_version.RefreshSiteSnapshot(ctx))
+	snapshot, err := repository.GetActivePingoraConfigVersion(ctx)
+	require.NoError(t, err)
+	require.Contains(t, snapshot.SnapshotJSON, "alias.example.com")
+	require.Contains(t, snapshot.SnapshotJSON, "origin.example.com:8443")
+	status := testOperation[NodeSummary](t, client, apiURL, writeTokens.AccessToken, "", http.MethodGet, "/nodes/42", "", "", http.StatusOK)
+	require.Equal(t, snapshot.Version, status.DesiredVersion)
+	require.NotEqual(t, status.DesiredVersion, status.CurrentVersion)
+
+	policies := testOperation[PerformanceList](t, client, apiURL, writeTokens.AccessToken, "", http.MethodGet, "/performance", "", "", http.StatusOK)
+	require.NotEmpty(t, policies.Policies)
+	policyID := policies.Policies[0].PolicyID
+	invoke("openflare_performance_set", map[string]any{"policy_id": policyID, "key": "threads", "value": "0"}, false)
+	invoke("openflare_performance_set", map[string]any{"policy_id": policyID, "key": "threads", "value": "4"}, true)
+	updated := testOperation[PerformanceList](t, client, apiURL, writeTokens.AccessToken, "", http.MethodGet, "/performance", "", "", http.StatusOK)
+	policies.Policies[0].Settings["threads"] = float64(4)
+	require.Equal(t, policies.Policies, updated.Policies)
+
+	now := time.Now().UTC().Add(-time.Minute)
+	store, err := logstore.Active(ctx)
+	require.NoError(t, err)
+	require.NoError(t, store.AccessLogs.BatchInsertNodeAccessLogs(ctx, []analyticsmodel.NodeAccessLog{
+		{ID: 1, NodeID: "demo-edge", LoggedAt: now, Host: "www.example.com", Path: "/health?secret=hidden", UserAgent: "untrusted-log-text", StatusCode: 503},
+		{ID: 2, NodeID: "demo-edge", LoggedAt: now, Host: "www.example.com.example.net", Path: "/other-site", StatusCode: 503},
+	}))
+	logs := invoke("openflare_logs_list", map[string]any{"host": "www.example.com", "status_code": 503}, true)
+	require.Contains(t, string(logs), "/health")
+	require.NotContains(t, string(logs), "secret=hidden")
+	require.NotContains(t, string(logs), "untrusted-log-text")
+	require.NotContains(t, string(logs), "/other-site")
+	traffic := testOperation[TrafficMetrics](t, client, apiURL, writeTokens.AccessToken, "", http.MethodGet, "/metrics/traffic?host=www.example.com", "", "", http.StatusOK)
+	require.EqualValues(t, 1, traffic.Summary.TotalRequests)
+	require.NoError(t, store.Observability.BatchInsertNodeMetricSnapshots(ctx, []analyticsmodel.NodeMetricSnapshot{{NodeID: "demo-edge", CapturedAt: now, CPUUsagePercent: 42}}))
+	metrics := invoke("openflare_node_metrics", map[string]any{"node_record_id": "42", "limit": 1}, true)
+	require.Contains(t, string(metrics), `"cpu_usage_percent":42`)
+	require.NotContains(t, string(metrics), "must-not-appear")
+}
+
+func testOperation[Result any](t *testing.T, client *http.Client, base, token, instanceID, method, path, revision, body string, status int) Result {
+	t.Helper()
+	request, err := http.NewRequestWithContext(t.Context(), method, base+path, strings.NewReader(body))
+	require.NoError(t, err)
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set(automationcontract.InstanceHeader, instanceID)
+	request.Header.Set(automationcontract.ContractHeader, revision)
+	request.Header.Set("Content-Type", "application/json")
+	reply, err := client.Do(request)
+	require.NoError(t, err)
+	defer reply.Body.Close()
+	encoded, err := io.ReadAll(reply.Body)
+	require.NoError(t, err)
+	require.Equal(t, status, reply.StatusCode, "%s %s: %s", method, path, encoded)
+	var envelope struct {
+		Data Result `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(encoded, &envelope))
+	return envelope.Data
+}
+
+func automationTestServer(t *testing.T) (*httptest.Server, *gorm.DB) {
+	t.Helper()
+	previous := config.Config
+	config.Config.App.APIPrefix = "/api"
+	config.Config.App.SessionSecret = "test fixture secret with at least 32 bytes"
+	config.Config.App.SessionCookieName = "automation_test"
+	config.Config.Database.Enabled = false
+	database, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "automation.sqlite")), &gorm.Config{
+		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
+	})
+	require.NoError(t, err)
+	sqlDB, err := database.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
+	db.SetDB(database)
+	logstore.ResetForTest()
+	t.Cleanup(func() {
+		logstore.ResetForTest()
+		repository.ResetSystemConfigRAMCacheForTest()
+		config.Config = previous
+		db.SetDB(nil)
+		require.NoError(t, sqlDB.Close())
+	})
+	migrator.Migrate()
+	user := model.User{ID: 991, Username: "automation-admin", Email: "automation@openflare.test", IsAdmin: true, IsActive: true}
+	require.NoError(t, database.Create(&user).Error)
+	require.NoError(t, database.Create(&model.OpenFlareNode{
+		ID: 42, NodeID: "demo-edge", Name: "Demo Edge", NodeType: "edge_node",
+		AccessToken: "must-not-appear",
+	}).Error)
+	store := cookie.NewStore([]byte(config.Config.App.SessionSecret))
+	router := testhelper.NewTestGinEngine(sessions.Sessions(config.Config.App.SessionCookieName, store))
+	router.GET("/test-session", func(c *gin.Context) {
+		session := sessions.Default(c)
+		session.Set(oauth.UserIDKey, user.ID)
+		if err := session.Save(); err != nil {
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+	router.GET(issuerPath, AuthorizationMetadata())
+	router.GET(metadataPath+"/mcp", ProtectedResourceMetadata(true))
+	router.POST("/mcp", MCPHandler())
+	RegisterOAuth(router.Group(automationcontract.OAuthPath))
+	RegisterBrowser(router.Group("/automation"))
+	RegisterAPI(router.Group("/api/v1/automation"))
+	server := httptest.NewTLSServer(router)
+	t.Cleanup(server.Close)
+	require.NoError(t, database.Model(&model.SystemConfig{}).Where("key = ?", model.ConfigKeyAutomationPublicURL).Update("value", server.URL).Error)
+	return server, database
+}
+
+func registerTestClient(t *testing.T, client *http.Client, origin, redirect string) string {
+	t.Helper()
+	request := registrationRequest{ClientName: "Test MCP", RedirectURIs: []string{redirect}, TokenEndpointAuth: "none"}
+	payload, err := json.Marshal(request)
+	require.NoError(t, err)
+	reply, err := client.Post(origin+registerPath, "application/json", bytes.NewReader(payload))
+	require.NoError(t, err)
+	defer reply.Body.Close()
+	require.Equal(t, http.StatusCreated, reply.StatusCode)
+	var result struct {
+		ClientID string `json:"client_id"`
+	}
+	require.NoError(t, json.NewDecoder(reply.Body).Decode(&result))
+	require.NotEmpty(t, result.ClientID)
+	return result.ClientID
+}
+
+func authorizeTestClient(t *testing.T, client *http.Client, origin, clientID, redirect, resource, scope, decision string) tokenResponse {
+	t.Helper()
+	verifier := oauth2.GenerateVerifier()
+	authorization := origin + authorizationPath + "?" + url.Values{
+		"response_type": {"code"}, "client_id": {clientID}, "redirect_uri": {redirect}, "resource": {resource},
+		"state": {"browser-state"}, "code_challenge": {oauth2.S256ChallengeFromVerifier(verifier)},
+		"code_challenge_method": {"S256"}, "scope": {scope},
+	}.Encode()
+	reply, err := client.Get(origin + "/test-session")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNoContent, reply.StatusCode)
+	require.NoError(t, reply.Body.Close())
+	reply, err = client.Get(authorization)
+	require.NoError(t, err)
+	body, err := io.ReadAll(reply.Body)
+	require.NoError(t, err)
+	require.NoError(t, reply.Body.Close())
+	require.Equal(t, http.StatusOK, reply.StatusCode, "%s", body)
+	consent := regexp.MustCompile(`name="intent" value="([^"]+)"`).FindStringSubmatch(string(body))
+	require.Len(t, consent, 2)
+	values := url.Values{"intent": {consent[1]}, "decision": {decision}}
+	postOAuthForm(t, client, origin+authorizationPath, values, "https://wrong.example", http.StatusForbidden, nil)
+	location := postOAuthForm(t, client, origin+authorizationPath, values, origin, http.StatusSeeOther, nil)
+	callback, err := url.Parse(location)
+	require.NoError(t, err)
+	require.Equal(t, "browser-state", callback.Query().Get("state"))
+	code := callback.Query().Get("code")
+	require.NotEmpty(t, code)
+	form := url.Values{
+		"grant_type": {grantCode}, "code": {code}, "redirect_uri": {redirect}, "client_id": {clientID},
+		"resource": {resource}, "code_verifier": {oauth2.GenerateVerifier()},
+	}
+	postOAuthForm(t, client, origin+tokenPath, form, "", http.StatusBadRequest, nil)
+	form.Set("code_verifier", verifier)
+	var result tokenResponse
+	postOAuthForm(t, client, origin+tokenPath, form, "", http.StatusOK, &result)
+	postOAuthForm(t, client, origin+tokenPath, form, "", http.StatusBadRequest, nil)
+	require.NotEmpty(t, result.AccessToken)
+	return result
+}
+
+func postOAuthForm(t *testing.T, client *http.Client, endpoint string, form url.Values, origin string, status int, result any) string {
+	t.Helper()
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, endpoint, strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if origin != "" {
+		request.Header.Set("Origin", origin)
+	}
+	reply, err := client.Do(request)
+	require.NoError(t, err)
+	defer reply.Body.Close()
+	body, err := io.ReadAll(reply.Body)
+	require.NoError(t, err)
+	require.Equal(t, status, reply.StatusCode, "%s", body)
+	if result != nil {
+		require.NoError(t, json.Unmarshal(body, result))
+	}
+	return reply.Header.Get("Location")
+}
+
+type authorizationTransport struct {
+	base  http.RoundTripper
+	token string
+}
+
+func (transport authorizationTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	cloned := request.Clone(request.Context())
+	cloned.Header.Set("Authorization", "Bearer "+transport.token)
+	return transport.base.RoundTrip(cloned)
+}
