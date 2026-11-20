@@ -1,10 +1,10 @@
 # OpenFlare Edge 部署
 
-OpenFlare Edge 是独立的 Pingora 边缘节点二进制。节点启动后直接连接主控，完成注册、心跳、配置同步、Pages 资源同步和流量代理。它与 Go Agent / OpenResty 部署线并行发布，同一节点只需要启动一个二进制，不需要额外安装 OpenResty 或暴露 Agent 到 OpenResty 的本地 HTTP 端口。
+OpenFlare Edge 是 OpenFlare v4.0.0 起使用的 Pingora 边缘节点。节点启动后直接连接控制端，完成注册、心跳、配置同步、Pages 资源同步和流量代理。已有 OpenResty 节点请按[升级指南](./upgrade.md)迁移。
 
 ## 发布包
 
-OpenFlare Edge 使用独立的 `edge-v*` 版本标签，与主控和 Go Agent 的 `v*` 发布隔离。发布工作流同时构建 Linux `amd64` 和 `arm64`：
+OpenFlare Edge 使用独立的 `edge-v*` 版本标签。Server、Relay 和隧道节点随 `v*` 标签发布。Edge 发布工作流同时构建 Linux `amd64` 和 `arm64`：
 
 - `openflare-edge_edge-v0.1.2_linux_amd64.tar.gz`
 - `openflare-edge_edge-v0.1.2_linux_arm64.tar.gz`
@@ -23,7 +23,7 @@ Actions 中的 **Test OpenFlare Edge** 独立运行单元测试、原生运行�
 
 使用配置同步协议 v1 的控制端要求 Edge `edge-v0.1.2` 或更新版本。安装器会在修改本地服务前检查发行包的协议版本。
 
-节点详情的「边缘节点部署」提供 Linux 和 Docker 两种命令，自动填入控制端 URL 和该节点的 Agent Token。迁移现有 OpenResty 节点时，先发布 Pingora 配置并停止旧服务。新版 Edge 使用原节点的 Agent Token 注册时，控制端自动切换该节点的引擎，保留节点 ID 和业务绑定。
+节点详情的「边缘节点部署」提供 Linux 和 Docker 两种命令，自动填入控制端 URL 和节点专属令牌。
 
 在 Linux 节点执行：
 
@@ -127,7 +127,3 @@ sudo bash uninstall-openflare-edge.sh
 ```
 
 需要同时删除节点身份、配置快照、Pages 与 GeoIP 数据时增加 `--remove-state`。
-
-## 与 OpenResty 线并行
-
-OpenFlare Edge 的发布组、版本号和安装目录与 Go Agent / OpenResty 主线完全隔离。`pingora_enabled` 控制 Pingora 发布组，其余 OpenResty 节点继续使用原发布组。同一台节点迁移时，应先停止旧服务并释放 80/443，再安装 OpenFlare Edge。

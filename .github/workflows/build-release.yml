@@ -35,28 +35,20 @@ jobs:
   prepare-message:
     runs-on: ubuntu-latest
     outputs:
-      commit_msg: ${{ steps.trans.outputs.commit_msg }}
+      commit_msg: ${{ steps.message.outputs.commit_msg }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
-      - name: Prepare Commit Message
-        id: trans
+      - name: Read release commit message
+        id: message
         shell: bash
         run: |
           msg=$(git log -1 --pretty=%B)
-          pip install deep-translator > /dev/null 2>&1 || true
-
-          export COMMIT_MSG="$msg"
           echo "commit_msg<<EOF" >> "$GITHUB_OUTPUT"
-          if [ -f "scripts/translate_commit.py" ]; then
-             python3 scripts/translate_commit.py >> "$GITHUB_OUTPUT"
-          else
-             echo "Translation script not found, using raw message"
-             echo "$msg" >> "$GITHUB_OUTPUT"
-          fi
+          printf '%s\n' "$msg" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
   create-release:
