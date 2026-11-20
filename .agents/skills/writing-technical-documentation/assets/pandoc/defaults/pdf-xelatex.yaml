@@ -1,0 +1,15 @@
+# PDF through XeLaTeX. Needs a TeX install, so prefer Typst unless the project already has TeX.
+# Do not use pandoc's default pdflatex: it fails on characters such as arrows and CJK text.
+#   pandoc --defaults pdf-xelatex.yaml -o out.pdf in.md
+from: gfm
+to: latex
+standalone: true
+file-scope: true
+pdf-engine: xelatex
+variables:
+  geometry: margin=2.5cm
+  colorlinks: true
+  linkcolor: "blue"
+  urlcolor: "blue"
+filters:
+  - ${.}/../filters/doc_export.lua

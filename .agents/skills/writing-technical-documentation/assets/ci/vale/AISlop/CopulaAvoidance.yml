@@ -1,0 +1,9 @@
+extends: substitution
+message: "Prefer '%s' over '%s' for a plain statement."
+level: suggestion
+ignorecase: true
+swap:
+  serves as: is
+  stands as: is
+  acts as: is
+  boasts: has

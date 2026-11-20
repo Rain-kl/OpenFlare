@@ -1,0 +1,15 @@
+# PDF through Typst: a single binary with no TeX install, full Unicode, and fast builds.
+#   pandoc --defaults pdf-typst.yaml --variable papersize=a4 -o out.pdf in.md
+# Paper size stays out of this file: a value on the command line would combine with one here into
+# a list, which Typst rejects.
+from: gfm
+to: typst
+standalone: true
+file-scope: true
+pdf-engine: typst
+include-before-body:
+  - ${.}/../typst-style.typ
+variables:
+  fontsize: 10.5pt
+filters:
+  - ${.}/../filters/doc_export.lua

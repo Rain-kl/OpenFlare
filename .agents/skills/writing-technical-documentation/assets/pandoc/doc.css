@@ -1,0 +1,25 @@
+/* Styling for HTML exports and for PDF through WeasyPrint. */
+:root { --accent: #1f4e79; --rule: #bfbfbf; --muted: #595959; --tint: #f2f2f2; }
+html { font: 16px/1.55 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #1a1a1a; }
+body { max-width: 48rem; margin: 0 auto; padding: 2rem 1rem; }
+h1, h2, h3, h4 { color: var(--accent); line-height: 1.25; margin: 1.6em 0 0.5em; break-after: avoid; }
+h1 { font-size: 1.8rem; } h2 { font-size: 1.4rem; } h3 { font-size: 1.15rem; } h4 { font-size: 1rem; }
+header#title-block-header h1.title { margin-top: 0; font-size: 2.1rem; }
+header#title-block-header p { color: var(--muted); margin: 0.2em 0; }
+a { color: var(--accent); }
+code, pre, kbd { font-family: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace; font-size: 0.9em; }
+pre { background: var(--tint); padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.95em; }
+th, td { border: 1px solid var(--rule); padding: 0.35rem 0.55rem; text-align: left; vertical-align: top; }
+thead th { background: var(--tint); }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+img { max-width: 100%; height: auto; }
+blockquote { border-left: 3px solid var(--rule); margin: 1em 0; padding: 0 1em; color: var(--muted); }
+.note, .tip, .important, .warning, .caution { border-left: 4px solid var(--accent); background: var(--tint); padding: 0.5rem 1rem; margin: 1em 0; }
+.warning, .caution { border-left-color: #b45309; }
+div.title p { font-weight: 600; margin: 0.2em 0; }
+#TOC ul { list-style: none; padding-left: 1rem; }
+.page-break { break-after: page; }
+@page { size: A4; margin: 2.2cm 2cm; @bottom-right { content: counter(page); color: #595959; font-size: 0.8em; } }
+@media print { body { max-width: none; padding: 0; } a { color: inherit; } }

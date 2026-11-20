@@ -1,0 +1,11 @@
+# PDF through HTML and CSS. Pick this when the look must match a web page or a CSS brand.
+#   pandoc --defaults pdf-weasyprint.yaml -o out.pdf in.md
+from: gfm
+to: html5
+standalone: true
+file-scope: true
+pdf-engine: weasyprint
+css:
+  - ${.}/../doc.css
+filters:
+  - ${.}/../filters/doc_export.lua

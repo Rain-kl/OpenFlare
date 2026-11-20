@@ -1,0 +1,23 @@
+extends: existence
+message: "'%s' is filler. Delete it, or state the fact."
+level: warning
+ignorecase: true
+tokens:
+  - in today's (?:fast[- ]paced|digital|modern|ever[- ]changing) \w+
+  - in the (?:realm|world|age|era) of
+  - now more than ever
+  - it(?:'s| is) (?:worth|important) (?:noting|to note|mentioning)
+  - it (?:should|must) be noted
+  - let's (?:dive|delve|explore|unpack|break (?:it|this) down)
+  - without further ado
+  - needless to say
+  - plays? an? (?:crucial|pivotal|vital|key) role
+  - (?:serves?|stands?) as an? (?:testament|reminder|beacon)
+  - marks? an? (?:significant|pivotal) (?:milestone|moment|shift)
+  - paves? the way
+  - sets? the stage
+  - unlock(?:s|ing)? the (?:full )?potential
+  - whether you(?:'re| are) an? \w+ or an? \w+
+  - this comprehensive guide
+  - key takeaways?
+  - final thoughts

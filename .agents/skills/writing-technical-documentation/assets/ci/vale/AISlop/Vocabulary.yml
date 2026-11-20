@@ -1,0 +1,38 @@
+extends: existence
+message: "'%s' is a stock AI word. State the concrete fact."
+level: warning
+ignorecase: true
+tokens:
+  - delv(?:e|es|ing)
+  - tapestry
+  - testament
+  - beacon
+  - cornerstone
+  - multifaceted
+  - myriad
+  - plethora
+  - realm
+  - interplay
+  - unparalleled
+  - groundbreaking
+  - game[- ]chang(?:er|ing)
+  - paradigm
+  - synerg(?:y|ies)
+  - seamless(?:ly)?
+  - meticulous(?:ly)?
+  - intricate
+  - unleash(?:es)?
+  - supercharge[sd]?
+  - revolutioniz(?:e|es)
+  - cutting-edge
+  - state-of-the-art
+  - best-in-class
+  - world-class
+  - battle-tested
+  - future-proof
+  - blazing(?:ly)? fast
+  - enterprise-grade
+  - mission-critical
+  - turnkey
+  - holistic
+  - transformative

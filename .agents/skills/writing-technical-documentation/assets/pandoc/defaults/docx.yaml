@@ -1,0 +1,9 @@
+# Word output. Keep this file in the repo so every export uses the same settings.
+#   pandoc --defaults docx.yaml --reference-doc=reference.docx -o out.docx in.md
+# Build reference.docx with: python3 scripts/export_doc.py reference-doc -o reference.docx
+from: gfm
+to: docx
+standalone: true
+file-scope: true
+filters:
+  - ${.}/../filters/doc_export.lua

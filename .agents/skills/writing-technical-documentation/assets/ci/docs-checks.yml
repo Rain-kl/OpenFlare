@@ -1,0 +1,67 @@
+# Docs checks. Copy to .github/workflows/docs-checks.yml and adjust paths.
+# Action versions were current on 2026-11-06. Check for updates when you adopt this.
+name: Docs checks
+
+on:
+  pull_request:
+    paths:
+      - "**/*.md"
+      - ".vale.ini"
+      - ".vale/**"
+      - ".github/workflows/docs-checks.yml"
+  schedule:
+    # External links break without any commit, so check them weekly.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
+jobs:
+  structure:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DavidAnson/markdownlint-cli2-action@v25
+        with:
+          globs: |
+            **/*.md
+            !node_modules/**
+            !vendor/**
+
+  prose:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: vale-cli/vale-action@v3
+        with:
+          files: .
+          # Pin this once your docs pass, so a new Vale release cannot fail a build.
+          version: latest
+          filter_mode: added
+          fail_on_error: false
+
+      # Optional: this skill's scanner and reference checker. Vendor its scripts/ folder first.
+      # - uses: actions/setup-python@v7
+      #   with:
+      #     python-version: "3.12"
+      # - run: python3 tools/docs/slop_scan.py docs README.md --format github --quiet
+      # - run: python3 tools/docs/verify_refs.py docs README.md --repo . --min-severity warning
+      # - run: python3 tools/docs/doc_audit.py . --changed-since "origin/${{ github.base_ref }}"
+
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          # Pull requests check internal links only, so an outside outage cannot block a merge.
+          args: >-
+            --root-dir "${{ github.workspace }}"
+            --no-progress
+            ${{ github.event_name == 'pull_request' && '--offline' || '' }}
+            '**/*.md'
+          fail: ${{ github.event_name == 'pull_request' }}

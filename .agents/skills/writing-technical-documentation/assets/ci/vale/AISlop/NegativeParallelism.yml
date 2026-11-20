@@ -1,0 +1,10 @@
+extends: existence
+message: "'%s' sets up a straw position. State the true claim only."
+level: warning
+ignorecase: true
+nonword: true
+tokens:
+  - '\b(?:it|this|that)(?:''s| is)(?:n''t| not) (?:just|only|merely) [^.;:\n]{1,60}[,;] (?:it|this|that)(?:''s| is)\b'
+  - '\bnot (?:just|only|merely) (?:a |an |the )?[^.;:\n]{1,60}[,;] but\b'
+  - '\bmore than just\b'
+  - '\bless about \w+,? more about\b'

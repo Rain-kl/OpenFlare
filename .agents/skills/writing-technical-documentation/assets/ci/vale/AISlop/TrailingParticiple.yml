@@ -1,0 +1,7 @@
+extends: existence
+message: "'%s' adds a vague consequence. Delete it, or give the fact in its own sentence."
+level: suggestion
+ignorecase: true
+nonword: true
+tokens:
+  - ',\s+(?:ensuring|highlighting|underscoring|showcasing|reflecting|fostering|emphasizing|empowering)\b[^.\n]{0,60}'

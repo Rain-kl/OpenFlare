@@ -1,0 +1,18 @@
+extends: existence
+message: "'%s' is leaked assistant or tool text. Delete it."
+level: error
+ignorecase: true
+nonword: true
+tokens:
+  - '\bI hope this helps\b'
+  - '\blet me know if\b'
+  - '\bwould you like me to\b'
+  - '\bas an AI\b'
+  - '\bknowledge cutoff\b'
+  - 'oaicite'
+  - 'contentReference'
+  - 'oai_citation'
+  - 'turn\d+search\d+'
+  - 'utm_source=(?:chatgpt|openai)'
+  - '\[insert [^\]]*\]'
+  - '\blorem ipsum\b'

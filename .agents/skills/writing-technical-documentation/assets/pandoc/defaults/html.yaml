@@ -1,0 +1,11 @@
+# One self-contained HTML file with images and CSS embedded.
+#   pandoc --defaults html.yaml -o out.html in.md
+from: gfm
+to: html5
+standalone: true
+embed-resources: true
+file-scope: true
+css:
+  - ${.}/../doc.css
+filters:
+  - ${.}/../filters/doc_export.lua
