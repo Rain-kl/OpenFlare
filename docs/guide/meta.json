@@ -1,5 +1,6 @@
 {
-  "title": "指南",
+  "title": "使用指南",
+  "root": true,
   "pages": [
     "index",
     "---入门指引---",

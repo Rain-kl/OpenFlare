@@ -1,5 +1,6 @@
 {
-  "title": "设计",
+  "title": "架构设计",
+  "root": true,
   "pages": [
     "index",
     "---核心架构与拓扑---",
@@ -25,6 +26,7 @@
     "observability-transport-model",
     "observability-data-model",
     "logstore",
+    "---集成与国际化---",
     "kuma-design",
     "log-language"
   ]

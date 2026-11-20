@@ -1,8 +1,8 @@
 {
   "title": "Deployment",
+  "root": true,
   "pages": [
     "index",
-    "---Overview---",
     "deployment",
     "---Components---",
     "server",
@@ -11,7 +11,7 @@
     "---Tunnel Infrastructure---",
     "relay",
     "openflared",
-    "---Maintenance---",
+    "---Upgrades & Maintenance---",
     "upgrade"
   ]
 }

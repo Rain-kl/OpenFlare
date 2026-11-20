@@ -1,8 +1,8 @@
 {
-  "title": "部署",
+  "title": "安装部署",
+  "root": true,
   "pages": [
     "index",
-    "---架构与概览---",
     "deployment",
     "---组件部署---",
     "server",
@@ -11,7 +11,7 @@
     "---隧道基础设施---",
     "relay",
     "openflared",
-    "---运维维护---",
+    "---升级维护---",
     "upgrade"
   ]
 }

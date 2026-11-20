@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import defaultMdxComponents, { createRelativeLink } from 'fumadocs-ui/mdx';
-import { DocsBody, DocsPage, DocsTitle } from 'fumadocs-ui/page';
+import { DocsBody, DocsPage } from 'fumadocs-ui/page';
 import { source } from '@/lib/source';
 
 export function generateStaticParams() {
@@ -38,7 +38,6 @@ export default async function EnglishDocsPage({
       repo: 'OpenFlare',
       path: `docs/${page.path}`,
     }}>
-      <DocsTitle>{page.data.title}</DocsTitle>
       <DocsBody>
         <MDXContent
           components={{

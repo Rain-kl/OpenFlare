@@ -1,4 +1,5 @@
 {
   "title": "Changelog",
+  "root": true,
   "pages": ["index"]
 }

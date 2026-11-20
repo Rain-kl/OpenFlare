@@ -60,7 +60,7 @@ Maintenance, diagnostic procedures, and open-source references:
 
 ## Documentation Structure
 
-OpenFlare documentation is organized into three sections:
-- `guide/` (this section): procedural guides and step-by-step instructions for administrators and operators.
-- `reference/`: system parameters, CLI command specifications, and performance benchmark data.
-- `design/`: architectural designs, data models, state synchronization protocols, and security mechanisms.
+- [Deployment](../deployment/index.md): choose a deployment method, install components, and upgrade nodes.
+- [Reference](../reference/index.md): look up configuration settings, commands, protocols, and benchmarks.
+- [Architecture](../design/index.md): explore system architecture, data models, configuration synchronization, and security.
+- [Changelog](../changelog/index.md): review release changes and upgrade notes.

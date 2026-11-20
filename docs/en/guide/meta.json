@@ -1,5 +1,6 @@
 {
-  "title": "Guide",
+  "title": "Guides",
+  "root": true,
   "pages": [
     "index",
     "---Getting Started---",

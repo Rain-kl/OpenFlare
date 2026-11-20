@@ -1,56 +1,28 @@
+import type { DocsLayoutProps } from 'fumadocs-ui/layouts/docs';
 import { uiTranslations } from 'fumadocs-ui/i18n';
 import { i18n } from './i18n';
-import { source } from './source';
 
 export const translations = i18n
   .translations()
   .extend(uiTranslations())
   .add({
-    zh: { displayName: '简体中文' },
+    zh: {
+      displayName: '简体中文',
+      'Choose a language(language switcher)(aria-label)': '选择语言',
+      'Search(search trigger)': '搜索文档',
+      'Search(search dialog)': '搜索文档',
+      'On this page(table of contents)': '本页目录',
+    },
     en: { displayName: 'English' },
   });
 
-export function baseOptions(locale: 'zh' | 'en', slug: string[]) {
-  const isChinese = locale === 'zh';
-  const otherPage = source.getPage(slug, isChinese ? 'en' : 'zh');
-  const languageUrl = otherPage?.url ?? (isChinese ? '/en' : '/');
-
+export function baseOptions(locale: 'zh' | 'en'): Omit<DocsLayoutProps, 'tree'> {
   return {
     nav: {
       title: 'OpenFlare',
-      url: isChinese ? '/' : '/en',
+      url: locale === 'zh' ? '/' : '/en',
     },
     githubUrl: 'https://github.com/Rain-kl/OpenFlare',
-    links: [
-      {
-        text: isChinese ? '指南' : 'Guide',
-        url: isChinese ? '/guide' : '/en/guide',
-        active: 'nested-url' as const,
-      },
-      {
-        text: isChinese ? '部署' : 'Deployment',
-        url: isChinese ? '/deployment' : '/en/deployment',
-        active: 'nested-url' as const,
-      },
-      {
-        text: isChinese ? '参考' : 'Reference',
-        url: isChinese ? '/reference' : '/en/reference',
-        active: 'nested-url' as const,
-      },
-      {
-        text: isChinese ? '设计' : 'Design',
-        url: isChinese ? '/design' : '/en/design',
-        active: 'nested-url' as const,
-      },
-      {
-        text: isChinese ? '更新日志' : 'Changelog',
-        url: isChinese ? '/changelog' : '/en/changelog',
-        active: 'nested-url' as const,
-      },
-      {
-        text: isChinese ? 'English' : '简体中文',
-        url: languageUrl,
-      },
-    ],
+    tabMode: 'top',
   };
 }

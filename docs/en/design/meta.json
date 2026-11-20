@@ -1,5 +1,6 @@
 {
-  "title": "Design",
+  "title": "Architecture",
+  "root": true,
   "pages": [
     "index",
     "---Core Architecture---",
@@ -25,6 +26,7 @@
     "observability-transport-model",
     "observability-data-model",
     "logstore",
+    "---Integrations & Internationalization---",
     "kuma-design",
     "log-language"
   ]
