@@ -223,18 +223,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </Button>
 
         <SidebarHeader className='py-4 md:-ml-2'>
-          <Link
-            href='/'
-            aria-label='OpenFlare'
-            onClick={handleCloseSidebar}
-            className='flex h-9 items-center px-3 group-data-[collapsible=icon]:ml-2 group-data-[collapsible=icon]:px-0'
-          >
-            <BrandMark
-              variant='wordmark'
-              className='group-data-[collapsible=icon]:hidden'
-            />
-            <BrandMark className='hidden group-data-[collapsible=icon]:inline-block' />
-          </Link>
           <DropdownMenu
             open={userMenuOpen}
             onOpenChange={handleUserMenuOpenChange}
