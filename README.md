@@ -117,16 +117,13 @@ flowchart TD
 
 | Measured metric | JP-B | US-C |
 | --- | ---: | ---: |
-| Pingora workers (automatic sizing) | 3 | 1 |
-| Direct public-IP RTT | 115.7 ms | 1.0 ms |
-| Direct HTTPS keep-alive P50 / P95 (40 requests/s) | 117.7 / 120.2 ms | 3.8 / 6.9 ms |
-| Direct HTTP/2 download (30 MiB, median end-to-end rate) | **111 Mbps** | **775 Mbps** |
-| HTTP/2 successful throughput: full WAF / IP only / WAF off | **420 / 486 / 488 requests/s** | **274 / 256 / 283 requests/s** |
-| Edge CPU at 160 requests/s: full WAF / IP only / WAF off | **32.2% / 12.1% / 10.2%** | **25.7% / 9.4% / 8.7%** |
+| HTTP/2 throughput, full WAF, 16 connections × 24 streams | **1,158 requests/s** (3 workers) | **718 requests/s** (1 worker) |
+| HTTP/2 throughput, WAF off, 16 connections × 24 streams | **2,990 requests/s** (3 workers) | **2,169 requests/s** (1 worker) |
+| Peak retest, WAF off, 22-second sample | **3,948 requests/s** (6 workers, 32 × 24) | **2,273 requests/s** (2 workers, 16 × 24) |
 
-The public-IP tests bypassed Cloudflare. The isolated WAF comparison used a 923 B Pages file, 8 connections × 16 HTTP/2 streams, and no per-IP request-rate limit. CPU percentages are relative to one vCPU.
+US-A connected directly to the isolated Edge IPs without Cloudflare. The tests served a 923 B Pages file with rate limiting disabled and stored access logs on the in-memory filesystem `tmpfs`. The new asynchronous log writer has not been benchmarked on these nodes.
 
-[Benchmark report: performance policy, per-run results, and methodology.](./docs/en/reference/pingora-benchmark.md)
+[Benchmark report: test configuration, WAF comparison, and thread scaling.](./docs/en/reference/pingora-benchmark.md)
 
 ---
 
