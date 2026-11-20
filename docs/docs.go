@@ -11695,6 +11695,88 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/waf/attack-logs/{id}/request": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "获取攻击日志请求报文",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "记录 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "maximum": 253402300798,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Unix seconds",
+                        "name": "logged_at",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maxLength": 64,
+                        "type": "string",
+                        "name": "node_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_waf.attackLogRequestResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/waf/ip-groups": {
             "get": {
                 "security": [
@@ -19390,6 +19472,14 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_waf.attackLogRequestResult": {
+            "type": "object",
+            "properties": {
+                "request": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRequestPreview"
+                }
+            }
+        },
         "apps_openflare_zone.CleanupUnlinkedDomainsResult": {
             "type": "object",
             "properties": {
@@ -21178,11 +21268,28 @@ const docTemplate = `{
                 "reason": {
                     "type": "string"
                 },
+                "request": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRequestPreview"
+                },
                 "rules": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRuleMatch"
                     }
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRequestPreview": {
+            "type": "object",
+            "properties": {
+                "body_omitted": {
+                    "type": "boolean"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "truncated": {
+                    "type": "boolean"
                 }
             }
         },

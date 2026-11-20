@@ -38,12 +38,21 @@ type attackLogEntry struct {
 	Host       string    `json:"host"`
 	Path       string    `json:"path"`
 	StatusCode int       `json:"status_code"`
-	protocol.WAFAudit
+	protocol.WAFAuditSummary
 }
 
 type attackLogPage[T any] struct {
 	Total   int64 `json:"total"`
 	Results []T   `json:"results"`
+}
+
+type attackLogRequestQuery struct {
+	NodeID   string `form:"node_id" binding:"required,max=64"`
+	LoggedAt int64  `form:"logged_at" binding:"required,min=1,max=253402300798"` // Unix seconds
+}
+
+type attackLogRequestResult struct {
+	Request *protocol.WAFRequestPreview `json:"request"`
 }
 
 func (input attackLogQuery) filter(defaultAction string, now time.Time) (model.OpenFlareAccessLogQuery, error) {
@@ -91,16 +100,35 @@ func listAttackLogs(ctx context.Context, query model.OpenFlareAccessLogQuery) (a
 	}
 	result := attackLogPage[attackLogEntry]{Total: total, Results: make([]attackLogEntry, 0, len(rows))}
 	for _, row := range rows {
-		var audit protocol.WAFAudit
+		var audit protocol.WAFAuditSummary
 		if err := json.Unmarshal([]byte(row.WAFAudit), &audit); err != nil {
 			return attackLogPage[attackLogEntry]{}, err
 		}
 		result.Results = append(result.Results, attackLogEntry{
 			ID: row.ID, NodeID: row.NodeID, LoggedAt: row.LoggedAt, RemoteAddr: row.RemoteAddr,
-			Region: row.Region, Host: row.Host, Path: row.Path, StatusCode: row.StatusCode, WAFAudit: audit,
+			Region: row.Region, Host: row.Host, Path: row.Path, StatusCode: row.StatusCode, WAFAuditSummary: audit,
 		})
 	}
 	return result, nil
+}
+
+func getAttackLogRequest(ctx context.Context, id uint64, input attackLogRequestQuery) (*attackLogRequestResult, error) {
+	store, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	since := time.Unix(input.LoggedAt, 0).UTC()
+	rows, err := store.AccessLogs.List(ctx, model.OpenFlareAccessLogQuery{
+		ID: id, WAFAction: "all", NodeID: input.NodeID, Since: since, Until: since.Add(time.Second), PageSize: 1,
+	})
+	if err != nil || len(rows) == 0 {
+		return nil, err
+	}
+	var result attackLogRequestResult
+	if err := json.Unmarshal([]byte(rows[0].WAFAudit), &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func listAttackEvents(ctx context.Context, query model.OpenFlareAccessLogQuery) (attackLogPage[model.OpenFlareAttackEvent], error) {

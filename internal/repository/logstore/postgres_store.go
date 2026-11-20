@@ -801,6 +801,7 @@ func nodeAccessLogValueColumn(column string) (string, bool) {
 // toNodeAccessLogFilter 由 model 查询 DTO 转为 analytics 过滤结构。
 func toNodeAccessLogFilter(query model.OpenFlareAccessLogQuery) analyticsmodel.NodeAccessLogFilter {
 	return analyticsmodel.NodeAccessLogFilter{
+		ID:              query.ID,
 		NodeID:          query.NodeID,
 		RemoteAddr:      query.RemoteAddr,
 		ExactRemoteAddr: query.ExactRemoteAddr,
@@ -824,6 +825,10 @@ func toNodeAccessLogFilter(query model.OpenFlareAccessLogQuery) analyticsmodel.N
 func buildNodeAccessLogFilterParts(f analyticsmodel.NodeAccessLogFilter) (string, []any) {
 	var parts []string
 	var args []any
+	if f.ID != 0 {
+		parts = append(parts, "id = ?")
+		args = append(args, f.ID)
+	}
 	if nodeID := strings.TrimSpace(f.NodeID); nodeID != "" {
 		parts = append(parts, "node_id = ?")
 		args = append(args, nodeID)

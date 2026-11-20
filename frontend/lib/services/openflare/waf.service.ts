@@ -5,6 +5,7 @@ import type {
   AttackLog,
   AttackLogFilter,
   AttackLogPage,
+  AttackLogRequest,
 } from './attack-types';
 import { OpenFlareBaseService } from './base.service';
 import type {
@@ -47,6 +48,13 @@ export class WafService extends OpenFlareBaseService {
     filter: AttackLogFilter,
   ): Promise<AttackLogPage<AttackLog>> {
     return this.get<AttackLogPage<AttackLog>>('/attack-logs', filter);
+  }
+
+  static async getAttackLogRequest(log: AttackLog): Promise<AttackLogRequest> {
+    return this.get<AttackLogRequest>(`/attack-logs/${log.id}/request`, {
+      node_id: log.node_id,
+      logged_at: Math.floor(Date.parse(log.logged_at) / 1000),
+    });
   }
 
   static async listAttackEvents(

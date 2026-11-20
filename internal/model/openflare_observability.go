@@ -159,6 +159,7 @@ func (OpenFlareNodeObservationFrps) TableName() string {
 
 // OpenFlareAccessLogQuery filters access log list queries.
 type OpenFlareAccessLogQuery struct {
+	ID              uint64
 	WAFAction       string
 	ExactRemoteAddr bool
 	NodeID          string

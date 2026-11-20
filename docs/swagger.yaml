@@ -2674,6 +2674,11 @@ definitions:
       total:
         type: integer
     type: object
+  apps_openflare_waf.attackLogRequestResult:
+    properties:
+      request:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRequestPreview'
+    type: object
   apps_openflare_zone.CleanupUnlinkedDomainsResult:
     properties:
       deleted_count:
@@ -3851,10 +3856,21 @@ definitions:
         type: string
       reason:
         type: string
+      request:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRequestPreview'
       rules:
         items:
           $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRuleMatch'
         type: array
+    type: object
+  github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRequestPreview:
+    properties:
+      body_omitted:
+        type: boolean
+      message:
+        type: string
+      truncated:
+        type: boolean
     type: object
   github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRuleMatch:
     properties:
@@ -11602,6 +11618,57 @@ paths:
       security:
       - SessionCookie: []
       summary: 列出攻击日志记录
+      tags:
+      - openflare-waf
+  /api/v1/d/waf/attack-logs/{id}/request:
+    get:
+      parameters:
+      - description: 记录 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Unix seconds
+        in: query
+        maximum: 253402300798
+        minimum: 1
+        name: logged_at
+        required: true
+        type: integer
+      - in: query
+        maxLength: 64
+        name: node_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_waf.attackLogRequestResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取攻击日志请求报文
       tags:
       - openflare-waf
   /api/v1/d/waf/ip-groups:

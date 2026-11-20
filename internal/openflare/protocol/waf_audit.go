@@ -3,8 +3,14 @@
 
 package protocol
 
-// WAFAudit describes the graph decision and the matching rules without captured payloads.
+// WAFAudit describes the graph decision, matching rules, and optional request preview.
 type WAFAudit struct {
+	WAFAuditSummary
+	Request *WAFRequestPreview `json:"request,omitempty"`
+}
+
+// WAFAuditSummary is the decision metadata shown in the attack log list.
+type WAFAuditSummary struct {
 	Action          string         `json:"action"`
 	Reason          string         `json:"reason"`
 	Method          string         `json:"method"`
@@ -15,6 +21,13 @@ type WAFAudit struct {
 	AttackGroupID   uint           `json:"attack_group_id,omitempty"`
 	AttackGroupName string         `json:"attack_group_name,omitempty"`
 	Rules           []WAFRuleMatch `json:"rules,omitempty"`
+}
+
+// WAFRequestPreview contains a bounded reconstruction of the request as parsed by the edge.
+type WAFRequestPreview struct {
+	Message     string `json:"message"`
+	Truncated   bool   `json:"truncated"`
+	BodyOmitted bool   `json:"body_omitted"`
 }
 
 // WAFRuleMatch is the identifying metadata for a matching attack protection rule.

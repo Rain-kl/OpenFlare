@@ -103,6 +103,15 @@
     "status": "HTTP status",
     "recordID": "Record ID",
     "matchedRules": "Matched detection rules",
+    "requestMessage": {
+      "title": "HTTP request",
+      "loading": "Loading the HTTP request…",
+      "error": "Unable to load the HTTP request.",
+      "retry": "Retry",
+      "empty": "No HTTP request was captured for this record.",
+      "truncated": "The request preview was truncated at 8 KiB.",
+      "bodyOmitted": "The request body was not buffered or could not be previewed as text."
+    },
     "emptyValue": "—",
     "reasons": {
       "attack_protection": "Attack protection rule matched",

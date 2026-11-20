@@ -29,6 +29,10 @@ const (
 func buildCHNodeAccessLogFilterClause(filter analyticsmodel.NodeAccessLogFilter) (string, []any) {
 	parts := make([]string, 0, nodeAccessLogFilterClauseCapacity)
 	args := make([]any, 0, nodeAccessLogFilterClauseCapacity)
+	if filter.ID != 0 {
+		parts = append(parts, "id = ?")
+		args = append(args, filter.ID)
+	}
 	if trimmed := strings.TrimSpace(filter.NodeID); trimmed != "" {
 		parts = append(parts, "node_id = ?")
 		args = append(args, trimmed)

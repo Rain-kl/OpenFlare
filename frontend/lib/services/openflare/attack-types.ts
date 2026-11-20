@@ -63,6 +63,14 @@ export type AttackEvent = {
   count: number;
 };
 
+export type AttackLogRequest = {
+  request: {
+    message: string;
+    truncated: boolean;
+    body_omitted: boolean;
+  } | null;
+};
+
 export type AttackLogFilter = {
   page?: number;
   page_size?: number;

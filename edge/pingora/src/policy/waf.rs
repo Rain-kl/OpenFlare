@@ -29,6 +29,15 @@ pub struct WafAudit {
     pub attack_group_name: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rules: Vec<RuleMatch>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request: Option<WafRequestPreview>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WafRequestPreview {
+    pub message: String,
+    pub truncated: bool,
+    pub body_omitted: bool,
 }
 
 impl WafAudit {
@@ -239,6 +248,7 @@ impl WafRequest<'_> {
             attack_group_id: None,
             attack_group_name: String::new(),
             rules: Vec::new(),
+            request: None,
         }
     }
 }

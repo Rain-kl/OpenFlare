@@ -1,6 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
 import { useFormatter, useTranslations } from 'next-intl';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { AttackLog } from '@/lib/services/openflare/attack-types';
+import { WafService } from '@/lib/services/openflare/waf.service';
 
 export function useAttackReason() {
   const t = useTranslations('attackLogs');
@@ -36,6 +39,20 @@ export function AttackLogDetails({
   const protection = useTranslations('attackProtection');
   const format = useFormatter();
   const reason = useAttackReason();
+  const request = useQuery({
+    queryKey: [
+      'openflare',
+      'attack-log-request',
+      log.node_id,
+      log.logged_at,
+      log.id,
+    ],
+    queryFn: () => WafService.getAttackLogRequest(log),
+    gcTime: 0,
+    staleTime: Infinity,
+    retry: false,
+  });
+  const preview = request.data?.request;
   const details = [
     { label: t('reason'), value: reason(log) },
     {
@@ -117,6 +134,46 @@ export function AttackLogDetails({
             </ul>
           </section>
         )}
+        <section
+          aria-labelledby='attack-log-request'
+          className='min-w-0 space-y-3'
+        >
+          <h2 id='attack-log-request' className='text-sm font-semibold'>
+            {t('requestMessage.title')}
+          </h2>
+          {request.isPending ? (
+            <p role='status' className='text-sm text-muted-foreground'>
+              {t('requestMessage.loading')}
+            </p>
+          ) : request.isError ? (
+            <div className='flex items-center gap-3 text-sm'>
+              <p role='alert'>{t('requestMessage.error')}</p>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => void request.refetch()}
+              >
+                {t('requestMessage.retry')}
+              </Button>
+            </div>
+          ) : preview ? (
+            <>
+              <pre className='max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-md border border-dashed bg-muted/40 p-3 text-xs leading-relaxed'>
+                <code>{preview.message}</code>
+              </pre>
+              {(preview.truncated || preview.body_omitted) && (
+                <p className='text-xs text-muted-foreground'>
+                  {preview.truncated && t('requestMessage.truncated')}{' '}
+                  {preview.body_omitted && t('requestMessage.bodyOmitted')}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className='text-sm text-muted-foreground'>
+              {t('requestMessage.empty')}
+            </p>
+          )}
+        </section>
       </DialogContent>
     </Dialog>
   );

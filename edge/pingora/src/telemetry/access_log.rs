@@ -2,9 +2,12 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
-    fs::{File, OpenOptions},
+    fs::{File, OpenOptions, Permissions},
     io::{BufRead, BufReader, Write},
-    os::fd::AsRawFd,
+    os::{
+        fd::AsRawFd,
+        unix::fs::{OpenOptionsExt, PermissionsExt},
+    },
     path::PathBuf,
 };
 
@@ -93,7 +96,11 @@ impl AccessLogBuffer {
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
+            .mode(0o600)
             .open(self.path())?;
+        if file.metadata()?.permissions().mode() & 0o077 != 0 {
+            file.set_permissions(Permissions::from_mode(0o600))?;
+        }
         writeln!(file, "{line}")?;
         file.sync_data()?;
         if file.metadata()?.len() > MAX_BYTES {

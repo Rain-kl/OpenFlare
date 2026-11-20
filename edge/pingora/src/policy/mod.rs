@@ -18,7 +18,7 @@ pub use pow::{
 };
 pub(crate) use service_worker::select as service_worker;
 pub(crate) use waf::compile as compile_waf;
-pub use waf::{has_waf_pow, CompiledWaf, WafAudit, WafDecision, WafRequest};
+pub use waf::{has_waf_pow, CompiledWaf, WafAudit, WafDecision, WafRequest, WafRequestPreview};
 
 use crate::geoip::GeoResult;
 use std::{

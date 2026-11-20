@@ -166,6 +166,7 @@ func registerOpenFlareSecurityRoutes(apiGroup *gin.RouterGroup) {
 
 		wafRoute.GET("/attack-events", waf.ListAttackEventsHandler)
 		wafRoute.GET("/attack-logs", waf.ListAttackLogsHandler)
+		wafRoute.GET("/attack-logs/:id/request", waf.GetAttackLogRequestHandler)
 		wafRoute.GET("/attack-groups", waf.ListAttackGroupsHandler)
 		wafRoute.POST("/attack-groups", waf.CreateAttackGroupHandler)
 		wafRoute.POST("/attack-groups/:id/update", waf.UpdateAttackGroupHandler)

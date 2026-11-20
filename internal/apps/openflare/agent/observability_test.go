@@ -6,6 +6,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,8 +40,11 @@ func TestBuildNodeAccessLogRecordsPreservesBytesSent(t *testing.T) {
 
 func TestBuildNodeAccessLogRecordsPreservesWAFDecisionAndStripsQuery(t *testing.T) {
 	audit := &protocol.WAFAudit{
-		Action: "blocked", FlowName: "Primary", FlowID: 2, FlowNodeID: "attack-protection", AttackGroupID: 3,
-		Rules: []protocol.WAFRuleMatch{{ID: 934180, Category: "template_injection", Message: "SSTI Attack", Level: "strict"}},
+		WAFAuditSummary: protocol.WAFAuditSummary{
+			Action: "blocked", FlowName: "Primary", FlowID: 2, FlowNodeID: "attack-protection", AttackGroupID: 3,
+			Rules: []protocol.WAFRuleMatch{{ID: 934180, Category: "template_injection", Message: "SSTI Attack", Level: "strict"}},
+		},
+		Request: &protocol.WAFRequestPreview{Message: "GET /search?q=term HTTP/1.1\r\nhost: example.test\r\n\r\n"},
 	}
 	records, err := buildNodeAccessLogRecords(context.Background(), "edge-a", []protocol.NodeAccessLog{
 		{Path: "/search?q=private", WAF: audit, StatusCode: 403},
@@ -52,4 +56,13 @@ func TestBuildNodeAccessLogRecordsPreservesWAFDecisionAndStripsQuery(t *testing.
 	var decoded protocol.WAFAudit
 	require.NoError(t, json.Unmarshal([]byte(records[0].WAFAudit), &decoded))
 	require.Equal(t, audit, &decoded)
+
+	message := strings.Repeat("x", wafRequestPreviewBytes-1) + "文"
+	audit.Request.Message = message
+	_, encoded, err := serializeWAFAudit(audit)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal([]byte(encoded), &decoded))
+	require.Equal(t, message[:wafRequestPreviewBytes-1], decoded.Request.Message)
+	require.True(t, decoded.Request.Truncated)
+	require.Equal(t, message, audit.Request.Message)
 }

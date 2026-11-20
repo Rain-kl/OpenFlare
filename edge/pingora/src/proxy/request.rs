@@ -128,7 +128,16 @@ impl ProxyService {
                 .execute(&config.config.waf, route, request, pow_session.is_some())
             {
                 Ok((decision, audit)) => {
-                    ctx.waf = audit;
+                    ctx.waf = audit.map(|mut audit| {
+                        let has_body = !context.body.is_empty()
+                            || !session.as_downstream_mut().is_body_empty();
+                        audit.request = Some(super::request_preview::capture(
+                            session.req_header(),
+                            &context.body,
+                            has_body,
+                        ));
+                        audit
+                    });
                     decision
                 }
                 Err(error) => {

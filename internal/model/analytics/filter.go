@@ -21,6 +21,7 @@ type AccessLogFilter struct {
 
 // NodeAccessLogFilter scopes ClickHouse node access log queries.
 type NodeAccessLogFilter struct {
+	ID              uint64
 	WAFAction       string
 	ExactRemoteAddr bool
 	NodeID          string

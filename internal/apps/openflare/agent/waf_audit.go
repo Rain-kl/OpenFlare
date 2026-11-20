@@ -6,6 +6,7 @@ package agent
 import (
 	"encoding/json"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 )
@@ -21,6 +22,7 @@ const (
 	wafAuditMessageLength   = 160
 	wafAuditLevelLength     = 16
 	wafAuditPathLength      = 2048
+	wafRequestPreviewBytes  = 8 * 1024
 )
 
 func serializeWAFAudit(audit *protocol.WAFAudit) (string, string, error) {
@@ -33,6 +35,16 @@ func serializeWAFAudit(audit *protocol.WAFAudit) (string, string, error) {
 	value.FlowName = truncateForDatabase(value.FlowName, wafAuditFlowLength)
 	value.FlowNodeID = truncateForDatabase(value.FlowNodeID, wafAuditNodeIDLength)
 	value.AttackGroupName = truncateForDatabase(value.AttackGroupName, wafAuditGroupNameLength)
+	if value.Request != nil && len(value.Request.Message) > wafRequestPreviewBytes {
+		preview := *value.Request
+		end := wafRequestPreviewBytes
+		for !utf8.RuneStart(preview.Message[end]) {
+			end--
+		}
+		preview.Message = preview.Message[:end]
+		preview.Truncated = true
+		value.Request = &preview
+	}
 	rules := audit.Rules[:min(len(audit.Rules), wafAuditRuleLimit)]
 	value.Rules = make([]protocol.WAFRuleMatch, 0, len(rules))
 	for _, entry := range rules {

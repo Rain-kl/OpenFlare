@@ -411,8 +411,9 @@ def main(binary):
                 expression = json.dumps({"template": "{% sample %}"})
                 assert request("strict.edge.test", "/waf-body-fixture", data=ordinary,
                                headers=json_headers)[::3] == (200, ordinary)
-                assert request("strict.edge.test", "/waf-body-fixture", data=expression,
-                               headers=json_headers)[0] == 403
+                assert request("strict.edge.test", "/waf-body-fixture?view=summary&%61pi_key=query-credential",
+                               data=json.dumps({"template": "{% sample %}", "user": {"password": "body-credential"}}),
+                               headers=json_headers + ("X-API-Key: header-credential",))[0] == 403
                 assert request("observe.edge.test", "/waf-body-fixture", data=expression,
                                headers=json_headers, use_http2=True)[::3] == (200, expression)
 
@@ -429,6 +430,17 @@ def main(binary):
                     "id": 934180, "category": "template_injection", "message": "SSTI Attack", "level": "strict"}
                 assert observed_audit["rules"][0] == {
                     **blocked_audit["rules"][0], "level": "observe"}
+                preview = blocked_audit["request"]
+                head, body = preview["message"].split("\r\n\r\n", 1)
+                assert head.startswith("POST /waf-body-fixture?view=summary&%61pi_key=[REDACTED] HTTP/1.1\r\n")
+                assert "x-api-key: [REDACTED]" in head
+                assert json.loads(body) == {"template": "{% sample %}", "user": {"password": "[REDACTED]"}}
+                assert not preview["truncated"] and not preview["body_omitted"]
+                assert observed_audit["request"]["message"].startswith("POST /waf-body-fixture HTTP/2.0\r\n")
+                ordinary_log = next(row for heartbeat in server.heartbeats
+                                    for row in heartbeat.get("access_logs", [])
+                                    if row["host"] == "strict.edge.test" and row["status_code"] == 200)
+                assert "waf" not in ordinary_log
                 csrf_headers = json_headers + ("Cookie: fixture=guest", "Origin: https://other.test")
                 assert request("strict.edge.test", "/waf-body-fixture", data=ordinary,
                                headers=csrf_headers, use_http2=True)[0] == 403

@@ -9,4 +9,5 @@ const (
 	errAttackGroupReference = "attack protection group %d was not found"
 	errAttackLogFilters     = "attack log filters are invalid"
 	errAttackLogRead        = "Unable to read attack logs"
+	errAttackLogNotFound    = "Attack log not found"
 )

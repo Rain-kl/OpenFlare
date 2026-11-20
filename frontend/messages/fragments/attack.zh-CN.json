@@ -103,6 +103,15 @@
     "status": "HTTP 状态码",
     "recordID": "记录 ID",
     "matchedRules": "命中的检测规则",
+    "requestMessage": {
+      "title": "请求报文",
+      "loading": "正在加载请求报文…",
+      "error": "无法加载请求报文。",
+      "retry": "重试",
+      "empty": "该记录没有采集请求报文。",
+      "truncated": "报文超过 8 KiB，已截断。",
+      "bodyOmitted": "请求正文未缓存或无法作为文本预览。"
+    },
     "emptyValue": "—",
     "reasons": {
       "attack_protection": "命中攻击防护规则",
