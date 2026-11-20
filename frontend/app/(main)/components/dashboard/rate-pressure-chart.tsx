@@ -1,14 +1,16 @@
 'use client';
 
-import { getFormattingLocale } from '@/i18n/format';
-import { useCallback, useMemo, useRef } from 'react';
 import type { EChartsOption } from 'echarts';
 import type { EChartsType } from 'echarts/core';
 import ReactECharts from 'echarts-for-react';
 import { Clock } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { type ReactNode, useCallback, useMemo, useRef } from 'react';
 
+import { ErrorInline } from '@/components/layout/error';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getFormattingLocale } from '@/i18n/format';
 import type { AccessLogOverview } from '@/lib/services/openflare';
 import { calculateNiceAxisMax, formatCompactNumber } from '@/lib/utils/metrics';
 
@@ -164,10 +166,22 @@ function readZoomPercent(
 type RatePressureChartProps = {
   data?: AccessLogOverview;
   hours: RateLimitRangeHours;
+  loading?: boolean;
+  error?: Error | null;
+  onRetry?: () => void;
+  toolbar?: ReactNode;
 };
 
-export function RatePressureChart({ data, hours }: RatePressureChartProps) {
+export function RatePressureChart({
+  data,
+  hours,
+  loading = false,
+  error = null,
+  onRetry,
+  toolbar,
+}: RatePressureChartProps) {
   const t = useTranslations('rateLimits.chart');
+  const tRate = useTranslations('rateLimits');
   const requestRateLabel = t('requestRate');
   const uniqueVisitorsLabel = t('uniqueVisitors');
   const chartRef = useRef<InstanceType<typeof ReactECharts> | null>(null);
@@ -484,16 +498,31 @@ export function RatePressureChart({ data, hours }: RatePressureChartProps) {
   return (
     <Card className='border-dashed shadow-none'>
       <CardHeader className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between pb-2'>
-        <CardTitle className='text-base font-semibold tracking-tight'>
-          {t('title')}
-        </CardTitle>
-        <div className='flex items-center gap-1.5 text-xs text-muted-foreground font-mono'>
-          <Clock className='size-3.5 shrink-0' />
-          <span className='break-all'>{rangeLabel}</span>
+        <div className='flex flex-col gap-1'>
+          <CardTitle className='text-sm font-semibold'>{t('title')}</CardTitle>
+          <div className='flex items-center gap-1.5 text-xs text-muted-foreground font-mono'>
+            <Clock className='size-3.5 shrink-0' />
+            <span className='break-all'>{rangeLabel}</span>
+          </div>
         </div>
+        {toolbar ? (
+          <div className='flex flex-wrap items-center gap-2 sm:shrink-0'>
+            {toolbar}
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className='pt-0'>
-        {chartModel.labels.length === 0 ? (
+        {loading ? (
+          <Skeleton className='h-[360px] w-full' />
+        ) : error ? (
+          <div className='flex h-[360px] items-center justify-center rounded-md border border-dashed bg-muted/10 px-4'>
+            <ErrorInline
+              message={error.message || tRate('loadFailed')}
+              onRetry={onRetry}
+              className='justify-center'
+            />
+          </div>
+        ) : chartModel.labels.length === 0 ? (
           <div className='flex h-[360px] items-center justify-center rounded-md border border-dashed bg-muted/20 text-sm text-muted-foreground'>
             {t('empty')}
           </div>

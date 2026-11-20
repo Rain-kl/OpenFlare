@@ -13,7 +13,7 @@
         "console-responses": "响应页面|错误页|联系页|源站|502|503|5xx|Service Worker|离线兜底|error page",
         "console-waf": "waf|防火墙|安全|security|拦截|规则",
         "console-ip-groups": "ip|ip group|ip组|黑名单|白名单|访问控制",
-        "console-rate-limits": "限流|rate limit|limit_conn|limit_rate|并发|带宽",
+        "console-security-settings": "全局设置|安全|限流|rate limit|limit_conn|limit_rate|并发|带宽",
         "console-pages": "pages|静态托管|cdn|网站|部署|static",
         "console-access-logs": "log|logs|访问日志|分析|流量|请求",
         "console-apply-logs": "apply|log|logs|应用记录|配置下发|同步|部署历史",

@@ -40,6 +40,7 @@ sidebar: false
 
 ### ⚡️ 优化与改进
 
+- 拆分原「限流」栏目：将请求压力图表迁入数据看板的「24 小时请求趋势」下方，将平均 RPS 最高域名与最高 IP 两个排行榜置于「24 小时业务流量与容量趋势」上方，并将全局默认限流配置迁入「安全性 → 全局设置」页面（`/security-settings`）。
 - 将性能策略的新建与编辑表单从弹窗调整为独立二级页面 `/performance/editor`，消除内外嵌套滚动条，并将开关项按横向卡片布局与数值输入项分组排列以提升界面结构清晰度。
 - 重组 Go 后端与边缘组件工程包结构：将控制面入口统一收敛至 `cmd/server/`，边缘运行时收敛至 `internal/edge/`、跨端共享协议与渲染包收敛至 `internal/openflare/`、ClickHouse 与主库分析存取统一归入 `internal/repository/logstore/`，并扁平化整理上传域、OpenFlare 路由注册及对应设计、部署与开发命令文档（源码启动命令调整为 `go run ./cmd/server ...`）。
 - Pingora 节点兼容主控下发的 PoW 空名单 `null` 值，修复启用 PoW 的业务配置无法解码导致节点无法进入反向代理服务的问题。

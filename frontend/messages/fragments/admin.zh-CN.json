@@ -405,6 +405,7 @@
       "descOrigins": "集中维护和管理后端业务源站服务器组",
       "descWaf": "配置 Web 应用防火墙自定义规则与频率限制",
       "descIpGroups": "管理黑白名单 IP 集合，用于 WAF 规则过滤",
+      "descSecuritySettings": "配置边缘站点全局默认安全与限流参数",
       "descPages": "托管和发布静态网页项目，支持自动关联域名",
       "descAccessLogs": "多维度实时浏览边缘节点请求访问明细",
       "descPerformance": "配置缓存、图片压缩等页面性能加速策略",

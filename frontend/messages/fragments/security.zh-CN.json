@@ -280,6 +280,13 @@
     },
     "autoConfigMustBeObject": "自动配置必须是 JSON 对象。"
   },
+  "securitySettings": {
+    "title": "全局设置",
+    "subtitle": "配置边缘站点全局默认安全与限流策略。",
+    "loadingAuth": "加载权限信息...",
+    "forbiddenTitle": "权限不足",
+    "forbiddenDesc": "只有管理员可以访问全局安全设置。"
+  },
   "rateLimits": {
     "title": "限流",
     "subtitle": "查看边缘请求压力，并配置站点默认并发与带宽限流。",

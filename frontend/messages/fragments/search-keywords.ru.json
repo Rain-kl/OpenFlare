@@ -13,7 +13,7 @@
         "console-responses": "502|503|5xx|Service Worker|страница ошибки",
         "console-waf": "waf|безопасность",
         "console-ip-groups": "ip|ip группа",
-        "console-rate-limits": "лимиты|скорость|ограничение|limit_conn|limit_rate",
+        "console-security-settings": "глобальные настройки|безопасность|лимиты|скорость|ограничение|limit_conn|limit_rate",
         "console-pages": "страницы|cdn|статические|pages|static",
         "console-access-logs": "журнал|журналы",
         "console-apply-logs": "применить|журнал|журналы",

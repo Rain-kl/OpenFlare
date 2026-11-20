@@ -13,6 +13,7 @@ import {
   LayoutList,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Terminal,
   UserRound,
   LayoutDashboard,
@@ -107,6 +108,12 @@ const MENU_GROUPS: MenuGroup[] = [
         labelKey: 'ipGroups',
         descKey: 'descIpGroups',
         icon: Layers,
+      },
+      {
+        path: '/security-settings',
+        labelKey: 'securitySettings',
+        descKey: 'descSecuritySettings',
+        icon: SlidersHorizontal,
       },
       {
         path: '/pages',

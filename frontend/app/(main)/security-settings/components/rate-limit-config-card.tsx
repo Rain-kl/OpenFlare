@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Gauge, Loader2, Save } from 'lucide-react';
+import { Gauge, Save } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useEffect, useId, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ErrorInline } from '@/components/layout/error';
@@ -11,13 +11,20 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { Button } from '@/components/ui/button';
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { OptionService } from '@/lib/services/openflare';
 
 const optionsQueryKey = ['openflare', 'options'] as const;
@@ -98,10 +105,11 @@ function normalizeRateValue(value: string) {
   return normalized;
 }
 
-export function ConfigTab() {
+export function RateLimitConfigCard() {
   const t = useTranslations('rateLimits');
   const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
+  const id = useId();
   const [fields, setFields] = useState<RateLimitFields>(defaultFields);
   const [saving, setSaving] = useState(false);
 
@@ -166,112 +174,122 @@ export function ConfigTab() {
 
   if (optionsQuery.isError) {
     return (
-      <ErrorInline
-        message={
-          optionsQuery.error instanceof Error
-            ? optionsQuery.error.message
-            : t('loadFailed')
-        }
-        onRetry={() => void optionsQuery.refetch()}
-      />
+      <div className='rounded-lg border border-dashed p-6'>
+        <ErrorInline
+          message={
+            optionsQuery.error instanceof Error
+              ? optionsQuery.error.message
+              : t('loadFailed')
+          }
+          onRetry={() => void optionsQuery.refetch()}
+          className='justify-center'
+        />
+      </div>
     );
   }
 
   return (
-    <div className='space-y-4'>
-      <Card className='border-dashed shadow-none'>
-        <CardHeader className='flex flex-row items-center justify-between'>
-          <div>
-            <CardTitle className='text-base'>{t('config.title')}</CardTitle>
-            <CardDescription>{t('config.description')}</CardDescription>
-          </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className='text-base'>{t('config.title')}</CardTitle>
+        <CardDescription>{t('config.description')}</CardDescription>
+        <CardAction>
           <Button
             size='sm'
             disabled={saving}
             onClick={() => saveMutation.mutate()}
           >
             {saving ? (
-              <Loader2 className='size-4 animate-spin mr-1' />
+              <Spinner data-icon='inline-start' />
             ) : (
-              <Save className='size-3.5 mr-1' />
+              <Save data-icon='inline-start' />
             )}
             {tCommon('save')}
           </Button>
-        </CardHeader>
-        <CardContent className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
-          <div className='space-y-1.5'>
-            <Label className='text-xs text-muted-foreground'>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <FieldGroup className='grid gap-x-6 gap-y-5 md:grid-cols-2'>
+          <Field>
+            <FieldLabel htmlFor={`${id}-conn-server`}>
               {t('config.connPerServer')}
-            </Label>
+            </FieldLabel>
             <Input
+              id={`${id}-conn-server`}
               type='number'
               min={0}
               value={fields.edge_default_limit_conn_per_server}
               placeholder='0'
+              aria-describedby={`${id}-conn-server-help`}
               onChange={(e) =>
                 updateField(
                   'edge_default_limit_conn_per_server',
                   e.target.value,
                 )
               }
-              className='h-9 text-xs'
             />
-            <p className='text-xs text-muted-foreground'>
+            <FieldDescription id={`${id}-conn-server-help`}>
               {t('config.connPerServerHint')}
-            </p>
-          </div>
-          <div className='space-y-1.5'>
-            <Label className='text-xs text-muted-foreground'>
+            </FieldDescription>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor={`${id}-conn-ip`}>
               {t('config.connPerIp')}
-            </Label>
+            </FieldLabel>
             <Input
+              id={`${id}-conn-ip`}
               type='number'
               min={0}
               value={fields.edge_default_limit_conn_per_ip}
               placeholder='0'
+              aria-describedby={`${id}-conn-ip-help`}
               onChange={(e) =>
                 updateField('edge_default_limit_conn_per_ip', e.target.value)
               }
-              className='h-9 text-xs'
             />
-            <p className='text-xs text-muted-foreground'>
+            <FieldDescription id={`${id}-conn-ip-help`}>
               {t('config.connPerIpHint')}
-            </p>
-          </div>
-          <div className='space-y-1.5'>
-            <Label className='text-xs text-muted-foreground'>
+            </FieldDescription>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor={`${id}-limit-rate`}>
               {t('config.limitRate')}
-            </Label>
+            </FieldLabel>
             <Input
+              id={`${id}-limit-rate`}
               value={fields.edge_default_limit_rate}
               placeholder='512k / 1m'
+              aria-describedby={`${id}-limit-rate-help`}
               onChange={(e) =>
                 updateField('edge_default_limit_rate', e.target.value)
               }
-              className='h-9 text-xs'
             />
-            <p className='text-xs text-muted-foreground'>
+            <FieldDescription id={`${id}-limit-rate-help`}>
               {t('config.limitRateHint')}
-            </p>
-          </div>
-          <div className='space-y-1.5'>
-            <Label className='text-xs text-muted-foreground'>
+            </FieldDescription>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor={`${id}-req-ip`}>
               {t('config.reqPerIp')}
-            </Label>
+            </FieldLabel>
             <Input
+              id={`${id}-req-ip`}
               value={fields.edge_default_limit_req_per_ip}
               placeholder='10r/s / 100r/m'
+              aria-describedby={`${id}-req-ip-help`}
               onChange={(e) =>
                 updateField('edge_default_limit_req_per_ip', e.target.value)
               }
-              className='h-9 text-xs'
             />
-            <p className='text-xs text-muted-foreground'>
+            <FieldDescription id={`${id}-req-ip-help`}>
               {t('config.reqPerIpHint')}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            </FieldDescription>
+          </Field>
+        </FieldGroup>
+      </CardContent>
+    </Card>
   );
 }

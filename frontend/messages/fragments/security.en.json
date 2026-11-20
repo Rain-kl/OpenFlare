@@ -280,6 +280,13 @@
     },
     "autoConfigMustBeObject": "Automatic configuration must be a JSON object."
   },
+  "securitySettings": {
+    "title": "Global Settings",
+    "subtitle": "Configure global default security and rate-limit policies for edge sites.",
+    "loadingAuth": "Loading permissions...",
+    "forbiddenTitle": "Insufficient permissions",
+    "forbiddenDesc": "Only administrators can access global security settings."
+  },
   "rateLimits": {
     "title": "Rate limits",
     "subtitle": "Inspect edge request pressure and configure default concurrency and bandwidth limits.",

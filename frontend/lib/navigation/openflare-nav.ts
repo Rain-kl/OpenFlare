@@ -41,7 +41,7 @@ export const openflareSecurityNavGroup: OpenFlareNavGroup = {
   items: [
     { titleKey: 'waf', url: '/waf' },
     { titleKey: 'ipGroups', url: '/ip-groups' },
-    { titleKey: 'rateLimits', url: '/rate-limits' },
+    { titleKey: 'securitySettings', url: '/security-settings' },
   ],
 };
 

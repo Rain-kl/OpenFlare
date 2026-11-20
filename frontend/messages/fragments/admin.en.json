@@ -405,6 +405,7 @@
       "descOrigins": "Centrally maintain backend origin server groups",
       "descWaf": "Configure WAF custom rules and rate limits",
       "descIpGroups": "Manage allow/deny IP sets used by WAF rules",
+      "descSecuritySettings": "Configure global default security and rate-limit settings for edge sites",
       "descPages": "Host and publish static site projects with automatic domain binding",
       "descAccessLogs": "Browse real-time edge request access details",
       "descPerformance": "Configure cache, image compression, and other acceleration policies",
