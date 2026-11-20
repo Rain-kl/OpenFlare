@@ -296,22 +296,21 @@ impl ProxyHttp for ProxyService {
             .unwrap_or_default();
         let downstream = session.as_downstream();
         let waf = ctx.waf.take();
-        let path = if waf.is_some() {
-            ctx.path
-                .split_once('?')
-                .map_or(ctx.path.as_str(), |(path, _)| path)
-        } else {
-            ctx.path.as_str()
-        };
+        let mut path = std::mem::take(&mut ctx.path);
+        if waf.is_some() {
+            if let Some(query_start) = path.find('?') {
+                path.truncate(query_start);
+            }
+        }
         let log = NodeAccessLog {
             logged_at_unix: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map(|value| value.as_secs() as i64)
                 .unwrap_or_default(),
-            remote_addr: ctx.remote_addr.clone(),
-            host: ctx.host.clone(),
-            path: path.to_owned(),
-            user_agent: ctx.user_agent.clone(),
+            remote_addr: std::mem::take(&mut ctx.remote_addr),
+            host: std::mem::take(&mut ctx.host),
+            path,
+            user_agent: std::mem::take(&mut ctx.user_agent),
             cache_status: cache::status(session).to_owned(),
             status_code: i32::from(status),
             bytes_sent: downstream.body_bytes_sent() as i64,
@@ -319,11 +318,6 @@ impl ProxyHttp for ProxyService {
             request_time_ms: ctx.started_at.elapsed().as_millis() as i64,
             waf,
         };
-        let spool = self.access_logs.clone();
-        match tokio::task::spawn_blocking(move || spool.push(log)).await {
-            Ok(Ok(())) => {}
-            Ok(Err(error)) => tracing::warn!(%error, "unable to queue access log"),
-            Err(error) => tracing::warn!(%error, "access log spool task stopped"),
-        }
+        self.access_logs.push(log);
     }
 }

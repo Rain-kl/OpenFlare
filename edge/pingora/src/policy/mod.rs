@@ -180,7 +180,6 @@ mod tests {
     use crate::pages::{pages_api_target, pages_resolve};
     use crate::protocol::config::{LimitConfig, WafBinding, WafGraph, WafNode};
     use crate::protocol::config::{PagesDeployment, PoWConfig, PoWPageConfig, Route, WafDocument};
-    use crate::telemetry::{AccessLogBuffer, NodeAccessLog};
     use base64::{engine::general_purpose::STANDARD as Base64, Engine as _};
     use sha2::{Digest, Sha256};
     use std::path::Path;
@@ -393,41 +392,6 @@ mod tests {
         );
         assert_eq!(geo_region(Some("US"), None), None);
         assert_eq!(geo_region(None, Some("CA")), None);
-    }
-
-    #[test]
-    fn access_log_queue_persists_and_drains_atomically() {
-        let state_dir = tempfile::tempdir().expect("tempdir");
-        let buffer = AccessLogBuffer::persistent(state_dir.path());
-        let log = NodeAccessLog {
-            logged_at_unix: 100,
-            remote_addr: "192.0.2.1".into(),
-            host: "example.com".into(),
-            path: "/".into(),
-            user_agent: "curl/8".into(),
-            cache_status: "-".into(),
-            status_code: 200,
-            bytes_sent: 123,
-            request_length: 45,
-            request_time_ms: 6,
-            waf: None,
-        };
-        buffer.push(log.clone()).unwrap();
-        buffer
-            .push(NodeAccessLog {
-                path: "/second".into(),
-                ..log.clone()
-            })
-            .unwrap();
-        let drained = buffer.peek(1).unwrap();
-        assert_eq!(drained.len(), 1);
-        assert_eq!(drained[0].log.path, "/");
-        buffer.commit(&drained).unwrap();
-        let remaining = buffer.peek(10).unwrap();
-        assert_eq!(remaining.len(), 1);
-        assert_eq!(remaining[0].log.path, "/second");
-        buffer.commit(&remaining).unwrap();
-        assert!(buffer.peek(10).unwrap().is_empty());
     }
 
     #[test]

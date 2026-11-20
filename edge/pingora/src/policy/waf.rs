@@ -41,6 +41,27 @@ pub struct WafRequestPreview {
 }
 
 impl WafAudit {
+    pub(crate) fn heap_bytes(&self) -> usize {
+        self.action.capacity()
+            + self.reason.capacity()
+            + self.method.capacity()
+            + self.flow_name.capacity()
+            + self.flow_node_id.capacity()
+            + self.attack_group_name.capacity()
+            + self.rules.capacity() * std::mem::size_of::<RuleMatch>()
+            + self
+                .rules
+                .iter()
+                .map(|rule| {
+                    rule.category.capacity() + rule.message.capacity() + rule.level.capacity()
+                })
+                .sum::<usize>()
+            + self
+                .request
+                .as_ref()
+                .map_or(0, |request| request.message.capacity())
+    }
+
     fn mark_observed(&mut self) {
         self.action = "observed".into();
     }

@@ -96,17 +96,18 @@ fn main() -> Result<()> {
                 anyhow::bail!("cannot upgrade without restoring an active configuration");
             }
             let listeners = runtime::Listeners::new(&http_listen, tls_listen.as_deref())?;
-            let access_logs = telemetry::AccessLogBuffer::persistent(&state_dir);
+            let spool = telemetry::AccessLogSpool::persistent(&state_dir);
             let control = control::Runtime::new(
                 server_url,
                 token_type,
                 token_file,
                 state_dir.clone(),
                 shared.clone(),
-                access_logs.clone(),
+                spool.clone(),
                 listeners.clone(),
             )?;
-            if proxy::run_server(
+            let (access_logs, log_writer) = telemetry::AccessLogBuffer::start(spool)?;
+            let reload = proxy::run_server(
                 proxy::DataPlaneState {
                     shared,
                     state_dir: state_dir.clone(),
@@ -115,8 +116,9 @@ fn main() -> Result<()> {
                 },
                 control,
                 upgrade,
-            )? && !control::update::restart_pending(&state_dir)
-            {
+            )?;
+            drop(log_writer);
+            if reload && !control::update::restart_pending(&state_dir) {
                 use std::os::unix::process::CommandExt;
                 let mut args = std::env::args_os();
                 let executable = std::env::current_exe()?;

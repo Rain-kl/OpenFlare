@@ -14,7 +14,7 @@ use crate::runtime::{
     performance::{LivePolicy, NodePolicy},
     Listeners,
 };
-use crate::telemetry::{AccessLogBuffer, HostCollector, HostTelemetry, NodeAccessLog};
+use crate::telemetry::{AccessLogSpool, HostCollector, HostTelemetry, NodeAccessLog};
 use crate::{edge_user_agent, EDGE_VERSION};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -40,7 +40,7 @@ pub struct Runtime {
     state_dir: PathBuf,
     state: SnapshotStore,
     client: Client,
-    access_logs: AccessLogBuffer,
+    access_logs: AccessLogSpool,
     listeners: Listeners,
     geo_ip: crate::geoip::GeoIpStore,
     performance: LivePolicy,
@@ -127,7 +127,7 @@ impl Runtime {
         token_file: PathBuf,
         state_dir: PathBuf,
         state: SnapshotStore,
-        access_logs: AccessLogBuffer,
+        access_logs: AccessLogSpool,
         listeners: Listeners,
     ) -> Result<Self> {
         let token_type = match token_type.to_lowercase().as_str() {
@@ -486,13 +486,20 @@ impl Runtime {
         collector: &mut HostCollector,
     ) -> Result<Heartbeat> {
         const MAX_HEARTBEAT_ACCESS_LOGS: usize = 1024;
-        let logs = match self.access_logs.peek(MAX_HEARTBEAT_ACCESS_LOGS) {
+        let spool = self.access_logs.clone();
+        let logs = match tokio::task::spawn_blocking(move || spool.peek(MAX_HEARTBEAT_ACCESS_LOGS))
+            .await
+            .context("access log reader stopped")
+            .and_then(|result| result)
+        {
             Ok(logs) => logs,
             Err(error) => {
                 tracing::warn!(%error, "access log spool unavailable");
                 vec![]
             }
         };
+        let (acknowledged, access_logs): (Vec<_>, Vec<_>) =
+            logs.into_iter().map(|entry| (entry.id, entry.log)).unzip();
         let (status, message) = if !self.listeners.ready().await {
             ("unhealthy", "Pingora listener unavailable")
         } else if current.is_some() {
@@ -517,7 +524,7 @@ impl Runtime {
             config_sync_version: config_sync::VERSION,
             edge_update_supported: update::supported(),
             edge_update_ready: self.ready.load(Ordering::Acquire),
-            access_logs: logs.iter().map(|entry| entry.log.clone()).collect(),
+            access_logs,
             last_error,
             telemetry: Some(collector.sample(status, message, last_error)),
         };
@@ -529,8 +536,15 @@ impl Runtime {
             .send()
             .await?;
         let decoded = decode_response(response).await?;
-        if let Err(error) = self.access_logs.commit(&logs) {
-            tracing::warn!(%error, "could not acknowledge access log batch");
+        if !acknowledged.is_empty() {
+            let spool = self.access_logs.clone();
+            if let Err(error) = tokio::task::spawn_blocking(move || spool.commit(acknowledged))
+                .await
+                .context("access log acknowledgement task stopped")
+                .and_then(|result| result)
+            {
+                tracing::warn!(%error, "could not acknowledge access log batch");
+            }
         }
         Ok(decoded)
     }

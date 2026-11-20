@@ -171,11 +171,13 @@ Domains without a bound certificate are not auto-added to the HTTPS config — t
 
 ## Access Analytics Empty
 
-1. Confirm the node successfully applied config including the observability Lua assets.
-2. Confirm OpenResty is running.
-3. Check Agent logs for observability collection or backfill failures.
-4. Check whether `openresty_observability_port` is occupied (default `18081`).
-5. Confirm the Server's DB cleanup policy hasn't deleted the relevant time window.
+1. Confirm `openflare-edge` is running and the control plane is receiving its heartbeats.
+2. Check Edge logs for warnings about dropped entries, disk write failures, or heartbeat acknowledgements. For write failures, check free space and write permissions in the node state directory.
+3. Confirm that the Server's retention policy has not removed the relevant time window.
+
+Pingora queues access logs, including WAF audit records, in memory and writes them to `access-logs.jsonl` in batches of 256 entries or every 100 ms. Requests do not wait for disk writes. Heartbeats submit up to 1,024 persisted entries and remove them after the control plane acknowledges the batch.
+
+The queue holds up to 2,048 pending entries. Queued and in-flight entries share a 16 MiB heap budget. At either limit, new entries are dropped and reported together in a warning. When the spool exceeds 4 MiB, the node keeps the newest entries that fit, up to 2,048. On normal shutdown or reload, the writer drains the queue; a forced stop or power loss can discard entries still in memory.
 
 ## Edge Cache Hit-Rate Anomalies
 
