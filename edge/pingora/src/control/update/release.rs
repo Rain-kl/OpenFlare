@@ -15,6 +15,7 @@ use url::Url;
 use super::UpdatePlan;
 
 const MAX_RELEASE_LIST: usize = 16 * 1024 * 1024;
+const RELEASE_PAGE_SIZE: usize = 100;
 const MAX_PACKAGE: usize = 128 * 1024 * 1024;
 const MAX_EXPANDED_PACKAGE: u64 = 256 * 1024 * 1024;
 const MAX_MANIFEST: u64 = 4096;
@@ -27,7 +28,7 @@ struct Release {
     assets: Vec<Asset>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct Asset {
     name: String,
     digest: Option<String>,
@@ -78,16 +79,18 @@ pub(super) async fn download(
         );
         let asset = asset_for(&release)
             .context("Edge release package is unavailable for this architecture")?;
-        Some((version, asset.name.clone(), asset.digest.clone()))
+        Some((version, asset.clone()))
     } else {
-        url.query_pairs_mut().append_pair("per_page", "100");
-        let releases: Vec<Release> = metadata(client, url).await?;
-        latest_stable(&releases).and_then(|(version, asset)| {
-            is_newer(&version, EDGE_VERSION)
-                .then(|| (version, asset.name.clone(), asset.digest.clone()))
-        })
+        find_stable_update(client, url).await?
     };
-    let Some((version, asset_name, digest)) = selection else {
+    let Some((
+        version,
+        Asset {
+            name: asset_name,
+            digest,
+        },
+    )) = selection
+    else {
         return Ok(None);
     };
     let tag = format!("edge-v{version}");
@@ -133,6 +136,25 @@ pub(super) async fn download(
     .await??;
     validate_executable(candidate.path(), &version.to_string()).await?;
     Ok(Some(candidate))
+}
+
+async fn find_stable_update(client: &Client, mut base: Url) -> Result<Option<(Version, Asset)>> {
+    base.query_pairs_mut()
+        .append_pair("per_page", &RELEASE_PAGE_SIZE.to_string());
+    for page in 1_u64.. {
+        let mut url = base.clone();
+        if page > 1 {
+            url.query_pairs_mut().append_pair("page", &page.to_string());
+        }
+        let releases: Vec<Release> = metadata(client, url).await?;
+        if let Some((version, asset)) = latest_stable(&releases) {
+            return Ok(is_newer(&version, EDGE_VERSION).then(|| (version, asset.clone())));
+        }
+        if releases.len() < RELEASE_PAGE_SIZE {
+            break;
+        }
+    }
+    Ok(None)
 }
 
 async fn metadata<T: serde::de::DeserializeOwned>(client: &Client, url: Url) -> Result<T> {

@@ -423,3 +423,26 @@ func TestRequestPingoraUpdatePinsLatestEdgeRelease(t *testing.T) {
 	assert.True(t, settings.AutoUpdateEnabled)
 	assert.Equal(t, updated.UpdateTag, settings.UpdateTag)
 }
+
+func TestFetchLatestEdgeReleaseFindsStableAfterCanaryPage(t *testing.T) {
+	preview := `{"tag_name":"edge-v0.2.0-canary.1","prerelease":true,"assets":[{"name":"openflare-edge_edge-v0.2.0-canary.1_linux_amd64.tar.gz"}]}`
+	previewPage := "[" + strings.Repeat(preview+",", edgeReleasePageSize-1) + preview + "]"
+	stablePage := `[{"tag_name":"edge-v0.1.6","assets":[{"name":"openflare-edge_edge-v0.1.6_linux_amd64.tar.gz"}]}]`
+	var pages []string
+	original := setReleaseHTTPClientForTest(&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		page := req.URL.Query().Get("page")
+		pages = append(pages, page)
+		response := previewPage
+		if page != "" {
+			require.Equal(t, "2", page)
+			response = stablePage
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(response))}, nil
+	})})
+	t.Cleanup(func() { setReleaseHTTPClientForTest(original) })
+	release, err := fetchLatestEdgeRelease(context.Background(), "Rain-kl/OpenFlare", releaseChannelStable)
+	require.NoError(t, err)
+	require.NotNil(t, release)
+	assert.Equal(t, "edge-v0.1.6", release.TagName)
+	assert.Equal(t, []string{"", "2"}, pages)
+}

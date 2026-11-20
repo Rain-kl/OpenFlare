@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { type NodeItem, StatusService } from '@/lib/services/openflare';
 
 import {
+  buildEdgeDockerInstallCommand,
   buildEdgeInstallCommand,
   buildRelayDockerInstallCommand,
   buildRelayInstallCommand,
@@ -54,6 +55,7 @@ export function InstallCommand({
       description: t('edgeDesc'),
       tokenLabel: t('agentToken'),
       scriptLabel: t('edgeScriptLabel'),
+      dockerLabel: t('dockerLabel'),
     },
     relay: {
       title: t('relayTitle'),
@@ -103,7 +105,13 @@ export function InstallCommand({
     if (!normalizedServerUrl || !node.access_token) {
       return '';
     }
-    if (variant === 'edge') return '';
+    if (variant === 'edge') {
+      return buildEdgeDockerInstallCommand(
+        normalizedServerUrl,
+        node.access_token,
+        serverVersion,
+      );
+    }
     return variant === 'relay'
       ? buildRelayDockerInstallCommand(
           normalizedServerUrl,
@@ -204,12 +212,19 @@ export function InstallCommand({
                 </pre>
               </div>
             ) : null}
-            <div className='space-y-2'>
-              <p className='text-sm font-medium'>{meta.dockerLabel}</p>
-              <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs whitespace-pre-wrap'>
-                {dockerCommand}
-              </pre>
-            </div>
+            {dockerCommand && meta.dockerLabel ? (
+              <div className='flex flex-col gap-2'>
+                <p className='text-sm font-medium'>{meta.dockerLabel}</p>
+                {variant === 'edge' ? (
+                  <p className='text-xs text-muted-foreground'>
+                    {t('edgeDockerHint')}
+                  </p>
+                ) : null}
+                <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs whitespace-pre-wrap'>
+                  {dockerCommand}
+                </pre>
+              </div>
+            ) : null}
           </>
         )}
       </CardContent>

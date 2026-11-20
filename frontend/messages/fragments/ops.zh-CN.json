@@ -276,6 +276,7 @@
       "edgeDesc": "使用 Agent Token 将边缘节点接入控制端。",
       "edgeScriptLabel": "本地部署（Pingora / Linux）",
       "edgeScriptHint": "迁移现有 Pingora 节点时，先发布 Pingora 配置并停止旧服务。使用原 Agent Token 安装后，控制端会自动切换节点引擎。",
+      "edgeDockerHint": "使用 Docker 部署时，拉取新镜像并重建容器即可更新。复用数据卷可保留节点身份和已同步的配置。",
       "relayTitle": "中继部署命令",
       "relayDesc": "使用 Discovery Token 将 frps 中继节点接入控制端。",
       "tunnelTitle": "隧道部署命令",

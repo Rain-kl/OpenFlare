@@ -276,6 +276,7 @@
       "edgeDesc": "Use the Agent Token to join an edge node to the control plane.",
       "edgeScriptLabel": "Local deployment (Pingora / Linux)",
       "edgeScriptHint": "To migrate an existing Pingora node, publish a Pingora configuration and stop the old service. The control plane switches the node engine when Edge registers with the existing Agent Token.",
+      "edgeDockerHint": "To update a Docker deployment, pull the new image and recreate the container. Reuse the volume to keep the node identity and synchronized configuration.",
       "relayTitle": "Relay deploy command",
       "relayDesc": "Use the Discovery Token to join an frps relay node to the control plane.",
       "tunnelTitle": "Tunnel deploy command",

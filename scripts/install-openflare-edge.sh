@@ -90,14 +90,17 @@ if [[ "$CREATE_SERVICE" == true && "$SYSTEMCTL_AVAILABLE" != true ]]; then
 fi
 
 if [[ -z "$VERSION" ]]; then
-  log "resolving latest edge-v release from ${REPO}"
-  RELEASES_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=100")"
-  VERSION="$(printf '%s' "$RELEASES_JSON" | grep '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' | grep -m1 '^edge-v' || true)"
-  [[ -n "$VERSION" ]] || die "no edge-v release found in ${REPO}"
-  RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/tags/${VERSION}")"
-else
-  RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/tags/${VERSION}")"
+  log "resolving latest stable Edge release from ${REPO}"
+  for ((page = 1; ; page++)); do
+    releases_json="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=100&page=${page}")"
+    mapfile -t release_tags < <(printf '%s' "$releases_json" | sed -nE 's/^[[:space:]]*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p')
+    VERSION="$(printf '%s\n' "${release_tags[@]}" | grep -E '^edge-v[0-9]+(\.[0-9]+){2}$' | sort -Vr | sed -n '1p' || true)"
+    if [[ -n "$VERSION" || ${#release_tags[@]} -lt 100 ]]; then break; fi
+  done
+  [[ -n "$VERSION" ]] || die "no stable Edge release found in ${REPO}"
 fi
+is_release_tag "$VERSION" || die "invalid Edge release version"
+RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/tags/${VERSION}")"
 VERSION="$(printf '%s' "$RELEASE_JSON" | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
 is_release_tag "$VERSION" || die "invalid Edge release version"
 ASSET="openflare-edge_${VERSION}_linux_${ARCH}.tar.gz"

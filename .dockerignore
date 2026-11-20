@@ -33,3 +33,5 @@ frontend/*.tsbuildinfo
 frontend/package-lock.json
 internal/router/dist/
 internal/router/root/dist/
+
+edge/pingora/target/

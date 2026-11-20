@@ -20,6 +20,7 @@ import (
 
 const (
 	edgeReleasePrefix      = "edge-"
+	edgeReleasePageSize    = 100
 	maxReleaseMetadataSize = 16 << 20
 )
 
@@ -96,7 +97,28 @@ func fetchEdgeRelease(ctx context.Context, repo string, channel releaseChannel, 
 }
 
 func fetchLatestEdgeRelease(ctx context.Context, repo string, channel releaseChannel) (*githubReleaseResponse, error) {
-	url := fmt.Sprintf(githubReleasesAPIBase+"?per_page=100", repo)
+	base := fmt.Sprintf(githubReleasesAPIBase+"?per_page=%d", repo, edgeReleasePageSize)
+	url := base
+	for page := 1; ; page++ {
+		releases, err := fetchEdgeReleasePage(ctx, url)
+		if err != nil {
+			return nil, err
+		}
+		var latest *githubReleaseResponse
+		for i := range releases {
+			release := &releases[i]
+			if matchesEdgeRelease(release, channel) && (latest == nil || isNewerEdgeRelease(latest.TagName, release.TagName)) {
+				latest = release
+			}
+		}
+		if latest != nil || len(releases) < edgeReleasePageSize {
+			return latest, nil
+		}
+		url = fmt.Sprintf("%s&page=%d", base, page+1)
+	}
+}
+
+func fetchEdgeReleasePage(ctx context.Context, url string) ([]githubReleaseResponse, error) {
 	req, err := newGitHubReleaseRequest(ctx, url)
 	if err != nil {
 		return nil, err
@@ -113,12 +135,5 @@ func fetchLatestEdgeRelease(ctx context.Context, repo string, channel releaseCha
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxReleaseMetadataSize)).Decode(&releases); err != nil {
 		return nil, err
 	}
-	var latest *githubReleaseResponse
-	for i := range releases {
-		release := &releases[i]
-		if matchesEdgeRelease(release, channel) && (latest == nil || isNewerEdgeRelease(latest.TagName, release.TagName)) {
-			latest = release
-		}
-	}
-	return latest, nil
+	return releases, nil
 }

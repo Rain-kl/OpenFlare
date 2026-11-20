@@ -151,14 +151,36 @@ export function getImageTag(version?: string): string {
   return 'latest';
 }
 
+function quoteShellArgument(value: string) {
+  return "'" + value.replaceAll("'", "'\\''") + "'";
+}
+
 export function buildEdgeInstallCommand(serverUrl: string, agentToken: string) {
-  const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
   return [
     'curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-edge.sh -o install-openflare-edge.sh && \\',
     'sudo bash install-openflare-edge.sh \\',
-    `  --server-url ${quote(serverUrl)} \\`,
+    `  --server-url ${quoteShellArgument(serverUrl)} \\`,
     '  --token-type node \\',
-    `  --token ${quote(agentToken)}`,
+    `  --token ${quoteShellArgument(agentToken)}`,
+  ].join('\n');
+}
+
+export function buildEdgeDockerInstallCommand(
+  serverUrl: string,
+  agentToken: string,
+  serverVersion?: string,
+) {
+  const tag =
+    serverVersion?.trim().toLowerCase() === 'canary' ? 'canary' : 'latest';
+  const image = `ghcr.io/rain-kl/openflare-edge:${tag}`;
+  return [
+    'docker run -d --pull always --name openflare-edge --restart unless-stopped \\',
+    '  -p 80:8080 -p 443:8443 \\',
+    '  -v openflare-edge-data:/var/lib/openflare-edge \\',
+    `  -e OPENFLARE_EDGE_SERVER_URL=${quoteShellArgument(serverUrl)} \\`,
+    '  -e OPENFLARE_EDGE_TOKEN_TYPE=node \\',
+    `  -e OPENFLARE_EDGE_TOKEN=${quoteShellArgument(agentToken)} \\`,
+    `  ${image}`,
   ].join('\n');
 }
 

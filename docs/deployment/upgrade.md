@@ -23,6 +23,8 @@ docker compose up
 
 控制端和节点均须使用支持此功能的版本。已有 Linux systemd 节点首次启用时，请使用该版本随附的 `scripts/update-openflare-edge.sh --version <edge-v版本>` 在节点上更新一次。Edge 产物从系统设置 `agent_update_repo` 指定的 GitHub 仓库获取。
 
+Docker 部署通过拉取新镜像并重建容器更新。复用 `/var/lib/openflare-edge` 对应的数据卷以保留节点身份和已同步的配置。
+
 节点会验证安装包和二进制的 SHA-256，并在短暂排空请求后由 systemd 重启。更新后，节点须能连接控制端、监听服务端口并加载有效配置。新版本未通过启动检查时，下一次启动恢复先前版本。下载或启动错误可在节点详情或 `journalctl -u openflare-edge` 查看。
 
 ## Relay 与隧道节点更新

@@ -11,11 +11,15 @@ OpenFlare Edge 使用独立的 `edge-v*` 版本标签，与主控和 Go Agent �
 
 归档内包含 `openflare-edge` 二进制、`VERSION`、`SHA256SUMS`、许可证、安装、更新、卸载和 GeoIP 下载脚本。推送 `edge-v<主版本>.<次版本>.<修订号>` 标签会触发发布。手动运行发布工作流时，填写已存在的 Edge 标签，工作流将构建该标签对应的提交。归档名和 `VERSION` 保留完整标签；例如标签为 `edge-v0.1.3` 时，`openflare-edge --version` 和节点上报的版本均为 `0.1.3`。发版无需修改 `Cargo.toml` 或 `Cargo.lock`。
 
+推送 `canary` 分支会发布 Edge 预览版。版本采用下一修订号加工作流运行编号，例如从 `edge-v0.1.6` 生成 `edge-v0.1.7-canary.42`。控制台的「检查预览版」可发现该版本，默认安装和自动更新继续使用正式版。
+
+Docker 镜像以 `ghcr.io/rain-kl/openflare-edge` 发布，支持 Linux amd64 和 arm64。每次发布都有对应的版本标签，正式版推送更新 `:latest`，Canary 推送更新 `:canary`。
+
 ## 安装
 
 使用配置同步协议 v1 的控制端要求 Edge `edge-v0.1.2` 或更新版本。安装器会在修改本地服务前检查发行包的协议版本。
 
-节点详情的「边缘节点部署」提供 Linux 本地部署命令，自动填入控制端 URL 和该节点的 Agent Token。Docker 命令用于部署 OpenResty Agent。迁移现有 OpenResty 节点时，先发布 Pingora 配置并停止旧服务。新版 Edge 使用原节点的 Agent Token 注册时，控制端自动切换该节点的引擎，保留节点 ID 和业务绑定。
+节点详情的「边缘节点部署」提供 Linux 和 Docker 两种命令，自动填入控制端 URL 和该节点的 Agent Token。迁移现有 OpenResty 节点时，先发布 Pingora 配置并停止旧服务。新版 Edge 使用原节点的 Agent Token 注册时，控制端自动切换该节点的引擎，保留节点 ID 和业务绑定。
 
 在 Linux 节点执行：
 
@@ -29,7 +33,7 @@ sudo bash install-openflare-edge.sh \
   --tls-listen 0.0.0.0:443
 ```
 
-默认安装目录为 `/opt/openflare-edge`，状态目录为 `/var/lib/openflare-edge`。安装脚本会自动识别 `amd64` / `arm64`，从 GitHub Releases 查询最新的 `edge-v*` 版本，校验归档摘要后写入：
+默认安装目录为 `/opt/openflare-edge`，状态目录为 `/var/lib/openflare-edge`。安装脚本会自动识别 `amd64` / `arm64`，从 GitHub Releases 查询最新正式版，校验归档摘要后写入：
 
 ```text
 /opt/openflare-edge/current
@@ -48,6 +52,28 @@ sudo bash install-openflare-edge.sh \
 ```bash
 sudo bash install-openflare-edge.sh --version edge-v0.1.2 ...
 ```
+
+### Docker 部署
+
+从节点详情复制 Docker 命令，可直接启动 Pingora 容器。Canary 控制台默认生成 `:canary` 命令，其他控制台默认使用 `:latest`。指定镜像版本可将标签改为完整的 Edge 发布标签。
+
+```bash
+docker run -d --pull always --name openflare-edge --restart unless-stopped \
+  -p 80:8080 -p 443:8443 \
+  -v openflare-edge-data:/var/lib/openflare-edge \
+  -e OPENFLARE_EDGE_SERVER_URL=https://control.example.com \
+  -e OPENFLARE_EDGE_TOKEN_TYPE=node \
+  -e OPENFLARE_EDGE_TOKEN='<节点专属令牌>' \
+  ghcr.io/rain-kl/openflare-edge:latest
+```
+
+容器以 UID 和 GID `10001` 运行。节点身份、配置快照和 Pages 资源保存在数据卷。可通过 `OPENFLARE_EDGE_TOKEN_FILE` 指定一个只读挂载的令牌文件，该文件须允许容器用户读取。通过发现令牌首次注册时，可省略 `OPENFLARE_EDGE_TOKEN_TYPE`。
+
+容器加载配置并开始监听后标记为健康。可用 `docker logs -f openflare-edge` 查看注册和同步过程。更新时拉取新镜像、重建容器并复用数据卷。
+
+GHCR 首次创建的镜像包默认是私有的。需要让节点匿名拉取时，在包设置中公开 `openflare-edge`。
+
+从当前源码构建镜像可在仓库根目录运行 `docker build -f docker/Dockerfile.edge -t openflare-edge:dev .`。
 
 ## 低权限运行
 

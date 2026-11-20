@@ -12,6 +12,8 @@ sudo bash install-openflare-edge.sh \\
 
 使用发现令牌时将 `--token-type` 设置为 `discovery`。Linux 安装包支持 amd64 与 arm64，安装器使用支持当前配置协议的 `edge-v*` 版本。安装器默认创建 systemd 服务，监听 TCP 80 和 443，等待生效的站点快照加载后报告就绪。
 
+使用 Docker 时，在节点详情复制「Docker 容器部署」命令。镜像渠道、数据卷与更新步骤见 [Edge Docker 部署](./openflare-edge.md#docker-部署)。
+
 | 参数 | 说明 |
 | --- | --- |
 | `--server-url` | 控制端 HTTPS 地址 |
