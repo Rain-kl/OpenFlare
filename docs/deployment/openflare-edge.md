@@ -86,9 +86,9 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/upda
 
 安装和更新脚本均在校验归档及配置同步协议后，原子替换 `current` 二进制。每个安装目录只存放当前程序。旧安装首次切换时，会将 `current` 符号链接替换为程序文件，并清理原先的版本目录和验证记录。需要修改控制端地址、令牌或监听端口时，使用安装脚本。
 
-systemd 先等待旧进程退出，再启动新进程。已运行的 `v0.1.1` 进程在停止时会等待 300 秒的 Pingora 退出宽限期，从该版本升级时需等待这段时间。自 `v0.1.2` 起，Pingora 的退出宽限期为 2 秒。可运行 `sudo journalctl -fu openflare-edge` 查看重启进度。
+更新脚本在下载和校验完成后，依次停止服务、替换程序、启动服务，并打印每一步。安装或更新正在进行时，后续脚本会直接返回锁占用错误。旧版 Edge 可能需要等待 300 秒的 Pingora 退出宽限期。自 `v0.1.2` 起，Pingora 的退出宽限期为 2 秒。可运行 `sudo journalctl -fu openflare-edge` 查看服务日志。
 
-Edge 加载有效配置并开始监听后通知 systemd。脚本核验主进程及就绪记录与已安装程序一致。启动或验证失败时，脚本输出服务日志并返回错误，新程序保留在 `current`。修复启动问题后，可重新执行更新命令。`--no-service` 安装完成后需手动启动。
+Edge 加载有效配置并开始监听后通知 systemd，更新脚本根据 systemd 的启动结果报告成功或失败。启动失败时，脚本输出服务日志并返回错误，新程序保留在 `current`。修复启动问题后，可重新执行更新命令。`--no-service` 安装完成后需手动启动。
 
 卸载：
 

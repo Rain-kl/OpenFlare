@@ -123,11 +123,11 @@ PACKAGE_DIR="$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 -type d -name "openflare-
 
 mkdir -p "$INSTALL_DIR" "$STATE_DIR"
 exec 9>"$INSTALL_DIR/.install.lock"
-flock -x 9
+flock -n 9 || die "another Edge installation or update holds $INSTALL_DIR/.install.lock"
 STAGED_BIN="$INSTALL_DIR/.openflare-edge.new"
 if [[ -x "$PACKAGE_DIR/scripts/fetch-agent-geoip-mmdb.sh" ]]; then
   log "refreshing GeoIP databases"
-  GEOIP_OUT_DIR="$STATE_DIR" "$PACKAGE_DIR/scripts/fetch-agent-geoip-mmdb.sh" || die "failed to download GeoIP databases"
+  GEOIP_OUT_DIR="$STATE_DIR" "$PACKAGE_DIR/scripts/fetch-agent-geoip-mmdb.sh" 9>&- || die "failed to download GeoIP databases"
 fi
 ensure_runtime_user() {
   if id openflare-edge >/dev/null 2>&1; then return; fi
@@ -230,13 +230,13 @@ WantedBy=multi-user.target
 SERVICE_EOF
   chmod 0644 "${SERVICE_PATH}.tmp"
   mv -Tf -- "${SERVICE_PATH}.tmp" "$SERVICE_PATH"
-  systemctl daemon-reload
+  systemctl daemon-reload 9>&-
   if ! systemctl is-active --quiet openflare-edge; then
-    systemctl enable openflare-edge
+    systemctl enable openflare-edge 9>&-
   fi
   log "starting openflare-edge after any running process has stopped (startup timeout: 90 seconds)"
-  if ! systemctl restart openflare-edge || ! service_ready; then
-    journalctl -u openflare-edge -n 50 --no-pager || true
+  if ! systemctl restart openflare-edge 9>&- || ! service_ready; then
+    journalctl -u openflare-edge -n 50 --no-pager 9>&- || true
     die "${VERSION} is installed at ${BIN}, but openflare-edge did not become ready"
   fi
   log "openflare-edge is ready"
