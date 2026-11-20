@@ -226,6 +226,7 @@ describe('Security menu split, dashboard layout, and global settings', () => {
   it('replaces /rate-limits with /security-settings in navigation and search metadata', () => {
     expect(openflareSecurityNavGroup.items).toEqual([
       { titleKey: 'waf', url: '/waf' },
+      { titleKey: 'attackProtection', url: '/attack-protection' },
       { titleKey: 'ipGroups', url: '/ip-groups' },
       { titleKey: 'securitySettings', url: '/security-settings' },
     ]);
@@ -242,6 +243,23 @@ describe('Security menu split, dashboard layout, and global settings', () => {
           item.titleKey === 'nav.securitySettings',
       ),
     ).toBe(true);
+  });
+
+  it('places attack logs above access logs in sidebar navigation', () => {
+    const logItemIndexes = openflareSidebarNav.flatMap((entry, index) => {
+      if (
+        entry.kind === 'item' &&
+        ['attackLogs', 'accessLogs'].includes(entry.titleKey)
+      ) {
+        return [{ titleKey: entry.titleKey, index }];
+      }
+      return [];
+    });
+
+    expect(logItemIndexes).toEqual([
+      { titleKey: 'attackLogs', index: logItemIndexes[0].index },
+      { titleKey: 'accessLogs', index: logItemIndexes[0].index + 1 },
+    ]);
   });
 
   it('places request pressure below 24h request trend and RPS rankings above traffic & capacity trend on dashboard', async () => {

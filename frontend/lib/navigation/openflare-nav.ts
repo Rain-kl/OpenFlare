@@ -5,6 +5,7 @@ import {
   Globe,
   LayoutDashboard,
   Route,
+  ShieldAlert,
   ScrollText,
   Server,
   ShieldCheck,
@@ -41,7 +42,6 @@ export const openflareSecurityNavGroup: OpenFlareNavGroup = {
   items: [
     { titleKey: 'waf', url: '/waf' },
     { titleKey: 'attackProtection', url: '/attack-protection' },
-    { titleKey: 'attackLogs', url: '/attack-logs' },
     { titleKey: 'ipGroups', url: '/ip-groups' },
     { titleKey: 'securitySettings', url: '/security-settings' },
   ],
@@ -102,6 +102,12 @@ export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
     url: '/pages',
     icon: FileText,
     childUrls: ['/pages/detail'],
+  },
+  {
+    kind: 'item',
+    titleKey: 'attackLogs',
+    url: '/attack-logs',
+    icon: ShieldAlert,
   },
   {
     kind: 'item',
