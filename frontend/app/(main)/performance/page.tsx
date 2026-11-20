@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Gauge, Pencil, Plus, Server, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -29,19 +30,15 @@ import {
   type PerformancePolicy,
 } from '@/lib/services/openflare';
 import { NodeAssignmentDialog } from './components/node-assignment-dialog';
-import { PolicyEditor } from './components/policy-editor';
+import { performancePoliciesQueryKey } from './components/policy-editor';
 
-const queryKey = ['openflare', 'performance-policies'];
-
-type Action =
-  | { type: 'edit'; policy?: PerformancePolicy }
-  | { type: 'assign' | 'delete'; policy: PerformancePolicy };
+type Action = { type: 'assign' | 'delete'; policy: PerformancePolicy };
 
 export default function PerformancePage() {
   const t = useTranslations('performancePolicies');
   const client = useQueryClient();
   const query = useQuery({
-    queryKey,
+    queryKey: performancePoliciesQueryKey,
     queryFn: () => PerformanceService.list(),
   });
   const [action, setAction] = useState<Action>();
@@ -57,7 +54,7 @@ export default function PerformancePage() {
 
   function complete() {
     setAction(undefined);
-    void client.invalidateQueries({ queryKey });
+    void client.invalidateQueries({ queryKey: performancePoliciesQueryKey });
   }
 
   async function remove(policy: PerformancePolicy) {
@@ -84,12 +81,11 @@ export default function PerformancePage() {
             {t('title')}
           </h1>
         </div>
-        <Button
-          disabled={!query.data}
-          onClick={() => setAction({ type: 'edit' })}
-        >
-          <Plus data-icon='inline-start' />
-          {t('create')}
+        <Button asChild>
+          <Link href='/performance/editor'>
+            <Plus data-icon='inline-start' />
+            {t('create')}
+          </Link>
         </Button>
       </div>
 
@@ -128,9 +124,11 @@ export default function PerformancePage() {
                   size='icon-sm'
                   variant='ghost'
                   aria-label={t('edit')}
-                  onClick={() => setAction({ type: 'edit', policy })}
+                  asChild
                 >
-                  <Pencil />
+                  <Link href={`/performance/editor?id=${policy.id}`}>
+                    <Pencil />
+                  </Link>
                 </Button>
                 <Button
                   size='icon-sm'
@@ -167,14 +165,6 @@ export default function PerformancePage() {
         ))}
       </div>
 
-      {action?.type === 'edit' && query.data && (
-        <PolicyEditor
-          policy={action.policy}
-          parameters={query.data.parameters}
-          onClose={() => setAction(undefined)}
-          onSaved={complete}
-        />
-      )}
       {action?.type === 'assign' && (
         <NodeAssignmentDialog
           policy={action.policy}
