@@ -46,3 +46,66 @@ func TestScore(t *testing.T) {
 		t.Fatalf("unexpected score for loopback ip: %d", got)
 	}
 }
+
+func TestIsPublicRoutable(t *testing.T) {
+	publicCases := []string{
+		"1.1.1.1",
+		"8.8.8.8",
+		"82.22.26.203",
+		"172.32.0.1",
+		"100.128.0.1",
+		"::ffff:8.8.8.8",
+		"2606:4700:4700::1111",
+		"2001:4860:4860::8888",
+	}
+	for _, raw := range publicCases {
+		if !IsPublicRoutableString(raw) {
+			t.Errorf("expected %s to be public routable", raw)
+		}
+	}
+
+	excludedCases := []string{
+		"",
+		"not-an-ip",
+		"0.0.0.0",
+		"0.1.2.3",
+		"10.0.0.1",
+		"100.64.0.1",
+		"100.127.255.254",
+		"127.0.0.1",
+		"169.254.169.254",
+		"172.16.0.1",
+		"172.27.0.1",
+		"172.31.255.254",
+		"192.0.0.1",
+		"192.0.2.1",
+		"192.88.99.1",
+		"192.168.1.1",
+		"198.18.0.1",
+		"198.19.255.254",
+		"198.51.100.1",
+		"203.0.113.10",
+		"224.0.0.1",
+		"240.0.0.1",
+		"255.255.255.255",
+		"::",
+		"::1",
+		"::ffff:172.27.0.1",
+		"64:ff9b::1.2.3.4",
+		"100::1",
+		"2001::1",
+		"2001:2::1",
+		"2001:db8::1",
+		"2002::1",
+		"3fff::1",
+		"fc00::1",
+		"fd12:3456::1",
+		"fe80::1",
+		"ff02::1",
+	}
+	for _, raw := range excludedCases {
+		if IsPublicRoutableString(raw) {
+			t.Errorf("expected %q to be excluded from public routable IPs", raw)
+		}
+	}
+}

@@ -6,6 +6,7 @@ package agent
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
@@ -33,7 +34,7 @@ func RegisterHandler(c *gin.Context) {
 		return
 	}
 	payload := request.NodePayload
-	payload.IP = resolveReportedNodeIP(payload.IP, c.Request.RemoteAddr)
+	payload.IP = resolveReportedNodeIP(payload.IP, requestClientIP(c))
 
 	var (
 		result *protocol.RegisterNodeResponse
@@ -67,7 +68,7 @@ func HeartbeatHandler(c *gin.Context) {
 	if !httpx.BindJSON(c, &payload) {
 		return
 	}
-	payload.IP = resolveReportedNodeIP(payload.IP, c.Request.RemoteAddr)
+	payload.IP = resolveReportedNodeIP(payload.IP, requestClientIP(c))
 
 	authNode, ok := NodeFromContext(c)
 	if !ok {
@@ -226,4 +227,11 @@ func WebSocketHandler(c *gin.Context) {
 		return
 	}
 	websocket.ServeAgent(c, authNode.NodeID)
+}
+
+func requestClientIP(c *gin.Context) string {
+	if ip := strings.TrimSpace(c.ClientIP()); ip != "" {
+		return ip
+	}
+	return c.Request.RemoteAddr
 }

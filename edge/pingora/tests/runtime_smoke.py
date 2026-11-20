@@ -5,6 +5,7 @@ import hashlib
 import http.client
 import http.server
 import io
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -38,6 +39,14 @@ def unused_port():
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         return listener.getsockname()[1]
+
+
+def assert_valid_reported_ip(raw):
+    assert isinstance(raw, str) and raw, f"missing reported IP: {raw!r}"
+    if raw == "0.0.0.0":
+        return
+    addr = ipaddress.ip_address(raw)
+    assert addr.is_global and not addr.is_multicast, f"unexpected non-public reported IP: {raw}"
 
 
 class Controller(http.server.BaseHTTPRequestHandler):
@@ -82,6 +91,7 @@ class Controller(http.server.BaseHTTPRequestHandler):
             assert payload["engine"] == "pingora"
             assert payload["contract_version"] == 3
             assert payload["config_sync_version"] == 1
+            assert_valid_reported_ip(payload.get("ip"))
             if self.headers["X-Agent-Token"] == "discovery-credential":
                 assert payload["registration_key"]
             else:
@@ -92,6 +102,7 @@ class Controller(http.server.BaseHTTPRequestHandler):
         elif self.headers["X-Agent-Token"] != "node-credential":
             self.data(None, 401)
         elif self.path.endswith("/heartbeat"):
+            assert_valid_reported_ip(payload.get("ip"))
             self.server.heartbeats.append(payload)
             self.data({"config": {"version": 1, "resources": self.manifest()},
                        "agent_settings": {"heartbeat_interval": self.server.heartbeat_interval}})
@@ -131,6 +142,8 @@ class Controller(http.server.BaseHTTPRequestHandler):
             finally:
                 if self.server.config_ws is self.connection:
                     self.server.config_ws = None
+        elif self.path == "/api/geoip":
+            self.data({"ip": self.client_address[0]})
         elif self.path == "/origin-error":
             self.answer(b"original", 503)
         elif self.path == "/slow-origin":

@@ -143,7 +143,8 @@ func desiredRecordInput(state *repository.CFPointingMemberContext) (RecordInput,
 		return RecordInput{Type: recordType, Content: content}, nil
 	}
 	ip := strings.TrimSpace(state.Node.IP)
-	if net.ParseIP(ip).To4() == nil {
+	parsed := net.ParseIP(ip)
+	if parsed == nil || parsed.To4() == nil || parsed.IsUnspecified() {
 		return RecordInput{}, errors.New(errNodeIPv4Required)
 	}
 	return RecordInput{Type: "A", Content: ip}, nil

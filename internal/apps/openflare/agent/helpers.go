@@ -17,6 +17,7 @@ import (
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/pkg/geoip/iputil"
 )
 
 const (
@@ -31,6 +32,7 @@ const (
 	enginePingora                 = "pingora"
 	engineOpenResty               = "openresty"
 	nodeTypeEdge                  = "edge_node"
+	unspecifiedNodeIP             = "0.0.0.0"
 )
 
 func newRandomToken() (string, error) {
@@ -163,16 +165,13 @@ func truncateForDatabase(value string, maxVal int) string {
 func resolveReportedNodeIP(reportedIP string, remoteAddr string) string {
 	reported := normalizeIP(reportedIP)
 	remote := normalizeRemoteAddr(remoteAddr)
-	if reported == "" {
-		return remote
-	}
 	if isPublicNodeIP(reported) {
 		return reported
 	}
 	if isPublicNodeIP(remote) {
 		return remote
 	}
-	return reported
+	return unspecifiedNodeIP
 }
 
 func normalizeIP(raw string) string {
@@ -207,14 +206,7 @@ func normalizeRemoteAddr(remoteAddr string) string {
 }
 
 func isPublicNodeIP(raw string) bool {
-	ip := net.ParseIP(strings.TrimSpace(raw))
-	if ip == nil {
-		return false
-	}
-	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
-		return false
-	}
-	return true
+	return iputil.IsPublicRoutableString(raw)
 }
 
 func buildAgentSettings(ctx context.Context, restartEdgeNow bool) *protocol.AgentSettings {

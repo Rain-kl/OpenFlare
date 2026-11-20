@@ -387,8 +387,11 @@ func validEdgeNode(ctx context.Context, id uint, requireIPv4 bool) (*model.OpenF
 	if err != nil || node.NodeType != "edge_node" {
 		return nil, errors.New(errNodeInvalid)
 	}
-	if requireIPv4 && net.ParseIP(strings.TrimSpace(node.IP)).To4() == nil {
-		return nil, errors.New(errNodeIPv4Required)
+	if requireIPv4 {
+		parsed := net.ParseIP(strings.TrimSpace(node.IP))
+		if parsed == nil || parsed.To4() == nil || parsed.IsUnspecified() {
+			return nil, errors.New(errNodeIPv4Required)
+		}
 	}
 	return node, nil
 }

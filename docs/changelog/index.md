@@ -32,6 +32,10 @@ sidebar: false
 - 已登记的 OpenResty 节点可使用原 Agent Token 自动迁移到 Pingora，保留节点 ID 和业务绑定。迁移要求已有生效的 Pingora 发布。
 - 修复 Pingora 使用节点专属令牌重装时注册失败的问题。安装等待有效配置加载后才报告就绪，启动超时后直接进入回滚。
 
+### 🛠 修复
+
+- 修复边缘节点缺少真实公网 IP 上报而回退记录控制端内网网关地址（如 `172.27.0.1`）的问题：边缘节点启动时优先扫描网卡公网地址并排除全部内网及保留 CIDR，未获取到时在启动与每分钟依次探测 `ip.sb`、`ip.me`、`api.ip2location.io` 及新增的控制端 `GET /api/geoip` 接口；全部失效时统一返回 `0.0.0.0`，禁止上报或保存内网 IP。
+
 ### ⚡️ 优化与改进
 
 - 重组 Go 后端与边缘组件工程包结构：将控制面入口统一收敛至 `cmd/server/`，边缘运行时收敛至 `internal/edge/`、跨端共享协议与渲染包收敛至 `internal/openflare/`、ClickHouse 与主库分析存取统一归入 `internal/repository/logstore/`，并扁平化整理上传域、OpenFlare 路由注册及对应设计、部署与开发命令文档（源码启动命令调整为 `go run ./cmd/server ...`）。

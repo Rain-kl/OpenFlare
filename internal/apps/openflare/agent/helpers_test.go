@@ -133,3 +133,57 @@ func TestCollectHeartbeatChangesTracksGeoFields(t *testing.T) {
 		t.Fatalf("expected geo_longitude change, got %+v", changes)
 	}
 }
+
+func TestResolveReportedNodeIP(t *testing.T) {
+	cases := []struct {
+		name     string
+		reported string
+		remote   string
+		want     string
+	}{
+		{
+			name:     "prefers valid public reported IP",
+			reported: "82.22.26.203",
+			remote:   "172.27.0.1:41234",
+			want:     "82.22.26.203",
+		},
+		{
+			name:     "falls back to public remote IP when reported is empty",
+			reported: "",
+			remote:   "138.2.50.10:41234",
+			want:     "138.2.50.10",
+		},
+		{
+			name:     "falls back to public remote IP when reported is private or 0.0.0.0",
+			reported: "0.0.0.0",
+			remote:   "8.8.8.8:443",
+			want:     "8.8.8.8",
+		},
+		{
+			name:     "never returns internal IP when both reported and remote are private",
+			reported: "172.27.0.1",
+			remote:   "172.27.0.1:41234",
+			want:     "0.0.0.0",
+		},
+		{
+			name:     "never returns internal IP when reported is empty and remote is private",
+			reported: "",
+			remote:   "172.27.0.1:41234",
+			want:     "0.0.0.0",
+		},
+		{
+			name:     "excludes CGNAT and reserved CIDRs",
+			reported: "100.64.0.10",
+			remote:   "198.18.0.1:80",
+			want:     "0.0.0.0",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := resolveReportedNodeIP(tc.reported, tc.remote); got != tc.want {
+				t.Fatalf("resolveReportedNodeIP(%q, %q) = %q, want %q", tc.reported, tc.remote, got, tc.want)
+			}
+		})
+	}
+}

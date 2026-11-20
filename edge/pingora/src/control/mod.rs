@@ -1,5 +1,6 @@
 use crate::config::SnapshotStore;
 pub(crate) mod config_sync;
+mod node_ip;
 mod websocket;
 
 use config_sync::{Manifest, Resource, PERFORMANCE_KEY, SITE_KEY};
@@ -34,6 +35,7 @@ pub struct Runtime {
     listeners: Listeners,
     geo_ip: crate::geoip::GeoIpStore,
     performance: LivePolicy,
+    node_ip: node_ip::NodeIpResolver,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,6 +49,7 @@ struct NodePayload<'a> {
     schema_version: u8,
     node_id: &'a str,
     name: &'a str,
+    ip: &'a str,
     version: &'a str,
     ext_version: &'a str,
     current_version: &'a str,
@@ -162,6 +165,7 @@ impl Runtime {
             .user_agent(concat!("openflare-edge/", env!("CARGO_PKG_VERSION")))
             .build()?;
         let performance = LivePolicy::new(NodePolicy::load(&state_dir));
+        let node_ip = node_ip::NodeIpResolver::new(&base_url)?;
         Ok(Self {
             base_url,
             token_type,
@@ -173,6 +177,7 @@ impl Runtime {
             access_logs,
             listeners,
             performance,
+            node_ip,
         })
     }
 
@@ -193,26 +198,31 @@ impl Runtime {
             }
         };
         self.state.recover_latest(&self.state_dir);
-        let mut retry = RetryDelay::default();
-        let identity = loop {
-            match self.ensure_identity().await {
-                Ok(identity) => break identity,
-                Err(error) => {
-                    tracing::warn!(%error, "node enrollment failed");
-                    retry.wait().await;
+        self.node_ip.initialize().await;
+        let node_ip_refresher = self.node_ip.clone();
+        let control_loop = async {
+            let mut retry = RetryDelay::default();
+            let identity = loop {
+                match self.ensure_identity().await {
+                    Ok(identity) => break identity,
+                    Err(error) => {
+                        tracing::warn!(%error, "node enrollment failed");
+                        retry.wait().await;
+                    }
                 }
-            }
+            };
+            let authenticated = Self {
+                token_type: TokenType::Node,
+                token: identity.agent_token,
+                ..self.clone()
+            };
+            let wake = websocket::Wake::default();
+            tokio::join!(
+                authenticated.run_heartbeats(&identity.node_id, &wake),
+                websocket::run(&authenticated.base_url, &authenticated.token, &wake),
+            );
         };
-        let authenticated = Self {
-            token_type: TokenType::Node,
-            token: identity.agent_token,
-            ..self.clone()
-        };
-        let wake = websocket::Wake::default();
-        tokio::join!(
-            authenticated.run_heartbeats(&identity.node_id, &wake),
-            websocket::run(&authenticated.base_url, &authenticated.token, &wake),
-        );
+        tokio::join!(control_loop, node_ip_refresher.refresh_loop_if_needed());
     }
 
     async fn run_heartbeats(&self, node_id: &str, wake: &websocket::Wake) {
@@ -481,10 +491,12 @@ impl Runtime {
         bearer_token: &str,
         registration_key: Option<&str>,
     ) -> Result<Registration> {
+        let node_ip = self.node_ip.current();
         let mut payload = json!(NodePayload {
             schema_version: 2,
             node_id: "",
             name: "openflare-edge",
+            ip: &node_ip,
             version: env!("CARGO_PKG_VERSION"),
             ext_version: "pingora",
             current_version: self
@@ -540,10 +552,12 @@ impl Runtime {
         } else {
             ("unknown", "Waiting for configuration")
         };
+        let node_ip = self.node_ip.current();
         let payload = NodePayload {
             schema_version: 2,
             node_id,
             name: "openflare-edge",
+            ip: &node_ip,
             version: env!("CARGO_PKG_VERSION"),
             ext_version: "pingora",
             current_version: current.map_or("", |config| config.version.as_str()),

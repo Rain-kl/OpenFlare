@@ -760,6 +760,11 @@ definitions:
     - solutions
     - token
     type: object
+  apps_geoip.ClientIPView:
+    properties:
+      ip:
+        type: string
+    type: object
   apps_oauth.AuthSourceView:
     properties:
       client_secret_configured:
@@ -4634,6 +4639,24 @@ paths:
       summary: 校验人机验证解答
       tags:
       - cap
+  /api/geoip:
+    get:
+      description: 返回主控端识别到的请求者 IP 地址，供边缘节点在外部探测接口不可用时回退获取自身 IP
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 请求方 IP 地址
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_geoip.ClientIPView'
+              type: object
+      summary: 获取请求方 IP 地址
+      tags:
+      - geoip
   /api/health:
     get:
       description: 检查服务是否正常运行，可用于负载均衡存活探测

@@ -173,7 +173,7 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 	if err := persistNodeRuntime(ctx, &previous, authNode); err != nil {
 		return nil, err
 	}
-	if previous.IP != authNode.IP {
+	if previous.IP != authNode.IP && isPublicNodeIP(authNode.IP) {
 		if _, dispatchErr := cf.DispatchNodeSync(ctx, authNode.ID, "cloudflare_agent_ip_update"); dispatchErr != nil {
 			logger.ErrorF(ctx, "[Cloudflare] enqueue heartbeat node sync failed: node_id=%d error=%v", authNode.ID, dispatchErr)
 		}

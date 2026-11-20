@@ -131,6 +131,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/geoip": {
+            "get": {
+                "description": "返回主控端识别到的请求者 IP 地址，供边缘节点在外部探测接口不可用时回退获取自身 IP",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "geoip"
+                ],
+                "summary": "获取请求方 IP 地址",
+                "responses": {
+                    "200": {
+                        "description": "请求方 IP 地址",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_geoip.ClientIPView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/health": {
             "get": {
                 "description": "检查服务是否正常运行，可用于负载均衡存活探测",
@@ -16466,6 +16498,14 @@ const docTemplate = `{
                     }
                 },
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_geoip.ClientIPView": {
+            "type": "object",
+            "properties": {
+                "ip": {
                     "type": "string"
                 }
             }
