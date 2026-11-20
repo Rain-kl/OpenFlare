@@ -15,12 +15,12 @@
 
 ### 2. Agent / Relay / OpenFlared 配置来源
 - **命令行参数**：通过 `-config` 指定配置文件（JSON 格式）。
-- **配置文件**：例如 `agent.json`、`relay.json`、`flared.json`。
+- **配置文件**：例如 `relay.json`、`flared.json`。
 - **覆盖环境变量**：支持特定的环境变量来覆盖配置文件中的连接地址和 Token 凭证。
 
 ---
 
-## 配置文件位置
+## 配置文件与状态文件位置
 
 | 组件 | 默认位置 | 说明 |
 | --- | --- | --- |
@@ -31,8 +31,10 @@
 | Agent 数据目录 | 配置文件同级 `data` | 可在配置文件中通过 `data_dir` 覆盖 |
 | Relay 配置文件 | `./relay.json` | 可通过 `-config` 指定 |
 | 一键安装 Relay 配置 | `/opt/openflare-relay/relay.json` | 安装脚本默认生成路径 |
+| Relay 运行时状态文件 | `<data_dir>/relay-state.json` | 运行时自动维护于数据目录，记录中继节点注册与运行状态 |
 | Client 配置文件 | `./flared.json` | 可通过 `-config` 指定 |
 | 一键安装 Client 配置 | `/opt/openflared/flared.json` | 安装脚本默认生成路径 |
+| Client 运行时状态文件 | `<data_dir>/flared-state.json` | 运行时自动维护于数据目录，记录隧道会话与连接状态 |
 
 ---
 
@@ -40,14 +42,15 @@
 
 ```bash
 # 启动 Server 时指定配置文件
-CONFIG_PATH=/path/to/custom-config.yaml ./openflare-server all
+CONFIG_PATH=/path/to/custom-config.yaml ./bin/openflare-server all
 ```
 
 运行支持的子服务指令（融合/单进程模式）：
 - `all`：在一进程内启动所有服务（API + Worker + Scheduler，默认）。
 - `api`：仅启动管理端与节点通信的 API 服务。
-- `worker`：仅启动后台任务的 Worker 服务。
-- `scheduler`：仅启动定时任务的 Scheduler 服务。
+- `worker`：仅启动后台任务的 Asynq Worker 服务。
+- `scheduler`：仅启动定时任务的 Scheduler 调度服务。
+- `reset-passwd`：重置指定管理员或用户的登录密码（支持 `--user` 与 `--password` 参数）。
 
 ---
 
@@ -81,11 +84,19 @@ Server 的所有核心基础配置定义在 `config.yaml` 中，且均支持环�
 | `database.username` | `DB_USERNAME` | PostgreSQL 数据库用户名 | `openflare` |
 | `database.password` | `DB_PASSWORD` | PostgreSQL 数据库密码 | `replace-with-strong-password` |
 | `database.database` | `DB_NAME` | PostgreSQL 数据库名 | `openflare` |
-| `database.ssl_mode` | `DB_SSL_MODE` | PostgreSQL 的 SSL 模式 | `disable` |
-| `database.time_zone` | `DB_TIMEZONE` | 数据库会话时区 | `UTC` |
-| `database.log_level` | `DB_LOG_LEVEL` | GORM SQL 打印日志等级（`info` / `warn` / `error` / `silent`） | `info` |
 | `database.max_idle_conn` | `DB_MAX_IDLE_CONN` | 数据库连接池最大空闲连接数 | `16` |
 | `database.max_open_conn` | `DB_MAX_OPEN_CONN` | 数据库连接池最大打开连接数 | `128` |
+| `database.conn_max_lifetime` | - | 连接最大存活时间（秒） | `1800` |
+| `database.conn_max_idle_time` | - | 空闲连接最大空闲时间（秒） | `600` |
+| `database.log_level` | `DB_LOG_LEVEL` | GORM SQL 打印日志等级（`info` / `warn` / `error` / `silent`） | `info` |
+| `database.ssl_mode` | `DB_SSL_MODE` | PostgreSQL 的 SSL 模式 | `disable` |
+| `database.time_zone` | `DB_TIMEZONE` | 数据库会话时区 | `UTC` |
+| `database.application_name` | - | 数据库连接应用标识名称 | `openflare-server` |
+| `database.search_path` | - | PostgreSQL Schema 搜索路径 | `public` |
+| `database.prefer_simple_protocol` | - | 是否优先使用简单查询协议 | `false` |
+| `database.statement_cache_capacity`| - | 预编译 SQL 语句缓存容量 | `256` |
+| `database.default_query_exec_mode` | - | 查询默认执行模式 | `cache_statement` |
+| `database.slow_threshold` | - | 慢查询记录阈值（Duration） | `200ms` |
 
 SQLite 文件数据库在启动时自动启用 WAL 模式；内存数据库保留 `memory` 模式。请确保数据库所在目录可写，以创建 `-wal` 和 `-shm` 文件。在线备份请使用管理端数据库导出（生成一致性快照），不要仅复制运行中的 `.db` 文件。
 
@@ -97,13 +108,22 @@ SQLite 文件数据库在启动时自动启用 WAL 模式；内存数据库保�
 | `redis.username` | `REDIS_USERNAME` | Redis 账号名称（若有） | 空 |
 | `redis.password` | `REDIS_PASSWORD` | Redis 访问密码 | 空 |
 | `redis.db` | `REDIS_DB` | Redis 逻辑数据库编号 | `0` |
+| `redis.cluster_mode` | - | 是否启用 Redis 集群模式 | `false` |
+| `redis.master_name` | - | Sentinel 哨兵模式下的主节点名称（非空时启用哨兵） | 空 |
 | `redis.key_prefix` | `REDIS_KEY_PREFIX` | 系统在 Redis 中使用的键前缀 | `openflare:` |
 | `redis.pool_size` | `REDIS_POOL_SIZE` | Redis 连接池大小 | `100` |
+| `redis.min_idle_conn` | - | 最小空闲连接数 | `10` |
+| `redis.dial_timeout` | - | 建立连接超时时间（秒） | `5` |
+| `redis.read_timeout` | - | 读取数据超时时间（秒） | `3` |
+| `redis.write_timeout` | - | 写入数据超时时间（秒） | `3` |
+| `redis.max_retries` | - | 命令失败重试次数 | `3` |
+| `redis.pool_timeout` | - | 连接池获取超时时间（秒） | `4` |
+| `redis.conn_max_idle_time` | - | 空闲连接最大存活时间（秒） | `300` |
 | `redis.maint_notifications` | `REDIS_MAINT_NOTIFICATIONS` | 启动时是否启用 Redis maintenance notifications 自动协商；兼容性不明时保持关闭，修改后需重启 | `false` |
 
 ### 4. ClickHouse 配置 (`clickhouse:`)
 
-> **说明**：下列为 OpenFlare **客户端**连接参数。ClickHouse **服务端**小规格调优：将 `performance.xml` curl 到 `./config/clickhouse/`，再以单文件方式挂载至容器的 `config.d/performance.xml`，详见 [启动 Server](../deployment/server.md)。
+> **说明**：下列为 OpenFlare **客户端**连接参数。ClickHouse **服务端**小规格调优：使用本地 `./config/clickhouse/performance.xml`，并以单文件挂载方式映射至容器内 `/etc/clickhouse-server/config.d/performance.xml`，详见 [启动 Server](../deployment/server.md)。
 
 | 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
 | --- | --- | --- | --- |
@@ -127,24 +147,22 @@ SQLite 文件数据库在启动时自动启用 WAL 模式；内存数据库保�
 | `log.file_path` | - | 当 output 为 file 时日志的持久化路径 | `./logs/app.log` |
 | `log.max_size` | - | 单个日志文件的最大空间（MB），超出自动切割轮转 | `100` |
 | `log.max_age` | - | 历史切割日志文件最大保留天数 | `30` |
+| `log.max_backups` | - | 历史切割日志文件保留的最大文件数量 | `10` |
+| `log.compress` | - | 是否对切割后的历史日志文件进行 gzip 压缩 | `true` |
 
 Server、Agent、调度器、任务框架及存储维护等运行时日志的固定描述使用英文，便于跨语言排障和检索。界面语言切换不会改变终端日志和 OTel 异常；接口错误、任务执行详情与内置元数据在展示时按语言翻译，历史记录不回写。用户配置名称及第三方错误保留原文，可能包含中文。现有日志格式、级别、参数及输出渠道保持不变，详见 [运行时语言与国际化](../design/log-language.md)。
 
-### 6. Pingora 性能和站点策略
-
-在控制台「性能策略」中查看可用的运行时、回源、HTTP/2、TLS、监听器和缓存参数。节点可以应用不同的策略。操作说明见 [Pingora 性能策略](../guide/performance-policies.md)。
-
-站点安全参数在业务配置中维护，随站点快照发布。
-
-| 配置键 | 类型 | 用途 | 默认值 |
+### 6. 异步任务 Worker 配置 (`worker:`)
+| 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
 | --- | --- | --- | --- |
-
-
-Edge 仅接受可信代理发来的 `CF-Connecting-IP`。来源列表默认为 Cloudflare 官方网段，显式设置为 `[]` 可停用此转发头处理。
+| `worker.concurrency` | `WORKER_CONCURRENCY` | Asynq Worker 并发消费处理任务的最大协程数 | `20` |
+| `worker.strict_priority` | `WORKER_STRICT_PRIORITY` | 是否启用严格队列优先级调度（开启后仅在高优先级队列为空时才处理低优先级队列） | `false` |
+| `worker.queues` | - | 消费队列名称与优先级列表 | `webhook: 10`, `whitelist_only: 5`, `default: 3` |
 
 ### 7. 链路追踪 OpenTelemetry 配置 (`otel:`)
 | 配置文件 YAML 路径 | 对应覆盖环境变量 | 作用说明 | 默认值 |
 | --- | --- | --- | --- |
+| `otel.export_protocol` | `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` / `OTEL_EXPORTER_OTLP_PROTOCOL` | OTLP 导出协议（`grpc` 或 `http/protobuf`） | `grpc` |
 | `otel.sampling_rate` | `OTEL_SAMPLING_RATE` | OTel 链路追踪全局采样率。默认 `0.0` 不采样，`1.0` 为全量追踪 | `0.0` |
 | `otel.tracer_name` | `OTEL_TRACER_NAME` | 全局 OTel 埋点 Tracer 的实例化名称 | `github.com/Rain-kl/OpenFlare` |
 
@@ -225,57 +243,25 @@ Edge 仅接受可信代理发来的 `CF-Connecting-IP`。来源列表默认为 C
 | `uptime_kuma_retry_interval`| `int` | HTTP 监控对象失败重连重试的间隔停顿时间（秒） | `60` |
 | `uptime_kuma_timeout` | `int` | 触发 HTTP GET 监控请求判定超时的断开限制时间（秒） | `48` |
 
-### 6. OpenResty 核心主配置与渲染选项 (OpenResty Config)
+### 6. 边缘网关安全与限流参数 (Edge Security & Rate Limits)
+
+OpenFlare 边缘网关已全面采用 Pingora 架构，原 OpenResty / Nginx 底层配置参数（如 `worker_processes`, `worker_connections`, `worker_rlimit_nofile`, `keepalive_timeout` 等）已彻底废弃并从系统配置中移除。边缘运行参数、回源连接池、HTTP/2、TLS 监听及反向代理缓存等策略已移至控制台「性能策略」模块进行可视化管理并向边缘节点统一下发（详见 [Pingora 性能策略](../guide/performance-policies.md)）。
+
+系统运行时保留通用的边缘网关安全防护与限流参数（`edge_*`），管理员可在后台「系统管理 → 系统配置 → 业务配置」中调整：
+
 | 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
 | --- | --- | --- | --- |
-| `openresty_default_server_return_status` | `int` | 默认未命中匹配路由的 HTTP 请求返回的响应状态码 | `421` |
-| `openresty_worker_processes` | `string` | nginx `worker_processes` 参数设置。支持固定整数值或自动分配 `auto` | `auto` |
-| `openresty_worker_connections` | `int` | nginx `worker_connections` 单进程最大连接承载限制 | `4096` |
-| `openresty_worker_rlimit_nofile` | `int` | nginx `worker_rlimit_nofile` 能够打开的最大物理文件描述符限制 | `65535` |
-| `openresty_events_use` | `string` | 绑定的事件轮询引擎（例如 Linux 下首选 `epoll`） | `epoll` |
-| `openresty_events_multi_accept_enabled` | `bool` | 允许 worker 进程单次批量接受所有挂起的网络握手请求 | `true` |
-| `openresty_keepalive_timeout` | `int` | nginx 连接保持连接复用的 `keepalive_timeout` 限制时长（秒） | `20` |
-| `openresty_keepalive_requests` | `int` | 单一 TCP 连接复用过程中被允许的最大累计请求处理次数 | `1000` |
-| `openresty_client_header_timeout` | `int` | 接收客户端整个 Request Header 头信息的读取超时上限时长（秒） | `15` |
-| `openresty_client_body_timeout` | `int` | 接收客户端 Request Body 载荷体的数据读取超时上限时长（秒） | `15` |
-| `openresty_client_max_body_size` | `string` | 允许客户端请求上传的最大 Body 大小限制，通常需要单位如 `10m`/`50m` | `64m` |
-| `openresty_large_client_header_buffers` | `string` | 复杂请求超大请求头的专属缓冲区数目与大小（如 `4 16k`） | `4 16k` |
-| `openresty_send_timeout` | `int` | 向客户端推送 Response 数据回执单次传输最大的间隔超时时长（秒）| `30` |
-| `openresty_resolvers` | `string` | 节点进行 DNS 域名动态解析所关联绑定的域名解析器地址与配置参数 | 空 |
-| `openresty_proxy_connect_timeout` | `int` | 向后台代理源站发起 TCP 三次握手建连的最长超时上限时长（秒） | `3` |
-| `openresty_proxy_send_timeout` | `int` | 向源站单次写入并发送请求流数据的最大写入操作间隔时长（秒） | `60` |
-| `openresty_proxy_read_timeout` | `int` | 源站收到请求后返回数据，Agent 最大的等待数据返回间隔时长（秒） | `60` |
-| `openresty_websocket_enabled` | `bool` | 是否在 HTTP 段中自动载入渲染支持 WebSocket 协议的全局变量及头信息 | `true` |
-| `openresty_http3_enabled` | `bool` | 是否在生成 nginx 监听描述中渲染支持 HTTP/3 QUIC 双栈监听能力 | `true` |
-| `openresty_proxy_request_buffering_enabled`| `bool` | 是否将客户端 Request Body 先在网关做完全部读取缓存再向源站递交；普通代理建议开启，流式上传或实时转发场景可关闭 | `true` |
-| `openresty_proxy_buffering_enabled` | `bool` | 是否允许网关暂存源站的大量 Response 数据待全部解析后再转发给用户 | `true` |
-| `openresty_proxy_buffers` | `string` | nginx 反代响应缓冲区的分配数量与单缓存大大小（如 `16 16k`） | `16 16k` |
-| `openresty_proxy_buffer_size` | `string` | 存放源站返回 Response Header 头部信息的专属缓冲区限制 | `8k` |
-| `openresty_proxy_busy_buffers_size` | `string` | 响应数据流返回过大时限制网关处于 Busy 状态的缓冲上限 | `64k` |
-| `openresty_gzip_enabled` | `bool` | 是否在网关对符合条件的内容启用 gzip 编码实时压缩返回 | `true` |
-| `openresty_gzip_min_length` | `int` | 触发 gzip 实时压缩的文件大小门槛。低于此大小无需压缩浪费 CPU | `1024` (1KB) |
-| `openresty_gzip_comp_level` | `int` | gzip 压缩强度等级。支持 1-9，数字越大压缩率越高，越消耗算力 | `5` |
-| `openresty_cache_enabled` | `bool` | 是否在全局配置中初始化代理缓存区域（Proxy Cache Path） | `false` |
-| `openresty_cache_path` | `string` | 节点上代理缓存存放的临时物理目录路径 | `__OPENFLARE_PROXY_CACHE_PATH__` |
-| `openresty_cache_levels` | `string` | 代理缓存的存储目录树层级分配设置 | `1:2` |
-| `openresty_cache_inactive` | `string` | 缓存文件多长时间无人访问后将自动从磁盘上失效抹除的时间时长 | `30m` (30分钟) |
-| `openresty_cache_max_size` | `string` | 代理缓存区域在节点上占用的最大可用物理磁盘额度 | `1g` (1GB) |
-| `openresty_cache_key_template` | `string` | 代理缓存键模板。Pingora 支持 `$proxy_host`，取值为 OpenResty `proxy_pass` 使用的上游组名或上游地址。 | `$scheme$host$request_uri` |
-| `openresty_cache_lock_enabled` | `bool` | 遭遇高并发请求击穿同一失效资源时是否对向源站发起建连排队加锁 | `true` |
-| `openresty_cache_lock_timeout` | `string` | 抢夺代理缓存锁排队建连时排队等待的最长等待耗时限制 | `5s` |
-| `openresty_cache_use_stale` | `string` | 当源站遇到特定报错（如500/502/504等）时是否直接向用户投递过期缓存 | `error timeout updating http_500 http_502 http_503 http_504` |
-| `edge_default_limit_conn_per_server` | `int` | 站点未配置时的默认并发连接上限；`0` 表示默认关闭 | `0` |
-| `edge_default_limit_conn_per_ip` | `int` | 站点未配置时的默认单 IP 并发上限；`0` 表示默认关闭 | `0` |
-| `edge_default_limit_rate` | `string` | 站点未配置时的默认单请求带宽（如 `512k`）；空表示默认关闭 | 空 |
-| `edge_default_limit_req_per_ip` | `string` | 站点未配置时的默认单 IP 请求频率限制（如 `10r/s`、`100r/m`）；空表示默认关闭 | 空 |
-| `openresty_main_config_template` | `string` | 允许用户完全重写整个 OpenResty nginx.conf 的底层结构大骨架模板 | 空 (内置缺省骨架) |
 | `edge_trusted_proxy_cidrs` | `string` (JSON 数组) | 可读取 `CF-Connecting-IP` 的可信代理 IPv4/IPv6 CIDR 列表；默认包含 Cloudflare 官方 22 个 IPv4/IPv6 网段；显式 `[]` 会关闭自动生成的可信代理配置 | Cloudflare 官方网段 |
+| `edge_default_limit_conn_per_server` | `int` | 站点未单独配置时的默认服务级并发连接上限；`0` 表示默认关闭 | `0` |
+| `edge_default_limit_conn_per_ip` | `int` | 站点未单独配置时的默认单 IP 并发连接上限；`0` 表示默认关闭 | `0` |
+| `edge_default_limit_rate` | `string` | 站点未单独配置时的默认单请求带宽限制（如 `512k`）；空表示默认关闭 | 空 |
+| `edge_default_limit_req_per_ip` | `string` | 站点未单独配置时的默认单 IP 请求频率限制（如 `10r/s`、`100r/m`）；空表示默认关闭 | 空 |
 
 在管理端「系统管理 → 系统配置 → 业务配置」中编辑 `edge_trusted_proxy_cidrs`。默认值为 Cloudflare 官方完整 22 个 IPv4/IPv6 网段，可从 [Cloudflare IPv4 网段](https://www.cloudflare.com/ips-v4) 和 [IPv6 网段](https://www.cloudflare.com/ips-v6) 核对并按官方更新维护。若要信任额外内网代理，应将其 CIDR 追加到现有数组；例如 `10.2.0.227` 只有在确认它是可信代理、且它发送的 `CF-Connecting-IP` 真实可靠后，才追加 `10.2.0.227/32`。该地址不属于默认信任范围。显式设置为 `[]` 会关闭由此配置生成的转发头信任；已有显式空值不会在升级时自动改为默认。保存后自动同步到边缘节点。Pingora 对来自可信网段的请求读取 `CF-Connecting-IP`，访问日志、WAF 和上游 `X-Real-IP` 使用恢复后的客户端地址。缺少该配置值时使用 Cloudflare 默认网段，非法 JSON 按空列表处理。
 
 ### 7. 源站错误页 (Origin Error Page)
 
-全局源站错误页保存后随站点快照自动同步到边缘节点。仅作用于**反代**路由；Pages 静态路由不受影响。管理端入口：「网站管理 → 错误页」。设计说明见 [源站错误页设计](../design/origin-error-page.md)。
+全局源站错误页保存后随站点快照自动同步到边缘节点。仅作用于**反向代理**路由；Pages 静态路由不受影响。管理端入口：「网站管理 → 错误页」。设计说明见 [源站错误页设计](../design/origin-error-page.md)。
 
 | 配置键 (Key) | 数据类型 | 作用说明 | 默认值 |
 | --- | --- | --- | --- |
@@ -283,8 +269,6 @@ Edge 仅接受可信代理发来的 `CF-Connecting-IP`。来源列表默认为 C
 | `origin_error_page_get_only` | `bool` | 是否仅对 **GET** 请求生效。开启后仅 GET 的匹配错误状态码返回自定义错误页；POST/PUT 等其它方法**透传源站响应**（原始状态码与响应体不变） | `false` |
 | `origin_error_page_status_codes` | `json` | 触发错误页的状态码标签 JSON 数组。支持单码（如 `522`）与闭区间（如 `500-599`）；单码与区间两端均须在 **400–599**，且 `lo ≤ hi`。启用时展开结果不能为空 | `["500-599"]` |
 | `origin_error_page_html` | `string` | 错误页自定义 HTML。空字符串表示使用内置 OpenFlare 默认模板（极简白底）；支持占位符 `{{status}}`（与 HTTP 状态码一致）、`{{host}}`（请求 Host）。最大 **256 KiB**（按字节）。勿嵌入不可信第三方脚本 | 空 |
-
----
 
 ### 8. 日志存储（Log Database）
 
@@ -313,7 +297,9 @@ Edge 仅接受可信代理发来的 `CF-Connecting-IP`。来源列表默认为 C
 
 ## Pingora Edge 启动参数
 
-`openflare-edge run` 使用 `--server-url`、`--token-type discovery|node`、`--token-file` 和 `--state-dir` 连接控制端。监听地址由 `--http-listen` 和可选的 `--tls-listen` 设置。由安装脚本管理的服务默认监听 80 和 443，状态目录为 `/var/lib/openflare-edge`。
+`openflare-edge run` 使用 `--server-url`、`--token-type discovery|node`、`--token-file` 和 `--state-dir` 连接控制端。监听地址由 `--http-listen` 和可选的 `--tls-listen` 设置。由安装脚本管理的服务默认监听 80 和 443，状态目录为 `/var/lib/openflare-edge`。升级现有节点配置时附加 `--upgrade`。
+
+---
 
 ## Relay 环境变量与配置字段
 
@@ -334,7 +320,7 @@ Edge 仅接受可信代理发来的 `CF-Connecting-IP`。来源列表默认为 C
 | `node_ip` | 中继节点 IP，用于接收穿透流量 | 否 | 自动探测，优先使用公网出口 IP；失败时退回网卡探测 |
 | `frps_path` | frps 二进制路径 | 否 | `frps`（在系统 PATH 中寻找） |
 | `data_dir` | Relay 运行时数据目录 | 否 | 配置文件所在目录下的 `data` |
-| `state_path` | Relay 本地状态文件存储路径 | 否 | `data_dir/relay-state.json` |
+| `state_path` | Relay 本地状态文件存储路径（运行时自动生成） | 否 | `<data_dir>/relay-state.json` |
 | `heartbeat_interval` | 心跳间隔 | 否 | `10000` 毫秒 |
 | `request_timeout` | HTTP 请求超时 | 否 | `10000` 毫秒 |
 
@@ -356,7 +342,7 @@ Edge 仅接受可信代理发来的 `CF-Connecting-IP`。来源列表默认为 C
 | `tunnel_token` | 隧道专属认证 Token | 是 | 无 |
 | `frpc_path` | frpc 二进制路径 | 否 | `frpc`（在系统 PATH 中寻找） |
 | `data_dir` | Client 运行时数据目录 | 否 | 配置文件所在目录下的 `data` |
-| `state_path` | Client 本地状态文件存储路径 | 否 | `data_dir/flared-state.json` |
+| `state_path` | Client 本地状态文件存储路径（运行时自动生成） | 否 | `<data_dir>/flared-state.json` |
 | `heartbeat_interval` | 心跳间隔 | 否 | `10000` 毫秒 |
 | `sync_interval` | 配置拉取同步间隔 | 否 | `30000` 毫秒 |
 | `request_timeout` | HTTP 请求超时 | 否 | `10000` 毫秒 |

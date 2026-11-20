@@ -1,65 +1,79 @@
 # OpenFlare Edge 部署
 
-OpenFlare Edge 是 OpenFlare v4.0.0 起使用的 Pingora 边缘节点。节点启动后直接连接控制端，完成注册、心跳、配置同步、Pages 资源同步和流量代理。已有 OpenResty 节点请按[升级指南](./upgrade.md)迁移。
+OpenFlare Edge 是 OpenFlare 自 v4.0.0 起采用的基于 Pingora 构建的边缘网关。节点启动后连接控制面（OpenFlare Server），执行节点注册、心跳上报、配置同步、Pages 资源拉取与流量代理。原 OpenResty 架构节点请参考[升级与维护指南](./upgrade.md)执行迁移。
 
-## 发布包
+## 发布包与版本管理
 
-OpenFlare Edge 使用独立的 `edge-v*` 版本标签。Server、Relay 和隧道节点随 `v*` 标签发布。Edge 发布工作流同时构建 Linux `amd64` 和 `arm64`：
+OpenFlare Edge 使用独立的 `edge-v*` 版本标签进行发布，与 Server、Relay 和 OpenFlared 的发布解耦。Edge 构建工作流针对 Linux `amd64` 与 `arm64` 架构生成归档：
 
-- `openflare-edge_edge-v0.1.2_linux_amd64.tar.gz`
-- `openflare-edge_edge-v0.1.2_linux_arm64.tar.gz`
+- `openflare-edge_edge-v0.1.3_linux_amd64.tar.gz`
+- `openflare-edge_edge-v0.1.3_linux_arm64.tar.gz`
 
-归档内包含 `openflare-edge` 二进制、`VERSION`、`SHA256SUMS`、许可证、安装、更新、卸载和 GeoIP 下载脚本。推送 `edge-v<主版本>.<次版本>.<修订号>` 标签会触发发布。手动重建时，在 **Build OpenFlare Edge** 中填写已存在的 Edge 标签，工作流将构建该标签对应的提交。归档名和 `VERSION` 保留完整标签；例如标签为 `edge-v0.1.3` 时，`openflare-edge --version` 和节点上报的版本均为 `0.1.3`。发版无需修改 `Cargo.toml` 或 `Cargo.lock`。
+归档内包含 `openflare-edge` 二进制可执行文件、`VERSION`、`SHA256SUMS`、许可证文件，以及安装、更新、卸载与 GeoIP 下载脚本。
 
-推送 `canary` 分支会发布 Edge 预览版。版本采用下一修订号加工作流运行编号，例如从 `edge-v0.1.6` 生成 `edge-v0.1.7-canary.42`。控制台的「检查预览版」可发现该版本，默认安装和自动更新继续使用正式版。
+- 正式版触发：向仓库推送 `edge-v<主版本>.<次版本>.<修订号>` 格式标签触发发布构建。手动触发时，在 GitHub Actions 工作流 **Build OpenFlare Edge** 中输入目标 Edge 标签，工作流将针对该标签提交编译。
+- 版本号注入：构建工作流通过环境变量 `OPENFLARE_EDGE_VERSION` 从 Git 标签注入版本号。`openflare-edge --version` 与节点上报版本均显示该版本（例如标签 `edge-v0.1.3` 对应程序版本 `0.1.3`），发版无需手动修改 `Cargo.toml` 中的版本字段；构建采用 `--locked` 保证依赖版本与 `Cargo.lock` 严格一致。
+- Canary 预览版：向 `canary` 分支推送代码将触发 Edge 预览版构建。版本号采用下一修订号叠加工作流编号（例如基于 `edge-v0.1.3` 生成 `edge-v0.1.4-canary.42`）。控制台「检查预览版」可检索到该版本；默认安装与自动更新策略仅使用正式版。
+- Release 归档索引：GitHub Releases 的 `Latest` 标签指向 Server 正式版；Edge 安装脚本、控制台更新检测及节点自动更新均独立筛选 `edge-v*` 标签列表。
 
-GitHub Releases 的 Latest 指向 Server 正式版，Relay 和隧道节点默认从该发行版获取更新。Edge 的安装脚本、控制台和节点自动更新从发行列表独立查找 `edge-v*`。
+Docker 容器镜像发布于 `ghcr.io/rain-kl/openflare-edge`，基于 Alpine 构建，包含静态链接 musl 的 Edge 二进制及系统 CA 证书，支持 Linux `amd64` 与 `arm64`。正式版发布同步更新 `:latest` 标签，Canary 预览版发布同步更新 `:canary` 标签。
 
-Docker 镜像以 `ghcr.io/rain-kl/openflare-edge` 发布，支持 Linux amd64 和 arm64。镜像基于 Alpine，使用静态链接 musl 的 Edge 二进制，并内置系统 CA 证书。每次发布都有对应的版本标签，正式版推送更新 `:latest`，Canary 推送更新 `:canary`。
+## 节点安装
 
-Actions 中的 **Test OpenFlare Edge** 在两个架构上运行单元测试并验证 Linux 原生二进制。**Build OpenFlare Edge** 完成双架构编译后，**Publish OpenFlare Edge Release** 使用构建产物发布基于 glibc 的 Linux 安装包，**Build Image (openflare-edge)** 从同一个源码提交构建并发布 Alpine 镜像。发布失败可在产物保留期内单独重跑对应工作流。首次启用时，将两个发布工作流合入默认分支后再推送 Canary 或版本标签。
+配置同步协议 v1 要求 OpenFlare Edge 版本为 `edge-v0.1.2` 或更高。安装器在修改本地服务前会校验发行包的协议兼容性。
 
-## 安装
+在 OpenFlare 管理后台「节点管理」进入目标节点详情，点击「边缘节点部署」可查看预填控制端地址与节点令牌的安装命令。
 
-使用配置同步协议 v1 的控制端要求 Edge `edge-v0.1.2` 或更新版本。安装器会在修改本地服务前检查发行包的协议版本。
+### Linux 主机安装
 
-节点详情的「边缘节点部署」提供 Linux 和 Docker 两种命令，自动填入控制端 URL 和节点专属令牌。
-
-在 Linux 节点执行：
+使用安装脚本进行部署：
 
 ```bash
+# 远程下载安装脚本并执行
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-edge.sh -o install-openflare-edge.sh
 sudo bash install-openflare-edge.sh \
   --server-url https://control.example.com \
   --token-type node \
-  --token <agent-token> \
+  --token <节点专属令牌> \
   --http-listen 0.0.0.0:80 \
   --tls-listen 0.0.0.0:443
 ```
 
-默认安装目录为 `/opt/openflare-edge`，状态目录为 `/var/lib/openflare-edge`。安装脚本会自动识别 `amd64` / `arm64`，从 GitHub Releases 查询最新正式版，校验归档摘要后写入：
-
-```text
-/opt/openflare-edge/current
-/var/lib/openflare-edge/identity.json
-/var/lib/openflare-edge/snapshot.json
-/var/lib/openflare-edge/pages/
-/var/lib/openflare-edge/GeoLite2-Country.mmdb
-/var/lib/openflare-edge/GeoLite2-City.mmdb
-/var/lib/openflare-edge/access-logs.jsonl
-```
-
-安装脚本会刷新 GeoIP 数据库，下载失败时中止安装。可执行 `/opt/openflare-edge/current --version` 查看已安装版本。
-
-指定版本安装：
+若在源码仓库或解压后的发布包目录下，可直接运行本地脚本：
 
 ```bash
-sudo bash install-openflare-edge.sh --version edge-v0.1.2 ...
+sudo bash scripts/install-openflare-edge.sh \
+  --server-url https://control.example.com \
+  --token-type node \
+  --token <节点专属令牌> \
+  --http-listen 0.0.0.0:80 \
+  --tls-listen 0.0.0.0:443
 ```
 
-### Docker 部署
+安装脚本的主要执行流程：
+1. 识别当前系统架构（`amd64` 或 `arm64`），从 GitHub Releases 检索最新兼容正式版（或通过 `--version <tag>` 指定版本）。
+2. 下载归档并校验 SHA-256 摘要，解压至目标目录。
+3. 初始化默认路径与状态文件：
+   - 运行程序：`/opt/openflare-edge/current`（指向当前版本的可执行二进制）
+   - 节点身份凭据：`/var/lib/openflare-edge/identity.json`
+   - 运行配置快照：`/var/lib/openflare-edge/snapshot.json`
+   - Pages 静态资源：`/var/lib/openflare-edge/pages/`
+   - GeoIP 数据库：`/var/lib/openflare-edge/GeoLite2-Country.mmdb` 与 `GeoLite2-City.mmdb`
+   - 访问明细暂存队列：`/var/lib/openflare-edge/access-logs.jsonl`
+4. 下载并校验 GeoIP 数据库（下载失败将终止安装流程）。
+5. 创建 systemd 服务 `openflare-edge.service` 并启动。
 
-从节点详情复制 Docker 命令，可直接启动 Pingora 容器。Canary 控制台默认生成 `:canary` 命令，其他控制台默认使用 `:latest`。指定镜像版本可将标签改为完整的 Edge 发布标签。
+验证版本与运行状态：
+
+```bash
+/opt/openflare-edge/current --version
+sudo systemctl status openflare-edge
+sudo journalctl -u openflare-edge -f
+```
+
+### Docker 容器部署
+
+在管理后台节点详情复制 Docker 运行命令，或手动执行：
 
 ```bash
 docker run -d --pull always --name openflare-edge --restart unless-stopped \
@@ -71,59 +85,95 @@ docker run -d --pull always --name openflare-edge --restart unless-stopped \
   ghcr.io/rain-kl/openflare-edge:latest
 ```
 
-容器以 UID 和 GID `10001` 运行。节点身份、配置快照和 Pages 资源保存在数据卷。可通过 `OPENFLARE_EDGE_TOKEN_FILE` 指定一个只读挂载的令牌文件，该文件须允许容器用户读取。通过发现令牌首次注册时，可省略 `OPENFLARE_EDGE_TOKEN_TYPE`。
+容器运行说明：
+- 容器内以非 root 用户（UID 10001 / GID 10001）运行，内部监听端口为 `8080`（HTTP）与 `8443`（HTTPS），通过宿主机端口映射对外暴露 `80` 与 `443`。
+- 节点身份、配置快照与 Pages 资源持久化于数据卷 `openflare-edge-data`（挂载至 `/var/lib/openflare-edge`）。
+- 可通过环境变量 `OPENFLARE_EDGE_TOKEN_FILE` 指定只读挂载的令牌文件路径（文件须允许 UID 10001 读取），替代明文传入 `OPENFLARE_EDGE_TOKEN`。
+- 当容器加载有效配置并成功开启监听后，健康检查标记为 healthy。查看日志：`docker logs -f openflare-edge`。
 
-容器加载配置并开始监听后标记为健康。可用 `docker logs -f openflare-edge` 查看注册和同步过程。更新时拉取新镜像、重建容器并复用数据卷。
+## 权限与安全加固
 
-GHCR 首次创建的镜像包默认是私有的。需要让节点匿名拉取时，在包设置中公开 `openflare-edge`。
+Linux 安装脚本自动创建专用系统用户 `openflare-edge`，并以该用户运行 systemd 服务。服务仅申请网络绑定特权 `CAP_NET_BIND_SERVICE`（允许非 root 进程监听低于 1024 的特权端口，如 80 和 443），并通过以下安全策略限制权限：
 
-从当前源码构建镜像可在仓库根目录运行 `docker build -f docker/Dockerfile.edge -t openflare-edge:dev .`。
-
-## 低权限运行
-
-安装脚本创建 `openflare-edge` 系统用户，并以该用户运行 systemd 服务。服务仅授予绑定 80/443 所需的 `CAP_NET_BIND_SERVICE`，同时启用以下限制：
-
-- `NoNewPrivileges`
-- `PrivateTmp`
+- `NoNewPrivileges=yes`
+- `PrivateTmp=yes`
 - `ProtectSystem=strict`
-- `ProtectHome`
-- `ProtectKernelTunables`
-- `ProtectKernelModules`
-- `ProtectControlGroups`
-- `RestrictSUIDSGID`
-- `LockPersonality`
-- `MemoryDenyWriteExecute`
-- `RestrictNamespaces`
+- `ProtectHome=yes`
+- `ProtectKernelTunables=yes`
+- `ProtectKernelModules=yes`
+- `ProtectControlGroups=yes`
+- `RestrictSUIDSGID=yes`
+- `LockPersonality=yes`
+- `MemoryDenyWriteExecute=yes`
+- `RestrictNamespaces=yes`
 - `SystemCallFilter=@system-service`
 
-状态目录是唯一可写路径。令牌、节点身份、配置快照、GeoIP 数据库、Pages 包、访问明细队列和升级用 PID/Unix Socket 都保存在该目录。
+状态目录 `/var/lib/openflare-edge` 是系统服务唯一具备写权限的目录，用于持久化令牌凭证、节点身份、配置快照、GeoIP 库、Pages 静态包与访问日志队列。
 
-## 进程模型与恢复
+## 进程模型与容灾机制
 
-节点进程包含控制面循环和 Pingora 数据面守护进程。控制面负责注册、心跳、配置拉取、Pages 同步、结果上报，并监督数据面生命周期；数据面负责监听、TLS、代理与安全策略。二者使用同一个状态目录和二进制。
+OpenFlare Edge 二进制内置双进程架构：控制面监督进程与 Pingora 数据面工作进程。
 
-systemd 对控制面设置 `Restart=always` 与 `RestartSec=5`。控制面每秒检查数据面进程，数据面异常退出时立即拉起新数据面；控制面自身异常退出时由 systemd 拉起并重建监督关系。重启后先恢复最后一次有效配置快照，再连接主控刷新配置。主控不可用时，数据面仍按本地快照继续服务。
+1. 控制面监督进程：负责维护长连接/心跳、拉取站点配置快照、同步 Pages 静态资源、上报运行指标，并监督数据面生命周期。
+2. Pingora 数据面工作进程：负责监听端口、处理 TLS 握手、执行 WAF 规则匹配、缓存加速及反向代理转发。
 
-访问明细由数据面写入带文件锁的 `access-logs.jsonl`，控制面按心跳批量领取并上报。上报成功后删除已确认部分，队列最多保留 2048 条，避免异常重启或升级窗口造成内存增长或明细丢失。
+容灾与恢复机制：
+- 进程级监控：控制面每秒检查数据面存活状态。数据面异常退出时，控制面立即重新拉起新的数据面进程；控制面进程异常退出时，由 systemd 自动重启（配置 `Restart=always`，间隔 5 秒）并重新接管数据面。
+- 本地快照恢复：节点重启时，优先从本地 `/var/lib/openflare-edge/snapshot.json` 恢复最近一次有效配置，再向控制面请求最新配置。在控制面不可用或网络中断期间，数据面按本地快照持续提供代理服务。
+- 访问日志可靠上报：数据面通过文件锁向 `/var/lib/openflare-edge/access-logs.jsonl` 追加访问记录，控制面随心跳批量读取并向 Server 上报，确认成功后截断已上报数据。本地队列上限为 2048 条，防止异常断网导致磁盘与内存无限制增长。
 
-## 升级
+## 升级与维护
 
-日常仅更新二进制程序时，可直接运行无参数更新脚本，自动识别现有安装目录与状态目录，仅替换程序并重启服务，不改动现有 `openflare-edge.service` 配置、令牌、快照及 GeoIP 数据库：
+### 二进制平滑升级
+
+日常更新可直接使用更新脚本，该脚本自动检测已有的安装路径与状态目录，仅替换可执行二进制并重启服务，保留原有的 systemd 配置、节点令牌、快照数据与 GeoIP 数据库：
 
 ```bash
+# 远程下载执行更新脚本
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash
+
+# 或在本地仓库执行
+sudo bash scripts/update-openflare-edge.sh
 ```
 
-安装和更新脚本均在校验归档及配置同步协议后，原子替换 `current` 二进制。每个安装目录只存放当前程序。旧安装首次切换时，会将 `current` 符号链接替换为程序文件，并清理原先的版本目录和验证记录。需要修改控制端地址、令牌或监听端口时，使用安装脚本。
+更新过程特性：
+- 校验下载归档的 SHA-256 摘要与配置协议兼容性。
+- 原子替换 `/opt/openflare-edge/current` 二进制文件。
+- 自 `edge-v0.1.2` 起，Pingora 退出宽限期优化为 2 秒，平滑排空连接后重启。
+- 更新脚本通过 systemd 校验启动结果。若新版本加载配置或启动失败，脚本输出错误日志，服务维持先前正常版本状态。
 
-更新脚本在下载和校验完成后，依次停止服务、替换程序、启动服务，并打印每一步。安装或更新正在进行时，后续脚本会直接返回锁占用错误。旧版 Edge 可能需要等待 300 秒的 Pingora 退出宽限期。自 `v0.1.2` 起，Pingora 的退出宽限期为 2 秒。可运行 `sudo journalctl -fu openflare-edge` 查看服务日志。
+### Docker 容器升级
 
-Edge 加载有效配置并开始监听后通知 systemd，更新脚本根据 systemd 的启动结果报告成功或失败。启动失败时，脚本输出服务日志并返回错误，新程序保留在 `current`。修复启动问题后，可重新执行更新命令。`--no-service` 安装完成后需手动启动。
-
-卸载：
+拉取最新镜像并重新创建容器：
 
 ```bash
-sudo bash uninstall-openflare-edge.sh
+docker pull ghcr.io/rain-kl/openflare-edge:latest
+docker stop openflare-edge && docker rm openflare-edge
+docker run -d --pull always --name openflare-edge --restart unless-stopped \
+  -p 80:8080 -p 443:8443 \
+  -v openflare-edge-data:/var/lib/openflare-edge \
+  -e OPENFLARE_EDGE_SERVER_URL=https://control.example.com \
+  -e OPENFLARE_EDGE_TOKEN_TYPE=node \
+  -e OPENFLARE_EDGE_TOKEN='<节点专属令牌>' \
+  ghcr.io/rain-kl/openflare-edge:latest
 ```
 
-需要同时删除节点身份、配置快照、Pages 与 GeoIP 数据时增加 `--remove-state`。
+保留原有数据卷 `openflare-edge-data`，新容器将直接复用节点身份与缓存快照。
+
+### 节点卸载
+
+停止并移除服务及安装文件：
+
+```bash
+# 远程下载卸载脚本执行
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-openflare-edge.sh | sudo bash -s --
+
+# 或在本地仓库执行
+sudo bash scripts/uninstall-openflare-edge.sh
+```
+
+如需彻底清除节点身份、配置快照、Pages 资源及 GeoIP 数据库，附加 `--remove-state` 参数：
+
+```bash
+sudo bash scripts/uninstall-openflare-edge.sh --remove-state
+```

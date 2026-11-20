@@ -1,50 +1,66 @@
-# 指南
+# 指南概览
 
-你会学到：OpenFlare 文档如何组织、首次运行应该读哪些页面，以及部署、使用、排查分别从哪里开始。
+OpenFlare 是基于 Pingora 边缘架构的分布式反向代理与边缘安全网关。平台提供多节点集群编排、配置快照热同步、边缘 WAF、PoW 防 CC 人机验证、内网穿透（Tunnels）与 Pages 静态托管能力，支持独立运行或与上层 CDN 协同防御。
 
-OpenFlare 是新一代分布式反向代理与边缘安全网关。它将传统 OpenResty / Nginx 升级为具备多节点集群编排、Zero-Reload 动态配置同步、边缘 WAF、客户端 PoW 防 CC 人机验证、内网穿透（Tunnels）与 Pages 静态托管的现代化边缘网络平台。可独立自建运行，亦可作为源站护盾与 Cloudflare 协同防御。
+指南文档按使用流程划分为五个模块，帮助使用者完成从系统初始化、日常流量调度到安全防御与故障定位的全流程操作。
 
-## 推荐阅读路径
+---
 
-如果你第一次接触 OpenFlare，按下面顺序阅读：
+## 指南模块索引
 
-1. [快速开始](./quick-start.md)：用 Docker Compose 启动 Server，登录管理端，并接入第一个 Agent。
-2. [创建第一条反向代理规则](./first-site.md)：快速新建一条最基础的 HTTP 反代站点规则，并验证节点生效状态。
-3. [新建反代配置](./proxy-config.md)：一步一步了解如何从证书导入与申请开始，配置 HTTPS 加密、上游源站与边缘缓存。
-4. [Zone 域名迁移](./zone-domain-migration.md)：从旧托管域名/路由内嵌域名升级到 Zone 模型（goose 自动导入），含备份、验收与回滚说明。
-5. [Pages 静态托管使用](./pages-usage.md)：了解静态项目 ZIP 上传限制、SPA Fallback、以及内置 API 反向代理配置。
-6. [内网穿透与隧道使用](./tunnel-usage.md)：部署 Relay 与 Client，实现安全、无公网 IP 反向穿透。
-7. [WAF 安全防护使用](./waf-usage.md)：配置 WAF 规则组，掌握 IP 黑白名单、自动/订阅 IP 组和地域限制。PoW CC 防护见 [独立 PoW 使用指南](./pow-usage.md)。
-8. [WAF 自动 IP 组语法](./waf-ip-group-expr.md)：编写自动 IP 组 Expr 规则，了解关键字含义和预设规则。
-9. [Uptime Kuma 监控同步](./uptime-kuma.md)：配置并使用 Uptime Kuma 自动差分同步和监控范围控制。
-10. [SSO 登录配置](./sso.md)：配置 OIDC 实现第三方单点登录（SSO）接入。
-11. [故障排查](./troubleshooting.md)：按症状排查登录、数据库、节点同步、OpenResty 与边缘缓存命中问题。
-12. [引用与致谢](./credits.md)：查看系统依赖的优秀开源项目与社区致谢清单。
+### 入门指引 (Getting Started)
+适合首次部署或初次接入边缘网关的使用者：
+- [快速开始](./quick-start.md)：使用 Docker Compose 部署 Server 控制端、完成首次登录、获取凭证并接入第一个边缘节点。
+- [创建第一条反向代理规则](./first-site.md)：以最精简的 HTTP 方式创建首个代理站点并验证节点同步状态。
+- [首页地理分布](./dashboard-map.md)：了解控制台全球态势图、2D/3D 地图切换机制、指标统计口径与国家请求分布。
 
-## 按角色查找
+### 流量代理与加速 (Traffic & Routing)
+配置核心反向代理路由、TLS 加密与边缘缓存策略：
+- [新建反代配置](./proxy-config.md)：配置上游源站、域名路由绑定、通配符域名匹配、IP HTTPS 回源与访问认证。
+- [TLS 证书与自动续期](./certificates.md)：手动导入已有证书或通过 ACME 协议与 Cloudflare DNS API 实现通配符证书自动申请与续签。
+- [Pingora 性能策略](./performance-policies.md)：配置节点工作线程数、回源连接池、HTTP/2 并发流、TinyUFO 内存缓存与磁盘缓存。
+- [Zone 域名迁移](./zone-domain-migration.md)：了解从旧版域名模型到 Zone 根域模型的自动迁移机制、备份要求与升级验收步骤。
 
-| 你想做什么 | 推荐入口 |
+### 边缘安全防护 (Edge Security)
+配置边缘安全防火墙与人机验证挑战：
+- [WAF 安全防护使用](./waf-usage.md)：使用可视化 DAG 编排 WAF 规则流，配置 IP 匹配、地域拦截与 OWASP CRS 攻击防护规则组。
+- [PoW 防护](./pow-usage.md)：为指定路由配置客户端工作量证明（PoW）防 CC 挑战，管理触发路径与自定义验证界面。
+- [WAF 自动 IP 组语法](./waf-ip-group-expr.md)：编写基于 Expr 表达式的动态 IP 聚合与自动封禁规则，支持自定义状态码与错误率分析。
+
+### 应用与集成 (Apps & Integrations)
+扩展网关能力，接入静态站点托管、内网穿透与监控：
+- [Pages 静态托管使用](./pages-usage.md)：部署预构建静态应用归档，配置 SPA Fallback 与 API 路径反向代理，管理版本发布与回滚。
+- [内网穿透与隧道使用](./tunnel-usage.md)：部署 Relay 中继节点与 OpenFlared 客户端，为无公网 IP 的内网服务提供反向穿透与网关安全防护。
+- [Uptime Kuma 监控同步](./uptime-kuma.md)：配置 Uptime Kuma 自动化差分同步，自动创建、更新与清理代理站点的可用性监控项。
+- [SSO 登录配置](./sso.md)：配置标准 OIDC 认证源，接入第三方单点登录，支持账号自动绑定与权限管理。
+
+### 运维支持 (Operations)
+日常运维、故障定位与开源依赖参考：
+- [故障排查](./troubleshooting.md)：按症状排查控制面启动、数据库连接、Agent 注册、Pingora 配置应用与缓存命中异常。
+- [开源致谢](./credits.md)：查看系统核心开源项目、衍生代码来源、第三方组件与许可证声明。
+
+---
+
+## 场景快速跳转
+
+| 操作目标 | 推荐文档 |
 | --- | --- |
-| 5 分钟内跑起管理端 | [快速开始](./quick-start.md) |
-| 创建首个 HTTP 站点 | [创建第一条反向代理规则](./first-site.md) |
-| 配置域名证书、反代与边缘缓存 | [新建反代配置](./proxy-config.md)（含缓存说明） |
-| 静态资源不命中缓存 | [故障排查 · 边缘缓存](./troubleshooting.md#边缘缓存命中率异常) |
-| 托管单页应用或静态网站 | [Pages 静态托管使用](./pages-usage.md) |
-| 配置内网穿透映射 | [内网穿透与隧道使用](./tunnel-usage.md) |
-| 配置防 CC 与 IP 组拦截 | [WAF 安全防护使用](./waf-usage.md) |
-| 编写自动 IP 组规则 | [WAF 自动 IP 组语法](./waf-ip-group-expr.md) |
-| 自动同步监测站点状态 | [Uptime Kuma 监控同步](./uptime-kuma.md) |
-| 接入或重装节点 Agent | [接入 Agent](../deployment/agent.md) |
-| 从源码启动 Server | [启动 Server](../deployment/server.md) |
-| 配置 OIDC 登录 | [SSO 登录配置](./sso.md) |
-| 升级 Server 或 Agent | [升级与维护](../deployment/upgrade.md) |
-| 理解架构和发布模型 | [系统架构](../design/architecture.md) 与 [Agent 与发布模型](../design/agent-design.md) |
-| 查看开源引用与致谢 | [引用与致谢](./credits.md) |
+| 启动控制端并接入首个节点 | [快速开始](./quick-start.md) |
+| 发布基础 HTTP 代理测试规则 | [创建第一条反向代理规则](./first-site.md) |
+| 为域名配置 HTTPS 证书与源站反代 | [新建反代配置](./proxy-config.md) 与 [TLS 证书与自动续期](./certificates.md) |
+| 调整边缘节点线程、连接池与缓存容量 | [Pingora 性能策略](./performance-policies.md) |
+| 开启 WAF 拦截规则与防 CC 人机验证 | [WAF 安全防护使用](./waf-usage.md) 与 [PoW 防护](./pow-usage.md) |
+| 托管单页前端应用并配置 API 转发 | [Pages 静态托管使用](./pages-usage.md) |
+| 将内网服务器服务映射到公网 | [内网穿透与隧道使用](./tunnel-usage.md) |
+| 同步站点可用性监控任务 | [Uptime Kuma 监控同步](./uptime-kuma.md) |
+| 接入企业 OIDC / OAuth2 登录 | [SSO 登录配置](./sso.md) |
+| 节点未同步配置或缓存未命中 | [故障排查](./troubleshooting.md) |
 
-## 文档分区
+---
 
-`guide/` 面向使用者和部署者，提供从安装到日常操作的可执行步骤。
+## 文档架构关系
 
-`reference/` 收敛稳定事实，例如配置字段、命令、API 响应约定和仓库结构。
-
-`design/` 面向维护者和贡献者，描述产品边界、系统架构、Agent 与发布模型和工程约束。新增能力或改变边界前，应先更新对应设计文档。
+OpenFlare 文档分为三大部分：
+- `guide/`（本板块）：面向系统管理员与运维人员，提供可执行的操作指南与使用流程。
+- `reference/`：提供稳定事实与规范定义，涵盖配置参数定义、CLI 命令规范及性能基准。
+- `design/`：面向系统设计与内核开发者，阐述架构设计、数据模型、状态同步与安全机制。

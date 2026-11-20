@@ -1,6 +1,6 @@
 # WAF Auto IP Group Rule Syntax
 
-Auto IP groups aggregate metrics per client IP from request logs, then use Expr expressions to decide whether to add an IP to the group list. Auto IP groups can be referenced by a WAF rule group's IP blocklist or allowlist; on config release, the Server only writes the IP group reference IDs into `waf_config.json` — IP group members are synced independently by the Agent to the local runtime file.
+Auto IP groups aggregate metrics per client IP from request logs, then use Expr expressions to determine whether to include an IP in the group. Auto IP groups can be referenced by IP Match nodes in WAF rules. Rule topologies synchronize with site configuration snapshots, while IP group memberships update independently.
 
 ## Config Structure
 
@@ -22,22 +22,24 @@ Field reference:
 
 | Field | Type | Purpose |
 | --- | --- | --- |
-| `lookback` | string | lookback window duration in Go Duration syntax, e.g. `30m`, `1h`, `90m`. Defaults to `1h`, max 30 days. Compatible with the legacy `lookback_minutes` (integer minutes). |
-| `rules` | array | auto-rule list. If any rule matches, the IP enters the auto IP group list. |
-| `rules[].name` | string | rule name, only for UI display and error messages. |
+| `lookback` | string | Lookback window duration in Go Duration syntax (e.g. `30m`, `1h`, `90m`). Defaults to `1h`, maximum 30 days. Compatible with legacy `lookback_minutes`. |
+| `rules` | array | Automatic rule list. If any rule matches, the IP is added to the IP group. |
+| `rules[].name` | string | Rule name, used for display and error reporting. |
 | `rules[].expr` | string | Expr expression, must return a boolean. |
 
 ## Execution Semantics
 
-Auto IP groups first aggregate metrics per client IP, then run rule expressions against each IP:
+Auto IP groups aggregate metrics per client IP before evaluating expressions:
 
-1. The Server reads request logs from the last `lookback` window.
-2. Groups by normalized `remote_addr` IP.
-3. Computes per-IP metrics: request count, 404 count, direct-IP Host count, etc.
-4. Runs `rules[].expr` per IP.
-5. If an IP matches any rule, it is written into the auto IP group's `IP / IP segment` list.
+1. The Server reads request logs within the configured `lookback` duration.
+2. Groups logs by normalized `remote_addr` IP, skipping IPv4 private networks, IPv6 Unique Local Addresses (ULA), loopback, link-local, unspecified, multicast, and broadcast addresses. IPv4-mapped IPv6 addresses resolve to the underlying IPv4 address.
+3. Calculates request counts, 404 counts, direct IP Host counts, and related metrics for each IP.
+4. Evaluates `rules[].expr` against each candidate IP.
+5. If an IP matches any rule, it is added to the auto IP group list.
 
-Whether a Host is "accessed via IP" is judged by the `Host` field in request logs: if the Host is an IPv4 or IPv6 literal, e.g. `203.0.113.10`, `[2001:db8::10]`, `203.0.113.10:443`, it counts toward `ip_host_count`.
+**Test Rule** executes the same address filtering logic as production background evaluation. When an auto IP group updates on schedule, historical entries matching private or loopback ranges are purged automatically regardless of TTL. Manual and subscription IP groups are not filtered by this mechanism.
+
+Whether a request represents "access via IP literal" is evaluated using the `Host` header: IPv4 or IPv6 literals (such as `203.0.113.10`, `[2001:db8::10]`, or `203.0.113.10:443`) increment `ip_host_count`.
 
 ## Available Keywords
 

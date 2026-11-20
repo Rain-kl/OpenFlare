@@ -1,38 +1,141 @@
-# 升级与维护
+# 升级与维护指南
 
-升级前确认当前站点配置和最近一次边缘节点应用结果，并备份数据库。
+在执行版本升级或运维操作前，请先备份主数据库，并确认当前站点配置已成功发布至各边缘节点。
 
-## 从 v3.6.x 升级到 v4.0.0
+---
 
-v4.0.0 使用 Pingora 提供边缘代理服务。现有 OpenResty 节点需迁移到 OpenFlare Edge。升级前保存旧节点的专属令牌和自定义 OpenResty 性能配置，后者需在控制台的「性能策略」中重新配置。
+## 从 v3.6.x 升级至 v4.0.0
 
-1. 升级 Server，确认数据库迁移完成且已生成有效的 Pingora 站点快照。
-2. 逐台迁移边缘节点。停止旧 Agent 与 OpenResty 服务并释放代理监听端口，然后使用控制台节点详情提供的 Linux 或 Docker 命令部署 [OpenFlare Edge](./openflare-edge.md)。使用原节点专属令牌可保留节点 ID 和业务绑定。
-3. 确认节点已上线并成功加载配置，通过该节点验证站点 HTTP 和 HTTPS 访问，再迁移下一台节点。
+OpenFlare 自 v4.0.0 起采用基于 Pingora 的边缘网关（OpenFlare Edge）全面替代原 OpenResty 架构。升级前请记录原节点的专属令牌，自定义的 OpenResty 性能参数需在控制台「性能策略」中重新配置。
 
-## Server 升级
+### 迁移步骤
 
-拉取最新镜像升级
+1. 升级控制面 Server：升级 Server 至 v4.0.0+，确认数据库迁移自动执行完毕，且控制端已成功生成 Pingora 站点配置快照。
+2. 逐台迁移边缘节点：
+   - 停止旧版本 Agent 及 OpenResty 服务，释放 TCP `80` 与 `443` 端口：
+     ```bash
+     sudo systemctl stop openflare-agent openresty 2>/dev/null || true
+     sudo systemctl disable openflare-agent openresty 2>/dev/null || true
+     ```
+   - 在控制台节点详情中复制边缘节点部署命令，或参考 [OpenFlare Edge 部署指南](./openflare-edge.md) 部署新网关。使用原节点的专属令牌可保留原节点 ID、统计数据及域名绑定关系。
+3. 验证并灰度推进：
+   - 确认新节点状态变为在线，且成功加载有效快照。
+   - 验证经过该节点的 HTTP 与 HTTPS 请求转发正常，确认无误后推进下一台节点。
+
+---
+
+## Server 控制面升级
+
+### 1. 数据库备份
+
+在拉取新版本前，务必备份主数据库：
+
+```bash
+# PostgreSQL 备份
+docker compose exec postgres pg_dump -U openflare openflare > openflare_backup_$(date +%Y%m%d).sql
+
+# SQLite 单机版备份
+cp ./openflare-data/openflare.db ./openflare-data/openflare_backup_$(date +%Y%m%d).db
+```
+
+### 2. Docker Compose 容器升级
+
+拉取最新发布镜像并重启服务：
 
 ```bash
 docker compose pull
-docker compose up
+docker compose up -d
+docker compose ps
+docker compose logs -f openflare
 ```
 
-如果是源码部署，重新启动 Server 后确认数据库迁移和快照编译成功。控制端启动后会按数据库中已保存的配置生成站点快照，包括升级前已保存的改动。
+启动过程中，Server 会通过内置 migrator 自动应用未执行的数据库迁移脚本（涵盖 PostgreSQL 与 SQLite 双数据库引擎），并在启动后根据数据库当前配置自动重新编译站点快照。
+
+### 3. 源码部署升级
+
+```bash
+git fetch --tags
+git checkout <target-version-tag>
+
+# 重新编译前端静态资源
+cd frontend && pnpm install && pnpm build:embed && cd ..
+
+# 重启 Server
+go run ./cmd/server all
+```
+
+---
 
 ## Pingora 边缘节点更新
 
-在控制台打开 **节点 → 边缘节点详情 → 更新边缘节点**，选择正式版或预览版，确认目标版本后提交。请求会保留到节点启动目标版本并成功回报就绪。节点离线时会在恢复心跳后收到请求。
+### 方式 1：控制台远程更新
 
-在节点的 **编辑** 对话框中启用 **自动更新节点**，节点会在就绪后检查更新，之后每 6 小时检查一次。自动更新仅安装较新的正式版，下载或校验失败时会延长间隔重试。正在等待执行的手动请求优先于自动更新。
+1. 进入管理后台「节点管理」，打开目标边缘节点详情。
+2. 点击「更新边缘节点」，选择正式版或预览版目标版本，确认后提交更新任务。
+3. 控制面将在下一次心跳周期（默认 10 秒内）将更新指令下发至节点。节点下载新版本、校验 SHA-256 摘要、排空现有连接并平滑重启。
+4. 若节点当前处于离线状态，指令将保留至节点恢复心跳后执行。
 
-控制端和节点均须使用支持此功能的版本。已有 Linux systemd 节点首次启用时，请使用该版本随附的 `scripts/update-openflare-edge.sh --version <edge-v版本>` 在节点上更新一次。Edge 产物从系统设置 `agent_update_repo` 指定的 GitHub 仓库获取。
+> [!TIP]
+> 自动更新机制：在节点的「编辑」对话框中开启「自动更新节点」，节点在就绪后每 6 小时自动检测 GitHub Releases 较新的正式版并静默升级。手动触发的任务优先级高于自动更新。
 
-Docker 部署通过拉取新镜像并重建容器更新。复用 `/var/lib/openflare-edge` 对应的数据卷以保留节点身份和已同步的配置。
+### 方式 2：主机脚本就地更新
 
-节点会验证安装包和二进制的 SHA-256，并在短暂排空请求后由 systemd 重启。更新后，节点须能连接控制端、监听服务端口并加载有效配置。新版本未通过启动检查时，下一次启动恢复先前版本。下载或启动错误可在节点详情或 `journalctl -u openflare-edge` 查看。
+在 Linux 节点上执行更新脚本，脚本将自动检测已有安装目录与状态目录，原子替换 `/opt/openflare-edge/current` 二进制并重启 systemd 服务：
 
-## Relay 与隧道节点更新
+```bash
+# 远程下载执行
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash
 
-在相应的节点详情中可手动更新 Relay 或 openflared，也可在节点设置中启用自动更新。容器部署可通过拉取新镜像并重建容器更新。
+# 指定特定版本更新
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash -s -- --version edge-v0.1.3
+```
+
+### 方式 3：Docker 容器节点更新
+
+拉取最新边缘节点镜像并重建容器（数据卷保留节点身份与缓存）：
+
+```bash
+docker pull ghcr.io/rain-kl/openflare-edge:latest
+docker stop openflare-edge && docker rm openflare-edge
+docker run -d --pull always --name openflare-edge --restart unless-stopped \
+  -p 80:8080 -p 443:8443 \
+  -v openflare-edge-data:/var/lib/openflare-edge \
+  -e OPENFLARE_EDGE_SERVER_URL=https://control.example.com \
+  -e OPENFLARE_EDGE_TOKEN_TYPE=node \
+  -e OPENFLARE_EDGE_TOKEN='<节点专属令牌>' \
+  ghcr.io/rain-kl/openflare-edge:latest
+```
+
+---
+
+## Relay 与 Tunnel 客户端更新
+
+在管理后台对应的节点详情页中，可查看当前运行版本并执行更新，或开启自动更新。对于基于 Docker 运行的 Relay 和 OpenFlared：
+
+```bash
+# 更新 Relay
+docker pull ghcr.io/rain-kl/openflare-relay:latest
+docker stop openflare-relay && docker rm openflare-relay
+# 使用原参数重新运行 docker run ...
+
+# 更新 OpenFlared
+docker pull ghcr.io/rain-kl/openflared:latest
+docker stop openflared && docker rm openflared
+# 使用原参数重新运行 docker run ...
+```
+
+---
+
+## 异常回滚与故障排查
+
+若升级后服务未正常拉起：
+
+1. 查看边缘节点日志：
+   ```bash
+   sudo journalctl -u openflare-edge -n 100 --no-pager
+   ```
+2. 容灾快照保留机制：OpenFlare Edge 在启动失败时不会覆盖本地 `/var/lib/openflare-edge/snapshot.json` 快照文件，确保在排查期间持续按有效快照提供服务。
+3. 回滚 Edge 版本：通过脚本传入历史稳定版本标签执行降级：
+   ```bash
+   sudo bash scripts/install-openflare-edge.sh --version edge-v0.1.2 ...
+   ```

@@ -1,4 +1,14 @@
 {
   "title": "参考",
-  "pages": ["index", "configuration", "cli", "pingora-benchmark"]
+  "pages": [
+    "index",
+    "---配置与参数---",
+    "configuration",
+    "---命令行与脚本---",
+    "cli",
+    "---接口与协议---",
+    "api",
+    "---性能基准---",
+    "pingora-benchmark"
+  ]
 }

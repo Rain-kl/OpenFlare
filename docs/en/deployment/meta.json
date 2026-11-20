@@ -2,11 +2,16 @@
   "title": "Deployment",
   "pages": [
     "index",
+    "---Overview---",
     "deployment",
+    "---Components---",
     "server",
     "agent",
+    "openflare-edge",
+    "---Tunnel Infrastructure---",
     "relay",
     "openflared",
+    "---Maintenance---",
     "upgrade"
   ]
 }

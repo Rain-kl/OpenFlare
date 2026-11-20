@@ -2,18 +2,19 @@
 
 You will learn: what OpenFlare is, its current stable capabilities, and the core product boundaries and repository structure layout you must follow when developing.
 
-OpenFlare is a self-hosted OpenResty control plane for single-team or single-organization internal operations.
+OpenFlare is a modern distributed reverse proxy and edge security gateway platform designed for multi-server clusters and single-team operations.
 
 ---
 
 ## Project Positioning
 
-OpenFlare suits teams that need to centrally manage multiple OpenResty proxy nodes, with this positioning:
-* **Control/landing separation**: the Server control plane doesn't SSH into proxy nodes; Agents actively pull versions and apply them.
-* **Immutable config release**: full config versions are used for preview, release, activation, and one-click rollback.
-* **Integrated gateway hosting**: website reverse proxying, automatic TLS certificate issuance/renewal, WAF protection, intranet penetration (Tunnel), and Pages static hosting are integrated into one control plane.
+OpenFlare suits teams that need to centrally manage multiple Pingora proxy nodes, build self-hosted high-availability edge networks, or establish a hardened protective gateway in front of origin servers, with the following positioning:
+* **Control/Landing Separation**: The Server control plane never SSHs into proxy nodes; edge nodes actively pull versions and apply them via heartbeats and WebSockets.
+* **Zero-Reload Dynamic Configuration Sync**: Built on the Rust Pingora edge gateway, updates take effect via in-memory snapshot atomic swapping and incremental configuration synchronization, eliminating connection jitter caused by traditional gateway reload operations.
+* **Integrated Edge Security Gateway**: Combines reverse proxying, automated TLS certificate renewal, WAF protection, Turnstile-like client PoW anti-CC defense, intranet penetration (Tunnel), and Pages static website hosting in a unified control plane.
+* **Dual Deployment Architecture**: Operates either as a standalone private edge CDN or as a hardened Origin Shield behind Cloudflare, shielding origin IP addresses while retaining full private audit logs.
 
-**Not this product's positioning**: multi-tenant cloud platforms, Kubernetes Ingress Controllers, service meshes, or general log platforms.
+**Not this product's positioning**: Multi-tenant public cloud platforms, Kubernetes Ingress Controllers, service meshes, or general-purpose log aggregation systems.
 
 ---
 
@@ -21,118 +22,105 @@ OpenFlare suits teams that need to centrally manage multiple OpenResty proxy nod
 
 | Capability | Description | Detailed Design/Usage |
 | --- | --- | --- |
-| **Reverse proxy config management** | website rules (Proxy Route) as the aggregation boundary; multi-domain and multi-upstream load balancing | [Create a Reverse Proxy Config](../guide/proxy-config.md) |
-| **Origin error page** | globally configurable: matching origin/gateway status codes return OpenFlare default or custom HTML with the HTTP status kept | [Origin Error Page Design](./origin-error-page.md) |
-| **Edge cache** | single-node OpenResty `proxy_cache`; default static extensions + origin-header/Set-Cookie gates + default Edge TTL (benchmarked to the CF default model) | [Edge Cache Strategy Design](./edge-cache-design.md) |
-| **Zone & domain management** | registrable root domains as the management entry, aggregating explicit domains, domain certificates, and reverse proxy routes | [Zone & Domain Resource Design](./zone-design.md) |
-| **Cloudflare DNS pointing** | per ZoneDomain, idempotently point a single Cloudflare A record at an edge node IPv4; connection config, groups, member orange-cloud, and async sync; no auto-failover in phase 1 | [Cloudflare DNS Pointing Design](./cloudflare-pointing.md) |
-| **Config versioning** | global single active version with preview, release, immutable snapshot history, and second-level one-click rollback | [Agent & Publish Model](./agent-design.md) |
-| **WAF protection** | visual DAG rule orchestration, manual/auto/subscription IP groups, GeoIP matching, and PoW CC protection | [WAF Design](./waf-design.md) / [WAF Orchestration Rule Design](./waf-orchestration-design.md) / [WAF Usage Guide](../guide/waf-usage.md) |
-| **Intranet penetration** | reverse-penetrate and expose intranet web services via Relay nodes and the OpenFlared client | [Tunnel Design](./tunnel-design.md) / [Tunnel Usage Guide](../guide/tunnel-usage.md) |
-| **Pages static hosting** | upload or sync pre-built artifacts from Remote URLs or public GitHub Releases; GitHub latest can be periodically checked and optionally auto-published. Immutable deployments are pulled by edge nodes and served locally by OpenResty, supporting rollback, API proxying, and SPA Fallback | [Pages Static Hosting Design](./pages-design.md) / [Pages Usage Guide](../guide/pages-usage.md) |
-| **TLS certificate auto-renewal** | explicitly bind certificates to Zone domains; issue/renew via ACME against Let's Encrypt | [Zone & Domain Resource Design](./zone-design.md) |
-| **Multi-node monitoring & observability** | access logs as the single truth for business traffic; Agent reports only details and host readings, Server aggregates uniformly; reconciled with Zone/dashboard | [Observability Transport Model](./observability-transport-model.md) / [Edge Observability & Business Traffic Stats](./observability-design.md) / [Reporting Protocol & Tables](./observability-data-model.md) / [System Architecture](./architecture.md) |
-| **Log storage** | access logs and observability time series use the switchable log primary DB (follows the business primary DB or ClickHouse); still writable/queryable with ClickHouse off | [Log Store Decoupling](./logstore.md) |
-| **Console bilingual** | zh-CN / en without URL prefixes, `NEXT_LOCALE` cookie precedence, static-export compatible | [Frontend i18n design](../superpowers/specs/2026-07-24-frontend-i18n-design.md) |
+| **Reverse proxy config management** | Website rules (Proxy Route) as the aggregation boundary, supporting multi-domain and multi-upstream load balancing | [Create a Reverse Proxy Config](../guide/proxy-config.md) |
+| **Origin error page** | Globally configurable: matching origin/gateway status codes return OpenFlare default or custom HTML with the HTTP status kept | [Origin Error Page Design](./origin-error-page.md) |
+| **Edge cache** | Pingora in-memory caching: default static extensions + origin-header/Set-Cookie gates + default Edge TTL (benchmarked against the CF default model) | [Edge Cache Strategy Design](./edge-cache-design.md) |
+| **Zone & domain management** | Registrable root domains as the management entry, aggregating explicit domains, domain certificates, and reverse proxy routes | [Zone & Domain Resource Design](./zone-design.md) |
+| **Cloudflare DNS pointing** | Per ZoneDomain, idempotently point a single Cloudflare A record at an edge node IPv4; connection config, groups, member orange-cloud, and async sync; no auto-failover in phase 1 | [Cloudflare DNS Pointing Design](./cloudflare-pointing.md) |
+| **Edge config sync** | Automatic sync on save; nodes apply snapshots atomically while retaining the last healthy snapshot | [Pingora Edge Node Design](./pingora-edge-design.md) |
+| **WAF protection** | Visual DAG rule orchestration, manual/auto/subscription IP groups, GeoIP matching, and PoW CC protection | [WAF Design](./waf-design.md) / [WAF Orchestration Rule Design](./waf-orchestration-design.md) / [WAF Usage Guide](../guide/waf-usage.md) |
+| **Intranet penetration** | Reverse-penetrate and expose intranet web services via Relay nodes and the OpenFlared client | [Tunnel Design](./tunnel-design.md) / [Tunnel Usage Guide](../guide/tunnel-usage.md) |
+| **Pages static hosting** | Upload or sync pre-built artifacts from Remote URLs or public GitHub Releases; GitHub latest can be periodically checked and optionally auto-published. Immutable deployments are pulled by edge nodes and served locally by Pingora, supporting rollback, API proxying, and SPA Fallback | [Pages Static Hosting Design](./pages-design.md) / [Pages Usage Guide](../guide/pages-usage.md) |
+| **TLS certificate auto-renewal** | Explicitly bind certificates to Zone domains; issue/renew via ACME against Let's Encrypt | [Zone & Domain Resource Design](./zone-design.md) |
+| **Multi-node monitoring & observability** | Access logs as the single truth for business traffic; edge nodes report only details and host readings, Server aggregates uniformly; reconciled with Zone and dashboard | [Observability Transport Model](./observability-transport-model.md) / [Edge Observability & Business Traffic Stats](./observability-design.md) / [Reporting Protocol & Tables](./observability-data-model.md) / [System Architecture](./architecture.md) |
+| **Log storage** | Access logs and observability time series use the switchable log primary DB (follows the business primary DB or ClickHouse); still writable/queryable with ClickHouse off | [Log Store Decoupling](./logstore.md) |
+| **Console multilingual & i18n** | zh-CN / en / ru without URL prefixes, `NEXT_LOCALE` cookie precedence, static-export compatible | [Runtime Language and Internationalization](./log-language.md) |
 
 ---
 
 ## Core Product Boundaries and Constraints
 
-When developing and contributing code, **you must strictly follow** these business boundaries and technical constraints; don't bypass them for temporary needs:
+When developing and contributing code, **you must strictly follow** these business boundaries and technical constraints; do not bypass them for temporary needs:
 
 ### 1. Website Config and Upstream Constraints
-* **Single-site domain sharing policy**: one route rule corresponds to one website; the site's multiple domains share rate limit, cache, and reverse-proxy upstream config. Differential per-domain service config within the same rule is not supported.
-* **Upstream type mutual exclusion**: the upstream must be one of direct address (`direct`), intranet tunnel (`tunnel`), or Pages static hosting (`pages`); mixing within one rule is not allowed.
-* **Direct type restrictions**: a direct upstream can be a single or multiple pure `http://` or `https://` addresses (multi-address only supports plain `scheme://host[:port]`); non-HTTP protocols (TCP/UDP) upstreams are not supported.
+* **Single-site domain sharing policy**: One route rule corresponds to one website; the site's multiple domains share rate limit, cache, and reverse-proxy upstream config. Differential per-domain service config within the same rule is not supported.
+* **Upstream type mutual exclusion**: The upstream must be one of direct address (`direct`), intranet tunnel (`tunnel`), or Pages static hosting (`pages`); mixing within one rule is not allowed.
+* **Direct type restrictions**: A direct upstream can be a single or multiple pure `http://` or `https://` addresses (multi-address only supports plain `scheme://host[:port]`); non-HTTP protocols (TCP/UDP) upstreams are not supported.
 
 ### 2. WAF Security Boundaries
-* **Allowlist priority**: the allowlist has absolute matching power. Only when an allowlist rule isn't hit do the global and custom blocklist filters trigger in order.
-* **GeoIP weak dependency**: geo access resolution fully depends on the node-local MaxMind DB. When GeoIP is abnormal or fails to resolve, the system must auto-ignore geo rules — **never** break IP-group filtering or the reverse-proxy main chain's availability.
-* **Runtime data decoupling**: OpenResty interception only reads Agent-synced local JSON, never talking to the Server DB. IP group member sync is decoupled from version release via Checksum differential pull for zero-reload smooth effect.
+* **Allowlist priority**: The allowlist has absolute matching power. Only when an allowlist rule is not hit do global and custom blocklist filters trigger in order.
+* **GeoIP weak dependency**: Geographic access resolution fully depends on the node-local MaxMind database. When GeoIP is abnormal or fails to resolve, the system must automatically ignore geographic rules — **never** compromise IP-group filtering or reverse-proxy main chain availability.
+* **Runtime data decoupling**: Pingora executes rules via in-memory snapshots without communicating with the Server DB. IP group members update independently from site snapshots through checksum-based differential pulls for zero-reload smooth activation.
 
 ### 3. Intranet Penetration Boundaries
-* **HTTP traffic only**: the tunnel components only support HTTP/HTTPS (based on frp's vhost mechanism for single-port domain-route reuse); standalone TCP/UDP port allocation is not supported yet.
-* **Dynamic relay config control**: a Relay node, after connecting to the Server, dynamically pulls and syncs global system config via heartbeats (e.g. whether the embedded FRPS Web UI and its port are enabled), but isn't part of the control plane's immutable config version release system.
-* **Tunnel/Node system isolation**: Tunnel clients make outbound connections from the intranet and are independent entities from control-plane-hosted edge Nodes (public nodes), authenticated with the dedicated `tunnel_token`.
+* **HTTP traffic only**: Tunnel components support only HTTP/HTTPS protocols (leveraging frp virtual host routing to reuse single ports across multiple domains); standalone TCP/UDP port allocation is not supported.
+* **Dynamic relay config control**: Relay nodes dynamically pull and synchronize global system configuration (such as embedded FRPS Web UI toggles and ports) via heartbeats after connecting to the Server, governed by a standalone relay configuration protocol.
+* **Tunnel/Node system isolation**: Tunnel clients initiate outbound connections from internal networks and remain strictly isolated from control-plane-hosted edge nodes (public nodes), authenticated with dedicated `tunnel_token` credentials.
 
 ### 4. Pages Static Hosting Boundaries
-* **Pre-built artifact sources**: a project may stay manual-upload, or configure one Remote URL / public GitHub Release asset source. Remote and fixed tags only support manual ops; only GitHub latest enters scheduled checks and can opt into auto-update. Sources are switchable, but immutable deployments and the current production version don't get lost when editing or deleting a source.
-* **Archive and resource limits**: supports `zip`, `tar.gz` / `tgz`, `tar.xz` / `txz`, `tar.bz2` / `tbz2`, `tar`, `7z`. Archive cap controlled by `pages_max_package_size_mb` (default 100 MiB, range 1–2048); expanded single-file and total limits are 4× the package cap with a 100 MiB floor, at most 1,000 regular files. Both Server and Agent validate actual bytes and reject path traversal, symlinks/hard links, and special files.
-* **Build and runtime boundaries**: currently no source checkout or build execution from external git repos, and no edge Serverless, dynamic SSR, or preview subdomains. Future repo integration must use a separate `git_repository` Provider with a Server-side isolated build executor, emitting only restricted artifacts into the unified artifact pipeline; the Agent never receives repo credentials, external URLs, or clone/install/build commands.
+* **Pre-built artifact sources**: Projects can maintain manual uploads or configure a single Remote URL / public GitHub Release asset source. Remote and fixed tags support manual operations only; only GitHub latest enters scheduled polling with optional auto-updates. Sources can be modified without losing immutable deployments or the active production release.
+* **Archive and resource limits**: Supports `zip`, `tar.gz` / `tgz`, `tar.xz` / `txz`, `tar.bz2` / `tbz2`, `tar`, and `7z`. Package sizes are capped by `pages_max_package_size_mb` (default 100 MiB, range 1–2048); expanded single-file and total size caps are 4× the package limit with a 100 MiB minimum, up to 1,000 regular files. Both Server and edge nodes validate actual bytes and reject path traversals, symlinks/hardlinks, and special files.
+* **Build and runtime boundaries**: The system does not check out external Git repositories or execute arbitrary build pipelines, nor does it provide edge Serverless, dynamic SSR, or preview subdomains. Future repository integration must use a standalone `git_repository` Provider with an isolated Server build executor, outputting restricted artifacts into the unified pipeline; edge nodes never receive repository credentials, external URLs, or clone/build commands.
 
 ### 5. System and Version Boundaries
-* **Globally single active version**: all nodes pull and consume the same globally active config. Per-node-group differentiated config release isn't performed.
-* **Single-tenant architecture**: OpenFlare is for a single team deploying on a trusted internal network. Single-tenant by design; fine-grained multi-user roles or multi-tenant resource isolation aren't supported.
-* **External infra dependency**: the Server **must depend on** external Redis (or Valkey) for distributed coordination, the Asynq queue, and system cache. The relational DB is PostgreSQL, or SQLite when `database.enabled` is off. ClickHouse **optional**: when off, access logs and observability time series are handled by the current log primary DB (follows the business primary DB); when on, the「Switch Log Database」task can migrate to ClickHouse. Running without Redis is not supported. See [Log Store Decoupling](./logstore.md).
+* **Site snapshots**: All edge nodes synchronize the same site snapshot, with each node operating under its assigned performance policy.
+* **Single-tenant architecture**: OpenFlare is designed for single-team operations on trusted networks. It uses a single-tenant design without fine-grained multi-user roles or multi-tenant resource isolation.
+* **External infra dependency**: The Server **requires** external Redis (or Valkey) for distributed coordination, Asynq background workers, and system caching. The relational database is PostgreSQL, or SQLite when `database.enabled` is disabled. ClickHouse is **optional**: when disabled, access logs and observability time series are handled by the log primary database (following the business primary DB); when enabled, data can be migrated via the "Switch Log Database" background task. Running without Redis is not supported. See [Log Store Decoupling](./logstore.md).
 
 ---
 
 ## Repository Structure
 
-OpenFlare has converged to a **single monorepo** (Go module `github.com/Rain-kl/Wavelet`). The control-plane Server and edge components (Agent, Relay, OpenFlared) share the repo, organized by Wavelet `internal/apps/` domain modules.
+OpenFlare is structured as a **single monorepo** (Go module `github.com/Rain-kl/Wavelet`). The control-plane Server and edge components (Relay, OpenFlared) share the Go codebase, organized by Wavelet `internal/apps/` domain modules, while the edge proxy runtime is implemented in Rust under `edge/pingora/`.
 
 When contributing code, strictly follow this physical layering and directory division:
 
 | Path | Responsibility |
 | --- | --- |
-| `cmd/server`, `cmd/agent`, `cmd/relay`, `cmd/flared` | Four component CLI entries (Server via `cmd/server/main.go` + `cmd/server/cli/`) |
-| `internal/` | control-plane and edge runtime implementations |
-| `frontend/` | Next.js admin panel; build artifacts embedded into the Go Server |
-| `pkg/` | generic cross-cutting libraries (GeoIP, cache, mail, push, utilities, etc.) |
-| `scripts/` | Swagger generation, install scripts, etc. |
-| `docs/` | VitePress docs site and design baseline |
-| `docker/` | per-component Dockerfiles |
-| `tests/integration/` | cross-module integration tests |
-| `uploads/`, `data/` | runtime upload dir and static data (`.gitignore`d) |
+| `cmd/server`, `cmd/relay`, `cmd/flared` | CLI entrypoints for Server, Relay, and OpenFlared (Server in `cmd/server/main.go` + `cmd/server/cli/`) |
+| `edge/pingora/` | Rust Pingora edge gateway (`openflare-edge`) source and build directory |
+| `internal/` | Control-plane and edge runtime implementations |
+| `frontend/` | Next.js admin console; build artifacts embedded into the Go Server |
+| `pkg/` | Generic cross-cutting libraries (GeoIP, cache, mail, push, utilities, etc.) |
+| `scripts/` | Swagger generation, installation, and deployment scripts |
+| `docs/` | Fumadocs documentation content and Next.js static site |
+| `docker/` | Container Dockerfiles for each component |
+| `tests/integration/` | Cross-module integration tests |
+| `uploads/`, `data/` | Runtime upload directory and persistent data (`.gitignore`d) |
 
 ### 1. Server & Shared Domain Layering (`cmd/server/` + `internal/`)
 
 | Directory | Responsibility |
 | --- | --- |
-| `cmd/server/` | Server startup entry (`main.go`) and Cobra subcommands `cli/` (`api`, `worker`, `scheduler`, `all`) |
-| `internal/platform/` | cross-module assembly & lifecycle: `bootstrap/`, `buildinfo/`, `lifecycle/` |
-| `internal/router/` | HTTP route registration and global middleware (OpenFlare mounted in `v1/openflare_console.go` & `v1/openflare_edge.go`) |
+| `cmd/server/` | Server startup entry (`main.go`) and Cobra subcommands under `cli/` (`api`, `worker`, `scheduler`, `all`) |
+| `internal/platform/` | Cross-module assembly and lifecycle: `bootstrap/`, `buildinfo/`, `lifecycle/` |
+| `internal/router/` | HTTP route registration and global middleware (OpenFlare mounted in `v1/openflare_console.go` and `v1/openflare_edge.go`) |
 | `internal/apps/openflare/` | OpenFlare control-plane business domains (`routers.go` + `logics.go`, `tasks/`, `logwriter/`) |
-| `internal/apps/{admin,user,oauth,upload,cap,...}/` | Wavelet platform capabilities (users, auth, upload, tasks, push, etc.) |
-| `internal/apps/openflare/{agent,relay,flared}/` | **Server-side** edge protocol handlers (auth, heartbeat, WS) |
-| `internal/openflare/` | shared OpenFlare domain packages: `protocol/`, `openresty/`, `pagesarchive/`, `routeidentity/` |
-| `internal/edge/` | edge runtime shared foundation and component runtimes: `common/`, `agent/`, `relay/`, `flared/` |
-| `internal/model/` | GORM entities / DTOs / no-IO domain rules (`openflare_*.go` + platform models); **no** DB access |
-| `internal/infra/persistence/migrator/goose/` | goose SQL migrations (PostgreSQL / SQLite / ClickHouse) |
-| `internal/repository/` | data access layer (platform + OpenFlare business CRUD, cache, `logstore` log/analytics IO); the **only** persistence entry |
-| `internal/infra/task/` | Asynq async tasks (Worker + Scheduler) |
-| `internal/infra/config/` | Viper config loading |
-| `internal/shared/` | unified API response wrapper (`response/`) and HTTP binding helpers (`httpx/`) |
-| `pkg/` | generic utility libraries (`cache/`, `cap/`, `geoip/`, `httppool/`, `i18n/`, `logger/`, `mail/`, `push/`, `trace/`, `util/`, `wsclient/`) |
+| `internal/apps/{admin,user,oauth,upload,cap,...}/` | Wavelet platform capabilities (users, auth, uploads, tasks, push notifications, etc.) |
+| `internal/apps/openflare/{agent,relay,flared}/` | **Server-side** edge protocol handlers (auth, heartbeat, WebSockets) |
+| `internal/openflare/` | Shared OpenFlare domain packages: `protocol/`, `edgeconfig/`, `pagesarchive/`, `routeidentity/` |
+| `internal/edge/` | Edge runtime shared foundation and component runtimes: `common/`, `relay/`, `flared/` |
+| `internal/model/` | GORM entities / DTOs / no-IO domain rules (`openflare_*.go` + platform models); **no** direct DB access |
+| `internal/infra/persistence/migrator/goose/` | Goose SQL migrations (PostgreSQL / SQLite / ClickHouse) |
+| `internal/repository/` | Data access layer (platform + OpenFlare business CRUD, cache, `logstore` log/analytics I/O); the **only** persistence entrypoint |
+| `internal/infra/task/` | Asynq background tasks (Worker + Scheduler) |
+| `internal/infra/config/` | Viper configuration loader |
+| `internal/shared/` | Unified API response wrappers (`response/`) and HTTP binding helpers (`httpx/`) |
+| `pkg/` | Generic utility libraries (`cache/`, `cap/`, `geoip/`, `httppool/`, `i18n/`, `logger/`, `mail/`, `push/`, `trace/`, `util/`, `wsclient/`) |
 
-**API route prefixes:**
+**API Route Prefixes:**
 
 | Prefix | Purpose | Auth |
 | --- | --- | --- |
-| `/api/v1/d/*` | OpenFlare admin console API | Session Cookie + optional `X-Access-Token` |
-| `/api/v1/agent/*` | Agent node protocol | `X-Agent-Token` |
+| `/api/v1/d/*` | OpenFlare admin console APIs | Session Cookie + optional `X-Access-Token` |
+| `/api/v1/agent/*` | Edge node protocol | `X-Agent-Token` |
 | `/api/v1/relay/*` | Relay protocol | `X-Agent-Token` |
 | `/api/v1/tunnel/*` | Tunnel client protocol | `X-Tunnel-Token` |
-| `/api/v1/admin/*` | Wavelet platform admin API | admin Session |
+| `/api/v1/admin/*` | Wavelet platform admin APIs | Admin Session |
 
-### 2. Agent Modules (`internal/edge/agent/` / `cmd/agent/`)
+### 2. Pingora Edge Node
 
-> Shared edge runtime modules (`config/`, `heartbeat/`, `httpclient/`, `logging/`, `nodeip/`, `observability/`, `runner/`, `updater/`, `wsclient/`) live under `internal/edge/common/`; wire protocol types live under `internal/openflare/protocol/`.
-
-| Directory / Module | Responsibility |
-| --- | --- |
-| `cmd/agent/` | Agent CLI entrypoint |
-| `internal/edge/agent/config/` | local config parsing and defaults |
-| `internal/edge/agent/heartbeat/` | heartbeat and version digest checks |
-| `internal/edge/agent/sync/` | config pull and apply orchestration |
-| `internal/edge/agent/nginx/` | OpenResty file writes, validation, reload, startup, and rollback |
-| `internal/edge/agent/state/` | local state and observability compensation buffer |
-| `internal/edge/agent/httpclient/` | Server communication |
-| `internal/edge/agent/observability/` | observability (metrics, traces, etc.) |
-| `internal/edge/agent/geoipupdate/` | GeoIP data updates |
-| `internal/edge/agent/localfile/`, `runtimeuser/` | local state file helpers and runtime privilege resolution |
-| `internal/edge/agent/agent/` | core Agent logic and lifecycle |
+The node runtime is located at `edge/pingora/`. The control plane distributes sites, WAF IP groups, and performance policies via configuration manifests. Nodes validate and apply updates to their local data plane. See [Pingora Edge Node Design](./pingora-edge-design.md).
 
 ### 3. Frontend Layering (`frontend/`)
 
@@ -141,43 +129,43 @@ Based on the Wavelet Next.js scaffold, OpenFlare business UI is organized route-
 | Directory | Responsibility |
 | --- | --- |
 | `app/` | Next.js App Router; `(main)` console, `(auth)` auth, `(docs)` docs pages |
-| `app/(main)/<domain>/` | business pages and in-domain components (route-co-located) |
-| `components/` | cross-domain reusable UI (`ui/`, `layout/`, `common/`, etc.) |
+| `app/(main)/<domain>/` | Business pages and in-domain components (route-co-located) |
+| `components/` | Cross-domain reusable UI (`ui/`, `layout/`, `common/`, etc.) |
 | `lib/services/` | API service layer: `core/` base class + `openflare/` business APIs |
-| `lib/navigation/` | OpenFlare sidebar nav config (`openflare-nav.ts`) |
-| `lib/theme/` | theme parsing and switching |
-| `contexts/` | cross-page UI state (user, notifications, etc.) |
-| `hooks/`, `lib/hooks/` | reusable React Hooks |
-| `public/` | static assets and theme CSS |
-| `scripts/` | build helper scripts |
-| `proxy.ts` | dev/prod proxy: API rate limit and page auth |
+| `lib/navigation/` | OpenFlare sidebar navigation configuration (`openflare-nav.ts`) |
+| `lib/theme/` | Theme parsing and switching |
+| `contexts/` | Cross-page UI state (user, notifications, etc.) |
+| `hooks/`, `lib/hooks/` | Reusable React Hooks |
+| `public/` | Static assets and theme CSS |
+| `scripts/` | Build helper scripts |
+| `proxy.ts` | Dev/prod proxy: API rate limiting and page authorization |
 
-**API conventions**: OpenFlare business APIs uniformly prefix `/api/v1/d/*`, wrapped via `OpenFlareBaseService`; page data fetching uses `@tanstack/react-query`.
+**API Conventions**: OpenFlare business APIs uniformly prefix `/api/v1/d/*`, wrapped via `OpenFlareBaseService`; page data fetching uses `@tanstack/react-query`.
 
 ### 4. Relay Modules (`internal/edge/relay/` / `cmd/relay/`)
 
 | Module | Responsibility |
 | --- | --- |
-| `cmd/relay/` | Relay CLI entry and init main |
-| `internal/edge/relay/config/` | local config parsing and default init |
-| `internal/edge/relay/frps/` | manage frps process lifecycle, ports & Token, monitor runtime |
-| `internal/edge/relay/heartbeat/` | periodic HTTP heartbeat, report state, fetch update requests |
-| `internal/edge/relay/httpclient/` | generic Server API client helpers |
-| `internal/edge/relay/observability/` | collect local host and frps base runtime metrics with pre-aggregation |
-| `internal/edge/relay/relay/` | coordinate core lifecycle, init, and cleanup |
-| `internal/edge/relay/state/` | local runtime state, error records, persistent cache |
+| `cmd/relay/` | Relay CLI entry and main initialization |
+| `internal/edge/relay/config/` | Local configuration parsing and default initialization |
+| `internal/edge/relay/frps/` | Manages frps process lifecycle, ports, and tokens while monitoring runtime status |
+| `internal/edge/relay/heartbeat/` | Periodic HTTP heartbeats, reports status, and retrieves update requests |
+| `internal/edge/relay/httpclient/` | Generic Server API client helpers |
+| `internal/edge/relay/observability/` | Collects local host and frps runtime metrics with pre-aggregation |
+| `internal/edge/relay/relay/` | Coordinates core lifecycle, initialization, and cleanup |
+| `internal/edge/relay/state/` | Local runtime state, error records, and persistent cache |
 
 ### 5. OpenFlared (Client) Modules (`internal/edge/flared/` / `cmd/flared/`)
 
 | Module | Responsibility |
 | --- | --- |
-| `cmd/flared/` | Client CLI entry and init main |
-| `internal/edge/flared/config/` | local client config loading and parsing |
-| `internal/edge/flared/flared/` | intranet penetration client core scheduling and state management |
-| `internal/edge/flared/frpc/` | hot-reload/dynamically generate per-Relay `frpc_{relayNodeID}.toml` and monitor frpc |
-| `internal/edge/flared/heartbeat/` | heartbeat communication with the control plane, incl. Token validation |
-| `internal/edge/flared/httpclient/` | generic client API communication (`/api/v1/tunnel/*`) |
-| `internal/edge/flared/sync/` | incrementally pull latest Tunnel route bindings, generate snapshots, apply |
+| `cmd/flared/` | Client CLI entry and main initialization |
+| `internal/edge/flared/config/` | Local client configuration loading and parsing |
+| `internal/edge/flared/flared/` | Intranet penetration client core scheduling and state management |
+| `internal/edge/flared/frpc/` | Dynamically generates per-Relay `frpc_{relayNodeID}.toml` and monitors frpc |
+| `internal/edge/flared/heartbeat/` | Heartbeat communication with the control plane, including token validation |
+| `internal/edge/flared/httpclient/` | Generic client API communication (`/api/v1/tunnel/*`) |
+| `internal/edge/flared/sync/` | Incrementally pulls latest Tunnel route bindings, generates snapshots, and applies them |
 
 > **Note**: OpenFlared has no standalone `state/` package; version and checksum are persisted by `frpc/manager.go` to `flared-state.json`.
 
@@ -188,6 +176,6 @@ Based on the Wavelet Next.js scaffold, OpenFlare business UI is organized route-
 * Product scope or system boundary changes: update this doc ([Product Boundaries](./index.md)).
 * Log storage, log-table judgment, or switch-protocol changes: update [Log Store Decoupling](./logstore.md).
 * System structure or component division changes: update [System Architecture](./architecture.md).
-* Release, sync, rollback, or Agent model changes: update [Agent & Publish Model](./agent-design.md).
+* Configuration synchronization and node recovery logic are documented in [Pingora Edge Node Design](./pingora-edge-design.md).
 * Deployment method changes: update [Deployment Guide](../deployment/deployment.md) and the README.
 * Config item changes: update [Configuration Reference](../reference/configuration.md).

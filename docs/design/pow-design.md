@@ -10,11 +10,11 @@ PoW 由独立的站点策略、页面模板、浏览器运行时和组件组成�
 
 策略包含 `algorithm`、`difficulty`、`session_ttl`、`challenge_ttl` 与可选的 `path_rules`。`path_rules.mode` 为 `all` 或 `blacklist`，`whitelist` / `blacklist` 为 `{ "type": "exact|prefix|wildcard|regex", "value": "..." }` 数组。省略 `path_rules` 时按全站处理。
 
-发布快照将独立策略附加到对应站点的 `pow_enabled` / `pow_config`；渲染器生成按站点标识索引的 `pow_config.json`。挑战页单独写入 `pow/page.json`，纳入配置校验和、备份与回滚。独立 PoW 的端点和静态资源可在没有 WAF PoW 节点的站点上渲染。
+发布快照将独立策略附加到对应站点的 `pow_enabled` / `pow_config`；控制端将策略编译进 `sites.v1` 站点快照。挑战页模板与资源统一纳入配置校验和与回滚体系。独立 PoW 的端点和静态资源可在没有 WAF PoW 节点的站点上渲染。
 
-内置 HTML 的唯一来源为 `internal/openflare/openresty/pow_templates/`。运行 `node frontend/scripts/generate-pow-assets.mjs` 可同步前端预览素材，`make code-check` 会检查素材是否同步。生成文件随前端源码交付，Docker 前端构建可直接使用；预览复用实际 Widget 源码。
+内置 HTML 的唯一来源为 `internal/openflare/edgeconfig/pow_templates/`。运行 `node frontend/scripts/generate-pow-assets.mjs` 可同步前端预览素材，`make code-check` 会检查素材是否同步。生成文件随前端源码交付，Docker 前端构建可直接使用；预览复用实际 Widget 源码。
 
-canary 分支推送会同时触发 Server 与 Agent 镜像构建。Agent 的 canary 构建仅更新 `canary` 标签，不更新稳定版 `latest`；部署新的 PoW 策略时应同步更新 Server 与 Agent，再发布配置版本。
+Edge 节点发布包含 `amd64` 与 `arm64` 平台产物，由独立 CI 流水线构建验证。部署新的 PoW 策略时通过控制端保存并同步，边缘节点热生效。
 
 ## 请求流程
 
@@ -25,9 +25,9 @@ canary 分支推送会同时触发 Server 与 Agent 镜像构建。Agent 的 can
 5. 挑战处理器加载 HTML，转义文字占位符，插入 Widget 与 JSON 启动数据，再加载浏览器运行时。
 6. Worker 求解 SHA-256；浏览器提交证明，服务端检查难度、域名与站点绑定，消费挑战并签发通行 Cookie。前端收到成功响应后显示成功状态并刷新原始地址。
 
-独立策略、页面和翻译在 Worker 初始化时加载，IP 与通配符匹配对象同时预编译；业务请求和挑战页面不再读取配置文件。策略或页面修改后通过发布配置并 reload 生效，新 Worker 加载新快照，旧 Worker 在退出前保留原快照，回滚也沿用相同流程。新版本未包含独立策略文件时不加载站点绑定；策略文件无法读取或解析时拒绝初始化，避免把损坏策略当作关闭防护。页面加载失败时记录错误并使用内置页面。
+独立策略、页面和翻译在运行时初始化时加载，IP 与通配符匹配对象预编译；业务请求和挑战页面不重复读取配置文件。策略或页面修改后通过控制端同步快照生效，Pingora 边缘网关在内存中原子替换快照，无需进程重启或连接中断。新版本未包含独立策略文件时不加载站点绑定；策略文件无法读取或解析时拒绝初始化，避免把损坏策略当作关闭防护。页面加载失败时记录错误并使用内置页面。
 
-PoW 黑白名单与 WAF 共用 IP 匹配实现，支持 IPv4、IPv6、CIDR 及不同 IPv6 文本形式。旧 `paths` 通配符匹配保留大小写不敏感行为；`path_rules` 的精确、前缀和通配符匹配保持大小写敏感，正则由 OpenResty 缓存编译结果。
+PoW 黑白名单与 WAF 共用 IP 匹配实现，支持 IPv4、IPv6、CIDR 及不同 IPv6 文本形式。旧 `paths` 通配符匹配保留大小写不敏感行为；`path_rules` 的精确、前缀和通配符匹配保持大小写敏感，正则由 Pingora 引擎在内存中编译并复用。
 
 验证运行时以 Web Component 和 `openflare:pow` / `window.OpenFlarePoW` 暴露显示状态，页面布局无需依赖特定 DOM ID。求解完成后先进入 `verifying`，收到服务端成功响应才进入 `success`；失败时组件显示重试入口。
 

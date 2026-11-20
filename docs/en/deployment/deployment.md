@@ -1,99 +1,107 @@
-# Deployment Guide
+# Architecture & Deployment Notes
 
-You will learn: OpenFlare's recommended deployment approaches, Server and Agent runtime requirements, source startup, integration steps, and upgrade/uninstall entries.
+OpenFlare uses a decoupled architecture separating the control plane from the data plane. Production environments should use PostgreSQL as the primary database for the Server, with `APP_SESSION_SECRET` configured via configuration files or environment variables. Redis is required to drive the Asynq background task system; for high-volume access logs and metrics, ClickHouse can be integrated (see [Log Store Decoupling](../design/logstore.md)). The edge gateway (OpenFlare Edge) is built on Pingora, running a resilient dual-process architecture.
 
-Production recommends PostgreSQL as the Server DB, with `APP_SESSION_SECRET` etc. configured via `config.yaml` or env vars. The full Docker Compose deployment requires Redis; ClickHouse is optional for massive access logs and observability time series (see the repo root `docker-compose.yaml`). The Agent supports both Docker deployment and a local install script; the Docker image bundles the Pingora binary. Log-DB determination and switching: [Log Store Decoupling](../design/logstore.md).
+## Network Topology and Traffic Paths
 
-## Deployment Topology
+### 1. Standard Reverse Proxy Traffic Path
 
-### Standard Reverse Proxy Traffic Path
+Control plane and data plane traffic are isolated: user client requests flow directly to the Pingora edge gateway, while the Server only distributes configuration snapshots and collects telemetry.
 
 ```text
-Browser
-  |
-  v
-OpenFlare Server :3000
-  |
-  | Agent API / heartbeat / config pull
-  v
-OpenFlare Agent
-  |
-  v
-Pingora binary
-  |
-  v
-Origin service
+[Control Plane Flow]
+OpenFlare Server (Control plane, listens on :3000)
+       ^
+       | Periodic snapshot pull / Heartbeat / Log telemetry (HTTPS)
+       v
+OpenFlare Edge (Data plane gateway)
+
+[Data Plane Flow]
+User Client / Browser
+       |
+       v Inbound request (TCP 80 / 443)
+OpenFlare Edge (Pingora: TLS termination, WAF filtering, caching, Pages hosting)
+       |
+       v Reverse proxy origin fetch (HTTP / HTTPS)
+Origin Service
 ```
 
-### Intranet Penetration Traffic Path
+### 2. Intranet Penetration Traffic Path
+
+Intranet penetration operates across the edge gateway, a public relay host, and the intranet client:
 
 ```text
-Browser
-  |
-  v
-Pingora (Agent, WAF/HTTPS termination)      <-- TunnelRelay node
-  |
-  | proxy_pass (127.0.0.1:{vhost_port})
-  v
-OpenFlareRelay (frps process)                 <-- TunnelRelay node
-  |
-  | frp tunnel protocol
-  v
-OpenFlared (frpc client)                      <-- intranet server
-  |
-  v
+[Control Plane Flow]
+OpenFlare Server (Control plane)
+    ^                             ^
+    | Config sync & heartbeat      | Tunnel token validation & heartbeat
+    v                             v
+Relay Node (frps supervisor)    OpenFlared (Intranet client)
+
+[Data Plane Flow]
+User Client / Browser
+    |
+    v Public access (TCP 80 / 443)
+OpenFlare Edge (Pingora: Host routing, WAF evaluation, TLS termination)
+    |
+    v Local loopback forward (127.0.0.1:{vhostHTTPPort})
+OpenFlare Relay (frps daemon, listens on public relay port :7000)
+    |
+    | Encrypted FRP Tunnel (outbound connection from client)
+    v
+OpenFlared Client (frpc daemon, runs on private host)
+    |
+    v LAN forwarding (Internal IP / port)
 Internal Service (192.168.x.x)
 ```
 
-## Prerequisites
+## Hardware Baseline
 
-### Hardware Recommendations
-
-| Component | Reference (entry) | Reference (production) | Notes |
+| Component | Entry Level | Production Recommended | Notes |
 | --- | --- | --- | --- |
-| **Server control plane** | 1 core / 2 GB RAM / 20 GB disk | 2 cores / 4 GB RAM / 50 GB+ disk | expand disk by access-log retention and concurrent traffic |
-| **Agent data plane** | 1 core / 512 MB RAM / 2 GB disk | 2 cores / 2 GB RAM / 10 GB+ disk | expand by Pingora concurrent proxy connections and WAF interception |
-| **Relay node** | 1 core / 1 GB RAM / 5 GB disk | 2 cores / 2 GB RAM / 20 GB disk | frps relay throughput limited by bandwidth and CPU |
-| **OpenFlared client** | 1 core / 256 MB RAM / 1 GB disk | 1 core / 512 MB RAM / 5 GB disk | runs independently in the intranet, tiny footprint |
+| **Server Control Plane** | 1 core CPU / 2 GB RAM / 20 GB disk | 2 cores CPU / 4 GB RAM / 50 GB+ disk | Scale disk capacity based on log retention policies and metric volume |
+| **Edge Gateway** | 1 core CPU / 512 MB RAM / 2 GB disk | 2 cores CPU / 2 GB RAM / 10 GB+ disk | Scale by Pingora concurrent proxy connections, TLS handshakes, and WAF rules |
+| **Relay Node** | 1 core CPU / 1 GB RAM / 5 GB disk | 2 cores CPU / 2 GB RAM / 20 GB disk | frps throughput is bounded by network bandwidth and TCP socket limits |
+| **OpenFlared Client** | 1 core CPU / 256 MB RAM / 1 GB disk | 1 core CPU / 512 MB RAM / 5 GB disk | Runs on private host; minimal CPU/RAM overhead, depends on local network capacity |
 
-## Docker Compose Server Deployment
+## Quick Deployment Reference
 
-The repo root provides a full `docker-compose.yaml` (PostgreSQL, Redis, ClickHouse, Jaeger).
+### Docker Compose Server Deployment
+
+The repository root includes a standard orchestration file `docker-compose.yaml` with PostgreSQL, Redis, ClickHouse, and Jaeger:
 
 ```bash
 curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
 cp .env.example .env
-# edit .env; at minimum change APP_SESSION_SECRET and the DB passwords
+# Edit .env, configure APP_SESSION_SECRET and database passwords
 docker compose up -d
 docker compose ps
 docker compose logs -f openflare
 ```
 
-First visit `http://localhost:3000`; default account `admin` / `12345678`. Change the default password immediately after login.
+Access `http://localhost:3000` in your browser. The default administrator credentials are `admin` / `12345678`. Change the password in the admin console immediately upon first login. For configuration details, see [Server Deployment](./server.md).
 
-## Source Startup
+### Source Build Server Startup
 
-First build the admin frontend:
+To compile and execute from source:
 
 ```bash
+# 1. Build embedded admin frontend static bundle
 cd frontend
 corepack enable
 pnpm install
 pnpm build:embed
-```
+cd ..
 
-Then start the Server (repo root):
-
-```bash
+# 2. Prepare configuration and start server
 cp config.example.yaml config.yaml
 export APP_SESSION_SECRET='replace-with-a-long-random-string'
-# optional: use PostgreSQL
-# export DB_HOST=127.0.0.1 DB_USERNAME=postgres DB_PASSWORD=postgres DB_NAME=openflare
 go run ./cmd/server all
 ```
 
-Listens on `:3000` by default (controlled by `app.addr` in `config.yaml` or `APP_ADDR`).
+The server listens on port `:3000` by default (configurable via `app.addr` in `config.yaml` or `APP_ADDR`).
 
-## Deploy edge nodes
+### Deploying Edge and Tunnel Components
 
-Follow [Deploy Pingora Edge](./agent.md). Publish a site snapshot, confirm that the node is online, and assign a performance policy in the console.
+- Edge gateway deployment: See [OpenFlare Edge Deployment](./openflare-edge.md) (system specifications, systemd security hardening, atomic updates) or [Edge Node Quick Access](./agent.md) (tokens and quick install flags).
+- Tunnel infrastructure deployment: See [Relay Deployment](./relay.md) and [OpenFlared Deployment](./openflared.md).

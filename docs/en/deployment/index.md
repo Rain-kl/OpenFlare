@@ -1,24 +1,61 @@
-# Deployment & Upgrades
+# Deployment overview
 
-This section provides detailed deployment guides, configuration notes, and upgrade/maintenance steps for the OpenFlare Server, Agent, Relay, and the OpenFlared intranet penetration client.
+OpenFlare separates control plane responsibilities from data plane execution. The system consists of four primary components:
 
-## Content Navigation
+## Core components and roles
 
-### Quick Start
-* **[Quick Start](../guide/quick-start.md)**: start the Server and your first Agent with Docker Compose in 5 minutes (recommended for new users)
+| Component | Role | Responsibilities | Ports / Network requirements | Deployment guide |
+| --- | --- | --- | --- | --- |
+| OpenFlare Server | Control plane | Admin console UI, Admin APIs, Agent APIs, configuration generation and distribution, metrics aggregation | Listens on `:3000` by default; requires Redis; supports SQLite or PostgreSQL; optional ClickHouse | [Server deployment](./server.md) |
+| OpenFlare Edge | Data plane | Pingora-based edge gateway handling TLS/HTTPS termination, WAF rule enforcement, caching, Pages hosting, and reverse proxy forwarding | Listens on `:80` and `:443` by default; outbound access to Server HTTPS port | [Edge deployment](./openflare-edge.md) |
+| Relay (TunnelRelay) | Tunnel relay | Supervises the `frps` daemon, providing a public entry point for intranet penetration and forwarding traffic received from Edge | Listens on `:7000` (frpc connections) and `:8080` (HTTP Vhost) | [Relay deployment](./relay.md) |
+| OpenFlared | Tunnel client | Supervises `frpc` daemons on private intranet servers, maintaining an encrypted tunnel with the public Relay | Outbound access only to Server port and Relay `:7000` | [OpenFlared deployment](./openflared.md) |
 
-### Server Deployment
-* **[Start the Server](./server.md)**: build the frontend from source, start the Server, choose SQLite or PostgreSQL
+## Deployment decision paths
 
-### Agent Deployment
-* **[Access Agent](./agent.md)**: Agent connection methods, Docker deployment, script install, config file, and troubleshooting
+Select your deployment topology based on your traffic profile and network topology:
 
-### Tunnel Intranet Penetration Deployment
-* **[Deploy Relay](./relay.md)**: TunnelRelay node config notes, Docker deployment, and host running guide
-* **[Deploy OpenFlared](./openflared.md)**: intranet penetration client config notes, Docker running, and self-sync mechanism
+```mermaid
+flowchart TD
+    Start["Assess Requirements"] --> Mode{"Public reverse proxy or intranet tunneling?"}
+    Mode -->|"Public Reverse Proxy / CDN / WAF"| DeployServer["1. Deploy OpenFlare Server Control Plane"]
+    Mode -->|"Intranet Service Penetration"| DeployTunnel["Deploy Tunnel Infrastructure"]
+    
+    DeployServer --> ServerDB{"Data Scale Assessment"}
+    ServerDB -->|"Evaluation / Single-node"| ServerLite["Server (SQLite + Redis)"]
+    ServerDB -->|"Production / Standard Workloads"| ServerProd["Server (PostgreSQL + Redis)"]
+    ServerDB -->|"High Volume / Telemetry Tracing"| ServerCluster["Server + ClickHouse + Jaeger"]
+    
+    ServerLite --> DeployEdge["2. Deploy Pingora Edge Nodes"]
+    ServerProd --> DeployEdge
+    ServerCluster --> DeployEdge
+    
+    DeployTunnel --> DeployRelay["Deploy TunnelRelay (Public IP required)"]
+    DeployRelay --> DeployClient["Deploy OpenFlared Client (Intranet host)"]
+    DeployClient --> Finish["Verify Traffic Flow and Node Health"]
+    DeployEdge --> Finish
+```
 
-### Upgrades & Maintenance
-* **[Upgrade & Maintenance](./upgrade.md)**: Server and Agent upgrade steps, data cleanup policy, verification commands
+### Recommended deployment flow
 
-### Reference
-* **[Deployment Guide](./deployment.md)**: deployment topology, prerequisites, Docker Compose config examples, and an overview of multiple deployment approaches
+1. Deploy OpenFlare Server: Start the control plane with [Server deployment](./server.md). Use SQLite for local testing or PostgreSQL with Redis for production.
+2. Deploy edge gateways: Set up [OpenFlare Edge](./openflare-edge.md) on gateway servers, or follow [Edge node quick access](./agent.md).
+3. Deploy tunnel infrastructure (optional): For private services without public IPs, run a [Relay node](./relay.md) and install [OpenFlared](./openflared.md).
+4. Maintain and upgrade: Follow the [Upgrade & maintenance guide](./upgrade.md).
+
+## Section directory
+
+### Architecture and overview
+- [Architecture & deployment notes](./deployment.md): Network flow diagrams, hardware baseline requirements, source builds, and Docker Compose configurations.
+
+### Components
+- [Server deployment](./server.md): SQLite single-container, PostgreSQL production, ClickHouse/Jaeger observability, and source compilation.
+- [Edge node quick access](./agent.md): Node tokens, installation parameters, and health checks.
+- [OpenFlare Edge deployment](./openflare-edge.md): Packaging specifications, systemd low-privilege profiles, Docker deployments, and atomic updates.
+
+### Tunnel infrastructure
+- [Relay deployment](./relay.md): TunnelRelay node configuration, frps daemon management, and port mapping rules.
+- [OpenFlared client deployment](./openflared.md): Intranet client configuration, frpc child process management, and automated version synchronization.
+
+### Maintenance
+- [Upgrade & maintenance](./upgrade.md): Migrating from OpenResty to Pingora Edge, container and source upgrades, automatic edge updates, and recovery steps.

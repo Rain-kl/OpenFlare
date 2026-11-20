@@ -4,10 +4,12 @@ OpenFlare 在设计与实现过程中借鉴了众多开源项目的优秀理念�
 
 ---
 
-### 1. OpenResty
-*   **项目定位**：基于 Nginx 与 Lua 的高性能 Web 平台。
-*   **在 OpenFlare 中的作用**：作为全局数据面（Data Plane）的边缘网关。所有的公网 Web 流量均首先由 OpenResty 接收，在此处进行高并发的 HTTPS 握手、WAF 安全规则比对、防 CC 人机验证，并最终执行反向代理转发。
-*   **项目链接**：[OpenResty 官网](https://openresty.org/)
+### 1. Pingora 与 Pingap
+*   **项目定位**：Cloudflare 开源的 Rust 异步多线程高性能网络代理框架及 Pingap 缓存实现。
+*   **在 OpenFlare 中的作用**：作为全局数据面（Data Plane）的边缘网关核心引擎。边缘节点（`openflare-edge`）基于 Pingora 构建，负责接收全部公网 Web 流量，执行动态 TLS 握手与证书管理、WAF 安全规则比对、PoW 客户端人机验证、两级边缘缓存与反向代理转发。
+*   **项目链接**：[cloudflare/pingora (GitHub)](https://github.com/cloudflare/pingora) 与 [vicanso/pingap (GitHub)](https://github.com/vicanso/pingap)
+
+---
 
 ### 2. FRP（Fast Reverse Proxy）
 *   **项目定位**：高性能的反向代理应用，专注于内网穿透。

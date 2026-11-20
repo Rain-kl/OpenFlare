@@ -60,6 +60,8 @@ When a third-party account returns to OpenFlare, it is handled as follows:
 
 To allow only existing users to use SSO, turn off user registration. Unbound third-party accounts then enter the bind-existing-account flow.
 
+Third-party identities associate with local users via `auth_source + sub`. Auto-registration generates independent local user IDs and does not adopt third-party `id` or numeric `sub` fields as local primary keys. System upgrades preserve existing user IDs and account bindings.
+
 ## Modifying an Auth Source
 
 When editing an auth source, leaving the Client Secret input empty keeps the existing secret; entering a new value overwrites and saves it.
@@ -67,6 +69,12 @@ When editing an auth source, leaving the Client Secret input empty keeps the exi
 Changing the auth source name does not affect the callback URL, so the third-party platform config doesn't need to change.
 
 ## FAQ
+
+### "Internal Server Error" Returned After Casdoor Authorization
+
+Older versions parsed non-standard `id` claims in ID Tokens as integers, whereas Casdoor returns string UUIDs, which caused callback failures after successful authorization. Upgrade to a version containing this fix and initiate authorization anew from the login page instead of refreshing stale callback URLs.
+
+If errors persist after upgrading, inspect the HTTP status code and `error_msg` of `POST /api/v1/oauth/callback` in browser developer tools to distinguish between token exchange, ID Token validation, and database errors. Never share authorization codes, access tokens, or Client Secrets when troubleshooting.
 
 ### Returns `invalid_scope`
 

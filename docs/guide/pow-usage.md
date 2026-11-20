@@ -20,13 +20,13 @@
 | 通配符 | `/admin/*` | `*` 匹配任意数量字符，包括 `/` 和空字符串；匹配整个路径 |
 | 正则 | `^/admin(?:/|$)` | 匹配 `/admin` 及其子路径，排除 `/administrator` |
 
-匹配对象是 OpenResty 规范化后的 URI 路径，不含查询参数，区分大小写。普通路径须以 `/` 开头；正则保存时按 Go 正则语法验证，节点通过 PCRE 执行。每个列表最多 100 条规则，每条最多 1024 字节。
+匹配对象是边缘节点规范化后的 URI 路径，不含查询参数，区分大小写。普通路径须以 `/` 开头；正则保存时按 Go 正则语法验证，节点通过 PCRE 执行。每个列表最多 100 条规则，每条最多 1024 字节。
 
 例如，仅保护后台时，选择「仅校验黑名单路径」，添加黑名单正则 `^/admin(?:/|$)`，再添加白名单精确路径 `/admin/health`。首页、静态资源和健康检查可直接访问，后台页面需要先通过验证。
 
 挑战页用于浏览器访问。Webhook、健康检查及无法执行 JavaScript 的 API 客户端应通过路径规则跳过校验。
 
-未配置的 IP、CIDR、路径或 UA 名单均按空列表处理，兼容配置中的 `null`。若旧版节点启用 PoW 后返回 HTTP 500，且 OpenResty 错误日志包含 `pow/policy.lua` 的 `ipairs` 类型错误及 `previous error loading module 'pow.config'`，需更新 Agent 至包含空列表兼容修复的版本，并重新加载节点配置。
+未配置的 IP、CIDR、路径或 UA 名单均按空列表处理，兼容配置中的 `null`。策略保存后随站点快照同步到边缘节点。
 
 路径匹配和跳过动作的设计参考 [Cloudflare 规则运算符](https://developers.cloudflare.com/ruleset-engine/rules-language/operators/) 与 [规则动作](https://developers.cloudflare.com/ruleset-engine/rules-language/actions/)。
 

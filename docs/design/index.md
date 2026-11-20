@@ -10,7 +10,7 @@ OpenFlare 是一套新一代分布式反向代理与边缘安全网关平台，�
 
 OpenFlare 适合需要统一管理多台 Pingora 代理节点、构建自建高可用边缘网络，或为源站搭建坚固防护网关的团队，具备以下定位：
 * **控制与落地分离**：Server 控制面不直接 SSH 到代理节点，而是通过 Agent 主动拉取版本并应用。
-* **Zero-Reload 动态配置同步**：基于 Lua 共享内存实现差分热更新，避免传统 Nginx 频繁 reload 导致的连接抖动。
+* **Zero-Reload 动态配置同步**：基于 Rust Pingora 边缘网关运行，通过内存快照原子替换与增量配置同步生效，避免传统网关进程重载（reload）导致的连接抖动。
 * **一体化边缘安全网关**：在同一个控制面内集成反向代理、TLS 证书自动续期、WAF 防护拦截、Turnstile-like 客户端 PoW 防 CC 盾、内网穿透（Tunnel）以及 Pages 静态网站托管。
 * **双重部署生态适应性**：既支持作为独立私有边缘 CDN 运行，亦可作为 Cloudflare 背后坚固的源站防护网关（Origin Shield），防止源站真实 IP 泄露并沉淀全量私有审计日志。
 
@@ -34,7 +34,7 @@ OpenFlare 适合需要统一管理多台 Pingora 代理节点、构建自建高�
 | **TLS 证书自动续期** | 将证书显式绑定到 Zone 域名，并通过 ACME 协议向 Let's Encrypt 申请/续期证书 | [Zone 与域名资源设计](./zone-design.md) |
 | **多节点监控与观测** | 访问日志为业务流量唯一真相；Agent 只上报明细与主机读数，Server 统一聚合；与 Zone/看板对账 | [观测数据传输模型](./observability-transport-model.md) / [边缘可观测与业务流量统计](./observability-design.md) / [上报协议与表结构](./observability-data-model.md) / [系统架构](./architecture.md) |
 | **日志存储** | 访问日志与可观测时序走可切换日志主库（随业务主库或 ClickHouse）；关闭 ClickHouse 后仍可写可查 | [日志存储解耦](./logstore.md) |
-| **控制台双语** | 无 URL 前缀的 zh-CN / en，cookie `NEXT_LOCALE` 优先，兼容静态导出 | [前端 i18n 设计](../superpowers/specs/2026-07-24-frontend-i18n-design.md) |
+| **控制台双语与国际化** | 无 URL 前缀的 zh-CN / en / ru，cookie `NEXT_LOCALE` 优先，兼容静态导出 | [运行时语言与国际化](./log-language.md) |
 
 ---
 
@@ -77,7 +77,8 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 
 | 路径 | 职责 |
 | --- | --- |
-| `cmd/server`、`cmd/agent`、`cmd/relay`、`cmd/flared` | 四组件 CLI 启动入口（Server 在 `cmd/server/main.go` + `cmd/server/cli/`） |
+| `cmd/server`、`cmd/relay`、`cmd/flared` | 控制面 Server、中继 Relay 与客户端 OpenFlared 的 CLI 启动入口（Server 在 `cmd/server/main.go` + `cmd/server/cli/`） |
+| `edge/pingora/` | Rust Pingora 边缘网关（`openflare-edge`）源码与构建目录 |
 | `internal/` | 控制面与边缘运行时实现 |
 | `frontend/` | Next.js 管理端，构建产物嵌入 Go Server |
 | `pkg/` | 通用基础设施共享库（GeoIP、缓存、邮件、推送、工具函数等） |
@@ -98,7 +99,7 @@ OpenFlare 已收敛为**单 monorepo**（Go 模块 `github.com/Rain-kl/Wavelet`�
 | `internal/apps/{admin,user,oauth,upload,cap,...}/` | Wavelet 平台能力（用户、认证、上传、任务、推送等） |
 | `internal/apps/openflare/{agent,relay,flared}/` | **Server 侧**边缘协议处理器（鉴权、心跳、WS） |
 | `internal/openflare/` | OpenFlare 跨端共享域模块：`protocol/`、`edgeconfig/`、`pagesarchive/`、`routeidentity/` |
-| `internal/edge/` | 边缘运行时共享基础与端侧实现：`common/`、`agent/`、`relay/`、`flared/` |
+| `internal/edge/` | 边缘运行时共享基础与端侧实现：`common/`、`relay/`、`flared/` |
 | `internal/model/` | GORM 实体 / DTO / 无 IO 领域规则（`openflare_*.go` + 平台模型）；**不含** DB 访问 |
 | `internal/infra/persistence/migrator/goose/` | goose SQL 迁移（PostgreSQL / SQLite / ClickHouse） |
 | `internal/repository/` | 数据访问层（平台 + OpenFlare 业务 CRUD、缓存、`logstore` 日志/分析读写）；**唯一**持久化入口 |

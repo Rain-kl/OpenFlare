@@ -14,7 +14,7 @@ Before using intranet penetration, get familiar with these components:
 
 | Component | Description | Corresponding Entity |
 | --- | --- | --- |
-| **Relay node** | a traffic relay service deployed at the public edge; listens for the intranet client's long connections and bridges gateway Agent (OpenResty) and intranet traffic | `tunnel_relay` node guarded by `openflare-relay` |
+| **Relay node** | a traffic relay service deployed at the public edge; listens for the intranet client's long connections and bridges gateway (Pingora Edge) and intranet traffic | `tunnel_relay` node guarded by `openflare-relay` |
 | **Tunnel** | a logical penetration client instance with a globally unique ID and an auth token, identifying one concrete intranet environment | `tunnel_client` node created in「Node Management」, assigned a dedicated Tunnel Token |
 | **Tunnel client** | a lightweight controller running in the intranet; auto-manages the underlying frpc tunnel child processes based on Server-dispatched config | `openflared` container or standalone binary deployed in the intranet |
 | **Tunnel upstream** | a special reverse proxy type in route rules. With this type, the gateway forwards public traffic to the local relay's Vhost port, eventually reaching the intranet origin | reverse proxy type configured in the「Rule Management」detail page, origin mode「Intranet Tunnel」with a bound Tunnel node |
@@ -135,14 +135,12 @@ To map multiple services in one intranet environment (e.g. `127.0.0.1:80` blog, 
 4. Fill in the corresponding different ports or LAN IPs in each intranet target address (e.g. `127.0.0.1:80`, `127.0.0.1:8080`, `192.168.1.120:9000`).
 5. Save the routes and verify each domain after the nodes sync.
 
-### 2. Gateway Security Features Stack Seamlessly
+### 2. Reuse Gateway Security Capabilities
 
-Because all public traffic first enters the public Agent node — HTTPS/TLS handshake and WAF engine interception happen there — then travels through the secure tunnel to the intranet:
-
-Your intranet service needs **zero modification** to enjoy:
-* **One-click HTTPS**: select or apply an SSL certificate for the domain directly in the admin panel; data is encrypted end-to-end.
-* **Global/custom WAF protection**: enable SQL injection blocking, XSS injection defense, and malicious geo-IP blocking.
-* **Human challenge (CC PoW)**: one-click defense against malicious CC requests to intranet APIs.
+Public traffic is first received by edge nodes on the public network, where TLS handshakes terminate and WAF rule validations execute before requests route through the relay tunnel to the intranet service. Intranet services require no separate certificate management or edge security configuration:
+* **TLS Encrypted Transport**: bind or issue TLS certificates in the admin panel to encrypt external traffic.
+* **WAF Protection**: apply rule sets to inspect SQL injection, XSS, suspicious IPs, and geographic restrictions.
+* **Proof-of-Work (PoW)**: trigger client-side proof-of-work challenges based on path-matching rules.
 
 ---
 

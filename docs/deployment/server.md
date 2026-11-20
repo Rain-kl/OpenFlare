@@ -1,20 +1,17 @@
-# 启动 Server
+# Server 部署
 
-你会学到：如何使用 Docker（分为快速启动、生产推荐、进阶版）部署，以及如何从源码本地部署 OpenFlare Server。
-
-OpenFlare Server 是 Gin + GORM 单体控制面，负责管理端 UI、管理 API、Agent API、配置渲染、边缘配置同步、数据存储与聚合查询。
+OpenFlare Server 是基于 Gin 与 GORM 开发的单体控制面服务，负责管理端 Web 界面、管理 API、边缘节点通信 API、站点配置渲染与下发、异步任务调度及聚合查询。
 
 > [!IMPORTANT]
-> **关于外部依赖**：
-> OpenFlare 系统内建了对后台异步任务（Asynq 框架）的支持。因此，**无论采用何种部署模式，系统都必须依赖 Redis（或 Valkey）**。各个部署方案的主要差异在于主关系型数据库的选择（SQLite vs PostgreSQL）以及是否启用链路追踪服务（Jaeger）。
-> 若业务流量过大，建议使用 ClickHouse 存储日志。
+> **外部依赖要求**：
+> OpenFlare 内建基于 Asynq 框架的后台异步任务引擎。**无论采用何种部署模式，系统均必须依赖 Redis（或 Valkey）**。关系型主数据库支持 SQLite（轻量单机）与 PostgreSQL（生产标准）。业务访问日志规模较大时，推荐接入 ClickHouse 存储分析数据。
 
 > [!TIP]
-> **ClickHouse 服务端性能配置（推荐挂载）**  
-> 控制面常见为小规格主机（如 3c6g）。仓库提供的 `performance.xml` 会收紧后台 merge/mutation 线程池，避免默认配置在小机器上静置 CPU 偏高或 ClickHouse 25.x 启动校验失败。  
-> 将本地 `./config/clickhouse/performance.xml` 以单文件方式挂载到容器 `/etc/clickhouse-server/config.d/performance.xml`，以保留官方镜像内置的 Docker 网络监听配置。
+> **ClickHouse 性能优化配置（推荐挂载）**  
+> 控制面宿主机通常配置较精简。官方仓库提供的 `performance.xml` 收紧了后台 merge/mutation 线程池，可避免默认配置在低规格实例上静置 CPU 偏高或 ClickHouse 25.x 启动校验不通过。  
+> 挂载配置方式：将本地 `./config/clickhouse/performance.xml` 以单文件只读形式挂载至容器 `/etc/clickhouse-server/config.d/performance.xml`。
 
-部署前将配置拉到本地：
+拉取 ClickHouse 优化配置：
 
 ```bash
 mkdir -p ./config/clickhouse
@@ -22,33 +19,29 @@ curl -fsSL -o ./config/clickhouse/performance.xml \
   https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
 ```
 
-在 ClickHouse 服务的 `volumes` 中增加（与数据卷并列）：
+在 ClickHouse 服务的 `volumes` 中配置只读挂载：
 
 ```yaml
 volumes:
-  - ./data/clickhouse_data:/var/lib/clickhouse   # 或 named volume
+  - ./data/clickhouse_data:/var/lib/clickhouse
   - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
 ```
 
-修改 `performance.xml` 后需 `docker compose restart clickhouse` 才生效。
+修改配置后需执行 `docker compose restart clickhouse` 生效。
 
 ---
 
-## 方式一：Docker 部署（推荐）
+## Docker Compose 部署方案
 
-使用 Docker 部署可以免去本地配置 Go 与 Node.js 前端构建环境的麻烦。根据你的服务器硬件配置及业务需求，你可以选择以下三种方案之一：
+根据业务规模与数据存储需求，选择对应的编排方案：
 
-### 1. 快速启动（SQLite + Redis）
+### 方案 1：轻量单机方案（SQLite + Redis）
 
-> **适用场景**：测试体验、轻量化单机部署。
->
-> **特点**：主关系型数据库使用 SQLite 
+适用于测试体验、本地联调或轻量单机部署。主数据库使用嵌入式 SQLite。
 
 创建 `docker-compose.yaml` 文件：
 
 ```yaml
-version: '3.8'
-
 services:
   openflare:
     image: ghcr.io/rain-kl/openflare:latest
@@ -61,8 +54,8 @@ services:
       - ./uploads:/app/uploads
     environment:
       TZ: Asia/Shanghai
-      APP_SESSION_SECRET: 'replace-with-a-long-random-string' # 生产环境请替换为长随机字符串
-      DB_ENABLED: "false" # 禁用 PostgreSQL，自动启用内置 SQLite 后备
+      APP_SESSION_SECRET: 'replace-with-a-long-random-string' # 生产环境请使用强随机字符串
+      DB_ENABLED: "false" # 禁用外部 PostgreSQL，启用内置 SQLite
       SQLITE_PATH: "/data/openflare.db"
       REDIS_ENABLED: "true"
       REDIS_ADDR: "redis:6379"
@@ -83,11 +76,18 @@ services:
       retries: 5
 ```
 
+启动命令：
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
 ---
 
-### 2. 小流量业务场景（PostgreSQL + Redis）
+### 方案 2：标准生产方案（PostgreSQL + Redis）
 
-> **适用场景**：生产环境、业务流量中小，PostgreSQL 不会成为日志记录的瓶颈。
+适用于标准生产环境，提供可靠的关系型数据持久化与事务支持。
 
 创建 `docker-compose.yaml` 文件：
 
@@ -138,34 +138,29 @@ services:
       start_period: 5s
 
 volumes:
-    openflare_uploads:
-    openflare_postgres_data:
-    openflare_redis_data:
+  openflare_uploads:
+  openflare_postgres_data:
+  openflare_redis_data:
 ```
 
-创建对应的 `.env` 文件来配置系统环境变量（可复制并修改根目录下的 `.env.example`）：
+配置环境变量文件 `.env`：
 
 ```bash
 curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
 cp .env.example .env
-# 编辑 .env 文件，填入对应的数据库、Redis、密码与 APP_SESSION_SECRET
-
+# 编辑 .env 文件，设置强随机密钥 APP_SESSION_SECRET 与数据库密码
 docker compose up -d
 ```
 
 ---
 
-### 3. 进阶版（含 Jaeger 链路追踪的完整编排）
+### 方案 3：全功能可观测集群（含 ClickHouse 与 Jaeger）
 
-> **适用场景**：大流量场景，需要进行链路性能指标追踪。
->
-> **特点**：在“生产推荐”全家桶的基础上，使用 ClickHouse 存储日志，联动 Jaeger 作为 OpenTelemetry (OTel) 链路追踪的后端。
+在大流量业务场景下，推荐使用 ClickHouse 独立存储分析明细，并联动 Jaeger 收集 OpenTelemetry (OTel) 链路调用指标。
 
 创建 `docker-compose.yaml` 文件：
 
 ```yaml
-version: '3.8'
-
 services:
   openflare:
     image: ghcr.io/rain-kl/openflare:latest
@@ -175,7 +170,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
       OTEL_EXPORTER_OTLP_INSECURE: "true"
-      OTEL_SAMPLING_RATE: "1.0" # 采样率，1.0 表示采样全部 Trace
+      OTEL_SAMPLING_RATE: "1.0"
     ports:
       - "3000:3000"
     volumes:
@@ -258,7 +253,7 @@ volumes:
   openflare_clickhouse_data:
 ```
 
-启动并验证：
+初始化与启动：
 
 ```bash
 mkdir -p ./config/clickhouse
@@ -266,15 +261,15 @@ curl -fsSL -o ./config/clickhouse/performance.xml \
   https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
 curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
 cp .env.example .env
-# 编辑 .env 文件并确保设置好 APP_SESSION_SECRET 密码
-
+# 编辑 .env 配置各组件密码与 APP_SESSION_SECRET
 docker compose up -d
 ```
-启动后可以通过访问 `http://localhost:16686` 打开 Jaeger 监控端查看系统 Span 链路。
+
+启动后访问 `http://localhost:16686` 可打开 Jaeger 监控面板查看 Trace 调用链路。
 
 ### 自定义 OpenTelemetry 接收端
 
-链路追踪默认使用 OTLP/gRPC。对于支持 OTLP/HTTP protobuf 的接收端，可在 Server 容器的环境变量中配置：
+链路追踪默认使用 OTLP/gRPC 协议。若接收端使用 OTLP/HTTP protobuf，可在 Server 环境变量中指定：
 
 ```yaml
 OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
@@ -282,35 +277,38 @@ OTEL_EXPORTER_OTLP_ENDPOINT: https://collector.example.com
 OTEL_SAMPLING_RATE: "0.1"
 ```
 
-标准 SDK 会在通用 `OTEL_EXPORTER_OTLP_ENDPOINT` 的路径后追加 `/v1/traces`；例如上述配置发送到 `https://collector.example.com/v1/traces`。如果接收端使用自定义路径，请设置完整的 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`，SDK 将直接使用该 URL，不再追加路径。链路专用的 `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` 优先于通用协议配置；两者均未配置时使用 `otel.export_protocol`，缺省为 `grpc`。协议在启动配置层统一解析，再传入追踪组件。
+标准 SDK 会在通用 `OTEL_EXPORTER_OTLP_ENDPOINT` 路径后自动追加 `/v1/traces`。若接收端使用非标准路径，请直接配置 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`。链路专用的 `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` 优先级高于通用协议配置；未配置时使用 `otel.export_protocol`（默认为 `grpc`）。
 
-需要鉴权或其他请求头时，使用可选的 `OTEL_EXPORTER_OTLP_HEADERS`，格式为 `key=value,key2=value2`，值按标准进行百分号编码，例如 `X-API-Key=example-key,X-Client-Name=example%20client`。链路专用的 `OTEL_EXPORTER_OTLP_TRACES_HEADERS` 优先于通用请求头配置。应用不预设鉴权方案；实际请求头与凭据由部署环境提供，不要将真实凭据写入仓库。
-
-协议、地址和请求头由 OpenTelemetry SDK 按[标准 OTLP 配置](https://opentelemetry.io/docs/specs/otel/protocol/exporter/)处理，不依赖特定部署平台或观测后端。
+配置鉴权请求头：使用 `OTEL_EXPORTER_OTLP_HEADERS`（格式为 `key=value,key2=value2`，特殊字符需百分号编码，例如 `X-API-Key=example-key`）。链路专用 `OTEL_EXPORTER_OTLP_TRACES_HEADERS` 优先于通用头配置。
 
 ---
 
-## 首次登录
+## 首次访问与认证
 
-Server 默认监听 `3000` 端口，启动成功后可以使用浏览器访问：`http://localhost:3000`。
+Server 默认监听 `3000` 端口。容器或服务启动后，在浏览器访问 `http://localhost:3000`。
 
-默认管理员账户信息如下：
+初始管理员账密：
 
-| 用户名 | 密码 |
+| 用户名 | 初始密码 |
 | --- | --- |
 | `admin` | `12345678` |
 
 > [!WARNING]
-> 为了你的系统安全，首次登录后请立即前往个人设置页面修改默认密码。
+> 首次登录后，请立即前往「个人中心 / 安全设置」修改默认密码。
 
 ---
 
-## 分布式部署
+## 分布式进程拆分
 
-在大型生产部署中，你可以选择将 Server 按职责拆分为多个进程运行：
+在大型集群或高可用部署中，可将 Server 按职责拆分为独立进程运行：
 
 ```bash
-go run ./cmd/server api             # 仅启动管理端与节点通信的 API 服务
-go run ./cmd/server worker          # 仅启动后台任务的 Worker 服务
-go run ./cmd/server scheduler       # 仅启动定时任务的 Scheduler 服务
+# 1. 仅启动管理端 UI 与节点通信的 HTTP API 服务
+go run ./cmd/server api
+
+# 2. 仅启动处理 Asynq 异步任务队列的 Worker 节点
+go run ./cmd/server worker
+
+# 3. 仅启动 Cron 定时任务的 Scheduler 调度器
+go run ./cmd/server scheduler
 ```

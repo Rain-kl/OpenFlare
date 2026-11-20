@@ -1,64 +1,62 @@
 # System Architecture
 
-You will learn: OpenFlare's overall architecture, the responsibility split of each core component (Server, Agent, OpenResty, Relay, Client), and the macro flow of the main data and request streams.
-
-OpenFlare is a self-hosted OpenResty control plane. Physically it consists of the Server (control plane), the Agent (config landing), node-local OpenResty (data plane), intranet penetration components (Relay and OpenFlared, data-plane extensions), and the admin frontend.
+OpenFlare consists of the Server control plane, the Pingora Edge data plane, tunnel components (Relay and OpenFlared), and the management console frontend. For edge synchronization, validation, and runtime application workflows, see [Pingora Edge Node Design](./pingora-edge-design.md).
 
 ---
 
 ## Traffic Path Overview
 
-Depending on the website upstream type, OpenFlare supports three data-plane traffic paths:
+Depending on the website upstream type, OpenFlare supports three distinct data plane traffic paths:
 
-### 1. Standard Reverse Proxy Path
+### 1. Standard Reverse Proxy Traffic Path
 ```text
 Browser
   |
   | HTTPS/HTTP request
   v
-OpenResty (WAF, TLS, Rate Limit, optional origin error page)
+Pingora Edge (WAF, TLS, Rate Limit, optional Origin Error Page)
   |
-  | reverse proxy (proxy_pass)
+  | reverse proxy
   v
-Origin Server (direct public/LAN upstream)
+Origin Server (direct public or private upstream)
 ```
 
-When the origin or gateway returns an error status in the configured list, a global custom/default HTML can be returned while keeping the real HTTP status; see [Origin Error Page Design](./origin-error-page.md).
+When an origin server or gateway returns error status codes matching the configured list, OpenFlare returns global custom or default HTML while preserving the real HTTP status code. See [Origin Error Page Design](./origin-error-page.md).
 
-### 2. Intranet Penetration Path
-For origin services on firewall-restricted intranet servers:
+### 2. Intranet Penetration Traffic Path
+Suitable for routing traffic to origin services hosted on private or firewall-restricted networks:
 ```text
 Browser
   |
   | HTTPS/HTTP request
   v
-OpenResty (Agent host, TLS/WAF)
+Pingora Edge (Agent host, TLS/WAF)
   |
-  | proxy_pass http://localhost:vhost_port (Host header preserved)
+  | reverse proxy to http://localhost:vhost_port (Host header preserved)
   v
-OpenFlareRelay (frps)              <-- same host as the Agent, provides relaying
+OpenFlareRelay (frps)              <-- co-located with Agent, provides relay
   |
   | frp tunnel protocol (Host header routing)
   v
-OpenFlared (frpc)                  <-- firewall-restricted intranet server
+OpenFlared (frpc)                  <-- intranet server
   |
   | HTTP/HTTPS forward
   v
 Internal Service (192.168.x.x)
 ```
 
-### 3. Pages Static Hosting Path
-For pre-built SPAs or static site hosting:
+### 3. Pages Static Hosting Traffic Path
+Suitable for pre-built Single Page Applications (SPAs) or static website hosting:
 ```text
 Browser
   |
   | HTTPS/HTTP request
   v
-OpenResty (Agent, TLS/WAF)
+Pingora Edge (Agent, TLS/WAF)
   |
-  +---> [static serving] root/try_files ---> Agent local Pages deployment dir
+  +---> [Static Serving] reads deployed files ---> Agent local Pages deployment directory
   |
-  +---> [API proxy] proxy_pass ---> backend API service (if API proxying enabled)
+  +---> [API Proxy] reverse proxy ---> Backend API service (if API proxying enabled)
 ```
 
 ---
@@ -67,142 +65,128 @@ OpenResty (Agent, TLS/WAF)
 
 | Component | Responsibility | Detailed Design Reference |
 | --- | --- | --- |
-| **Server** | admin UI/API, control-plane state persistence, config compilation/rendering, release versioning, Pages deployment package storage, Cloudflare A-record pointing, access-log storage and business traffic aggregation, Uptime Kuma monitoring sync, login CAPTCHA protection | [Agent & Publish Model](./agent-design.md) / [Cloudflare DNS Pointing Design](./cloudflare-pointing.md) / [Edge Observability & Business Traffic Stats](./observability-design.md) / [Uptime Kuma Sync Design](./kuma-design.md) / [Login CAPTCHA Design](./login-captcha.md) |
-| **Agent** | periodic heartbeat & WS sync, static package pull/extraction, OpenResty config write/validate/reload and self-healing; observability reports only access details and host/health readings, no business pre-aggregation | [Agent & Publish Model](./agent-design.md) / [Edge Observability & Business Traffic Stats](./observability-design.md) |
-| **OpenResty** | receives real traffic; executes WAF filtering, PoW protection, Basic Auth, static/reverse-proxy serving, and optional origin error pages | [WAF Design](./waf-design.md) / [Pages Design](./pages-design.md) / [Origin Error Page Design](./origin-error-page.md) |
-| **Relay** | deployed on edge nodes; manages the `frps` daemon lifecycle and accepts heartbeat-dispatched penetration relay configs | [Tunnel Design](./tunnel-design.md) |
-| **OpenFlared** | deployed in the intranet; manages the `frpc` process group, establishes reverse tunnels to multiple Relays, reports connection state | [Tunnel Design](./tunnel-design.md) |
+| **Server** | Admin UI/API, control-plane state persistence, configuration compilation and auto-sync, Pages deployment asset storage, Cloudflare A-record pointing, access log ingestion and traffic aggregation, Uptime Kuma monitoring sync, and login captcha protection | [Pingora Edge Node Design](./pingora-edge-design.md) / [Cloudflare DNS Pointing Design](./cloudflare-pointing.md) / [Edge Observability & Business Traffic Stats](./observability-design.md) / [Uptime Kuma Sync Design](./kuma-design.md) / [Login Captcha Design](./login-captcha.md) |
+| **Pingora Edge** | Ingests live traffic, evaluates WAF rules, PoW defense, Basic Auth, static file and reverse proxy serving, and optional origin error pages | [WAF Design](./waf-design.md) / [Pages Design](./pages-design.md) / [Origin Error Page Design](./origin-error-page.md) |
+| **Relay** | Deployed on edge nodes, manages `frps` daemon lifecycle, and receives dynamically dispatched tunnel relay configuration via heartbeats | [Tunnel Design](./tunnel-design.md) |
+| **OpenFlared** | Deployed in private networks, manages `frpc` process groups, maintains reverse tunnels across multiple Relays, and reports connectivity | [Tunnel Design](./tunnel-design.md) |
 
 ---
 
-## Component Architecture and Division
+## Component Architecture and Division of Labor
 
-### 1. Server (control plane)
-The Go backend at the repo root (module `github.com/Rain-kl/Wavelet`) is the OpenFlare control plane, built on the Wavelet full-stack scaffold:
+### 1. Server (Control Plane)
+The Go backend at the repository root (module `github.com/Rain-kl/Wavelet`) serves as the OpenFlare control plane, built on the Wavelet full-stack scaffold:
 * Provides admin REST APIs (`/api/v1/d/*`) authenticated via **Session Cookie**, with optional `X-Access-Token`.
 * Edge node protocols go through `/api/v1/agent|relay|tunnel/*`, authenticated with `X-Agent-Token` / `X-Tunnel-Token` respectively.
-* Contains the config Compiler, uniformly compiling DB rules, certs, and global params into immutable config snapshots and OpenResty physical config file text.
-* Uniformly receives Pages local uploads, Remote URLs, and public GitHub Release pre-built artifacts, completing source checks, restricted downloads, archive validation, and immutable deployments; manual uploads create candidates awaiting explicit activation, persistent-source sync creates-or-loads and atomically activates. The Server offers controlled latest-download endpoints to Agents; the internal scanner handles limited GitHub latest checks, lease recovery, optional auto-publish, and orphan upload compensation; the generic task management entry can't modify this schedule. Future repo source builds are extended by a standalone Server build executor; the Agent never executes third-party fetch or build commands.
-* Provides the optional Cloudflare DNS pointing control plane: maintains group desired state with ZoneDomains as members, idempotently syncing a single A record to the current active node IPv4 via Asynq; node IP changes only best-effort enqueue; no auto-failover in phase 1.
-* Backend integration with the Uptime Kuma monitoring sync service auto-maintains HTTP probe tasks for available sites.
-* Startup entry: `cmd/server/main.go` + `cmd/server/cli/` (`api` / `worker` / `scheduler` / `all`); OpenFlare business in `internal/apps/openflare/`, Server-side edge protocol handling in `internal/apps/openflare/{agent,relay,flared}/`, edge runtimes in `internal/edge/{common,agent,relay,flared}/`.
-* *See: [Agent & Publish Model](./agent-design.md) and [Uptime Kuma Sync Design](./kuma-design.md)*
+* Contains the configuration Compiler, uniformly compiling DB rules, certificates, and global parameters into immutable configuration snapshots and required runtime resources.
+* Uniformly receives Pages local uploads, Remote URLs, and public GitHub Release pre-built artifacts, completing source checks, restricted downloads, archive validation, and immutable deployments; manual uploads create candidates awaiting explicit activation, while persistent-source sync creates-or-loads and atomically activates. The Server provides controlled latest-download endpoints to edge nodes; an internal scanner handles limited GitHub latest checks, lease recovery, optional auto-publish, and orphan upload compensation; generic task management endpoints cannot modify this schedule. Future repository source builds are extended via an isolated Server build executor; edge nodes never execute third-party fetch or build commands.
+* Provides the optional Cloudflare DNS pointing control plane: maintains group desired states with ZoneDomains as members, idempotently syncing a single A record to the active node IPv4 via Asynq; node IP changes are queued best-effort; phase 1 does not execute automatic failover.
+* Integrates backend Uptime Kuma monitoring synchronization, automatically maintaining HTTP probe tasks for active sites.
+* Startup entry: `cmd/server/main.go` + `cmd/server/cli/` (`api` / `worker` / `scheduler` / `all`); OpenFlare business logic resides in `internal/apps/openflare/`, Server-side edge protocol handling in `internal/apps/openflare/{agent,relay,flared}/`, and edge runtimes in `edge/pingora/` and `internal/edge/{common,relay,flared}/`.
+* *See: [Pingora Edge Node Design](./pingora-edge-design.md) and [Uptime Kuma Sync Design](./kuma-design.md)*
 
-### 2. Agent (config landing)
-`openflare-agent` is the daemon running on the node:
-* Maintains periodic heartbeats with the control plane after startup, receiving real-time config release broadcasts via the optional WebSocket.
-* Pulls the latest active version's config files and certs, writes them locally, and performs safe validation via `openresty -t` before a smooth reload.
-* Handles Pages deployment package download, SHA-256 validation, and extraction switching locally.
-* *See: [Agent & Publish Model](./agent-design.md)*
+### 2. Pingora Edge (Data Plane)
+`openflare-edge` manages listeners, snapshots, and Pages assets, executing HTTP proxying, HTTP/2, TLS, WAF, PoW, site authentication, and caching within a single unified runtime. Nodes receive update notifications via WebSockets and synchronize site snapshots, IP groups, and performance policies through heartbeat manifests.
 
-### 3. OpenResty (data plane)
-Receives visitor traffic and performs final business landing:
-* Traffic entry, supporting HTTP/2, HTTP/3 (QUIC), and dynamic TLS certificate binding.
-* Embeds Lua logic filtering WAF rules and verifying PoW challenges efficiently in the `access_by_lua` phase, followed by connection/rate limits and basic caching (policy in [Edge Cache Strategy Design](./edge-cache-design.md)).
-* *See: [WAF Design](./waf-design.md) and [Pages Static Hosting Design](./pages-design.md)*
-
-### 4. Relay and OpenFlared (tunnel components)
-Extend data-plane reverse penetration:
-* `openflare-relay` guards the local `frps`, accepts Server config dispatch, and auto-updates the relay port.
-* `openflared` guards a group of `frpc` client processes in the intranet for nearest multi-relay connections and HA disaster recovery.
+### 3. Relay and OpenFlared (Tunnel Components)
+Extend data-plane reverse penetration capabilities:
+* `openflare-relay` manages the local `frps` daemon, receives Server configuration dispatches, and automatically updates relay ports.
+* `openflared` manages a group of `frpc` client processes within internal networks, establishing nearest multi-relay connections and high-availability disaster recovery.
 * *See: [Tunnel Design](./tunnel-design.md)*
 
 ---
 
 ## Data and Request Flow Overview
 
-### 1. Config Release and Sync Flow
+### 1. Configuration Save and Sync Flow
 ```text
-admin modifies config -> release new version -> generate globally unique Checksum active version
+Admin saves config -> auto-compiles and updates site snapshot by digest
                                  |
               +------------------+------------------+
-              | (WebSocket broadcast or periodic Heartbeat)      |
+              | (WebSocket broadcast or periodic Heartbeat)
               v                                     v
-       [edge node Agent]                        [intranet OpenFlared]
-  pull latest OpenResty config/certs            pull latest Tunnel mapping config
-  incrementally pull/extract Pages packages     generate/rewrite frpc.toml
-  validate config and smooth reload             smooth reload or spawn frpc
-  report apply state (Success / Error)          report tunnel connection state and metrics
+       [Edge Node]                             [Intranet OpenFlared]
+  pull site snapshot and certs by hash    pull latest Tunnel mapping config
+  pull/extract Pages packages             generate/rewrite frpc.toml
+  verify and atomically swap in memory    smooth reload or spawn frpc
+  report apply state (Success / Error)    report tunnel connection state and metrics
 ```
-* *Fine-grained sync/self-healing timing and the rollback model: [Agent & Publish Model](./agent-design.md)*
+* *For fine-grained synchronization timing and the rollback model, see [Pingora Edge Node Design](./pingora-edge-design.md).*
 
 ### 2. Static Hosting and API Proxy Flow
-* Static assets are extracted to `projects/{project_id}/current` on the Agent node (pulled per project latest, only the newest package kept); OpenResty serves static resources at the edge via `root`/`index`/`try_files`.
-* With API proxying enabled, OpenResty rewrites and forwards (`proxy_pass`) API requests to the backend dynamic API based on the site's `api_proxy_path` (e.g. `/api`).
-* Admin operations and the internal scanner only generate constrained artifact candidates, reusing the unified inspect, `upload.Ingest`, and deployment pipeline. Manual uploads create a new inactive candidate; persistent-source sync/scanner creates-or-loads and atomically activates. A future repository build executor can only emit into the same artifact pipeline; the Agent is always just an active-deployment consumer.
-* *Package validation, extraction escape defense, and Nginx rule rendering: [Pages Static Hosting Design](./pages-design.md)*
+* Static assets are extracted to `projects/{project_id}/current` on the edge node (pulled per project latest, keeping only the latest package); Pingora serves static files directly from local storage.
+* When API proxying is enabled, Pingora rewrites and forwards (`reverse proxy`) API requests to backend dynamic endpoints according to the site's configured `api_proxy_path` (e.g. `/api`).
+* Administrator operations and internal scanners generate restricted artifact candidates, reusing the unified inspection, `upload.Ingest`, and deployment pipeline. Manual uploads create unactivated candidates; persistent source syncs create-or-load and atomically activate. Future repository build executors will emit artifacts into the same pipeline; edge nodes remain consumers of active deployments.
+* *See [Pages Static Hosting Design](./pages-design.md).*
 
 ### 3. WAF Security Filtering Flow
-* The WAF engine is embedded in the OpenResty request lifecycle.
-* WAF rules are orchestrated as a visual DAG on the control plane and compiled into a runtime graph at release; after an OpenResty reload each Worker loads it once, and subsequent requests only traverse the in-memory object.
-* Global rules always run first; route-bound rules execute in explicit order; reaching "pass" in the current rule continues to the next, reaching "block" immediately returns that node's configured block response.
-* IP group members hot-update independently: a coordinating worker checks the checksum every 5 seconds, loading the full snapshot only on change; each Worker's request path always reads the local in-memory object.
-* *IP group sources and sync: [WAF Design](./waf-design.md); graph model, execution semantics, release constraints: [WAF Orchestration Rule Design](./waf-orchestration-design.md)*
+* The WAF engine evaluates requests during the Pingora request phase.
+* WAF rules are orchestrated as visual DAGs on the control plane and compiled into runtime graphs upon publishing; edge nodes load and execute them via in-memory objects.
+* Global rules precede route-bound rules, which execute in explicit order. When an evaluation reaches "pass", processing proceeds to the next rule; reaching "block" immediately returns the node-configured blocking response.
+* IP group membership updates dynamically: the control plane notifies nodes to verify checksums, and nodes update only modified IP groups.
+* *See [WAF Design](./waf-design.md) and [WAF Orchestration Rule Design](./waf-orchestration-design.md).*
 
-### 4. Edge Observability and Business Traffic Stats Flow
+### 4. Edge Observability and Business Traffic Statistics Flow
 ```text
-OpenResty access.log (business facts)
+Pingora access logs (business ground truth)
         |
-        | Agent tails incremental details (no sum/count/uniq)
+        | nodes report log entries via heartbeats
         v
-Server stores via logstore (current log primary DB: PostgreSQL / SQLite / ClickHouse)
+Server ingests via logstore (current log primary: PostgreSQL / SQLite / ClickHouse)
         |
-        +---> global aggregation --> dashboard "data provided / requests / UV"
-        +---> host∈Zone --> Zone "data provided" etc. (same semantics)
-        +---> node_id filter --> node business volume
+        +---> Global aggregation --> Dashboard "Data Provided / Requests / Unique Visitors"
+        +---> host in Zone --------> Zone "Data Provided" etc. (identical semantics)
+        +---> node_id filter ------> Node business traffic volume
 
-host /proc NIC, CPU etc. --> Agent reading snapshots --> host resource trends (displayed separately from business delivery)
-OpenResty health and connections --> edge health (instant, not 24h business totals)
+Host /proc network and CPU metrics --> Agent snapshot readings --> Host resource trends (isolated from business traffic)
+Pingora health and connection counts --> Edge health (instantaneous readings, not 24h business totals)
 ```
-* **Principle**: the Agent reports only facts; the Server interprets facts; access logs are the single truth for business traffic. `openresty_tx` and "data provided" must not run on dual tracks.
-* *Transport model, examples, and collection frequency: [Observability Transport Model](./observability-transport-model.md); field convergence and migration: [Edge Observability & Business Traffic Stats](./observability-design.md)*
+* **Principle**: The edge node reports facts only; the Server interprets facts; access logs are the single truth for business traffic. `openresty_tx` and "Data Provided" must not run on dual tracks.
+* *See: [Observability Transport Model](./observability-transport-model.md) and [Edge Observability & Business Traffic Stats](./observability-design.md).*
 
 ### 5. Cloudflare DNS Pointing Flow
-
 ```text
-admin configures connection/group/member -> Server persists desired state -> Asynq sync tasks
-                                                        |
-                                                        v
-                                              Cloudflare Zone / DNS API
-                                                        |
-                                                        v
-                                    single A record -> active_node IPv4
+Admin configures connection/groups/members -> Server persists desired state -> Asynq sync task
+                                                                                   |
+                                                                                   v
+                                                                         Cloudflare Zone / DNS API
+                                                                                   |
+                                                                                   v
+                                                               single A record -> active_node IPv4
 
-node IP manually updated or Agent heartbeat change --------------------> best-effort enqueue per node
+Node IP manual update or Agent heartbeat change ------------------------> Node-level best-effort enqueue
 ```
 
-* The Cloudflare module only manages cached or taken-over uniquely-named A records; it doesn't extend the Zone core into an authoritative DNS control plane. On multiple same-name A records it stops syncing and asks the admin to clean up in Cloudflare.
-* Group backup/active nodes are reserved for later failover; phase 1 fixes the primary node and doesn't auto-switch on heartbeat offline.
-* *Connection, model, idempotent sync, and phasing: [Cloudflare DNS Pointing Design](./cloudflare-pointing.md)*
+* The Cloudflare module manages only the single A record of the same name under its control, without expanding the Zone core into an authoritative DNS control plane. When multiple A records of the same name exist, synchronization halts until cleaned up in Cloudflare.
+* Group backup nodes and active nodes are reserved for future failover; phase 1 fixes usage to the primary node without automatic failover based on heartbeat offline status.
+* *See [Cloudflare DNS Pointing Design](./cloudflare-pointing.md).*
 
 ---
 
 ## Core Objects
 
-Current core system entities include:
+Core system entities include:
 
-* **Reverse proxy & config**: `zones` (root-domain management boundary), `zone_domains` (explicit domains with cert/route association), `proxy_routes` (route policy), `origins`, `config_versions`, `tls_certificates`. See [Zone & Domain Resource Design](./zone-design.md).
-* **Cloudflare DNS pointing**: `of_cf_connections` (global connection), `of_cf_pointing_groups` (primary/backup/active nodes and default orange-cloud), `of_cf_pointing_members` (ZoneDomain members, record cache, sync state). See [Cloudflare DNS Pointing Design](./cloudflare-pointing.md).
-* **Pages static hosting**: `of_pages_projects`, `of_pages_project_sources` / `of_pages_project_source_runtime` (mutable source config and runtime), `of_pages_deployments` (immutable deployments), `of_pages_deployment_files` (deployment file manifests).
-* **Nodes & tunnels**: `nodes`, `tunnels` (tunnel clients), `node_system_profiles`, `apply_logs`.
-* **WAF & security**: `waf_rule_groups`, `waf_ip_groups`, `waf_rule_group_bindings` (site WAF bindings).
-* **System & accounts**: `acme_accounts`, `dns_accounts`, `geoip_update_configs`.
+* **Proxy and Configuration**: `zones` (root domain boundary), `zone_domains` (explicit domain and cert/route bindings), `proxy_routes` (route policies), `origins` (origin servers), `config_versions` (configuration versions), `tls_certificates` (certificates). See [Zone & Domain Resource Design](./zone-design.md).
+* **Cloudflare DNS Pointing**: `of_cf_connections` (global connections), `of_cf_pointing_groups` (primary/backup/active nodes and default orange-cloud), `of_cf_pointing_members` (ZoneDomain members, record cache, and sync status). See [Cloudflare DNS Pointing Design](./cloudflare-pointing.md).
+* **Pages Static Hosting**: `of_pages_projects` (Pages projects), `of_pages_project_sources` / `of_pages_project_source_runtime` (source configuration and runtime state), `of_pages_deployments` (immutable deployments), `of_pages_deployment_files` (deployment file manifests).
+* **Nodes and Tunnels**: `nodes` (nodes), `tunnels` (tunnel clients), `node_system_profiles` (system profiles), `apply_logs` (application logs).
+* **WAF and Security**: `waf_rule_groups` (WAF rule groups), `waf_ip_groups` (WAF IP groups), `waf_rule_group_bindings` (site WAF bindings).
+* **System and Accounts**: `acme_accounts` (ACME accounts), `dns_accounts` (DNS accounts), `geoip_update_configs` (GeoIP update configurations).
 
 ---
 
 ## Key Design Decisions
 
-| Decision | Reason |
+| Decision | Rationale |
 | --- | --- |
-| Full config versions instead of online patching | stable boundaries for preview, activation, history, and rollback; consistent node state |
-| Agent active pull | the Server needs no SSH access, lowering security risk; supports HTTP/WebSocket dual-protocol switching |
-| Globally single active version | lowers control-plane complexity, keeps all nodes consistent by default; stable one-click second-level rollback |
-| Zone domains separated from route policy | Zones provide the root-domain entry and domain boundaries; routes still reuse the same site-level policy and bind certs per domain |
-| Cloudflare pointing independent of the Zone core | ZoneDomains only provide explicit FQDNs; the Cloudflare module drives single A records from DB desired state without widening Zones into a general DNS control plane |
-| Intranet penetration integrated on frp | reuses a mature tunnel protocol, avoiding self-built tunnel stability risks; its Vhost mechanism natively fits reverse-proxy routes |
-| Runtime config decoupled from the control store | WAF rules compile at release and load with the OpenResty reload; dynamic IP groups refresh independently via checksum-driven memory snapshots |
-| Access logs as the single truth for business traffic | the Agent forbids business pre-aggregation; dashboard and Zone share Server-side aggregation, avoiding openresty_tx vs bytes_sent dual tracks |
-| Business delivery / edge health / host capacity layered | data provided ≠ host NIC outbound ≠ OpenResty connections; UI and API name and section them separately |
-| Pages artifacts separated from repo builds | current sources only import pre-built artifacts; future checkout/build happens in a Server-isolated executor reusing the artifact pipeline; the Agent never runs third-party builds |
-
----
+| Complete site snapshots | Provides consistent boundaries for validation, atomic swapping, and local recovery |
+| Active pull by edge nodes | Eliminates Server SSH requirements, lowering security risks; enables flexible HTTP and WebSocket switching |
+| Single active version | Simplifies control plane state and ensures consistency across nodes; provides instant one-click rollback |
+| Separation of Zone domains and route policies | Zone defines root domain boundaries; routes reuse site policies and bind certificates per domain |
+| Cloudflare pointing independent of Zone core | ZoneDomain provides FQDNs; Cloudflare module synchronizes single A records from desired state without expanding Zone into a general DNS plane |
+| Intranet penetration based on frp | Reuses proven tunnel protocols to avoid custom protocol risks; vhost routing naturally matches reverse proxy routes |
+| Decoupled runtime configuration and control DB | WAF rules compile upon publishing and load atomically with site snapshots; dynamic IP groups refresh independently via checksum-driven in-memory snapshots |
+| Access logs as the single truth for business traffic | Edge nodes forbid business pre-aggregation; dashboard and Zone share Server-side aggregation, avoiding dual tracks between openresty_tx and bytes_sent |
+| Layered separation of business traffic / edge health / host resources | Data Provided != host network egress != Pingora connection counts; UI and APIs maintain distinct naming and presentation |
+| Pages artifact and repository build separation | Existing sources import pre-built packages; future checkout/build pipelines run in isolated Server executors and reuse the artifact pipeline; edge nodes do not execute third-party builds |

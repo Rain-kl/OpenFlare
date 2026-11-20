@@ -533,9 +533,8 @@ bytes_sent (= $body_bytes_sent), request_length
 
 | 区域 | 主要路径 |
 | --- | --- |
-| 协议 | `internal/openflare/protocol/agent.go` |
-| Agent 采集 | `internal/edge/agent/observability/`、`internal/edge/agent/heartbeat/` |
-| OpenResty 日志与 Lua | `internal/openflare/openresty/`、`internal/edge/agent/nginx/observability_assets.go` |
+| 协议定义 | `internal/openflare/protocol/agent.go` |
+| 节点采集与日志缓冲 | `edge/pingora/src/telemetry/`、`edge/pingora/src/control/` |
 | Server 入库 | `internal/apps/openflare/agent/observability.go` |
 | 日志聚合 | `internal/repository/logstore/ch_node_access_log*.go`、`internal/repository/logstore/postgres_store.go`、`internal/apps/openflare/zone/stats.go` |
 | 看板 | `internal/apps/openflare/dashboard/`、`internal/apps/openflare/observability/analytics.go` |

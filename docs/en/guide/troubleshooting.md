@@ -1,31 +1,31 @@
 # Troubleshooting
 
-You will learn: how to troubleshoot OpenFlare Server, database, login, Agent, OpenResty, and config release issues by symptom.
+You will learn: how to troubleshoot OpenFlare Server, database, login, Pingora Edge, and configuration synchronization issues by symptom.
 
-First determine which layer the problem is in: browser, Server, database, Agent, OpenResty, origin, or DNS. OpenFlare configs are not written to all nodes online directly — only after the active version changes do Agents detect and apply it in their heartbeat.
+First determine which layer the issue occurs in: browser, Server, database, Pingora Edge, origin server, or DNS. Nodes fetch new configuration manifests upon receiving WebSocket notifications and re-synchronize periodically through node heartbeats.
 
-## Quick Locate
+## Quick Identification
 
 | Symptom | Look Here First |
 | --- | --- |
-| Admin panel won't open | Server container/process logs, port listening |
-| Login abnormal | default account, Session Cookie, Server logs |
-| Data won't save | DB connection, SQLite file permissions, PostgreSQL health |
+| Admin panel inaccessible | Server container or process logs, port listening status |
+| Login failure | Default credentials, Session Cookie, Server logs |
+| Data cannot be saved | Database connection, SQLite file permissions, PostgreSQL health |
 | Agent offline | Agent logs, Token, Server address, network connectivity |
-| Node not updated after saving | node heartbeat, apply records, controller compilation logs |
-| OpenResty apply failure | apply records, Agent logs, certificates, upstream addresses, port usage |
-| Access analytics empty | OpenResty container state, observability port, Agent backfill logs |
-| Static assets never hit cache | global/site cache switch, policy extensions, whether the node applied the latest configuration, access log `cache_status`, origin Set-Cookie / Cache-Control |
+| Node not updated after saving | Node heartbeat, apply records, controller snapshot compilation logs |
+| Pingora config apply failure | Apply records, Edge logs, certificates, origin addresses, port conflicts |
+| Access analytics empty | Node heartbeat, Edge access log queue, and controller logs |
+| Static assets never hit cache | Global/site cache toggle, policy file extensions, configuration apply status, access log `cache_status`, origin Set-Cookie / Cache-Control |
 
 ## Server Won't Start
 
-1. Check the logs:
+1. Check logs:
 
 ```bash
 docker compose logs -n 200 openflare
 ```
 
-For source runs, check terminal output.
+For source runs, inspect terminal output.
 
 2. Check port usage:
 
@@ -33,14 +33,14 @@ For source runs, check terminal output.
 lsof -i :3000
 ```
 
-3. If using PostgreSQL, confirm DB health:
+3. If using PostgreSQL, confirm database health:
 
 ```bash
 docker compose ps postgres
 docker compose logs -n 100 postgres
 ```
 
-4. If using SQLite, confirm the DB file directory is writable:
+4. If using SQLite, confirm the database directory is writable:
 
 ```bash
 ls -ld "$(dirname /path/to/openflare.db)"
@@ -50,44 +50,44 @@ Common causes:
 
 | Log or Symptom | Handling |
 | --- | --- |
-| DB connection failed | check `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL_MODE` consistency |
-| SQLite can't create file | check the `SQLITE_PATH` directory exists and is writable |
-| Port occupied | change `PORT` or `--port`, or stop the process holding the port |
+| DB connection failed | Check `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL_MODE` consistency |
+| SQLite cannot create file | Check that the directory containing `SQLITE_PATH` exists and is writable |
+| Port occupied | Change `PORT` or `--port`, or stop the process holding the port |
 
 ## Admin Panel Won't Open or Is Blank
 
-1. Confirm the Server is listening:
+1. Confirm Server is listening:
 
 ```bash
 curl -I http://127.0.0.1:3000
 ```
 
-2. Check that the browser access address matches the reverse proxy config.
+2. Check that the browser URL matches the configured reverse proxy address.
 
-## Default Account Can't Log In
+## Default Account Cannot Log In
 
-The default account is `admin` / `12345678`. If the password was changed after first login, use the changed one.
+The default account is `admin` / `12345678`. If the password was modified after first login, use the updated password.
 
-Steps:
+Troubleshooting steps:
 
-1. Confirm you're connected to the intended database — avoid `SQLITE_PATH` or `DB_HOST` / `DB_NAME` pointing at another environment.
-2. Check whether the Server log uses `sqlite` or `postgres`.
-3. In browser dev tools, confirm admin API requests carry the Session Cookie correctly.
-4. Clear browser cache and cookies, then log in again.
+1. Confirm you are connected to the expected database, avoiding `SQLITE_PATH` or `DB_HOST` / `DB_NAME` pointing to another environment.
+2. Check Server logs to confirm whether `sqlite` or `postgres` is in use.
+3. In browser developer tools, verify that admin API requests carry the Session Cookie correctly.
+4. Clear browser cache and cookies, then attempt login again.
 
 ### Emergency Admin Password Reset
 
-If you forget the `admin` password, reset it with the `reset-passwd` command (supports SQLite and PostgreSQL):
+If you forget the `admin` password, reset it using the `reset-passwd` command (supports both SQLite and PostgreSQL):
 
 ```bash
 go run ./cmd/server reset-passwd --user admin --password your-new-password
 ```
 
-With SQLite, stop the Server process first to avoid DB file lock conflicts. Without `--password`, the command generates a random password and prints it. After resetting, log in and change the password immediately.
+With SQLite, stop the Server process before running the command to prevent database file lock conflicts. Without `--password`, the command generates a random password and prints it to stdout. After resetting, log in immediately and update your password.
 
-## Agent Can't Register or Stays Offline
+## Agent Cannot Register or Stays Offline
 
-On the Agent node:
+On the Agent host:
 
 ```bash
 curl -I http://your-server:3000
@@ -99,111 +99,83 @@ Check Agent logs:
 journalctl -u openflare-agent -n 200 --no-pager
 ```
 
-Check the config file:
+Check configuration file:
 
 ```bash
 sed -n '1,160p' /opt/openflare-agent/agent.json
 ```
 
-Confirm:
+Verify key settings:
 
-| Config | Description |
+| Configuration | Description |
 | --- | --- |
-| `server_url` | must be a Server address reachable by the Agent node |
-| `agent_token` / `discovery_token` | at least one filled in |
-| `heartbeat_interval` | supports millisecond integer or Go duration string |
-| `request_timeout` | increase for slow networks |
+| `server_url` | Must be a Server address accessible from the Agent host |
+| `agent_token` / `discovery_token` | At least one must be configured |
+| `heartbeat_interval` | Supports millisecond integer or Go duration string |
+| `request_timeout` | Increase appropriately for high-latency networks |
 
-If logs say the Token is invalid, prepare a new Token in the admin panel, update `agent.json`, then restart:
+If logs report an invalid Token, generate a new Token in the admin panel, update `agent.json`, and restart the service:
 
 ```bash
 systemctl restart openflare-agent
 ```
 
-## Node Did Not Apply the Saved Configuration
+## Node Did Not Apply Saved Configuration
 
-1. Confirm that the site is enabled and the node's heartbeat is current.
-2. Check **Apply Records** on the node details page for a validation error. The node keeps serving the last healthy snapshot.
-3. If the controller could not compile the snapshot, check its logs for `refresh live edge snapshot`, then correct and save the configuration.
-4. After fixing the node environment, select **Force Sync** or restart the node to retry the same revision.
+1. Confirm the site is enabled and the node's heartbeat timestamp updates continuously.
+2. Check **Apply Records** in the node details. Nodes report validation errors for candidate configurations and continue serving the last healthy snapshot.
+3. If the controller failed snapshot compilation, search for `refresh live edge snapshot` in Server logs, correct configuration errors, and save again.
+4. After resolving node environment issues, click **Force Sync** in the node details. Restarting the node also clears failure flags and retries the latest revision.
 
-## OpenResty Apply Failure
+## Pingora Config Apply Failure
 
-Common causes:
-
-| Cause | Troubleshooting |
-| --- | --- |
-| Domain or server block conflict | check whether the same domain is used by multiple site configs |
-| Invalid upstream address | confirm all upstreams are `http://` or `https://` |
-| Multi-upstream format violates constraints | multi-upstream must be plain `scheme://host[:port]` |
-| Certificate missing or wrong path | check whether the domain is bound to a cert and the Agent cert dir is writable |
-| Port occupied | check local `80`, `443` ports |
-
-OpenResty config validation:
-
-```bash
-openresty -t -c /path/to/openflare/data/etc/nginx/nginx.conf
-```
-
-OpenResty running state:
-
-```bash
-ps aux | grep openresty
-```
-
-The Agent's periodic health check probes the local `http://127.0.0.1:<openresty_observability_port>/openflare/stub_status` to judge OpenResty liveness — it does not repeatedly run `openresty -t`. If a node is marked unhealthy, first confirm that local observability port is listening; if `host not found in upstream` appears only during config apply, the failure comes from config validation or reload, not the periodic health probe.
-
-Actual binary and main config paths follow `openresty_path` and `main_config_path` in `agent.json`.
+Run `systemctl status openflare-edge` to inspect service status, and run `journalctl -u openflare-edge` to inspect pull, validation, apply, and listener logs. The node's `ready.json` contains the active site version and content digest.
 
 ## HTTPS Not Taking Effect
 
-1. Confirm the certificate is uploaded or managed.
-2. Confirm the site config's domain is bound to a certificate.
-3. Confirm a new version was published and activated.
-4. Check whether the apply records succeeded.
-5. Inspect the certificate and status code with `curl`:
+1. Confirm the certificate has been uploaded or issued via ACME.
+2. Confirm the domain in website configuration is bound to the certificate.
+3. Confirm site settings and certificate bindings are saved.
+4. Verify that Apply Records report successful application.
+5. Inspect certificate and HTTP status with `curl`:
 
 ```bash
 curl -Iv https://your-domain
 ```
 
-Domains without a bound certificate are not auto-added to the HTTPS config — that's expected.
+Domains without a bound certificate are not added to HTTPS listeners; this is intended behavior.
 
 ## Access Analytics Empty
 
-1. Confirm `openflare-edge` is running and the control plane is receiving its heartbeats.
-2. Check Edge logs for warnings about dropped entries, disk write failures, or heartbeat acknowledgements. For write failures, check free space and write permissions in the node state directory.
-3. Confirm that the Server's retention policy has not removed the relevant time window.
-
-Pingora queues access logs, including WAF audit records, in memory and writes them to `access-logs.jsonl` in batches of 256 entries or every 100 ms. Requests do not wait for disk writes. Heartbeats submit up to 1,024 persisted entries and remove them after the control plane acknowledges the batch.
-
-The queue holds up to 2,048 pending entries. Queued and in-flight entries share a 16 MiB heap budget. At either limit, new entries are dropped and reported together in a warning. When the spool exceeds 4 MiB, the node keeps the newest entries that fit, up to 2,048. On normal shutdown or reload, the writer drains the queue; a forced stop or power loss can discard entries still in memory.
+1. Confirm `openflare-edge` is running and the node reports regular heartbeats.
+2. Inspect node logs for queue overflow warnings, disk spool write failures, or heartbeat acknowledgment errors. On write failures, check write permissions and disk space in the state directory.
+3. Confirm that the Server retention policy has not purged records for the target time window. For queue and disk limits, see [Access Log Spooling](./performance-policies.md#access-log-spooling).
 
 ## Edge Cache Hit-Rate Anomalies
 
-Access log cache three states: **hit** (HIT/STALE/REVALIDATED/UPDATING), **origin** (MISS/EXPIRED), **not cached** (BYPASS or empty — request didn't enter a cacheable path or response wasn't stored). Design: [Edge Cache Strategy Design](../design/edge-cache-design.md).
+Access logs classify cache status into three categories: **Hit** (HIT/STALE/REVALIDATED/UPDATING), **Origin** (MISS/EXPIRED), and **Not Cached** (BYPASS or empty, meaning the request did not match cacheable paths or the response was uncacheable). See [Edge Cache Strategy Design](../design/edge-cache-design.md).
 
 ### Checklist
 
-1. Global OpenResty cache enabled in **Performance Settings**.  
-2. Site **Cache** enabled and policy matches the path (「Standard static assets」covers only built-in extensions, **not HTML/JSON**; `.js.map`'s extension is `map`, in the default table).  
-3. The node applied the latest saved configuration successfully.
-4. Request method is **GET** (non-GET is never cached).  
-5. Origin doesn't return **`Set-Cookie`** for the target URL (if so, not written to the edge).  
-6. Origin doesn't declare **`Cache-Control: private` / `no-store`** (shared caches won't store).  
-7. Browser DevTools "Disable cache" only affects the browser; whether the edge HITs is judged by access log `cache_status`, not the Network panel.
+1. The cache switch in the node's Performance Policy is enabled.
+2. Site **Cache** is enabled, and the policy matches the request path (Standard Static Assets only covers built-in extensions, **excluding HTML/JSON**; `.js.map` has extension `map`, included by default).
+3. The node's Apply Records show that the latest configuration applied successfully.
+4. Request method is **GET** (non-GET requests bypass caching).
+5. The origin does not return **`Set-Cookie`** for the requested URL (responses with `Set-Cookie` are not stored on the edge).
+6. The origin does not declare **`Cache-Control: private` / `no-store`** (shared caches do not store private responses).
+7. Browser DevTools "Disable cache" only affects browser-side caching; verify edge hits using `cache_status` in access logs rather than the browser Network panel.
 
 ### Common Misconceptions
 
 | Symptom | Explanation |
 | --- | --- |
-| `/api/foo` or `/index.html` not cached under `static` | expected (extension not in the default cacheable table) |
-| HTML cross-user leakage after switching to `all` | origin didn't forbid shared caching; switch back to `static` or add `private`/`no-store` to dynamic responses |
-| URLs with `?v=` have low hit rates | default cache key includes the full `$request_uri`; different query = different object |
-| First MISS, second still MISS | check whether the origin sets `Set-Cookie`/`private` every time, or node disk/cache `inactive` is too short |
+| `/api/foo` or `/index.html` not cached under `static` | Expected behavior (extension not in default cacheable list) |
+| HTML cross-user leakage under `all` policy | Origin did not forbid shared caching; revert to `static` or set `private`/`no-store` on dynamic responses |
+| Low hit rate for URLs with `?v=` | Default cache key includes full URI with query; different query parameters create distinct cache entries |
+| Continuous MISS across consecutive requests | Verify whether origin returns `Set-Cookie` or `private`, or if disk/memory cache inactive window is too short |
 
-### Expected Behavior (aligned with Cloudflare defaults)
+### Expected Behavior (Cloudflare Defaults Alignment)
 
-* A logged-in user accessing `/_app/**/*.js` static assets: **can HIT**.  
-* Response with `Set-Cookie` or `private`: **not stored**.  
-* Cacheable status codes without origin cache headers: use the default Edge TTL (e.g. ~120 min for 200).
+* Authenticated users with login cookies requesting `/_app/**/*.js`: **Can HIT**.
+* Responses with `Set-Cookie` or `private`: **Not stored**.
+* Cacheable status codes without origin caching headers: use default Edge TTL (~120 minutes for HTTP 200).

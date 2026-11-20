@@ -18,7 +18,7 @@ GitHub Release asset ─ Server 解析 ───┴─> create/load deployment �
                                                         Agent 按项目 latest 拉取
                                                                         |
                                                                         v
-                                                        OpenResty 本地静态服务
+                                                        Pingora Edge 本地静态服务
 ```
 
 外部 URL、GitHub 元数据和自动检查都只由 Server 处理。Agent 只从控制面拉取当前激活的部署包，不接收外部来源凭据，也不执行 `git clone`、依赖安装或构建命令。
@@ -85,7 +85,7 @@ Agent 下载时还会执行 SHA-256、真实响应字节上限、解压后文件
 
 ### 1. SPA Fallback
 
-使用 React Router、Vue Router 等前端路由时，开启 **「SPA Fallback」** 并设置入口路径（通常为 `/index.html`）。访客直接访问不存在的物理路径时，OpenResty 会回退到入口文件交由前端路由处理。
+使用 React Router、Vue Router 等前端路由时，开启 **「SPA Fallback」** 并设置入口路径（通常为 `/index.html`）。访客直接访问不存在的物理路径时，Pingora Edge 会回退到入口文件交由前端路由处理。
 
 新建项目时可配置此开关；已有项目可在详情页的「设置」中修改，点击「保存修改」生效。「重置」会恢复已保存的设置。
 

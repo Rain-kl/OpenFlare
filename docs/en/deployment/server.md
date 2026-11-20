@@ -1,20 +1,17 @@
-# Start the Server
+# Server deployment
 
-You will learn: how to deploy with Docker (quick start, production-recommended, advanced) and how to deploy the OpenFlare Server locally from source.
-
-The OpenFlare Server is a Gin + GORM monolithic control plane responsible for the admin UI, admin API, Agent API, config rendering, version release, data storage, and aggregation queries.
+OpenFlare Server is a monolithic control plane developed with Gin and GORM. It provides the web admin dashboard, administration APIs, edge node communication endpoints, configuration rendering and distribution, background asynchronous task scheduling, and metrics aggregation.
 
 > [!IMPORTANT]
-> **About external dependencies**:
-> OpenFlare has built-in support for background async tasks (Asynq framework). Therefore, **regardless of deployment mode, Redis (or Valkey) is required**. The main difference between deployment options is the primary relational DB choice (SQLite vs PostgreSQL) and whether tracing (Jaeger) is enabled.
-> For high business traffic, ClickHouse is recommended for log storage.
+> **External dependencies**:
+> OpenFlare uses the Asynq framework for background tasks. **Redis (or Valkey) is strictly required across all deployment modes**. The primary relational database supports SQLite (single-node) or PostgreSQL (standard production). For high-volume access logging, ClickHouse is recommended for analytical storage.
 
 > [!TIP]
-> **ClickHouse server performance config (recommended mount)**
-> The control plane is typically a small host (e.g. 3c6g). The `performance.xml` provided in the repo tightens the background merge/mutation thread pools, avoiding high idle CPU or ClickHouse 25.x startup validation failures on small machines.
-> Mount the local `./config/clickhouse/performance.xml` as a single file at `/etc/clickhouse-server/config.d/performance.xml` to keep the official image's built-in Docker network listening config.
+> **ClickHouse performance configuration (recommended mount)**  
+> Control plane hosts often operate with moderate resource allocations. The repository-provided `performance.xml` restricts background merge/mutation thread pools, avoiding elevated idle CPU usage or ClickHouse 25.x startup verification failures.  
+> Mount `./config/clickhouse/performance.xml` as a read-only single file at `/etc/clickhouse-server/config.d/performance.xml`.
 
-Pull the config locally before deploying:
+Fetch the tuning configuration:
 
 ```bash
 mkdir -p ./config/clickhouse
@@ -22,33 +19,29 @@ curl -fsSL -o ./config/clickhouse/performance.xml \
   https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
 ```
 
-Add it to the ClickHouse service `volumes` (alongside the data volume):
+Mount it within the ClickHouse service volume section:
 
 ```yaml
 volumes:
-  - ./data/clickhouse_data:/var/lib/clickhouse   # or named volume
+  - ./data/clickhouse_data:/var/lib/clickhouse
   - ./config/clickhouse/performance.xml:/etc/clickhouse-server/config.d/performance.xml:ro
 ```
 
-After modifying `performance.xml`, run `docker compose restart clickhouse` for it to take effect.
+Apply changes by running `docker compose restart clickhouse`.
 
 ---
 
-## Method 1: Docker Deployment (recommended)
+## Docker Compose deployment profiles
 
-Docker deployment avoids configuring Go and Node.js frontend build environments locally. Choose one of the three options based on your hardware and needs:
+Select an orchestration profile matching your environment and traffic profile:
 
-### 1. Quick Start (SQLite + Redis)
+### Profile 1: Single-node (SQLite + Redis)
 
-> **Use case**: testing/experience, lightweight single-machine deployment.
->
-> **Features**: primary relational DB is SQLite.
+Recommended for evaluation, development, or single-node private environments. Uses embedded SQLite as the primary database.
 
-Create a `docker-compose.yaml`:
+Create `docker-compose.yaml`:
 
 ```yaml
-version: '3.8'
-
 services:
   openflare:
     image: ghcr.io/rain-kl/openflare:latest
@@ -61,8 +54,8 @@ services:
       - ./uploads:/app/uploads
     environment:
       TZ: Asia/Shanghai
-      APP_SESSION_SECRET: 'replace-with-a-long-random-string' # replace with a long random string in production
-      DB_ENABLED: "false" # disables PostgreSQL, auto-enables the built-in SQLite fallback
+      APP_SESSION_SECRET: 'replace-with-a-long-random-string' # Must be a strong random secret in production
+      DB_ENABLED: "false" # Disables PostgreSQL; activates built-in SQLite
       SQLITE_PATH: "/data/openflare.db"
       REDIS_ENABLED: "true"
       REDIS_ADDR: "redis:6379"
@@ -83,13 +76,20 @@ services:
       retries: 5
 ```
 
+Start the stack:
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
 ---
 
-### 2. Small-Traffic Business (PostgreSQL + Redis)
+### Profile 2: Standard production (PostgreSQL + Redis)
 
-> **Use case**: production, small-to-medium traffic; PostgreSQL won't be the log-write bottleneck.
+Recommended for standard production workloads, providing relational data persistence and ACID transaction support.
 
-Create a `docker-compose.yaml`:
+Create `docker-compose.yaml`:
 
 ```yaml
 services:
@@ -138,34 +138,29 @@ services:
       start_period: 5s
 
 volumes:
-    openflare_uploads:
-    openflare_postgres_data:
-    openflare_redis_data:
+  openflare_uploads:
+  openflare_postgres_data:
+  openflare_redis_data:
 ```
 
-Create a matching `.env` file for system env vars (copy and modify the root `.env.example`):
+Configure `.env`:
 
 ```bash
 curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
 cp .env.example .env
-# edit .env: fill in DB, Redis, passwords, and APP_SESSION_SECRET
-
+# Edit .env and supply secure database credentials and APP_SESSION_SECRET
 docker compose up -d
 ```
 
 ---
 
-### 3. Advanced (full orchestration with Jaeger tracing)
+### Profile 3: Full observability stack (ClickHouse and Jaeger)
 
-> **Use case**: high traffic; needs trace performance metrics.
->
-> **Features**: on top of the "production-recommended" bundle, stores logs with ClickHouse and uses Jaeger as the OpenTelemetry (OTel) tracing backend.
+Recommended for high-throughput deployments requiring isolated analytical storage for access logs and Jaeger distributed tracing via OpenTelemetry (OTel).
 
-Create a `docker-compose.yaml`:
+Create `docker-compose.yaml`:
 
 ```yaml
-version: '3.8'
-
 services:
   openflare:
     image: ghcr.io/rain-kl/openflare:latest
@@ -175,7 +170,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
       OTEL_EXPORTER_OTLP_INSECURE: "true"
-      OTEL_SAMPLING_RATE: "1.0" # sampling rate; 1.0 samples all traces
+      OTEL_SAMPLING_RATE: "1.0"
     ports:
       - "3000:3000"
     volumes:
@@ -224,9 +219,9 @@ services:
     environment:
       TZ: ${TZ:-Asia/Shanghai}
     ports:
-      - "16686:16686" # Web UI port
-      - "4317:4317"   # OTLP gRPC receive port
-      - "4318:4318"   # OTLP HTTP receive port
+      - "16686:16686" # Web UI
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
 
   clickhouse:
     image: clickhouse/clickhouse-server:25.3-alpine
@@ -258,7 +253,7 @@ volumes:
   openflare_clickhouse_data:
 ```
 
-Start and verify:
+Initialize and start:
 
 ```bash
 mkdir -p ./config/clickhouse
@@ -266,35 +261,54 @@ curl -fsSL -o ./config/clickhouse/performance.xml \
   https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/config/clickhouse/performance.xml
 curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
 cp .env.example .env
-# edit .env and make sure APP_SESSION_SECRET password is set
-
+# Edit .env, configure credentials and APP_SESSION_SECRET
 docker compose up -d
 ```
-After startup, open `http://localhost:16686` to view the Jaeger monitoring UI and system span traces.
+
+Access the Jaeger UI at `http://localhost:16686` to inspect trace spans.
+
+### Custom OpenTelemetry exporters
+
+Distributed tracing defaults to OTLP/gRPC. To use OTLP/HTTP protobuf, set the following environment variables:
+
+```yaml
+OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+OTEL_EXPORTER_OTLP_ENDPOINT: https://collector.example.com
+OTEL_SAMPLING_RATE: "0.1"
+```
+
+The standard SDK appends `/v1/traces` to `OTEL_EXPORTER_OTLP_ENDPOINT`. If your collector uses a non-standard path, set `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` directly. The trace-specific `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` takes precedence over general protocol settings.
+
+Configure authentication headers via `OTEL_EXPORTER_OTLP_HEADERS` (format `key=value,key2=value2`, with special characters percent-encoded).
 
 ---
 
-## First Login
+## Initial login and credentials
 
-The Server listens on port `3000` by default; open `http://localhost:3000` in a browser after startup.
+The Server listens on port `3000` by default. Once the container is running, open `http://localhost:3000` in your browser.
 
-Default admin account:
+Default administrator credentials:
 
-| Username | Password |
+| Username | Default password |
 | --- | --- |
 | `admin` | `12345678` |
 
 > [!WARNING]
-> For your system's security, change the default password immediately in your profile settings after the first login.
+> Change the default password in the admin console immediately upon first login.
 
 ---
 
-## Distributed Deployment
+## Distributed process separation
 
-In large production deployments, split the Server into multiple processes by responsibility:
+For large-scale deployments, the server can be split into dedicated processes:
 
 ```bash
-go run ./cmd/server api             # API service for admin panel and node communication only
-go run ./cmd/server worker          # background task Worker service only
-go run ./cmd/server scheduler       # scheduled task Scheduler service only
+# 1. HTTP API server for admin UI and node communication
+go run ./cmd/server api
+
+# 2. Worker node processing background Asynq tasks
+go run ./cmd/server worker
+
+# 3. Cron task scheduler
+go run ./cmd/server scheduler
 ```

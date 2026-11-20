@@ -1,4 +1,14 @@
 {
   "title": "Reference",
-  "pages": ["index", "configuration", "cli", "pingora-benchmark"]
+  "pages": [
+    "index",
+    "---Configuration---",
+    "configuration",
+    "---CLI & Tooling---",
+    "cli",
+    "---API & Protocols---",
+    "api",
+    "---Benchmarks---",
+    "pingora-benchmark"
+  ]
 }

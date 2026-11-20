@@ -1,8 +1,8 @@
 # 源站错误页设计
 
-你会学到：源站或网关返回指定错误状态码时，OpenFlare 如何用全局可配置页面替代透传响应；配置如何进入不可变配置版本，以及边缘 OpenResty 如何保持真实 HTTP 状态码并在页面中展示该状态码。
+源站或网关返回指定错误状态码时，OpenFlare 使用全局可配置页面替代透传响应。配置进入不可变配置快照，边缘 Pingora 网关在保持真实 HTTP 状态码的前提下渲染错误页面并在正文中展示该状态码。
 
-本设计是 [系统架构](./architecture.md) 中反代流量路径的产品化补充；配置发布模型见 [Agent 与发布模型](./agent-design.md)。
+本设计是 [系统架构](./architecture.md) 中反代流量路径的产品化补充；配置同步模型见 [Pingora 边缘节点设计](./pingora-edge-design.md)。
 
 ---
 
@@ -10,14 +10,14 @@
 
 ### 1.1 目标
 
-* **可拦截**：在用户配置的状态码集合上，用统一 HTML 替换原先透传的源站/Nginx 默认错误响应。
-* **可关闭**：全局开关关闭后行为与现状一致（透传 / Nginx 默认页）。
-* **默认可视**：默认启用，默认状态码标签 `500-599`，默认 OpenFlare 极简错误页。
+* **可拦截**：在用户配置的状态码集合上，用统一 HTML 替换原先透传的源站或默认错误响应。
+* **可关闭**：全局开关关闭后行为与现状一致（透传源站响应或返回内置默认错误）。
+* **默认可视**：默认启用，默认状态码标签 `500-599`，默认展示内置错误页。
 * **自带标识**：内置错误页和离线页直接嵌入黑色 OpenFlare 标识，无需加载外部图片。
 * **可自定义**：管理员可在线编辑完整 HTML；空 HTML 表示使用内置默认模板。
 * **状态码透传**：HTTP 响应 `status` 保持原错误码（如 502、522）；页面正文通过 `{{status}}` 展示同一数值。
 * **全局统一**：侧栏「网站管理 → 响应页面」单一配置，全站反代路由共用。
-* **与发布一致**：配置经 Option 持久化，进入配置版本快照后随发布/回滚下发。
+* **与发布一致**：配置经 Option 持久化，进入配置快照后随同步与回滚下发。
 
 ### 1.2 非目标
 
@@ -37,12 +37,12 @@
 | --- | --- |
 | 开关开启，且响应状态码落在展开后的集合内 | 返回自定义/默认 HTML，**status 不变** |
 | 开关开启且启用 GET-only，非 GET 请求返回匹配状态码 | 透传源站原始响应，不替换 |
-| 开关关闭 | 不生成 `error_page` 相关指令，透传 |
+| 开关关闭 | 不拦截错误码，透传原始响应 |
 | 状态码不在集合内 | 不替换 |
 | Pages 上游路由 | 不应用本功能 |
 | 源站成功返回 2xx/3xx/4xx（未配置时） | 不替换 |
 
-全方法模式下对反代 `location` 启用 `proxy_intercept_errors on`，因此**源站返回的**匹配 5xx 等也会被拦截，而不仅是网关本地生成的 502；GET-only 模式改用 Lua header/body 过滤器仅替换 GET 响应正文。
+全方法模式下对反代路由统一拦截源站返回的匹配 5xx 与网关本地错误；GET-only 模式仅替换 GET 请求的响应正文，非 GET 请求保持透传。
 
 ### 2.2 状态码标签语法
 
@@ -97,59 +97,43 @@ API 复用：
 1. `enabled`：可解析为 bool。  
 2. `status_codes`：合法 JSON 数组；每项 `^\d{3}$` 或 `^\d{3}-\d{3}$`；展开后均在 400–599；启用时非空。  
 3. `html`：长度 ≤ 256 KiB（按字节）；允许空。  
-4. 解析/展开逻辑为**纯函数**，供 API 与 `internal/openflare/openresty` 共用，避免前后端/渲染语义分叉。
+4. 解析/展开逻辑为**纯函数**（位于 `internal/openflare/edgeconfig/origin_error_page.go`），供 API 与边缘快照编译共用，避免前后端与渲染语义分叉。
 
 不对 HTML 做 XSS 消毒：属管理员全局运维配置，与边缘公开展示一致；文档提示勿嵌入不可信第三方脚本。
 
 ### 3.3 配置版本快照
 
-`ConfigSnapshot` 增加字段：
+快照结构中包含以下字段：
 
-```text
+```go
 OriginErrorPageEnabled     bool
 OriginErrorPageStatusCodes []string  // 原始标签
 OriginErrorPageHTML        string    // 空则渲染器用内置默认
 OriginErrorPageGetOnly     bool
 ```
 
-构建快照时从 Option 读取；Agent 只消费快照，不直读控制面 DB。
+构建快照时从 Option 读取；节点只消费快照，不直读控制面 DB。
 
 ---
 
-## 4. 边缘渲染
+## 4. 边缘渲染与处理
 
-### 4.1 启用时生成内容
+### 4.1 边缘网关处理机制
 
-1. **SupportFile**：错误页模板（如 `error_pages/origin_error.html.tmpl`），内容为自定义 HTML 或内置默认，保留 `{{status}}` / `{{host}}`。  
-2. **每个反代 proxy server**（含 HTTP/HTTPS 反代；不含 Pages）：
+Pingora 边缘网关在响应处理阶段拦截错误：
 
-```nginx
-proxy_intercept_errors on;
-error_page <expanded codes...> @__openflare_origin_error;
+1. 当响应状态码命中配置集合且未被关闭时，触发错误页处理逻辑。
+2. 若开启 `get_only` 且当前请求方法不为 `GET`，则跳过替换，透传原始响应。
+3. 动态读取快照中的模板 HTML（若为空则使用内置默认模板），并在内存中将 `{{status}}` 与 `{{host}}` 占位符替换为当前请求上下文的实际值。
+4. HTTP 响应 Header 中的 `Content-Type` 设置为 `text/html; charset=utf-8`，HTTP 状态码严格保留原错误码（如 500、502、504），禁止统一篡改为 HTTP 200。
 
-location @__openflare_origin_error {
-    default_type text/html;
-    charset utf-8;
-    content_by_lua_block {
-        # 读取模板，替换 {{status}} / {{host}} 后输出 body
-        # ngx.status 保持原错误码
-    }
-}
-```
+### 4.2 关闭与旁路
 
-### 4.2 运行时替换
+当配置关闭时，网关不拦截任何错误码，所有源站响应或网络层错误按原有链路直接返回客户端。
 
-采用 **命名 location 内 `content_by_lua_block`** 读模板并替换占位符，**不**把 status 固化进静态文件（请求间状态码不同）。GET-only 模式在反代 location 内用 `header_filter_by_lua_block` + `body_filter_by_lua_block` 仅替换 GET 响应正文，非 GET 请求透传。
+### 4.3 与缓存 stale 的关系
 
-禁止将错误页统一改为 HTTP 200。
-
-### 4.3 关闭时
-
-不输出 `proxy_intercept_errors`、`error_page`、内部 location 与对应 SupportFile（或文件可写但不被引用）。GET-only 模式同时不输出 Lua 过滤器。
-
-### 4.4 与缓存 / stale
-
-若全局 `proxy_cache_use_stale` 在部分错误码上返回过期缓存，**成功返回 stale 内容时不会进入 error_page**。仅当实际上对客户端产生配置列表内错误状态时才展示错误页。行为依赖现有缓存指令，本功能不改 stale 策略。
+若配置了特定错误码返回陈旧缓存（stale cache），成功返回 stale 内容时不会触发错误页逻辑。仅当最终产生面向客户端的错误状态码时才渲染错误页。
 
 ---
 
@@ -161,15 +145,11 @@ location @__openflare_origin_error {
 
 ### 5.2 页面结构
 
-* 页头说明：保存后需到「版本发布」发布才生效。  
-* **开关 + Tags Input**（shadcn-extension Tags Input：`@/components/ui/tags-input`）：状态码标签。  
+* 页头说明：保存后由控制端自动编译并同步生效。  
+* **开关 + Tags Input**（`@/components/ui/tags-input`）：状态码标签。  
 * **HTML 编辑区** +「加载默认模板」「恢复默认（清空）」+ 占位符说明。  
 * **客户端预览**：用示例 `status=502`、`host=example.com` 替换后 sandbox/iframe 预览。  
-* 保存：`OptionService.updateBatch`；权限与性能调优页一致（管理员）。  
-
-### 5.3 组件依赖
-
-Tags Input 与 HTML 编辑器复用现有 shadcn/ui 组件，样式与现有 UI 一致。
+* 保存：`OptionService.updateBatch`；权限与管理员设置保持一致。  
 
 ---
 
@@ -180,15 +160,15 @@ Tags Input 与 HTML 编辑器复用现有 shadcn/ui 组件，样式与现有 UI 
     → Option update-batch（校验标签与 HTML）
     → w_system_configs
 
-发布配置版本
-    → 快照写入 OriginErrorPage*
-    → 渲染 OpenResty conf + SupportFile
-    → Agent 拉取并 reload
+保存配置并自动同步
+    → 快照编译写入 sites.v1
+    → 边缘节点拉取并原子替换
+    → Pingora 内存热生效
 
 访客请求反代域名
-    → 源站/网关产生匹配状态码
-    → error_page → 命名 location
-    → 替换占位符，status 保持原码，返回 HTML
+    → 源站或网关产生匹配状态码
+    → Pingora 响应拦截阶段
+    → 替换占位符，HTTP status 保持原码，返回 HTML
 ```
 
 ---
@@ -197,9 +177,9 @@ Tags Input 与 HTML 编辑器复用现有 shadcn/ui 组件，样式与现有 UI 
 
 | 决策 | 选择 | 原因 |
 | --- | --- | --- |
-| 配置范围 | 全局 | 产品要求；实现与运维简单 |
-| 存储 | Option + 配置版本 | 与性能调优一致，可回滚 |
-| 状态码输入 | 标签：单码与区间 | 默认整段 5xx，又可点名 522 |
-| 响应 status | 保持原码 | 监控/SEO/客户端语义正确 |
-| 运行时替换 | internal + 轻量模板替换 | 每请求 status 不同 |
-| 自定义方式 | 在线 HTML | 灵活且无需文件上传链路 |
+| 配置范围 | 全局 | 统一错误展示；降低单站配置复杂度 |
+| 存储 | Option + 配置快照 | 与系统配置模型一致，支持随版本同步与回滚 |
+| 状态码输入 | 标签：单码与区间 | 既可覆盖完整 5xx，也可单独指定 522 等自定义码 |
+| 响应 status | 保持原码 | 保证监控、客户端与 SEO 语义正确 |
+| 运行时替换 | 内存占位符替换 | 满足每请求 host 与 status 动态绑定的要求 |
+| 自定义方式 | 在线 HTML | 避免依赖额外文件上传链路 |

@@ -1,50 +1,66 @@
-# Guide
+# Guide Overview
 
-You will learn: how the OpenFlare docs are organized, which pages to read on first run, and where to start for deployment, usage, and troubleshooting.
+OpenFlare is a distributed reverse proxy and edge security gateway based on Pingora edge architecture. It provides multi-node cluster orchestration, snapshot-based configuration hot-synchronization, edge WAF, proof-of-work (PoW) challenge defense, intranet tunnels, and Pages static hosting. It can operate as a standalone gateway or as an origin shield behind upstream CDNs.
 
-OpenFlare is a self-hosted OpenResty control plane. It brings reverse proxy website configs, config version release, Agent node sync, TLS certificates, and basic observability into one admin panel — suitable for a single team or organization managing multiple proxy nodes.
+Documentation in this section is organized into five operational areas, guiding users from initial deployment through daily traffic management, security hardening, and troubleshooting.
 
-## Recommended Reading Path
+---
 
-If you're new to OpenFlare, read in this order:
+## Guide Index
 
-1. [Quick Start](./quick-start.md): start the Server with Docker Compose, log in to the admin panel, and connect your first Agent.
-2. [Create Your First Reverse Proxy Rule](./first-site.md): quickly create a basic HTTP reverse proxy site rule and verify the node applied it.
-3. [Create a Reverse Proxy Config](./proxy-config.md): step by step, from certificate import and application to HTTPS, upstream origins, and edge cache.
-4. [Zone Domain Migration](./zone-domain-migration.md): upgrade from legacy managed domains / inline route domains to the Zone model (automatic goose import), with backup, acceptance, and rollback notes.
-5. [Pages Static Hosting Usage](./pages-usage.md): static project ZIP upload limits, SPA Fallback, and built-in API reverse proxy config.
-6. [Tunnel & Intranet Penetration](./tunnel-usage.md): deploy Relay and Client for secure reverse penetration without a public IP.
-7. [WAF Security Protection](./waf-usage.md): configure WAF rule groups; master IP allow/block lists, auto/subscription IP groups, geo restrictions, and PoW CC protection.
-8. [WAF Auto IP Group Expressions](./waf-ip-group-expr.md): write auto IP group Expr rules; understand keyword meanings and preset rules.
-9. [Uptime Kuma Monitoring Sync](./uptime-kuma.md): configure Uptime Kuma auto differential sync and monitor scope control.
-10. [SSO Login Configuration](./sso.md): configure OIDC for third-party single sign-on (SSO).
-11. [Troubleshooting](./troubleshooting.md): troubleshoot login, database, node sync, OpenResty, and edge cache hit issues by symptom.
-12. [Credits](./credits.md): the excellent open-source projects and community acknowledgments this system depends on.
+### Getting Started
+For users deploying OpenFlare or connecting edge nodes for the first time:
+- [Quick Start](./quick-start.md): deploy the Server controller with Docker Compose, complete first-time login, obtain credentials, and connect your first edge node.
+- [Create Your First Reverse Proxy Rule](./first-site.md): create a baseline HTTP proxy site and verify edge node synchronization.
+- [Dashboard Geographic Distribution](./dashboard-map.md): explore the global dashboard, 2D/3D map switching, metric calculation methods, and country request rankings.
 
-## Find by Role
+### Traffic & Routing
+Configure reverse proxy routing, TLS encryption, and edge caching:
+- [Create a Reverse Proxy Config](./proxy-config.md): configure upstream origins, domain route bindings, wildcard routing, IP HTTPS upstreams, and access authentication.
+- [TLS Certificates & Auto-Renewal](./certificates.md): import existing certificates or automate wildcard issuance and renewal using ACME and Cloudflare DNS API.
+- [Pingora Performance Policies](./performance-policies.md): configure worker thread counts, upstream connection pools, HTTP/2 concurrency, TinyUFO memory cache, and disk cache limits.
+- [Zone Domain Migration](./zone-domain-migration.md): understand automatic migration to the Zone root domain model, backup procedures, and post-upgrade acceptance checks.
 
-| What you want to do | Recommended Entry |
+### Edge Security
+Configure edge firewalls and proof-of-work challenge defenses:
+- [WAF Security Protection](./waf-usage.md): build visual DAG workflow rules, configure IP matching, geo-filtering, and OWASP CRS attack protection rule groups.
+- [Proof-of-Work (PoW) Protection](./pow-usage.md): configure client-side proof-of-work challenges for routes, manage trigger path filters, and customize challenge pages.
+- [WAF Auto IP Group Expressions](./waf-ip-group-expr.md): write Expr-based dynamic metric aggregation and auto-blocking rules with custom HTTP status code filters.
+
+### Apps & Integrations
+Extend gateway capabilities with static hosting, intranet tunnels, and monitoring:
+- [Pages Static Hosting Usage](./pages-usage.md): deploy pre-built static site archives, configure SPA Fallback and API reverse proxy paths, and manage release rollbacks.
+- [Tunnel & Intranet Penetration](./tunnel-usage.md): deploy Relay nodes and OpenFlared clients to securely expose intranet services without public IP addresses.
+- [Uptime Kuma Monitoring Sync](./uptime-kuma.md): configure automated differential synchronization with Uptime Kuma to track site availability.
+- [SSO Login Configuration](./sso.md): configure standard OIDC identity providers for third-party single sign-on, user binding, and registration controls.
+
+### Operations
+Maintenance, diagnostic procedures, and open-source references:
+- [Troubleshooting](./troubleshooting.md): resolve issues with controller startup, database connections, Agent registration, Pingora configuration application, and edge cache misses.
+- [Open Source Acknowledgments](./credits.md): review core open-source projects, derived code provenance, third-party components, and license notices.
+
+---
+
+## Common Scenarios
+
+| Goal | Recommended Guide |
 | --- | --- |
-| Get the admin panel running in 5 minutes | [Quick Start](./quick-start.md) |
-| Set up your first HTTP site | [Create Your First Reverse Proxy Rule](./first-site.md) |
-| Configure domain certs, reverse proxy, and edge cache | [Create a Reverse Proxy Config](./proxy-config.md) (incl. cache notes) |
-| Static assets not hitting cache | [Troubleshooting · Edge Cache](./troubleshooting.md#edge-cache-hit-rate-anomalies) |
-| Host an SPA or static website | [Pages Static Hosting Usage](./pages-usage.md) |
-| Configure intranet penetration mapping | [Tunnel & Intranet Penetration](./tunnel-usage.md) |
-| Configure anti-CC and IP group blocking | [WAF Security Protection](./waf-usage.md) |
-| Write auto IP group rules | [WAF Auto IP Group Expressions](./waf-ip-group-expr.md) |
-| Auto-sync monitored site status | [Uptime Kuma Monitoring Sync](./uptime-kuma.md) |
-| Connect or reinstall a node Agent | [Access Agent](../deployment/agent.md) |
-| Start the Server from source | [Start the Server](../deployment/server.md) |
-| Configure OIDC login | [SSO Login Configuration](./sso.md) |
-| Upgrade Server or Agent | [Upgrade & Maintenance](../deployment/upgrade.md) |
-| Understand the architecture and release model | [System Architecture](../design/architecture.md) and [Agent & Publish Model](../design/agent-design.md) |
-| See open-source references and acknowledgments | [Credits](./credits.md) |
+| Start controller and connect first node | [Quick Start](./quick-start.md) |
+| Test basic HTTP proxy routing | [Create Your First Reverse Proxy Rule](./first-site.md) |
+| Configure HTTPS certificates and origin routing | [Create a Reverse Proxy Config](./proxy-config.md) and [TLS Certificates & Auto-Renewal](./certificates.md) |
+| Tune worker threads, connection pools, and cache sizes | [Pingora Performance Policies](./performance-policies.md) |
+| Enable WAF blocking and anti-CC challenge rules | [WAF Security Protection](./waf-usage.md) and [Proof-of-Work (PoW) Protection](./pow-usage.md) |
+| Host single-page applications with API proxying | [Pages Static Hosting Usage](./pages-usage.md) |
+| Expose intranet services to the public internet | [Tunnel & Intranet Penetration](./tunnel-usage.md) |
+| Synchronize site uptime monitoring | [Uptime Kuma Monitoring Sync](./uptime-kuma.md) |
+| Configure enterprise OIDC / OAuth2 login | [SSO Login Configuration](./sso.md) |
+| Diagnose failed configuration sync or cache misses | [Troubleshooting](./troubleshooting.md) |
 
-## Doc Sections
+---
 
-`guide/` targets users and deployers with executable steps from install to daily operations.
+## Documentation Structure
 
-`reference/` consolidates stable facts: config fields, commands, API response conventions, and repository structure.
-
-`design/` targets maintainers and contributors, describing product boundaries, system architecture, the Agent & publish model, and engineering constraints. Before adding capabilities or changing boundaries, update the corresponding design doc first.
+OpenFlare documentation is organized into three sections:
+- `guide/` (this section): procedural guides and step-by-step instructions for administrators and operators.
+- `reference/`: system parameters, CLI command specifications, and performance benchmark data.
+- `design/`: architectural designs, data models, state synchronization protocols, and security mechanisms.

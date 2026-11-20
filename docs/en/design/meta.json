@@ -2,21 +2,30 @@
   "title": "Design",
   "pages": [
     "index",
+    "---Core Architecture---",
     "architecture",
     "zone-design",
     "cloudflare-pointing",
+    "---Edge Engine & Node---",
+    "pingora-edge-design",
+    "pingora-edge-development",
     "agent-design",
-    "tunnel-design",
+    "---Security & Protection---",
     "waf-design",
     "waf-orchestration-design",
-    "pages-design",
+    "pow-design",
+    "login-captcha",
+    "---Routing, Cache & Tunnels---",
     "edge-cache-design",
+    "pages-design",
+    "tunnel-design",
     "origin-error-page",
+    "---Observability & Storage---",
     "observability-design",
     "observability-transport-model",
     "observability-data-model",
     "logstore",
     "kuma-design",
-    "login-captcha"
+    "log-language"
   ]
 }

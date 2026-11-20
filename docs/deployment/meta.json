@@ -2,13 +2,16 @@
   "title": "部署",
   "pages": [
     "index",
-    "quick-start",
+    "---架构与概览---",
     "deployment",
+    "---组件部署---",
     "server",
     "agent",
     "openflare-edge",
+    "---隧道基础设施---",
     "relay",
     "openflared",
+    "---运维维护---",
     "upgrade"
   ]
 }
