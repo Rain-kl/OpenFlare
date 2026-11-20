@@ -45,6 +45,7 @@ sidebar: false
 
 ### 🛠 修复
 
+- Pingora 节点的 Pages ZIP 解包库升级至 9.2.3。归档条目名称读取失败时，节点会中止解包并报告错误。
 - 修复节点详情的「请求结构分布」误计其他节点流量的问题。状态码和域名排行仅统计当前节点的访问日志。
 - GitHub Releases 的 Latest 统一指向 Server 正式版，Edge 安装和更新独立查询 Edge 发行版。
 - OpenFlare Edge 的二进制、节点上报和安装就绪记录统一使用发布标签对应的版本，发版无需手动修改 Cargo 版本。

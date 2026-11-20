@@ -160,6 +160,7 @@ Agent 运行在各边缘代理节点上：首次应用引用 Pages 项目的配�
 ### 2. 安全解压缩、原子切换与只保留最新
 1. 包体绝对上限为 2 GiB；下载内容的 SHA-256 须与「下载后再次查询」的 latest hash 一致，整个包不会进入 `[]byte`。
 2. 解压至 `projects/{project_id}/releases/.{hash}-<random>.tmp` 随机 staging 目录（支持 zip / tar.* / 7z），拒绝路径逃逸、链接和特殊文件。Agent 同时服从 Server metadata 上限与本地绝对上限：最多 1,000 个文件，单文件及总量最多 8 GiB。
+   Pingora 节点读取 ZIP 条目名称失败时会中止该包的解压，当前部署继续提供服务。
 3. 解压完成后遍历实际文件树，精确复核文件数与总字节是否等于 Server metadata；不一致时拒绝切换。
 4. 写入 `.openflare-pages.json` 后 rename 为 `releases/{hash}`。
 5. **原子切换** `projects/{project_id}/current` 指向新 release（优先 symlink，失败则拷贝）。

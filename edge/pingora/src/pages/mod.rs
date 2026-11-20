@@ -324,7 +324,12 @@ fn extract_zip(package: &Path, destination: &Path, latest: &PagesLatest) -> Resu
             bail!("Pages ZIP archive contains a symbolic link");
         }
         if !entry.is_dir() {
-            names.push(entry.name().to_owned());
+            names.push(
+                entry
+                    .name()
+                    .context("read Pages ZIP entry name")?
+                    .into_owned(),
+            );
         }
     }
     let metadata_file_count = latest.file_count.unsigned_abs() as usize;
@@ -342,7 +347,7 @@ fn extract_zip(package: &Path, destination: &Path, latest: &PagesLatest) -> Resu
         if entry.is_dir() {
             continue;
         }
-        let name = entry.name().to_owned();
+        let name = entry.name().context("read Pages ZIP entry name")?;
         let relative = strip_common_root(&name, &common_root)?;
         if let Some(parent) = Path::new(&relative).parent() {
             fs::create_dir_all(destination.join(parent))?;
@@ -597,7 +602,11 @@ mod tests {
             .add_directory::<_, ()>("site/assets/", Default::default())
             .unwrap();
         archive
-            .start_file::<_, ()>("site/index.html", Default::default())
+            .start_file(
+                "site/index.html",
+                zip::write::SimpleFileOptions::default()
+                    .compression_method(zip::CompressionMethod::Deflated),
+            )
             .unwrap();
         archive.write_all(b"site").unwrap();
         archive.finish().unwrap();

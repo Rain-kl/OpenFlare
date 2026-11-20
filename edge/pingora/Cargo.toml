@@ -34,7 +34,7 @@ maxminddb = "0.33"
 regex = "1"
 tar = "0.4"
 tempfile = "3"
-zip = { version = "9", default-features = false, features = ["deflate"] }
+zip = { version = "9.2.3", default-features = false, features = ["deflate"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }
 url = "2"
 tokio = { version = "1", features = ["fs", "macros", "process", "rt-multi-thread", "signal", "time"] }
