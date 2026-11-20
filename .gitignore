@@ -88,3 +88,4 @@ profile.cov
 frontend/messages/zh-CN.json
 frontend/messages/en.json
 frontend/messages/ru.json
+/ref/
