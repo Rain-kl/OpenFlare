@@ -4027,9 +4027,8 @@ dependencies = [
 
 [[package]]
 name = "zentinel-modsec"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc4cde16c36470b447d91a46df883027731517d51636c1a5bbd743738bb9b853"
+version = "0.6.0"
+source = "git+https://github.com/zentinelproxy/zentinel-modsec.git?rev=f85a24022ca85eec0e1e502623f963e91eca07bc#f85a24022ca85eec0e1e502623f963e91eca07bc"
 dependencies = [
  "aho-corasick",
  "base64 0.22.1",
@@ -4037,6 +4036,7 @@ dependencies = [
  "glob",
  "hex",
  "html-escape",
+ "indexmap 2.14.2",
  "ipnetwork",
  "md-5",
  "once_cell",

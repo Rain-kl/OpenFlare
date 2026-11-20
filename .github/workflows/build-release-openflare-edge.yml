@@ -97,6 +97,7 @@ jobs:
           mkdir -p "${staging_dir}/scripts"
           cp "$binary" "${staging_dir}/"
           cp LICENSE "${staging_dir}/"
+          cp edge/pingora/vendor/owasp-crs/LICENSE "${staging_dir}/LICENSE-OWASP-CRS"
           cp scripts/install-openflare-edge.sh "${staging_dir}/scripts/"
           cp scripts/update-openflare-edge.sh "${staging_dir}/scripts/"
           cp scripts/uninstall-openflare-edge.sh "${staging_dir}/scripts/"

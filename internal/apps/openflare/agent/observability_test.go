@@ -40,7 +40,7 @@ func TestBuildNodeAccessLogRecordsPreservesBytesSent(t *testing.T) {
 func TestBuildNodeAccessLogRecordsPreservesWAFDecisionAndStripsQuery(t *testing.T) {
 	audit := &protocol.WAFAudit{
 		Action: "blocked", FlowName: "Primary", FlowID: 2, FlowNodeID: "attack-protection", AttackGroupID: 3,
-		Rules: []protocol.WAFRuleMatch{{ID: 11001, Category: "sql_injection", Level: "balanced"}},
+		Rules: []protocol.WAFRuleMatch{{ID: 934180, Category: "template_injection", Message: "SSTI Attack", Level: "strict"}},
 	}
 	records, err := buildNodeAccessLogRecords(context.Background(), "edge-a", []protocol.NodeAccessLog{
 		{Path: "/search?q=private", WAF: audit, StatusCode: 403},

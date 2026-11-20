@@ -407,7 +407,7 @@ def main(binary):
                 assert request("waf.edge.test")[0] == 403
                 json_headers = ("Content-Type: application/json",)
                 ordinary = json.dumps({"message": "quarterly plan"})
-                expression = json.dumps({"template": "{{ 2 + 3 }}"})
+                expression = json.dumps({"template": "{% sample %}"})
                 assert request("strict.edge.test", "/waf-body-fixture", data=ordinary,
                                headers=json_headers)[::3] == (200, ordinary)
                 assert request("strict.edge.test", "/waf-body-fixture", data=expression,
@@ -423,8 +423,10 @@ def main(binary):
                 blocked_audit = wait_for(lambda: audit_for("strict.edge.test", "blocked"))
                 observed_audit = wait_for(lambda: audit_for("observe.edge.test", "observed"))
                 assert blocked_audit["attack_group_id"] == 12 and blocked_audit["flow_node_id"] == "inspect"
-                assert blocked_audit["rules"][0]["id"] == 11142
-                assert observed_audit["rules"][0]["level"] == "observe"
+                assert blocked_audit["rules"][0] == {
+                    "id": 934180, "category": "template_injection", "message": "SSTI Attack", "level": "strict"}
+                assert observed_audit["rules"][0] == {
+                    **blocked_audit["rules"][0], "level": "observe"}
                 server.ip_groups = [{"id": 33, "enabled": False, "ip_list": [], "checksum": "updated"}]
                 wait_for(lambda: request("waf.edge.test")[0] == 200)
                 assert request("cache.edge.test", "/cache-test")[0] == 200
