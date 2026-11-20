@@ -1,0 +1,161 @@
+name: Build Image (openflare-edge)
+run-name: Publish Edge image from build #${{ github.event.workflow_run.run_number }}
+
+on:
+  workflow_run:
+    workflows: [Build OpenFlare Edge]
+    types: [completed]
+
+concurrency:
+  group: edge-image-publish-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.event == 'workflow_dispatch' && github.event.workflow_run.id || 'push' }}
+  cancel-in-progress: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'canary' }}
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  prepare:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.path == '.github/workflows/build-release-openflare-edge.yml' &&
+      (github.event.workflow_run.event == 'workflow_dispatch' ||
+        (github.event.workflow_run.event == 'push' &&
+          (github.event.workflow_run.head_branch == 'canary' ||
+           startsWith(github.event.workflow_run.head_branch, 'edge-v'))))
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.edge.outputs.version }}
+      source_sha: ${{ steps.edge.outputs.source_sha }}
+      channel: ${{ steps.edge.outputs.channel }}
+      docker: ${{ steps.edge.outputs.docker }}
+      image: ${{ steps.registry.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/edge-build-info
+
+      - uses: ./.github/actions/edge-build-info
+        id: edge
+        with:
+          token: ${{ github.token }}
+
+      - name: Resolve image name
+        id: registry
+        run: printf 'image=ghcr.io/%s/openflare-edge\n' "${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build image (${{ matrix.arch }})
+    needs: prepare
+    if: needs.prepare.outputs.docker == 'true'
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            docker/Dockerfile.edge
+            scripts/edge-entrypoint.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download Edge binary
+        uses: actions/download-artifact@v4
+        with:
+          name: edge-binary-${{ matrix.arch }}
+          path: artifacts
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Restore binary permissions
+        run: chmod 0755 artifacts/openflare-edge
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Publish image by digest
+        id: image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile.edge
+          build-contexts: edge-artifact=artifacts
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.version }}
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ needs.prepare.outputs.image }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ needs.prepare.outputs.image }}:buildcache-${{ matrix.arch }}
+          cache-to: type=registry,ref=${{ needs.prepare.outputs.image }}:buildcache-${{ matrix.arch }},mode=min,ignore-error=true
+
+      - name: Record image digest
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          printf '%s\n' "$DIGEST" > "image-digest-${ARCH}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-digest-${{ matrix.arch }}
+          path: image-digest-${{ matrix.arch }}
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+
+  publish:
+    name: Publish multi-architecture image
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: image-digest-*
+          path: digests
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Publish image tags
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          tags=(-t "$IMAGE:$VERSION")
+          if [[ -n "$CHANNEL" ]]; then
+            tags+=(-t "$IMAGE:$CHANNEL")
+          fi
+          docker buildx imagetools create "${tags[@]}" \
+            "$IMAGE@$(cat digests/image-digest-amd64)" \
+            "$IMAGE@$(cat digests/image-digest-arm64)"
+          docker buildx imagetools inspect "$IMAGE:$VERSION"

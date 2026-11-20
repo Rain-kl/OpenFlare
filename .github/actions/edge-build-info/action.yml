@@ -1,0 +1,74 @@
+name: Read Edge build info
+description: Read the version and publish settings from a completed Edge build.
+
+inputs:
+  token:
+    description: Token with actions read access to the build run.
+    required: true
+
+outputs:
+  version:
+    description: Edge release tag
+    value: ${{ steps.metadata.outputs.version }}
+  source_sha:
+    description: Commit used to build the Edge binaries
+    value: ${{ steps.metadata.outputs.source_sha }}
+  prerelease:
+    description: Whether the Edge tag is a prerelease
+    value: ${{ steps.metadata.outputs.prerelease }}
+  channel:
+    description: Floating image tag to publish, if any
+    value: ${{ steps.metadata.outputs.channel }}
+  docker:
+    description: Whether the source supports Docker publishing
+    value: ${{ steps.metadata.outputs.docker }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: edge-build-info
+        path: edge-build-info
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ inputs.token }}
+
+    - name: Validate build info
+      id: metadata
+      shell: bash
+      env:
+        BUILD_EVENT: ${{ github.event.workflow_run.event }}
+        BUILD_REF: ${{ github.event.workflow_run.head_branch }}
+        BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+        BUILD_NUMBER: ${{ github.event.workflow_run.run_number }}
+      run: |
+        set -euo pipefail
+        info=edge-build-info/edge-build.json
+        version="$(jq -er '.version | strings' "$info")"
+        source_sha="$(jq -er '.source_sha | strings' "$info")"
+        channel="$(jq -er '.channel | strings' "$info")"
+        docker="$(jq -r '.docker' "$info")"
+        [[ "$version" =~ ^edge-v[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]]
+        [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]]
+        [[ "$docker" == true || "$docker" == false ]]
+        if [[ "${version#edge-v}" == *-* ]]; then
+          prerelease=true
+        else
+          prerelease=false
+        fi
+        if [[ "$BUILD_EVENT" == workflow_dispatch ]]; then
+          [[ -z "$channel" ]]
+        elif [[ "$BUILD_REF" == canary ]]; then
+          [[ "$source_sha" == "$BUILD_SHA" && "$channel" == canary && "$version" == *"-canary.${BUILD_NUMBER}" ]]
+        else
+          [[ "$source_sha" == "$BUILD_SHA" && "$version" == "$BUILD_REF" ]]
+          if [[ "$prerelease" == true ]]; then
+            [[ -z "$channel" ]]
+          else
+            [[ "$channel" == latest ]]
+          fi
+        fi
+        {
+          printf 'version=%s\nsource_sha=%s\nprerelease=%s\n' "$version" "$source_sha" "$prerelease"
+          printf 'channel=%s\ndocker=%s\n' "$channel" "$docker"
+        } >> "$GITHUB_OUTPUT"

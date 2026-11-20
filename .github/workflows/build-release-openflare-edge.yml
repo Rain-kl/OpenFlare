@@ -1,8 +1,8 @@
-name: Build OpenFlare Edge Release
+name: Build OpenFlare Edge
 
 on:
   push:
-    branches: [canary]
+    branches: [main, canary]
     tags: ["edge-v*"]
   workflow_dispatch:
     inputs:
@@ -12,44 +12,57 @@ on:
         type: string
 
 concurrency:
-  group: edge-release-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref == 'refs/heads/canary' }}
+  group: edge-build-${{ github.ref }}-${{ inputs.version || 'push' }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
 
 permissions:
   contents: read
 
 env:
   CARGO_MANIFEST: edge/pingora/Cargo.toml
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   prepare:
     runs-on: ubuntu-24.04
     outputs:
+      build: ${{ steps.version.outputs.build }}
+      publish: ${{ steps.version.outputs.publish }}
       version: ${{ steps.version.outputs.version }}
       source_sha: ${{ steps.version.outputs.source_sha }}
-      prerelease: ${{ steps.version.outputs.prerelease }}
-      image: ${{ steps.version.outputs.image }}
-      image_channel: ${{ steps.version.outputs.image_channel }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
-      - name: Resolve release version
+      - name: Resolve build metadata
         id: version
         shell: bash
         env:
           INPUT_VERSION: ${{ inputs.version }}
+          BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
+            if git diff --quiet "$BEFORE" "$source_sha" -- \
+              edge/pingora/Cargo.toml edge/pingora/Cargo.lock edge/pingora/.cargo \
+              .cargo rust-toolchain rust-toolchain.toml edge/pingora/rust-toolchain.toml \
+              .github/workflows/build-release-openflare-edge.yml; then
+              exit 0
+            fi
+            printf 'build=true\npublish=false\nsource_sha=%s\n' "$source_sha" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           stable_pattern='^edge-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-          source_sha="$GITHUB_SHA"
-          image_channel=
+          channel=
           if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
             version="$INPUT_VERSION"
           elif [[ "$GITHUB_REF" == refs/heads/canary ]]; then
-            image_channel=canary
+            channel=canary
             version="$(git tag --points-at HEAD --list "edge-v*-canary.${GITHUB_RUN_NUMBER}")"
             if [[ -z "$version" ]]; then
               stable="$(git tag --merged HEAD --sort=-version:refname --list 'edge-v*' |
@@ -71,31 +84,34 @@ jobs:
           }
           if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
             source_sha="$(git rev-parse --verify "refs/tags/${version}^{commit}")"
+          elif [[ "$version" =~ $stable_pattern ]]; then
+            channel=latest
           fi
-          if [[ "$version" =~ $stable_pattern ]]; then
-            prerelease=false
-            if [[ "$GITHUB_EVENT_NAME" == push ]]; then
-              image_channel=latest
-            fi
-          else
-            prerelease=true
-          fi
-          image=
+          docker=false
           if git cat-file -e "${source_sha}:docker/Dockerfile.edge" 2>/dev/null; then
-            image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/openflare-edge"
+            docker=true
           fi
-          {
-            printf 'version=%s\nsource_sha=%s\nprerelease=%s\n' "$version" "$source_sha" "$prerelease"
-            printf 'image=%s\nimage_channel=%s\n' "$image" "$image_channel"
-          } >> "$GITHUB_OUTPUT"
+          jq -n --arg version "$version" --arg source_sha "$source_sha" \
+            --arg channel "$channel" --argjson docker "$docker" \
+            '{version: $version, source_sha: $source_sha, channel: $channel, docker: $docker}' \
+            > edge-build.json
+          printf 'build=true\npublish=true\nversion=%s\nsource_sha=%s\n' "$version" "$source_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Upload publish metadata
+        if: steps.version.outputs.publish == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-build-info
+          path: edge-build.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
 
   build:
-    name: Build edge ${{ matrix.arch }}
+    name: Build Edge ${{ matrix.arch }}
     needs: prepare
+    if: needs.prepare.outputs.build == 'true'
     runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -107,188 +123,50 @@ jobs:
             runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.prepare.outputs.source_sha }}
           persist-credentials: false
 
-      - name: Validate deployment scripts
-        run: |
-          for script in scripts/{install,update,uninstall}-openflare-edge.sh; do
-            bash -n "$script"
-          done
-          grep -Fx 'Type=notify' scripts/install-openflare-edge.sh
-
-      - name: Set binary version
-        env:
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: printf 'OPENFLARE_EDGE_VERSION=%s\n' "${VERSION#edge-v}" >> "$GITHUB_ENV"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Cache cargo
+      - name: Cache release dependencies
+        id: cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: edge/pingora
-          key: ${{ matrix.arch }}
+          shared-key: openflare-edge-release-${{ matrix.target }}
+          cache-bin: false
+          save-if: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
 
-      - name: Test
-        run: cargo test --locked --manifest-path "$CARGO_MANIFEST"
-
-      - name: Build and package
+      - name: Compile Edge binary
+        if: needs.prepare.outputs.publish == 'true' || steps.cache.outputs.cache-hit != 'true'
+        shell: bash
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
-          ARCH: ${{ matrix.arch }}
           TARGET: ${{ matrix.target }}
         run: |
           set -euo pipefail
+          version="${VERSION:-dev}"
+          export OPENFLARE_EDGE_VERSION="${version#edge-v}"
           cargo build --locked --release --manifest-path "$CARGO_MANIFEST" --target "$TARGET"
           binary="edge/pingora/target/${TARGET}/release/openflare-edge"
           actual_version="$("$binary" --version)"
-          [[ "$actual_version" == "openflare-edge ${VERSION#edge-v}" ]] || {
-            echo "unexpected binary version for ${VERSION}: ${actual_version}" >&2
+          [[ "$actual_version" == "openflare-edge $OPENFLARE_EDGE_VERSION" ]] || {
+            echo "unexpected binary version: $actual_version" >&2
             exit 1
           }
-          package_name="openflare-edge_${VERSION}_linux_${ARCH}"
-          staging_dir="dist/${package_name}"
-          mkdir -p "${staging_dir}/scripts"
-          cp "$binary" "${staging_dir}/"
-          cp LICENSE "${staging_dir}/"
-          cp edge/pingora/vendor/owasp-crs/LICENSE "${staging_dir}/LICENSE-OWASP-CRS"
-          cp scripts/install-openflare-edge.sh "${staging_dir}/scripts/"
-          cp scripts/update-openflare-edge.sh "${staging_dir}/scripts/"
-          cp scripts/uninstall-openflare-edge.sh "${staging_dir}/scripts/"
-          cp scripts/fetch-agent-geoip-mmdb.sh "${staging_dir}/scripts/"
-          printf '%s\n' "$VERSION" > "${staging_dir}/VERSION"
-          (cd "${staging_dir}" && sha256sum openflare-edge > SHA256SUMS)
-          tar -C dist -czf "dist/${package_name}.tar.gz" "${package_name}"
+          install -D -m 0755 "$binary" dist/openflare-edge
 
-      - name: Test Edge runtime
-        env:
-          TARGET: ${{ matrix.target }}
-        run: python3 edge/pingora/tests/runtime_smoke.py "edge/pingora/target/${TARGET}/release/openflare-edge"
-
-      - name: Set up Docker Buildx
-        if: needs.prepare.outputs.image != ''
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build container for smoke test
-        if: needs.prepare.outputs.image != ''
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: docker/Dockerfile.edge
-          build-contexts: edge-artifact=dist/openflare-edge_${{ needs.prepare.outputs.version }}_linux_${{ matrix.arch }}
-          build-args: |
-            VERSION=${{ needs.prepare.outputs.version }}
-            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
-          platforms: linux/${{ matrix.arch }}
-          tags: openflare-edge:smoke
-          provenance: false
-          load: true
-
-      - name: Test Edge container
-        if: needs.prepare.outputs.image != ''
-        run: python3 edge/pingora/tests/docker_smoke.py openflare-edge:smoke
-
-      - name: Log into GHCR
-        if: needs.prepare.outputs.image != ''
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish image by digest
-        id: image
-        if: needs.prepare.outputs.image != ''
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: docker/Dockerfile.edge
-          build-contexts: edge-artifact=dist/openflare-edge_${{ needs.prepare.outputs.version }}_linux_${{ matrix.arch }}
-          build-args: |
-            VERSION=${{ needs.prepare.outputs.version }}
-            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
-          platforms: linux/${{ matrix.arch }}
-          outputs: type=image,name=${{ needs.prepare.outputs.image }},push-by-digest=true,name-canonical=true,push=true
-
-      - name: Save image digest
-        if: needs.prepare.outputs.image != ''
-        env:
-          DIGEST: ${{ steps.image.outputs.digest }}
-          ARCH: ${{ matrix.arch }}
-        run: |
-          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-          printf '%s\n' "$DIGEST" > "dist/image-digest-${ARCH}"
-
-      - name: Upload build artifacts
+      - name: Upload Edge binary
+        if: needs.prepare.outputs.publish == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: edge-${{ matrix.arch }}
-          path: |
-            dist/openflare-edge_${{ needs.prepare.outputs.version }}_linux_${{ matrix.arch }}.tar.gz
-            dist/image-digest-${{ matrix.arch }}
+          name: edge-binary-${{ matrix.arch }}
+          path: dist/openflare-edge
           if-no-files-found: error
+          compression-level: 1
+          retention-days: 7
           overwrite: true
-
-  publish:
-    name: Publish Edge release
-    needs: [prepare, build]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-      packages: write
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: edge-*
-          path: dist
-          merge-multiple: true
-
-      - name: Set up Docker Buildx
-        if: needs.prepare.outputs.image != ''
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log into GHCR
-        if: needs.prepare.outputs.image != ''
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish multi-architecture image
-        if: needs.prepare.outputs.image != ''
-        env:
-          IMAGE: ${{ needs.prepare.outputs.image }}
-          CHANNEL: ${{ needs.prepare.outputs.image_channel }}
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          set -euo pipefail
-          tags=(-t "$IMAGE:$VERSION")
-          if [[ -n "$CHANNEL" ]]; then
-            tags+=(-t "$IMAGE:$CHANNEL")
-          fi
-          docker buildx imagetools create "${tags[@]}" \
-            "$IMAGE@$(cat dist/image-digest-amd64)" \
-            "$IMAGE@$(cat dist/image-digest-arm64)"
-          docker buildx imagetools inspect "$IMAGE:$VERSION"
-
-      - name: Publish binary release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.prepare.outputs.version }}
-          target_commitish: ${{ needs.prepare.outputs.source_sha }}
-          prerelease: ${{ needs.prepare.outputs.prerelease }}
-          make_latest: ${{ needs.prepare.outputs.prerelease == 'false' }}
-          name: OpenFlare Edge ${{ needs.prepare.outputs.version }}
-          fail_on_unmatched_files: true
-          files: |
-            dist/openflare-edge_${{ needs.prepare.outputs.version }}_linux_amd64.tar.gz
-            dist/openflare-edge_${{ needs.prepare.outputs.version }}_linux_arm64.tar.gz

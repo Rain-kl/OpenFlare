@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1.7
 FROM rust:1.95-slim AS builder
 
-ARG VERSION=dev
 WORKDIR /build/edge/pingora
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential ca-certificates cmake git perl pkg-config \
@@ -10,9 +9,11 @@ COPY edge/pingora/ ./
 COPY internal/openflare/edgeconfig/pow_static/ /build/internal/openflare/edgeconfig/pow_static/
 COPY internal/openflare/edgeconfig/pow_templates/ /build/internal/openflare/edgeconfig/pow_templates/
 COPY internal/openflare/edgeconfig/site_auth.html /build/internal/openflare/edgeconfig/
+ARG VERSION=dev
+ARG TARGETARCH
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/target \
+    --mount=type=cache,id=edge-cargo-target-${TARGETARCH},target=/target \
     OPENFLARE_EDGE_VERSION="${VERSION#edge-v}" CARGO_TARGET_DIR=/target cargo build --locked --release \
     && install -D -m 0755 /target/release/openflare-edge /out/openflare-edge
 
@@ -21,19 +22,19 @@ COPY --from=builder /out/openflare-edge /openflare-edge
 
 FROM debian:trixie-slim AS runtime
 
-ARG VERSION=dev
-ARG SOURCE_URL=https://github.com/Rain-kl/OpenFlare
-LABEL org.opencontainers.image.source=$SOURCE_URL \
-      org.opencontainers.image.version=$VERSION
-
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 openflare-edge \
     && useradd --uid 10001 --gid openflare-edge --no-create-home --shell /usr/sbin/nologin openflare-edge \
     && install -d -m 0750 -o openflare-edge -g openflare-edge /var/lib/openflare-edge
 
-COPY --from=edge-artifact /openflare-edge /usr/local/bin/openflare-edge
 COPY --chmod=0755 scripts/edge-entrypoint.sh /usr/local/bin/edge-entrypoint
+COPY --from=edge-artifact /openflare-edge /usr/local/bin/openflare-edge
+
+ARG VERSION=dev
+ARG SOURCE_URL=https://github.com/Rain-kl/OpenFlare
+LABEL org.opencontainers.image.source=$SOURCE_URL \
+      org.opencontainers.image.version=$VERSION
 
 VOLUME ["/var/lib/openflare-edge"]
 EXPOSE 8080/tcp 8443/tcp

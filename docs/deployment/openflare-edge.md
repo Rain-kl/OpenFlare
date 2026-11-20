@@ -9,11 +9,13 @@ OpenFlare Edge 使用独立的 `edge-v*` 版本标签，与主控和 Go Agent �
 - `openflare-edge_edge-v0.1.2_linux_amd64.tar.gz`
 - `openflare-edge_edge-v0.1.2_linux_arm64.tar.gz`
 
-归档内包含 `openflare-edge` 二进制、`VERSION`、`SHA256SUMS`、许可证、安装、更新、卸载和 GeoIP 下载脚本。推送 `edge-v<主版本>.<次版本>.<修订号>` 标签会触发发布。手动运行发布工作流时，填写已存在的 Edge 标签，工作流将构建该标签对应的提交。归档名和 `VERSION` 保留完整标签；例如标签为 `edge-v0.1.3` 时，`openflare-edge --version` 和节点上报的版本均为 `0.1.3`。发版无需修改 `Cargo.toml` 或 `Cargo.lock`。
+归档内包含 `openflare-edge` 二进制、`VERSION`、`SHA256SUMS`、许可证、安装、更新、卸载和 GeoIP 下载脚本。推送 `edge-v<主版本>.<次版本>.<修订号>` 标签会触发发布。手动重建时，在 **Build OpenFlare Edge** 中填写已存在的 Edge 标签，工作流将构建该标签对应的提交。归档名和 `VERSION` 保留完整标签；例如标签为 `edge-v0.1.3` 时，`openflare-edge --version` 和节点上报的版本均为 `0.1.3`。发版无需修改 `Cargo.toml` 或 `Cargo.lock`。
 
 推送 `canary` 分支会发布 Edge 预览版。版本采用下一修订号加工作流运行编号，例如从 `edge-v0.1.6` 生成 `edge-v0.1.7-canary.42`。控制台的「检查预览版」可发现该版本，默认安装和自动更新继续使用正式版。
 
 Docker 镜像以 `ghcr.io/rain-kl/openflare-edge` 发布，支持 Linux amd64 和 arm64。每次发布都有对应的版本标签，正式版推送更新 `:latest`，Canary 推送更新 `:canary`。
+
+Actions 中的 **Test OpenFlare Edge** 独立运行单元测试、原生运行时测试和容器测试。**Build OpenFlare Edge** 完成双架构编译后，**Publish OpenFlare Edge Release** 与 **Build Image (openflare-edge)** 并行下载同一批二进制并分别发布。发布失败可在产物保留期内单独重跑对应工作流。首次启用时，将两个发布工作流合入默认分支后再推送 Canary 或版本标签。
 
 ## 安装
 

@@ -1,0 +1,94 @@
+name: Publish OpenFlare Edge Release
+run-name: Publish Edge archives from build #${{ github.event.workflow_run.run_number }}
+
+on:
+  workflow_run:
+    workflows: [Build OpenFlare Edge]
+    types: [completed]
+
+concurrency:
+  group: edge-release-publish-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.event == 'workflow_dispatch' && github.event.workflow_run.id || 'push' }}
+  cancel-in-progress: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'canary' }}
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.path == '.github/workflows/build-release-openflare-edge.yml' &&
+      (github.event.workflow_run.event == 'workflow_dispatch' ||
+        (github.event.workflow_run.event == 'push' &&
+          (github.event.workflow_run.head_branch == 'canary' ||
+           startsWith(github.event.workflow_run.head_branch, 'edge-v'))))
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/edge-build-info
+
+      - uses: ./.github/actions/edge-build-info
+        id: edge
+        with:
+          token: ${{ github.token }}
+
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.edge.outputs.source_sha }}
+          path: edge-source
+          persist-credentials: false
+          sparse-checkout: |
+            LICENSE
+            edge/pingora/vendor/owasp-crs/LICENSE
+            scripts/install-openflare-edge.sh
+            scripts/update-openflare-edge.sh
+            scripts/uninstall-openflare-edge.sh
+            scripts/fetch-agent-geoip-mmdb.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download Edge binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: edge-binary-*
+          path: artifacts
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Package release archives
+        shell: bash
+        env:
+          VERSION: ${{ steps.edge.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            name="openflare-edge_${VERSION}_linux_${arch}"
+            staging="dist/$name"
+            mkdir -p "$staging/scripts"
+            install -m 0755 "artifacts/edge-binary-${arch}/openflare-edge" "$staging/openflare-edge"
+            cp edge-source/LICENSE "$staging/"
+            cp edge-source/edge/pingora/vendor/owasp-crs/LICENSE "$staging/LICENSE-OWASP-CRS"
+            cp edge-source/scripts/{install,update,uninstall}-openflare-edge.sh \
+              edge-source/scripts/fetch-agent-geoip-mmdb.sh "$staging/scripts/"
+            printf '%s\n' "$VERSION" > "$staging/VERSION"
+            (cd "$staging" && sha256sum openflare-edge > SHA256SUMS)
+            tar -C dist -czf "dist/${name}.tar.gz" "$name"
+          done
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.edge.outputs.version }}
+          target_commitish: ${{ steps.edge.outputs.source_sha }}
+          prerelease: ${{ steps.edge.outputs.prerelease }}
+          make_latest: ${{ steps.edge.outputs.prerelease == 'false' }}
+          name: OpenFlare Edge ${{ steps.edge.outputs.version }}
+          fail_on_unmatched_files: true
+          files: |
+            dist/openflare-edge_${{ steps.edge.outputs.version }}_linux_amd64.tar.gz
+            dist/openflare-edge_${{ steps.edge.outputs.version }}_linux_arm64.tar.gz
