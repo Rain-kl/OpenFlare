@@ -254,8 +254,8 @@
       "ipPlaceholder": "Optional; reported automatically after join",
       "lockIp": "Lock IP",
       "lockIpDesc": "When enabled, the control plane will not overwrite the IP",
-      "autoUpdate": "Auto-update Agent",
-      "autoUpdateDesc": "When enabled, the node pulls stable updates automatically",
+      "autoUpdate": "Automatic node updates",
+      "autoUpdateDesc": "Automatically check for and install newer stable releases.",
       "bindPort": "Bind port",
       "vhostPort": "VHost port",
       "manualGeo": "Manual map point",
@@ -321,7 +321,9 @@
       "upgradeStable": "Upgrade to stable"
     },
     "edge": {
-      "upgrade": "Upgrade Agent",
+      "upgrade": "Update Edge node",
+      "upgradeDescription": "Choose a release channel and confirm the target version. The node receives the request through its heartbeat, verifies the package, and restarts.",
+      "updateUnsupported": "Install a version that supports managed updates on the node to enable this feature.",
       "restartEdge": "Restart Pingora",
       "runStatus": "Runtime status",
       "runStatusDesc": "Node online state and Pingora health",
@@ -347,7 +349,7 @@
       "toastUpdated": "Node updated",
       "toastForceSync": "Force-sync dispatched to node {name}",
       "toastRestart": "Pingora restart dispatched to node {name}",
-      "toastUpgrade": "{channel} upgrade dispatched to node {name}",
+      "toastUpgrade": "Update queued for {tag}",
       "toastDeleted": "Node deleted"
     },
     "relay": {

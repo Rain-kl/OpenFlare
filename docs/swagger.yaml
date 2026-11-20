@@ -1296,6 +1296,8 @@ definitions:
         type: string
       current_version:
         type: string
+      edge_update_supported:
+        type: boolean
       ext_version:
         type: string
       geo_latitude:
@@ -3397,6 +3399,8 @@ definitions:
     type: object
   github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentSettings:
     properties:
+      edge_update:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.EdgeUpdateSettings'
       heartbeat_interval:
         type: integer
       restart_edge_now:
@@ -3457,6 +3461,15 @@ definitions:
       revision:
         type: string
       sha256:
+        type: string
+    type: object
+  github_com_Rain-kl_Wavelet_internal_openflare_protocol.EdgeUpdateSettings:
+    properties:
+      auto_update:
+        type: boolean
+      repo:
+        type: string
+      tag:
         type: string
     type: object
   github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredConnectedRelay:
@@ -3627,6 +3640,10 @@ definitions:
         type: string
       edge_health:
         $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth'
+      edge_update_ready:
+        type: boolean
+      edge_update_supported:
+        type: boolean
       engine:
         type: string
       ext_version:
@@ -3716,6 +3733,10 @@ definitions:
         type: string
       edge_health:
         $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth'
+      edge_update_ready:
+        type: boolean
+      edge_update_supported:
+        type: boolean
       engine:
         type: string
       ext_version:
@@ -8991,7 +9012,7 @@ paths:
       - openflare-node
   /api/v1/d/nodes/{id}/agent-release:
     get:
-      description: 返回指定节点可用的最新 Agent 版本信息，需要管理员权限
+      description: 按节点类型返回指定发布渠道的最新版本，需要管理员权限
       parameters:
       - description: 节点 ID
         in: path
@@ -9006,7 +9027,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Agent 发布信息
+          description: 节点发布信息
           schema:
             allOf:
             - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
@@ -9028,14 +9049,14 @@ paths:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
       security:
       - SessionCookie: []
-      summary: 获取 Agent 发布信息
+      summary: 获取节点发布信息
       tags:
       - openflare-node
   /api/v1/d/nodes/{id}/agent-update:
     post:
       consumes:
       - application/json
-      description: 向指定节点下发 Agent 自更新指令，需要管理员权限
+      description: 为指定节点登记更新请求，Pingora 节点的请求固定到目标版本，需要管理员权限
       parameters:
       - description: 节点 ID
         in: path
@@ -9051,7 +9072,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: 更新请求已下发
+          description: 更新请求已登记
           schema:
             allOf:
             - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
@@ -9073,7 +9094,7 @@ paths:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
       security:
       - SessionCookie: []
-      summary: 请求 Agent 更新
+      summary: 请求更新节点
       tags:
       - openflare-node
   /api/v1/d/nodes/{id}/delete:

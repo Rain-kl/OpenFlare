@@ -172,7 +172,11 @@ RUN_ARGS=(run --server-url "$SERVER_URL" --token-type "$TOKEN_TYPE" --token-file
 if [[ "$TLS_LISTEN" != "none" ]]; then RUN_ARGS+=(--tls-listen "$TLS_LISTEN"); fi
 
 install -m 0755 "$PACKAGE_DIR/openflare-edge" "$STAGED_BIN"
+if [[ "$CREATE_SERVICE" == true && -f /etc/systemd/system/openflare-edge.service ]]; then
+  systemctl stop openflare-edge 9>&- || die "could not stop openflare-edge"
+fi
 mv -Tf -- "$STAGED_BIN" "$BIN"
+rm -f -- "$STATE_DIR/edge-update-next" "$STATE_DIR/edge-update-trial" "$STATE_DIR/edge-update-active"
 
 # Migrate installations that stored each release in its own directory.
 if [[ -d "$INSTALL_DIR/releases" && ! -L "$INSTALL_DIR/releases" ]]; then

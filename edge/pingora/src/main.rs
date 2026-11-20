@@ -32,6 +32,8 @@ struct Cli {
 enum Command {
     /// Print the supported controller configuration sync protocol version.
     ConfigSyncVersion,
+    /// Print the supported managed update protocol version.
+    SelfUpdateVersion,
     /// Print the attack rules available for configuring protection groups.
     AttackRuleCatalog,
     Run {
@@ -67,6 +69,10 @@ fn main() -> Result<()> {
             println!("{}", control::config_sync::VERSION);
             Ok(())
         }
+        Command::SelfUpdateVersion => {
+            println!("{}", control::update::VERSION);
+            Ok(())
+        }
         Command::AttackRuleCatalog => {
             println!(
                 "{}",
@@ -84,6 +90,7 @@ fn main() -> Result<()> {
             tls_listen,
         } => {
             std::fs::create_dir_all(&state_dir)?;
+            control::update::launch(&state_dir);
             let shared = config::SnapshotStore::open(&state_dir);
             if upgrade && state_dir.join("snapshot.json").exists() && shared.current().is_none() {
                 anyhow::bail!("cannot upgrade without restoring an active configuration");
@@ -102,13 +109,14 @@ fn main() -> Result<()> {
             if proxy::run_server(
                 proxy::DataPlaneState {
                     shared,
-                    state_dir,
+                    state_dir: state_dir.clone(),
                     listeners,
                     access_logs,
                 },
                 control,
                 upgrade,
-            )? {
+            )? && !control::update::restart_pending(&state_dir)
+            {
                 use std::os::unix::process::CommandExt;
                 let mut args = std::env::args_os();
                 let executable = std::env::current_exe()?;

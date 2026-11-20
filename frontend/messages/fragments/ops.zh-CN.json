@@ -254,8 +254,8 @@
       "ipPlaceholder": "可选，接入后自动上报",
       "lockIp": "锁定 IP",
       "lockIpDesc": "启用后管理端不再自动覆盖 IP",
-      "autoUpdate": "自动更新 Agent",
-      "autoUpdateDesc": "启用后节点将自动拉取正式版更新",
+      "autoUpdate": "自动更新节点",
+      "autoUpdateDesc": "自动检查并安装较新的正式版。",
       "bindPort": "绑定端口",
       "vhostPort": "VHost 端口",
       "manualGeo": "手动地图点位",
@@ -321,7 +321,9 @@
       "upgradeStable": "升级到正式版"
     },
     "edge": {
-      "upgrade": "升级 Agent",
+      "upgrade": "更新边缘节点",
+      "upgradeDescription": "选择发布渠道并确认目标版本。节点将在心跳中接收请求，校验更新包后重启。",
+      "updateUnsupported": "当前安装尚不支持远程更新。请先在节点上安装支持此功能的版本。",
       "restartEdge": "重启 Pingora",
       "runStatus": "运行状态",
       "runStatusDesc": "节点在线情况与 Pingora 健康",
@@ -347,7 +349,7 @@
       "toastUpdated": "节点已更新",
       "toastForceSync": "已向节点 {name} 下发强制同步指令",
       "toastRestart": "已向节点 {name} 下发 Pingora 重启指令",
-      "toastUpgrade": "已向节点 {name} 下发{channel}升级指令",
+      "toastUpgrade": "已登记更新请求，目标版本为 {tag}",
       "toastDeleted": "节点已删除"
     },
     "relay": {

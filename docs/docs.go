@@ -7550,14 +7550,14 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "返回指定节点可用的最新 Agent 版本信息，需要管理员权限",
+                "description": "按节点类型返回指定发布渠道的最新版本，需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "openflare-node"
                 ],
-                "summary": "获取 Agent 发布信息",
+                "summary": "获取节点发布信息",
                 "parameters": [
                     {
                         "type": "integer",
@@ -7575,7 +7575,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Agent 发布信息",
+                        "description": "节点发布信息",
                         "schema": {
                             "allOf": [
                                 {
@@ -7620,7 +7620,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "向指定节点下发 Agent 自更新指令，需要管理员权限",
+                "description": "为指定节点登记更新请求，Pingora 节点的请求固定到目标版本，需要管理员权限",
                 "consumes": [
                     "application/json"
                 ],
@@ -7630,7 +7630,7 @@ const docTemplate = `{
                 "tags": [
                     "openflare-node"
                 ],
-                "summary": "请求 Agent 更新",
+                "summary": "请求更新节点",
                 "parameters": [
                     {
                         "type": "integer",
@@ -7650,7 +7650,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "更新请求已下发",
+                        "description": "更新请求已登记",
                         "schema": {
                             "allOf": [
                                 {
@@ -17378,6 +17378,9 @@ const docTemplate = `{
                 "current_version": {
                     "type": "string"
                 },
+                "edge_update_supported": {
+                    "type": "boolean"
+                },
                 "ext_version": {
                     "type": "string"
                 },
@@ -20570,6 +20573,9 @@ const docTemplate = `{
         "github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentSettings": {
             "type": "object",
             "properties": {
+                "edge_update": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.EdgeUpdateSettings"
+                },
                 "heartbeat_interval": {
                     "type": "integer"
                 },
@@ -20661,6 +20667,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "sha256": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.EdgeUpdateSettings": {
+            "type": "object",
+            "properties": {
+                "auto_update": {
+                    "type": "boolean"
+                },
+                "repo": {
+                    "type": "string"
+                },
+                "tag": {
                     "type": "string"
                 }
             }
@@ -20920,6 +20940,12 @@ const docTemplate = `{
                 "edge_health": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth"
                 },
+                "edge_update_ready": {
+                    "type": "boolean"
+                },
+                "edge_update_supported": {
+                    "type": "boolean"
+                },
                 "engine": {
                     "type": "string"
                 },
@@ -21054,6 +21080,12 @@ const docTemplate = `{
                 },
                 "edge_health": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodeEdgeHealth"
+                },
+                "edge_update_ready": {
+                    "type": "boolean"
+                },
+                "edge_update_supported": {
+                    "type": "boolean"
                 },
                 "engine": {
                     "type": "string"

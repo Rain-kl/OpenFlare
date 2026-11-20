@@ -157,14 +157,14 @@ func RotateBootstrapTokenHandler(c *gin.Context) {
 }
 
 // GetAgentReleaseHandler returns the latest agent release for a node.
-// @Summary 获取 Agent 发布信息
-// @Description 返回指定节点可用的最新 Agent 版本信息，需要管理员权限
+// @Summary 获取节点发布信息
+// @Description 按节点类型返回指定发布渠道的最新版本，需要管理员权限
 // @Tags openflare-node
 // @Produce json
 // @Security SessionCookie
 // @Param id path int true "节点 ID"
 // @Param channel query string false "发布渠道"
-// @Success 200 {object} response.Any{data=node.AgentReleaseInfo} "Agent 发布信息"
+// @Success 200 {object} response.Any{data=node.AgentReleaseInfo} "节点发布信息"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 404 {object} response.Any "无权限或节点不存在"
@@ -182,15 +182,15 @@ func GetAgentReleaseHandler(c *gin.Context) {
 }
 
 // RequestAgentUpdateHandler requests agent self-update on a node.
-// @Summary 请求 Agent 更新
-// @Description 向指定节点下发 Agent 自更新指令，需要管理员权限
+// @Summary 请求更新节点
+// @Description 为指定节点登记更新请求，Pingora 节点的请求固定到目标版本，需要管理员权限
 // @Tags openflare-node
 // @Accept json
 // @Produce json
 // @Security SessionCookie
 // @Param id path int true "节点 ID"
 // @Param body body node.AgentUpdateInput false "更新参数（可选）"
-// @Success 200 {object} response.Any{data=node.View} "更新请求已下发"
+// @Success 200 {object} response.Any{data=node.View} "更新请求已登记"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 404 {object} response.Any "无权限或节点不存在"

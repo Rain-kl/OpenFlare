@@ -267,10 +267,17 @@ export function NodeEditorDialog({
             <div>
               <p className='text-sm font-medium'>{t('editor.autoUpdate')}</p>
               <p className='text-xs text-muted-foreground'>
-                {t('editor.autoUpdateDesc')}
+                {t(
+                  nodeType === 'edge_node' &&
+                    node &&
+                    !node.edge_update_supported
+                    ? 'edge.updateUnsupported'
+                    : 'editor.autoUpdateDesc',
+                )}
               </p>
             </div>
             <Switch
+              aria-label={t('editor.autoUpdate')}
               checked={form.watch('auto_update_enabled')}
               onCheckedChange={(checked) =>
                 form.setValue('auto_update_enabled', checked)

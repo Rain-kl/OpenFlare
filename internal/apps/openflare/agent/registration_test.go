@@ -173,3 +173,51 @@ func TestDiscoveryConcurrentRetriesAndRevokedCredential(t *testing.T) {
 		}
 	}
 }
+
+func TestEdgeHeartbeatDeliversAndAcknowledgesUpdates(t *testing.T) {
+	t.Cleanup(setupAgentAuthTestDB(t))
+	ctx := context.Background()
+	record := &model.OpenFlareNode{
+		NodeID: "update-edge", Name: "edge", Engine: enginePingora, AccessToken: "update-token",
+	}
+	if err := repository.CreateOpenFlareNode(ctx, record); err != nil {
+		t.Fatal(err)
+	}
+	payload := protocol.NodePayload{
+		Engine: enginePingora, ContractVersion: edgeconfig.ContractVersion, ConfigSyncVersion: protocol.EdgeConfigSyncVersion,
+		IP: "192.0.2.100", Version: "0.1.0", EdgeUpdateSupported: true,
+	}
+	stale := *record
+	if err := repository.UpdateOpenFlareNodeColumns(ctx, record, map[string]any{
+		"auto_update_enabled": true, "update_requested": true, "update_tag": "edge-v0.2.0",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, step := range []struct {
+		version string
+		ready   bool
+		tag     string
+	}{
+		{"0.1.0", true, "edge-v0.2.0"},
+		{"0.2.0", false, "edge-v0.2.0"},
+		{"0.2.0", true, ""},
+	} {
+		payload.Version = step.version
+		payload.EdgeUpdateReady = step.ready
+		result, err := HeartbeatNode(ctx, &stale, payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		settings := result.AgentSettings.EdgeUpdate
+		if settings == nil || !settings.AutoUpdate || settings.Tag != step.tag {
+			t.Fatalf("version %s, ready %t: unexpected settings %+v", step.version, step.ready, settings)
+		}
+	}
+	stored, err := repository.GetOpenFlareNodeByID(ctx, record.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.UpdateRequested || stored.UpdateTag != "" || !stored.HasCapability(model.EdgeUpdateCapability) {
+		t.Fatalf("unexpected state after update acknowledgment: %+v", stored)
+	}
+}

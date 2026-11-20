@@ -33,6 +33,7 @@ export interface NodeItem {
   geo_manual_override: boolean;
   access_token: string;
   auto_update_enabled: boolean;
+  edge_update_supported?: boolean;
   update_requested: boolean;
   update_channel: ReleaseChannel;
   update_tag: string;

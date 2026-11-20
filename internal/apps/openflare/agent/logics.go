@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
@@ -155,15 +156,14 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 		return nil, err
 	}
 
+	// Heartbeats renew the token cache. Load current settings from the database
+	// so admin changes are visible across controller instances.
+	authNode, err := LoadHeartbeatNode(ctx, authNode)
+	if err != nil {
+		return nil, err
+	}
 	if payload.Engine != normalizeEngine(authNode.Engine) {
-		fresh, err := repository.GetOpenFlareNodeByAccessToken(ctx, authNode.AccessToken)
-		if err != nil {
-			return nil, err
-		}
-		if payload.Engine != normalizeEngine(fresh.Engine) {
-			return nil, errors.New(errNodeEngineChanged)
-		}
-		authNode = fresh
+		return nil, errors.New(errNodeEngineChanged)
 	}
 	previous := *authNode
 	restartEdgeNow := authNode.RestartOpenrestyRequested
@@ -185,10 +185,32 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 	}
 	PersistHeartbeatObservability(ctx, authNode.NodeID, payload, reportedAt)
 
+	settings := buildAgentSettings(ctx, restartEdgeNow)
+	updateTag := authNode.UpdateTag
+	hasPendingUpdate := authNode.UpdateRequested && strings.HasPrefix(updateTag, "edge-v")
+	if payload.EdgeUpdateSupported && payload.EdgeUpdateReady && hasPendingUpdate &&
+		updateTag == "edge-v"+strings.TrimPrefix(payload.Version, "edge-v") {
+		if err := repository.AcknowledgeOpenFlareEdgeUpdate(ctx, authNode); err != nil {
+			return nil, err
+		}
+		authNode.UpdateRequested = false
+		authNode.UpdateChannel = releaseChannelStable
+		authNode.UpdateTag = ""
+		hasPendingUpdate = false
+	}
+	if payload.EdgeUpdateSupported && (authNode.AutoUpdateEnabled || hasPendingUpdate) {
+		settings.EdgeUpdate = &protocol.EdgeUpdateSettings{
+			Repo:       node.AgentUpdateRepo(ctx),
+			AutoUpdate: authNode.AutoUpdateEnabled,
+		}
+		if hasPendingUpdate {
+			settings.EdgeUpdate.Tag = updateTag
+		}
+	}
 	return &HeartbeatResponse{
 		Config:        configManifest(ctx, authNode, payload.LatestConfigVersion),
 		Node:          authNode,
-		AgentSettings: buildAgentSettings(ctx, restartEdgeNow),
+		AgentSettings: settings,
 	}, nil
 }
 

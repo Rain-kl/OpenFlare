@@ -123,6 +123,7 @@ pub async fn announce_ready(
             payload_checksum: &current.payload_checksum,
         },
     )?;
+    crate::control::update::confirm(state_dir)?;
     notify_systemd()?;
     Ok(())
 }

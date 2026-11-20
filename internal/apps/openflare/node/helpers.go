@@ -15,6 +15,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ const (
 	nodeTypeTunnelRelay      = "tunnel_relay"
 	nodeTypeTunnelClient     = "tunnel_client"
 	nodeTypeEdgeNode         = "edge_node"
+	enginePingora            = "pingora"
 
 	nodeTokenByteLength  = 16
 	maxNodeIPLength      = 64
@@ -56,6 +58,9 @@ type githubReleaseResponse struct {
 	PublishedAt string `json:"published_at"`
 	Prerelease  bool   `json:"prerelease"`
 	Draft       bool   `json:"draft"`
+	Assets      []struct {
+		Name string `json:"name"`
+	} `json:"assets"`
 }
 
 func newRandomToken() (string, error) {
@@ -269,6 +274,7 @@ func buildNodeView(node *model.OpenFlareNode) *View {
 		CreatedAt:                 node.CreatedAt,
 		UpdatedAt:                 node.UpdatedAt,
 		AutoUpdateEnabled:         node.AutoUpdateEnabled,
+		EdgeUpdateSupported:       node.HasCapability(model.EdgeUpdateCapability),
 		UpdateRequested:           node.UpdateRequested,
 		NodeType:                  node.NodeType,
 		RelayBindPort:             node.RelayBindPort,
@@ -306,6 +312,9 @@ func buildNodeAgentReleaseView(node *model.OpenFlareNode, release *githubRelease
 	view.PublishedAt = release.PublishedAt
 	view.Prerelease = release.Prerelease
 	view.HasUpdate = isVersionNewer(currentVersion, release.TagName)
+	if isPingoraNode(node) {
+		view.HasUpdate = isNewerEdgeRelease(currentVersion, release.TagName)
+	}
 	return view
 }
 
@@ -342,10 +351,22 @@ func fetchLatestStableGitHubRelease(ctx context.Context, repo string) (*githubRe
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GitHub returned an unexpected status: %s", resp.Status)
 	}
-	return decodeGitHubRelease(resp.Body)
+	release, err := decodeGitHubRelease(resp.Body)
+	if err != nil || !strings.HasPrefix(release.TagName, "edge-v") {
+		return release, err
+	}
+	return fetchGitHubReleaseFromList(ctx, repo, false)
 }
 
 func fetchLatestPreviewGitHubRelease(ctx context.Context, repo string) (*githubReleaseResponse, error) {
+	release, err := fetchGitHubReleaseFromList(ctx, repo, true)
+	if err != nil || release != nil {
+		return release, err
+	}
+	return nil, errors.New("no preview release is currently available")
+}
+
+func fetchGitHubReleaseFromList(ctx context.Context, repo string, prerelease bool) (*githubReleaseResponse, error) {
 	url := fmt.Sprintf(githubReleasesAPIBase+"?per_page=20", strings.TrimSpace(repo))
 	req, err := newGitHubReleaseRequest(ctx, url)
 	if err != nil {
@@ -364,13 +385,13 @@ func fetchLatestPreviewGitHubRelease(ctx context.Context, repo string) (*githubR
 		return nil, errors.New("failed to parse preview version information")
 	}
 	for _, release := range releases {
-		if release.Draft || !release.Prerelease {
+		if release.Draft || release.Prerelease != prerelease || strings.HasPrefix(release.TagName, "edge-v") {
 			continue
 		}
 		releaseCopy := release
 		return &releaseCopy, nil
 	}
-	return nil, errors.New("no preview release is currently available")
+	return nil, nil
 }
 
 func fetchGitHubReleaseByTag(ctx context.Context, repo string, tag string) (*githubReleaseResponse, error) {
@@ -378,7 +399,7 @@ func fetchGitHubReleaseByTag(ctx context.Context, repo string, tag string) (*git
 	if tag == "" {
 		return nil, errors.New("missing release version identifier")
 	}
-	url := fmt.Sprintf(githubReleasesAPIBase+"/tags/%s", strings.TrimSpace(repo), tag)
+	url := fmt.Sprintf(githubReleasesAPIBase+"/tags/%s", strings.TrimSpace(repo), url.PathEscape(tag))
 	req, err := newGitHubReleaseRequest(ctx, url)
 	if err != nil {
 		return nil, errors.New("failed to create update request")

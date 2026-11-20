@@ -4,8 +4,13 @@
 package model
 
 import (
+	"encoding/json"
+	"slices"
 	"time"
 )
+
+// EdgeUpdateCapability identifies nodes that support managed binary updates.
+const EdgeUpdateCapability = "edge_self_update_v1"
 
 // OpenFlareNode stores an edge, relay, or tunnel client node.
 type OpenFlareNode struct {
@@ -52,6 +57,12 @@ type OpenFlareNode struct {
 // TableName returns the GORM table name.
 func (OpenFlareNode) TableName() string {
 	return "of_nodes"
+}
+
+// HasCapability reports whether the node advertised a runtime capability.
+func (node *OpenFlareNode) HasCapability(name string) bool {
+	var capabilities []string
+	return json.Unmarshal([]byte(node.CapabilitiesJSON), &capabilities) == nil && slices.Contains(capabilities, name)
 }
 
 // OpenFlareNodeListQuery describes a bounded node query.

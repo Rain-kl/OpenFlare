@@ -2,6 +2,7 @@ use crate::config::SnapshotStore;
 pub(crate) mod config_sync;
 mod node_ip;
 mod site_sync;
+pub(crate) mod update;
 mod websocket;
 
 use config_sync::{Manifest, PERFORMANCE_KEY};
@@ -24,7 +25,12 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::{Path, PathBuf};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::time::Duration;
+use tokio::sync::{watch, Notify};
 
 #[derive(Clone)]
 pub struct Runtime {
@@ -39,6 +45,8 @@ pub struct Runtime {
     geo_ip: crate::geoip::GeoIpStore,
     performance: LivePolicy,
     node_ip: node_ip::NodeIpResolver,
+    ready: Arc<AtomicBool>,
+    heartbeat_received: Arc<Notify>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +70,8 @@ struct NodePayload<'a> {
     engine: &'a str,
     contract_version: u8,
     config_sync_version: u8,
+    edge_update_supported: bool,
+    edge_update_ready: bool,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     access_logs: Vec<NodeAccessLog>,
     #[serde(skip_serializing_if = "str::is_empty")]
@@ -97,12 +107,13 @@ struct Heartbeat {
     agent_settings: Option<AgentSettings>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct AgentSettings {
     #[serde(default = "default_heartbeat_interval")]
     heartbeat_interval: u32,
     #[serde(default)]
     restart_edge_now: bool,
+    edge_update: Option<update::Settings>,
 }
 
 fn default_heartbeat_interval() -> u32 {
@@ -170,6 +181,8 @@ impl Runtime {
             listeners,
             performance,
             node_ip,
+            ready: Arc::default(),
+            heartbeat_received: Arc::default(),
         })
     }
 
@@ -209,27 +222,44 @@ impl Runtime {
                 ..self.clone()
             };
             let wake = websocket::Wake::default();
+            let (plans, updates) = watch::channel(None);
+            let (update_errors, errors) = watch::channel(None);
             tokio::join!(
-                authenticated.run_heartbeats(&identity.node_id, &wake),
+                authenticated.run_heartbeats(&identity.node_id, &wake, plans, errors),
                 websocket::run(&authenticated.base_url, &authenticated.token, &wake),
+                update::run(&self.state_dir, updates, update_errors),
             );
         };
         tokio::join!(control_loop, node_ip_refresher.refresh_loop_if_needed());
     }
 
-    async fn run_heartbeats(&self, node_id: &str, wake: &websocket::Wake) {
+    async fn run_heartbeats(
+        &self,
+        node_id: &str,
+        wake: &websocket::Wake,
+        updates: watch::Sender<Option<update::UpdatePlan>>,
+        errors: watch::Receiver<Option<String>>,
+    ) {
         let mut interval = Duration::from_secs(3);
         let mut retry = RetryDelay::default();
         let mut site = SiteSync::open(&self.state_dir, self.state.current().as_deref());
         let mut collector = HostCollector::new(self.state_dir.clone());
         loop {
             let current = self.state.current();
+            let update_error = errors.borrow().clone();
+            let last_error = match (site.last_error(), update_error) {
+                (config_error, Some(update_error)) if !config_error.is_empty() => {
+                    format!("{config_error}\n{update_error}")
+                }
+                ("", Some(update_error)) => update_error,
+                (config_error, _) => config_error.to_owned(),
+            };
             let response = self
                 .heartbeat(
                     node_id,
                     current.as_deref(),
                     site.latest_version(),
-                    site.last_error(),
+                    &last_error,
                     &mut collector,
                 )
                 .await;
@@ -242,14 +272,28 @@ impl Runtime {
                 }
             };
             retry = RetryDelay::default();
-            if let Some(settings) = response.agent_settings {
+            if response.config.version == config_sync::VERSION {
+                self.heartbeat_received.notify_one();
+            }
+            let plan = if let Some(settings) = response.agent_settings {
                 interval = Duration::from_millis(settings.heartbeat_interval.max(100).into());
                 if settings.restart_edge_now {
                     tracing::info!("controller requested a local Edge restart");
                     crate::runtime::request_restart();
                     return;
                 }
-            }
+                settings.edge_update.and_then(update::Settings::plan)
+            } else {
+                None
+            };
+            let plan = plan.filter(|_| self.ready.load(Ordering::Acquire));
+            updates.send_if_modified(|previous| {
+                if *previous == plan {
+                    return false;
+                }
+                *previous = plan;
+                true
+            });
             let manifest = response.config;
             if manifest.version != config_sync::VERSION {
                 tracing::error!(
@@ -410,6 +454,8 @@ impl Runtime {
             engine: "pingora",
             contract_version: config::CONTRACT_VERSION as u8,
             config_sync_version: config_sync::VERSION,
+            edge_update_supported: update::supported(),
+            edge_update_ready: false,
             access_logs: Vec::new(),
             last_error: "",
             telemetry: None,
@@ -469,6 +515,8 @@ impl Runtime {
             engine: "pingora",
             contract_version: config::CONTRACT_VERSION as u8,
             config_sync_version: config_sync::VERSION,
+            edge_update_supported: update::supported(),
+            edge_update_ready: self.ready.load(Ordering::Acquire),
             access_logs: logs.iter().map(|entry| entry.log.clone()).collect(),
             last_error,
             telemetry: Some(collector.sample(status, message, last_error)),
@@ -547,10 +595,14 @@ impl BackgroundService for Runtime {
         tokio::select! {
             _ = async {
                 let readiness = async {
+                    if update::trial_running(&self.state_dir) {
+                        self.heartbeat_received.notified().await;
+                    }
                     if let Err(error) = crate::runtime::announce_ready(&self.listeners, &self.state_dir, &self.state).await {
                         tracing::error!(%error, "Edge data plane failed to become ready");
                         std::process::exit(1);
                     }
+                    self.ready.store(true, Ordering::Release);
                 };
                 tokio::join!(self.run(), self.geo_ip.refresh_periodically(), readiness);
             } => {}

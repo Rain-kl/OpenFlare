@@ -4,9 +4,11 @@ set -euo pipefail
 VERSION=""
 REPO="Rain-kl/OpenFlare"
 INSTALL_DIR="/opt/openflare-edge"
+STATE_DIR="/var/lib/openflare-edge"
 SERVICE_NAME="openflare-edge"
 SERVICE_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 INSTALL_DIR_EXPLICIT=false
+STATE_DIR_EXPLICIT=false
 
 log() { printf '[openflare-edge] %s\n' "$*"; }
 die() { printf '[openflare-edge] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -27,6 +29,7 @@ Options:
   --version TAG       Update to a specific release tag; default is latest
   --repo OWNER/NAME   Release repository (default: Rain-kl/OpenFlare)
   --install-dir DIR   Override install directory (auto-detected from systemd)
+  --state-dir DIR     Override state directory (auto-detected from systemd)
   -h, --help          Show this help
 EOF
 }
@@ -36,7 +39,7 @@ while [[ $# -gt 0 ]]; do
     --version) VERSION="$2"; shift 2 ;;
     --repo) REPO="$2"; shift 2 ;;
     --install-dir) INSTALL_DIR="$2"; INSTALL_DIR_EXPLICIT=true; shift 2 ;;
-    --state-dir) shift 2 ;; # Accepted for older invocations.
+    --state-dir) STATE_DIR="$2"; STATE_DIR_EXPLICIT=true; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown option: $1" ;;
   esac
@@ -57,11 +60,14 @@ command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required"
 command -v install >/dev/null 2>&1 || die "install is required"
 command -v flock >/dev/null 2>&1 || die "flock is required"
 
-if [[ -f "$SERVICE_PATH" && "$INSTALL_DIR_EXPLICIT" != true ]]; then
+if [[ -f "$SERVICE_PATH" ]]; then
   exec_start="$(sed -nE 's/^ExecStart=//p' "$SERVICE_PATH" | head -n1)"
   exec_bin="${exec_start%% *}"
-  if [[ "$exec_bin" == */current ]]; then
+  if [[ "$INSTALL_DIR_EXPLICIT" != true && "$exec_bin" == */current ]]; then
     INSTALL_DIR="${exec_bin%/current}"
+  fi
+  if [[ "$STATE_DIR_EXPLICIT" != true && "$exec_start" =~ [[:space:]]--state-dir[[:space:]]([^[:space:]]+) ]]; then
+    STATE_DIR="${BASH_REMATCH[1]}"
   fi
 fi
 
@@ -120,6 +126,7 @@ fi
 
 log "replacing ${BIN} with ${VERSION}"
 mv -Tf -- "$STAGED_BIN" "$BIN"
+rm -f -- "$STATE_DIR/edge-update-next" "$STATE_DIR/edge-update-trial" "$STATE_DIR/edge-update-active"
 
 # Migrate installations that stored each release in its own directory.
 if [[ -d "$INSTALL_DIR/releases" && ! -L "$INSTALL_DIR/releases" ]]; then

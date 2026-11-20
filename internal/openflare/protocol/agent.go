@@ -16,10 +16,18 @@ type APIResponse[T any] struct {
 	Data     T      `json:"data"`
 }
 
-// AgentSettings holds the Edge heartbeat interval and queued restart command.
+// AgentSettings holds the Edge heartbeat interval and runtime commands.
 type AgentSettings struct {
-	HeartbeatInterval int  `json:"heartbeat_interval"`
-	RestartEdgeNow    bool `json:"restart_edge_now"`
+	HeartbeatInterval int                 `json:"heartbeat_interval"`
+	RestartEdgeNow    bool                `json:"restart_edge_now"`
+	EdgeUpdate        *EdgeUpdateSettings `json:"edge_update,omitempty"`
+}
+
+// EdgeUpdateSettings specifies a pinned manual update or periodic stable updates.
+type EdgeUpdateSettings struct {
+	Repo       string `json:"repo"`
+	AutoUpdate bool   `json:"auto_update"`
+	Tag        string `json:"tag,omitempty"`
 }
 
 // WSMessageType constants define WebSocket message types.
@@ -85,6 +93,8 @@ type NodePayload struct {
 	Engine              string                        `json:"engine,omitempty"`
 	ContractVersion     int                           `json:"contract_version,omitempty"`
 	ConfigSyncVersion   int                           `json:"config_sync_version"`
+	EdgeUpdateSupported bool                          `json:"edge_update_supported,omitempty"`
+	EdgeUpdateReady     bool                          `json:"edge_update_ready,omitempty"`
 }
 
 // NodeEdgeHealth is an instantaneous OpenResty health snapshot (L2).

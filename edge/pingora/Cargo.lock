@@ -1702,6 +1702,7 @@ dependencies = [
  "regex",
  "reqwest",
  "same-file",
+ "semver",
  "serde",
  "serde_json",
  "sevenz-rust",

@@ -596,6 +596,40 @@ def main(binary):
                 edge = launch("--token-type", "node")
                 wait_for(lambda: server.registered_with_node_token)
 
+                if sys.platform == "linux" and os.geteuid() != 0:
+                    systemd = {"NOTIFY_SOCKET": address, "INVOCATION_ID": "edge-update-fixture"}
+                    staged = path / "edge-update-next"
+                    active = path / "edge-update-active"
+                    trial = path / "edge-update-trial"
+
+                    edge.kill()
+                    edge.wait(timeout=5)
+                    shutil.copy2(binary, staged)
+                    before_trial = len(server.heartbeats)
+                    edge = launch("--token-type", "node", env=systemd)
+                    wait_for(lambda: active.exists() and json.loads(ready.read_text())["pid"] == edge.pid)
+                    assert notify.recv(4096).startswith(b"READY=1\n")
+                    assert os.path.samefile(f"/proc/{edge.pid}/exe", active)
+                    assert not trial.exists() and not staged.exists()
+                    wait_for(lambda: any(h["edge_update_ready"] for h in server.heartbeats[before_trial:]))
+                    assert server.heartbeats[before_trial]["edge_update_supported"]
+                    assert not server.heartbeats[before_trial]["edge_update_ready"]
+
+                    edge.kill()
+                    edge.wait(timeout=5)
+                    shutil.copy2("/bin/false", staged)
+                    edge = launch("--token-type", "node", env=systemd)
+                    assert edge.wait(timeout=5) != 0
+                    assert trial.exists() and not staged.exists()
+                    before_rollback = len(server.heartbeats)
+                    edge = launch("--token-type", "node", env=systemd)
+                    wait_for(lambda: json.loads(ready.read_text())["pid"] == edge.pid)
+                    assert notify.recv(4096).startswith(b"READY=1\n")
+                    assert os.path.samefile(f"/proc/{edge.pid}/exe", active)
+                    wait_for(lambda: any("previous version was restored" in h.get("last_error", "")
+                                         for h in server.heartbeats[before_rollback:]))
+                    assert request("edge.test", use_http2=True)[0] == 200
+
                 edge.kill()
                 edge.wait(timeout=5)
                 token.unlink()

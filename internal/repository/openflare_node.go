@@ -117,6 +117,17 @@ func UpdateOpenFlareNodeFields(ctx context.Context, node *model.OpenFlareNode, f
 	return conn.Model(node).Select(fields).Updates(node).Error
 }
 
+// AcknowledgeOpenFlareEdgeUpdate clears only the update the running Edge confirmed.
+func AcknowledgeOpenFlareEdgeUpdate(ctx context.Context, node *model.OpenFlareNode) error {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return errors.New(errDatabaseNotInitialized)
+	}
+	return conn.Model(node).
+		Where("engine = ? AND access_token = ? AND update_requested = ? AND update_tag = ?", node.Engine, node.AccessToken, true, node.UpdateTag).
+		Updates(map[string]any{"update_requested": false, "update_tag": "", "update_channel": "stable"}).Error
+}
+
 // UpdateOpenFlareNodeColumns updates node columns from a map of column values.
 // Empty maps are no-ops.
 func UpdateOpenFlareNodeColumns(ctx context.Context, node *model.OpenFlareNode, changes map[string]any) error {

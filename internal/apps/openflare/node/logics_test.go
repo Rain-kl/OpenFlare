@@ -236,7 +236,7 @@ func TestRequestAgentUpdateWithPreviewTag(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	created, err := CreateNode(ctx, Input{Name: "edge-update-agent"})
+	created, err := CreateNode(ctx, Input{Name: "tunnel-update-agent", NodeType: "tunnel_client"})
 	require.NoError(t, err)
 
 	originalClient := setReleaseHTTPClientForTest(&http.Client{
@@ -379,4 +379,47 @@ func TestCompareVersions(t *testing.T) {
 			assert.Equal(t, tt.expected, res)
 		})
 	}
+}
+
+func TestRequestPingoraUpdatePinsLatestEdgeRelease(t *testing.T) {
+	t.Cleanup(setupNodeTestDB(t))
+	ctx := context.Background()
+	created, err := CreateNode(ctx, Input{Name: "managed-edge"})
+	require.NoError(t, err)
+	_, err = RequestAgentUpdate(ctx, created.ID, AgentUpdateInput{})
+	require.ErrorContains(t, err, errEdgeUpdateUnsupported)
+
+	record, err := repository.GetOpenFlareNodeByID(ctx, created.ID)
+	require.NoError(t, err)
+	record.CapabilitiesJSON = "[\"edge_self_update_v1\"]"
+	record.Version = "0.2.0-rc.1"
+	require.NoError(t, repository.UpdateOpenFlareNodeFields(ctx, record, "capabilities_json", "version"))
+
+	original := setReleaseHTTPClientForTest(&http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "https://api.github.com/repos/Rain-kl/OpenFlare/releases?per_page=100", req.URL.String())
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`[
+			{"tag_name":"v99.0.0","assets":[{"name":"openflare-relay-linux-amd64"}]},
+			{"tag_name":"edge-v0.1.9","assets":[{"name":"openflare-edge_edge-v0.1.9_linux_amd64.tar.gz"}]},
+			{"tag_name":"edge-v0.3.0","draft":true,"assets":[{"name":"openflare-edge_edge-v0.3.0_linux_amd64.tar.gz"}]},
+			{"tag_name":"edge-v0.3.0-rc.1","prerelease":true,"assets":[{"name":"openflare-edge_edge-v0.3.0-rc.1_linux_amd64.tar.gz"}]},
+			{"tag_name":"edge-v0.2.0","assets":[{"name":"openflare-edge_edge-v0.2.0_linux_amd64.tar.gz"}]}
+		]`))}, nil
+	})})
+	t.Cleanup(func() { setReleaseHTTPClientForTest(original) })
+
+	release, err := GetAgentRelease(ctx, created.ID, "stable")
+	require.NoError(t, err)
+	assert.Equal(t, "edge-v0.2.0", release.TagName)
+	assert.True(t, release.HasUpdate)
+
+	updated, err := RequestAgentUpdate(ctx, created.ID, AgentUpdateInput{})
+	require.NoError(t, err)
+	assert.True(t, updated.UpdateRequested)
+	assert.True(t, updated.EdgeUpdateSupported)
+	assert.Equal(t, "edge-v0.2.0", updated.UpdateTag)
+
+	settings, err := UpdateNode(ctx, created.ID, Input{Name: created.Name, AutoUpdateEnabled: true})
+	require.NoError(t, err)
+	assert.True(t, settings.AutoUpdateEnabled)
+	assert.Equal(t, updated.UpdateTag, settings.UpdateTag)
 }

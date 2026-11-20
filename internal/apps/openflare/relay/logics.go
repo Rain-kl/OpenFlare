@@ -5,7 +5,6 @@ package relay
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -22,8 +21,9 @@ const nodeStatusOnline = "online"
 
 // Heartbeat processes a relay heartbeat, updates node status, and returns config.
 func Heartbeat(ctx context.Context, node *model.OpenFlareNode, payload protocol.RelayHeartbeatPayload) (*protocol.RelayHeartbeatResponse, error) {
-	if node == nil {
-		return nil, errors.New("relay node is nil")
+	node, err := agent.LoadHeartbeatNode(ctx, node)
+	if err != nil {
+		return nil, err
 	}
 
 	payload.Version = strings.TrimSpace(payload.Version)

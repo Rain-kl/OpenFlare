@@ -39,9 +39,10 @@ export function AgentUpdateDialog({
   onConfirm: (
     release: NodeAgentReleaseInfo | null,
     channel: ReleaseChannel,
-  ) => Promise<void>;
+  ) => void | Promise<void>;
 }) {
   const t = useTranslations('nodes');
+  const isEdge = node.node_type === 'edge_node';
   const [channel, setChannel] = useState<ReleaseChannel>('stable');
 
   const releaseQuery = useQuery({
@@ -51,16 +52,32 @@ export function AgentUpdateDialog({
   });
 
   const release = releaseQuery.data ?? null;
+  const checkChannel = (next: ReleaseChannel) => {
+    if (next === channel) {
+      void releaseQuery.refetch();
+      return;
+    }
+    setChannel(next);
+  };
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className='sm:max-w-xl'>
         <DialogHeader>
-          <DialogTitle>{t('update.title')}</DialogTitle>
-          <DialogDescription>{t('update.description')}</DialogDescription>
+          <DialogTitle>
+            {t(isEdge ? 'edge.upgrade' : 'update.title')}
+          </DialogTitle>
+          <DialogDescription>
+            {t(isEdge ? 'edge.upgradeDescription' : 'update.description')}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className='space-y-4'>
+        <div className='flex flex-col gap-4'>
+          {isEdge && !node.edge_update_supported ? (
+            <p className='text-sm text-muted-foreground'>
+              {t('edge.updateUnsupported')}
+            </p>
+          ) : null}
           <div className='grid gap-3 sm:grid-cols-3'>
             <div className='rounded-lg border p-3'>
               <p className='text-xs text-muted-foreground'>
@@ -108,7 +125,7 @@ export function AgentUpdateDialog({
             <p className='text-sm text-destructive'>
               {getErrorMessage(releaseQuery.error, t('requestFailed'))}
             </p>
-          ) : release ? (
+          ) : release?.tag_name ? (
             <div className='space-y-3 rounded-lg border p-4'>
               <div className='flex flex-wrap items-center gap-2'>
                 <NodeStatusBadge
@@ -166,7 +183,11 @@ export function AgentUpdateDialog({
                 </a>
               ) : null}
             </div>
-          ) : null}
+          ) : (
+            <p className='text-sm text-muted-foreground'>
+              {t('update.notFound')}
+            </p>
+          )}
         </div>
 
         <DialogFooter className='gap-2 sm:gap-0'>
@@ -174,7 +195,7 @@ export function AgentUpdateDialog({
             type='button'
             variant='outline'
             disabled={submitting || releaseQuery.isFetching}
-            onClick={() => setChannel('stable')}
+            onClick={() => checkChannel('stable')}
           >
             {t('update.checkStable')}
           </Button>
@@ -182,7 +203,7 @@ export function AgentUpdateDialog({
             type='button'
             variant='outline'
             disabled={submitting || releaseQuery.isFetching}
-            onClick={() => setChannel('preview')}
+            onClick={() => checkChannel('preview')}
           >
             {t('update.checkPreview')}
           </Button>
@@ -192,7 +213,9 @@ export function AgentUpdateDialog({
               submitting ||
               releaseQuery.isFetching ||
               !release?.has_update ||
-              node.update_requested
+              (isEdge && !node.edge_update_supported) ||
+              (node.update_requested &&
+                (!isEdge || node.update_tag === release.tag_name))
             }
             onClick={() => void onConfirm(release, channel)}
           >

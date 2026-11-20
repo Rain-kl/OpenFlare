@@ -21,4 +21,7 @@ const (
 	errNoActiveConfigVersion     = "no active configuration version"
 	errAgentPreviewTagInvalid    = "the selected version is not a preview release"
 	errAgentStableTagInvalid     = "a preview release cannot be selected for a stable update"
+	errEdgeUpdateUnsupported     = "this Edge installation does not support managed updates"
+	errEdgeUpdateUnavailable     = "no newer Edge release is available in the selected channel"
+	errEdgeReleaseLookup         = "could not check Edge releases"
 )

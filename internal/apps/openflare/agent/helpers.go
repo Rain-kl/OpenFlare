@@ -7,7 +7,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"net"
+	"slices"
 	"strings"
 	"time"
 
@@ -18,6 +21,8 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/geoip/iputil"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
+	"gorm.io/gorm"
 )
 
 const (
@@ -139,6 +144,7 @@ func applyNodeRuntime(ctx context.Context, node *model.OpenFlareNode, payload pr
 	node.ExtVersion = strings.TrimSpace(payload.ExtVersion)
 	node.Engine = normalizeEngine(payload.Engine)
 	node.ContractVersion = payload.ContractVersion
+	updateEdgeCapability(ctx, node, payload.EdgeUpdateSupported)
 	node.OpenrestyStatus = normalizeOpenrestyStatus(payload.OpenrestyStatus)
 	node.OpenrestyMessage = truncateForDatabase(payload.OpenrestyMessage, maxDatabaseTextLength)
 	node.Status = nodeStatusOnline
@@ -209,6 +215,30 @@ func isPublicNodeIP(raw string) bool {
 	return iputil.IsPublicRoutableString(raw)
 }
 
+func updateEdgeCapability(ctx context.Context, node *model.OpenFlareNode, supported bool) {
+	if node.HasCapability(model.EdgeUpdateCapability) == supported {
+		return
+	}
+	var capabilities []string
+	if node.CapabilitiesJSON != "" {
+		if err := json.Unmarshal([]byte(node.CapabilitiesJSON), &capabilities); err != nil {
+			logger.WarnF(ctx, "cannot decode Edge node capabilities: node_id=%s error=%v", node.NodeID, err)
+			capabilities = nil
+		}
+	}
+	if supported {
+		capabilities = append(capabilities, model.EdgeUpdateCapability)
+	} else {
+		capabilities = slices.DeleteFunc(capabilities, func(value string) bool { return value == model.EdgeUpdateCapability })
+	}
+	encoded, err := json.Marshal(capabilities)
+	if err != nil {
+		logger.WarnF(ctx, "cannot encode Edge node capabilities: node_id=%s error=%v", node.NodeID, err)
+		return
+	}
+	node.CapabilitiesJSON = string(encoded)
+}
+
 func buildAgentSettings(ctx context.Context, restartEdgeNow bool) *protocol.AgentSettings {
 	heartbeatInterval, _ := repository.GetIntByKey(ctx, model.ConfigKeyAgentHeartbeatInterval)
 	if heartbeatInterval <= 0 {
@@ -234,6 +264,7 @@ func collectHeartbeatChanges(previous *model.OpenFlareNode, current *model.OpenF
 	appendIfChanged("ext_version", previous.ExtVersion, current.ExtVersion)
 	appendIfChanged("engine", previous.Engine, current.Engine)
 	appendIfChanged("contract_version", previous.ContractVersion, current.ContractVersion)
+	appendIfChanged("capabilities_json", previous.CapabilitiesJSON, current.CapabilitiesJSON)
 	appendIfChanged("openresty_status", previous.OpenrestyStatus, current.OpenrestyStatus)
 	appendIfChanged("openresty_message", previous.OpenrestyMessage, current.OpenrestyMessage)
 	appendIfChanged("status", previous.Status, current.Status)
@@ -294,6 +325,24 @@ func isUniqueConstraintError(err error) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(err.Error()), "unique")
+}
+
+// LoadHeartbeatNode reads current admin settings without renewing stale cached settings.
+func LoadHeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode) (*model.OpenFlareNode, error) {
+	if authNode == nil {
+		return nil, errors.New(errNodeNotFound)
+	}
+	current, err := repository.GetOpenFlareNodeByAccessToken(ctx, authNode.AccessToken)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New(errNodeNotFound)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if current.ID != authNode.ID || current.NodeType != authNode.NodeType {
+		return nil, errors.New(errNodeNotFound)
+	}
+	return current, nil
 }
 
 // RefreshAccessTokenCache updates the in-memory node cache after heartbeat mutations.
