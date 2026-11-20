@@ -1,4 +1,4 @@
-use super::{Level, Levels, RuleMatch, CATEGORIES};
+use super::{Level, Levels, RuleMatch, RuleOverride, RuleOverrides, CATEGORIES};
 use anyhow::{ensure, Context, Result};
 use include_dir::{include_dir, Dir};
 use serde::Serialize;
@@ -111,10 +111,12 @@ impl Rules {
     pub(super) fn compile(
         &self,
         levels: Levels,
+        rule_overrides: &RuleOverrides,
     ) -> Result<(CompiledRuleset, HashMap<String, RuleMatch>)> {
         let mut directives = self.directives.clone();
         let mut removals = Vec::new();
         let mut matches = HashMap::new();
+        let mut unmatched_overrides = rule_overrides.clone();
         for directive in &directives {
             let Directive::SecRule(rule) = directive else {
                 continue;
@@ -126,16 +128,21 @@ impl Rules {
                 }
                 continue;
             };
-            let level = match levels[CATEGORIES
-                .iter()
-                .position(|name| *name == info.category)
-                .unwrap()]
-            {
-                Level::Off => None,
-                Level::Balanced if !info.balanced => None,
-                Level::Balanced => Some("balanced"),
-                Level::Strict => Some("strict"),
-                Level::Observe => Some("observe"),
+            let level = match unmatched_overrides.remove(&info.id) {
+                Some(RuleOverride::Off) => None,
+                Some(RuleOverride::Enabled) => Some("enabled"),
+                Some(RuleOverride::Observe) => Some("observe"),
+                None => match levels[CATEGORIES
+                    .iter()
+                    .position(|name| *name == info.category)
+                    .unwrap()]
+                {
+                    Level::Off => None,
+                    Level::Balanced if !info.balanced => None,
+                    Level::Balanced => Some("balanced"),
+                    Level::Strict => Some("strict"),
+                    Level::Observe => Some("observe"),
+                },
             };
             let Some(level) = level else {
                 removals.push(RuleIdSelector::Single(id));
@@ -152,6 +159,11 @@ impl Rules {
             );
             ensure!(previous.is_none(), "duplicate attack rule ID {id}");
         }
+        ensure!(
+            unmatched_overrides.is_empty(),
+            "unknown attack protection rule IDs: {:?}",
+            unmatched_overrides.keys().collect::<Vec<_>>()
+        );
         directives.push(Directive::SecRuleRemoveById(removals));
         let ruleset = CompiledRuleset::compile(directives).context("compile embedded OWASP CRS")?;
         Ok((ruleset, matches))

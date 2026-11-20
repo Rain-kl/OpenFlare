@@ -188,7 +188,9 @@ def attack_flow(group_id, level):
             "graph": {"entry": "inspect", "nodes": {
                 "inspect": {"type": "attack_protection", "config": {
                     "id": group_id + 10, "name": level,
-                    "levels": {"template_injection": level, "csrf": level, "malformed_http": level}},
+                    "levels": {"template_injection": "off" if level == "strict" else "strict",
+                               "csrf": level, "malformed_http": level},
+                    "rule_overrides": {"934180": "enabled" if level == "strict" else "observe"}},
                     "next": {"true": "allow", "false": "block"}},
                 "block": {"type": "block", "config": {"status_code": 403}},
                 "allow": {"type": "allow"},
@@ -427,7 +429,7 @@ def main(binary):
                 observed_audit = wait_for(lambda: audit_for("observe.edge.test", "observed", 934180))
                 assert blocked_audit["attack_group_id"] == 12 and blocked_audit["flow_node_id"] == "inspect"
                 assert blocked_audit["rules"][0] == {
-                    "id": 934180, "category": "template_injection", "message": "SSTI Attack", "level": "strict"}
+                    "id": 934180, "category": "template_injection", "message": "SSTI Attack", "level": "enabled"}
                 assert observed_audit["rules"][0] == {
                     **blocked_audit["rules"][0], "level": "observe"}
                 preview = blocked_audit["request"]

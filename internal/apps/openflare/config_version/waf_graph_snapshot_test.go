@@ -175,7 +175,18 @@ func TestWAFSnapshotResolvesCurrentAttackGroupLevels(t *testing.T) {
 		{ID: "deny", Source: "inspect", Target: "block", SourceHandle: "false"},
 	}
 	createSnapshotRule(t, ctx, "ruleset fixture", graph)
-	for _, level := range []string{"observe", "strict"} {
+	for _, scenario := range []struct {
+		level             string
+		ruleOverrides     map[string]string
+		expectedOverrides string
+	}{
+		{level: "observe"},
+		{level: "strict", ruleOverrides: map[string]string{"942100": "observe"}, expectedOverrides: `,"rule_overrides":{"942100":"observe"}`},
+		{level: "balanced", expectedOverrides: `,"rule_overrides":{"942100":"observe"}`},
+		{level: "strict", ruleOverrides: map[string]string{}},
+	} {
+		group.RuleOverrides = scenario.ruleOverrides
+		level := scenario.level
 		group.Levels["sql_injection"] = level
 		group.Levels["csrf"] = level
 		require.NoError(t, repository.SaveOpenFlareAttackGroup(ctx, &group))
@@ -186,6 +197,6 @@ func TestWAFSnapshotResolvesCurrentAttackGroupLevels(t *testing.T) {
 		require.Equal(t, waf.RuleNodeType("attack_protection"), node.Type)
 		compiled, err := json.Marshal(node.Config)
 		require.NoError(t, err)
-		require.JSONEq(t, fmt.Sprintf(`{"id":%d,"name":"Ruleset","levels":{"sql_injection":%q,"csrf":%q}}`, group.ID, level, level), string(compiled))
+		require.JSONEq(t, fmt.Sprintf(`{"id":%d,"name":"Ruleset","levels":{"sql_injection":%q,"csrf":%q}%s}`, group.ID, level, level, scenario.expectedOverrides), string(compiled))
 	}
 }

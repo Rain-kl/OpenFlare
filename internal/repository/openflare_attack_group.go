@@ -8,6 +8,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ListOpenFlareAttackGroups returns all groups or only the supplied IDs.
@@ -31,9 +32,16 @@ func SaveOpenFlareAttackGroup(ctx context.Context, group *model.OpenFlareAttackG
 		return err
 	}
 	if group.ID == 0 {
+		if group.RuleOverrides == nil {
+			group.RuleOverrides = map[string]string{}
+		}
 		return conn.Create(group).Error
 	}
-	result := conn.Model(group).Select("Name", "Levels", "UpdatedAt").Updates(group)
+	fields := []string{"Name", "Levels", "UpdatedAt"}
+	if group.RuleOverrides != nil {
+		fields = append(fields, "RuleOverrides")
+	}
+	result := conn.Model(group).Clauses(clause.Returning{}).Select(fields).Updates(group)
 	if result.Error != nil {
 		return result.Error
 	}

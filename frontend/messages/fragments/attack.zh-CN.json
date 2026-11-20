@@ -15,9 +15,9 @@
     "loadFailed": "无法加载攻击防护规则组。",
     "saveFailed": "无法保存攻击防护规则组。",
     "applyAll": "批量设置等级",
-    "levelHelp": "平衡防护使用 CRS PL1 与基础补充规则。高强度防护和仅观察使用该类别的全部规则。",
+    "levelHelp": "平衡防护运行 CRS PL1 与基础补充规则。高强度防护和仅观察运行该类别的全部规则。逐条设置优先于类别等级。",
     "legacy": "此节点正在使用原有的检测设置。选择规则组后，节点将采用该组的检测等级。",
-    "branches": "平衡或高强度规则命中时进入 false 分支。仅观察规则命中时记录日志并进入 true 分支。",
+    "branches": "开启、平衡或高强度规则命中时进入 false 分支。仅命中记录或仅观察规则时，记录日志并进入 true 分支。",
     "save": "保存",
     "cancel": "取消",
     "categories": {
@@ -43,7 +43,8 @@
       "off": "禁用",
       "observe": "仅观察",
       "balanced": "平衡防护",
-      "strict": "高强度防护"
+      "strict": "高强度防护",
+      "enabled": "开启"
     },
     "catalog": {
       "title": "检测规则目录",
@@ -53,15 +54,23 @@
       "search": "搜索规则 ID 或说明",
       "id": "规则 ID",
       "message": "规则说明",
-      "ruleLevel": "规则级别",
       "status": "应用状态",
-      "supplemental": "OpenFlare",
       "baseRule": "基础",
       "extendedRule": "扩展",
       "ruleCount": "共 {count} 条规则",
-      "enabledRules": "启用 {count, plural, other {# 条规则}}",
-      "categorySummary": "{category} · {level} · 启用 {count} 条规则",
-      "noRules": "没有匹配的检测规则。"
+      "enabledRules": "{count} 条运行中",
+      "noRules": "没有匹配的检测规则。",
+      "editHelp": "单条规则设置优先于类别等级，随规则组一同保存。",
+      "ruleAction": "规则 {id} 的应用状态",
+      "inherit": "沿用类别设置（{action}）",
+      "custom": "自定义",
+      "inherited": "沿用类别",
+      "overrideCount": "{count} 条自定义规则"
+    },
+    "ruleActions": {
+      "off": "关闭",
+      "enabled": "开启",
+      "observe": "记录"
     }
   },
   "attackLogs": {

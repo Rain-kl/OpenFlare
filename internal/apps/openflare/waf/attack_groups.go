@@ -8,12 +8,16 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 )
+
+const attackLevelOff = "off"
 
 var attackCategories = map[string]struct{}{
 	"sql_injection": {}, "xss": {}, "malicious_upload": {}, "path_traversal": {},
@@ -24,8 +28,9 @@ var attackCategories = map[string]struct{}{
 }
 
 type attackGroupInput struct {
-	Name   string            `json:"name"`
-	Levels map[string]string `json:"levels"`
+	Name          string            `json:"name"`
+	Levels        map[string]string `json:"levels"`
+	RuleOverrides map[string]string `json:"rule_overrides"`
 }
 
 func saveAttackGroup(ctx context.Context, id uint, input attackGroupInput) (*model.OpenFlareAttackGroup, error) {
@@ -38,11 +43,19 @@ func saveAttackGroup(ctx context.Context, id uint, input attackGroupInput) (*mod
 	}
 	for category, level := range input.Levels {
 		_, validCategory := attackCategories[category]
-		if !validCategory || (level != "off" && level != "observe" && level != "balanced" && level != "strict") {
+		if !validCategory || (level != attackLevelOff && level != "observe" && level != "balanced" && level != "strict") {
 			return nil, &RuleValidationError{Err: errors.New(errAttackGroupLevels)}
 		}
 	}
-	group := &model.OpenFlareAttackGroup{ID: id, Name: name, Levels: input.Levels}
+	for key, action := range input.RuleOverrides {
+		ruleID, err := strconv.ParseUint(key, 10, 32)
+		_, known := slices.BinarySearch(attackRuleIDs, uint32(ruleID))
+		if err != nil || !known || key != strconv.FormatUint(ruleID, 10) ||
+			(action != attackLevelOff && action != "enabled" && action != "observe") {
+			return nil, &RuleValidationError{Err: fmt.Errorf(errAttackRuleOverride, key)}
+		}
+	}
+	group := &model.OpenFlareAttackGroup{ID: id, Name: name, Levels: input.Levels, RuleOverrides: input.RuleOverrides}
 	if err := repository.SaveOpenFlareAttackGroup(ctx, group); err != nil {
 		return nil, err
 	}
@@ -90,12 +103,14 @@ func ResolveAttackGroups(ctx context.Context, graphs ...RuntimeRuleGraph) error 
 				group := groups[*cfg.AttackGroupID]
 				levels := maps.Clone(group.Levels)
 				for _, category := range []string{"csrf", "malformed_http"} {
-					if levels[category] == "off" {
+					if levels[category] == attackLevelOff {
 						delete(levels, category)
 					}
 				}
 				node.Type = "attack_protection"
-				node.Config = runtimeAttackGroup{ID: group.ID, Name: group.Name, Levels: levels}
+				node.Config = runtimeAttackGroup{
+					ID: group.ID, Name: group.Name, Levels: levels, RuleOverrides: group.RuleOverrides,
+				}
 				graph.Nodes[id] = node
 			}
 		}
@@ -104,7 +119,8 @@ func ResolveAttackGroups(ctx context.Context, graphs ...RuntimeRuleGraph) error 
 }
 
 type runtimeAttackGroup struct {
-	ID     uint              `json:"id"`
-	Name   string            `json:"name"`
-	Levels map[string]string `json:"levels"`
+	ID            uint              `json:"id"`
+	Name          string            `json:"name"`
+	Levels        map[string]string `json:"levels"`
+	RuleOverrides map[string]string `json:"rule_overrides,omitempty"`
 }

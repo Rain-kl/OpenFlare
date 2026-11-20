@@ -21,10 +21,14 @@ export const attackCategories = [
 export const attackLevels = ['off', 'observe', 'balanced', 'strict'] as const;
 export type AttackCategory = (typeof attackCategories)[number];
 export type AttackLevel = (typeof attackLevels)[number];
+export const attackRuleActions = ['off', 'enabled', 'observe'] as const;
+export type AttackRuleAction = (typeof attackRuleActions)[number];
+export type AttackRuleOverrides = Partial<Record<number, AttackRuleAction>>;
 
 export type AttackGroupInput = {
   name: string;
   levels: Partial<Record<AttackCategory, AttackLevel>>;
+  rule_overrides?: AttackRuleOverrides;
 };
 export type AttackGroup = AttackGroupInput & { id: number; updated_at: string };
 
@@ -50,7 +54,7 @@ export type AttackLog = {
     id: number;
     category: AttackCategory;
     message: string;
-    level: AttackLevel;
+    level: AttackLevel | 'enabled';
   }[];
 };
 

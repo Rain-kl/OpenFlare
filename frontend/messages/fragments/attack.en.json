@@ -15,9 +15,9 @@
     "loadFailed": "Unable to load attack protection groups.",
     "saveFailed": "Unable to save the attack protection group.",
     "applyAll": "Set all levels",
-    "levelHelp": "Balanced protection uses CRS PL1 and base supplemental rules. High protection and observe only use all rules in the category.",
+    "levelHelp": "Balanced runs CRS PL1 and base supplemental rules. Strict and observe run all rules in the category. Individual settings take precedence over category levels.",
     "legacy": "This node uses its existing detection settings. Selecting a group applies its detection levels.",
-    "branches": "Balanced or high protection matches follow the false branch. Observe-only matches are logged and follow the true branch.",
+    "branches": "Matches set to enabled, balanced, or strict follow the false branch. When only log-only or observe rules match, the request is logged and follows the true branch.",
     "save": "Save",
     "cancel": "Cancel",
     "categories": {
@@ -43,7 +43,8 @@
       "off": "Disabled",
       "observe": "Observe only",
       "balanced": "Balanced",
-      "strict": "High protection"
+      "strict": "High protection",
+      "enabled": "Enabled"
     },
     "catalog": {
       "title": "Detection rule catalog",
@@ -53,15 +54,23 @@
       "search": "Search by rule ID or description",
       "id": "Rule ID",
       "message": "Description",
-      "ruleLevel": "Rule level",
       "status": "Applied status",
-      "supplemental": "OpenFlare",
       "baseRule": "Base",
       "extendedRule": "Extended",
       "ruleCount": "{count} rules",
-      "enabledRules": "{count, plural, one {# enabled rule} other {# enabled rules}}",
-      "categorySummary": "{category} · {level} · {count} enabled rules",
-      "noRules": "No matching detection rules."
+      "enabledRules": "{count} active",
+      "noRules": "No matching detection rules.",
+      "editHelp": "Individual settings take precedence over category levels and are saved with the rule group.",
+      "ruleAction": "Action for rule {id}",
+      "inherit": "Use category setting ({action})",
+      "custom": "Custom",
+      "inherited": "Inherited",
+      "overrideCount": "{count, plural, one {# custom rule} other {# custom rules}}"
+    },
+    "ruleActions": {
+      "off": "Off",
+      "enabled": "Enabled",
+      "observe": "Log only"
     }
   },
   "attackLogs": {

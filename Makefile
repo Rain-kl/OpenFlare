@@ -44,6 +44,7 @@ code-check:
 		echo 'error: internal/model must not access db.DB or db.Redis (non-test code)' >&2; \
 		exit 1; \
 	fi
+	node scripts/generate-attack-rule-ids.mjs --check
 	golangci-lint run
 	cd frontend && node scripts/generate-pow-assets.mjs --check && node scripts/merge-i18n-fragments.mjs && pnpm check:i18n && pnpm tsc --noEmit --jsx preserve && npx eslint . --max-warnings 0
 

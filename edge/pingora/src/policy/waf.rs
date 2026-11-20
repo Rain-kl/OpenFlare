@@ -113,7 +113,7 @@ pub(crate) fn compile(document: &WafDocument) -> anyhow::Result<CompiledWaf> {
                 "security_check" => {
                     let config: LegacyConfig =
                         serde_json::from_value(node.config.clone()).map_err(decode)?;
-                    let detector = engines.compile(None, config.levels())?;
+                    let detector = engines.compile(None, config.levels(), Default::default())?;
                     detectors
                         .entry(group.id)
                         .or_default()
@@ -127,8 +127,11 @@ pub(crate) fn compile(document: &WafDocument) -> anyhow::Result<CompiledWaf> {
                         config.id != 0 && !config.name.trim().is_empty(),
                         "invalid attack protection group"
                     );
-                    let detector =
-                        engines.compile(Some((config.id, config.name)), config.levels)?;
+                    let detector = engines.compile(
+                        Some((config.id, config.name)),
+                        config.levels,
+                        config.rule_overrides,
+                    )?;
                     detectors
                         .entry(group.id)
                         .or_default()

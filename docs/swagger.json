@@ -11428,7 +11428,7 @@
                         "SessionCookie": []
                     }
                 ],
-                "description": "可按类别设置禁用、仅观察、平衡和高强度。类别键包含 csrf、ssrf 和 malformed_http。",
+                "description": "可按类别配置防护等级。rule_overrides 以规则 ID 为键，支持 off（关闭）、enabled（开启）、observe（记录），优先于类别等级。",
                 "tags": [
                     "openflare-waf"
                 ],
@@ -11497,7 +11497,7 @@
                         "SessionCookie": []
                     }
                 ],
-                "description": "替换规则组等级配置，省略的类别按禁用处理。",
+                "description": "替换规则组等级配置，省略的类别按禁用处理。rule_overrides 支持 off、enabled、observe；省略字段时保留已有逐条设置，传入空对象时清空。",
                 "tags": [
                     "openflare-waf"
                 ],
@@ -19552,6 +19552,12 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "rule_overrides": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -21753,6 +21759,12 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "rule_overrides": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "updated_at": {
                     "type": "string"

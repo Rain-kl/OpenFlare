@@ -3,7 +3,10 @@ mod crs;
 use super::RequestContext;
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 use zentinel_modsec::{variables::MutableCollection, CompiledRuleset, ModSecurity};
 
 const CATEGORIES: [&str; 17] = [
@@ -38,12 +41,25 @@ pub enum Level {
 
 type Levels = [Level; CATEGORIES.len()];
 
+#[derive(Clone, Copy, Deserialize, Eq, Hash, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleOverride {
+    Off,
+    Enabled,
+    Observe,
+}
+
+type RuleOverrides = BTreeMap<u32, RuleOverride>;
+type EngineKey = (Levels, RuleOverrides);
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AttackGroup {
     pub id: u64,
     pub name: String,
     pub levels: HashMap<String, Level>,
+    #[serde(default)]
+    pub rule_overrides: RuleOverrides,
 }
 
 #[derive(Deserialize, Default)]
@@ -115,7 +131,7 @@ pub struct Detector {
 #[derive(Default)]
 pub struct EnginePool {
     source: Option<crs::Rules>,
-    engines: HashMap<Levels, Arc<Engine>>,
+    engines: HashMap<EngineKey, Arc<Engine>>,
 }
 
 impl EnginePool {
@@ -123,27 +139,32 @@ impl EnginePool {
         &mut self,
         group: Option<(u64, String)>,
         levels: HashMap<String, Level>,
+        rule_overrides: RuleOverrides,
     ) -> Result<Detector> {
         ensure!(
             levels.keys().all(|key| CATEGORIES.contains(&key.as_str())),
             "unknown attack protection category"
         );
-        let key = CATEGORIES.map(|category| levels.get(category).copied().unwrap_or_default());
+        let key = (
+            CATEGORIES.map(|category| levels.get(category).copied().unwrap_or_default()),
+            rule_overrides,
+        );
         let engine = match self.engines.get(&key) {
             Some(engine) => Arc::clone(engine),
             None => {
-                let (ruleset, rules) = if key.iter().all(|level| *level == Level::Off) {
-                    (CompiledRuleset::new(), HashMap::new())
-                } else {
-                    let source = match &mut self.source {
-                        Some(source) => source,
-                        None => self.source.insert(crs::Rules::load()?),
+                let (ruleset, rules) =
+                    if key.0.iter().all(|level| *level == Level::Off) && key.1.is_empty() {
+                        (CompiledRuleset::new(), HashMap::new())
+                    } else {
+                        let source = match &mut self.source {
+                            Some(source) => source,
+                            None => self.source.insert(crs::Rules::load()?),
+                        };
+                        source.compile(key.0, &key.1)?
                     };
-                    source.compile(key)?
-                };
                 let engine = Arc::new(Engine {
                     modsec: ModSecurity::new(ruleset),
-                    checks_csrf: rules.contains_key("11151"),
+                    checks_csrf: rules.contains_key("11151") || rules.contains_key("11152"),
                     rules,
                 });
                 self.engines.insert(key, Arc::clone(&engine));
@@ -278,6 +299,7 @@ mod tests {
                     .into_iter()
                     .map(|category| (category.into(), Level::Strict))
                     .collect(),
+                Default::default(),
             )
             .unwrap();
         assert!(CATEGORIES.iter().all(|category| detector
@@ -321,7 +343,11 @@ mod tests {
             (Level::Strict, Some("strict")),
         ] {
             let detector = pool
-                .compile(None, HashMap::from([("template_injection".into(), level)]))
+                .compile(
+                    None,
+                    HashMap::from([("template_injection".into(), level)]),
+                    Default::default(),
+                )
                 .unwrap();
             let matches = detector
                 .inspect(&request, &headers, Version::HTTP_11, true)
@@ -335,6 +361,33 @@ mod tests {
                 expected.map(|name| (934180, "SSTI Attack", name))
             );
         }
+        for (level, action, expected) in [
+            (Level::Strict, RuleOverride::Off, None),
+            (Level::Strict, RuleOverride::Observe, Some("observe")),
+            (Level::Off, RuleOverride::Enabled, Some("enabled")),
+        ] {
+            let detector = pool
+                .compile(
+                    None,
+                    HashMap::from([("template_injection".into(), level)]),
+                    BTreeMap::from([(934180, action)]),
+                )
+                .unwrap();
+            let matches = detector
+                .inspect(&request, &headers, Version::HTTP_11, true)
+                .unwrap();
+            assert_eq!(
+                matches.first().map(|rule| (rule.id, rule.level.as_str())),
+                expected.map(|level| (934180, level))
+            );
+        }
+        assert!(pool
+            .compile(
+                None,
+                HashMap::new(),
+                BTreeMap::from([(1, RuleOverride::Enabled)])
+            )
+            .is_err());
     }
 
     #[test]
@@ -346,6 +399,7 @@ mod tests {
                     ("php_injection".into(), Level::Observe),
                     ("template_injection".into(), Level::Strict),
                 ]),
+                Default::default(),
             )
             .unwrap();
         let mut headers = HeaderMap::new();
@@ -389,6 +443,7 @@ mod tests {
             .compile(
                 None,
                 HashMap::from([("malformed_http".into(), Level::Balanced)]),
+                Default::default(),
             )
             .unwrap();
         let request = RequestContext {
@@ -417,10 +472,25 @@ mod tests {
     fn csrf_levels_check_credentialed_write_request_origins() {
         let mut pool = EnginePool::default();
         let balanced = pool
-            .compile(None, HashMap::from([("csrf".into(), Level::Balanced)]))
+            .compile(
+                None,
+                HashMap::from([("csrf".into(), Level::Balanced)]),
+                Default::default(),
+            )
             .unwrap();
         let strict = pool
-            .compile(None, HashMap::from([("csrf".into(), Level::Strict)]))
+            .compile(
+                None,
+                HashMap::from([("csrf".into(), Level::Strict)]),
+                Default::default(),
+            )
+            .unwrap();
+        let missing_origin_only = pool
+            .compile(
+                None,
+                HashMap::new(),
+                BTreeMap::from([(11152, RuleOverride::Observe)]),
+            )
             .unwrap();
         let mut request = RequestContext {
             method: "POST".into(),
@@ -459,6 +529,16 @@ mod tests {
         assert_eq!(
             matched.iter().map(|rule| rule.id).collect::<Vec<_>>(),
             [11152]
+        );
+        let matched = missing_origin_only
+            .inspect(&request, &headers, Version::HTTP_2, true)
+            .unwrap();
+        assert_eq!(
+            matched
+                .iter()
+                .map(|rule| (rule.id, rule.level.as_str()))
+                .collect::<Vec<_>>(),
+            [(11152, "observe")]
         );
         headers.insert(
             "referer",

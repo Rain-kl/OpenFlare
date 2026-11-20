@@ -30,7 +30,7 @@ func ListAttackGroupsHandler(c *gin.Context) {
 
 // CreateAttackGroupHandler creates a selectable attack protection group.
 // @Summary 创建攻击防护规则组
-// @Description 可按类别设置禁用、仅观察、平衡和高强度。类别键包含 csrf、ssrf 和 malformed_http。
+// @Description 可按类别配置防护等级。rule_overrides 以规则 ID 为键，支持 off（关闭）、enabled（开启）、observe（记录），优先于类别等级。
 // @Tags openflare-waf
 // @Security SessionCookie
 // @Param request body attackGroupInput true "规则组"
@@ -42,9 +42,9 @@ func ListAttackGroupsHandler(c *gin.Context) {
 // @Router /api/v1/d/waf/attack-groups [post]
 func CreateAttackGroupHandler(c *gin.Context) { saveAttackGroupHandler(c, 0) }
 
-// UpdateAttackGroupHandler replaces a group's name and protection levels.
+// UpdateAttackGroupHandler updates a group's name, levels and optional rule overrides.
 // @Summary 更新攻击防护规则组
-// @Description 替换规则组等级配置，省略的类别按禁用处理。
+// @Description 替换规则组等级配置，省略的类别按禁用处理。rule_overrides 支持 off、enabled、observe；省略字段时保留已有逐条设置，传入空对象时清空。
 // @Tags openflare-waf
 // @Security SessionCookie
 // @Param id path int true "规则组 ID"
