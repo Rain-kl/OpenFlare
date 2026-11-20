@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.7
-FROM rust:1.95-slim AS builder
+FROM rust:1.95-alpine3.23 AS builder
 
 WORKDIR /build/edge/pingora
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential ca-certificates cmake git perl pkg-config \
-    && rm -rf /var/lib/apt/lists/*
-COPY edge/pingora/ ./
+RUN apk add --no-cache build-base ca-certificates cmake git perl pkgconf
+COPY edge/pingora/Cargo.toml edge/pingora/Cargo.lock ./
+COPY edge/pingora/src/ src/
+COPY edge/pingora/vendor/ vendor/
 COPY internal/openflare/edgeconfig/pow_static/ /build/internal/openflare/edgeconfig/pow_static/
 COPY internal/openflare/edgeconfig/pow_templates/ /build/internal/openflare/edgeconfig/pow_templates/
 COPY internal/openflare/edgeconfig/site_auth.html /build/internal/openflare/edgeconfig/
@@ -13,23 +13,22 @@ ARG VERSION=dev
 ARG TARGETARCH
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,id=edge-cargo-target-${TARGETARCH},target=/target \
-    OPENFLARE_EDGE_VERSION="${VERSION#edge-v}" CARGO_TARGET_DIR=/target cargo build --locked --release \
-    && install -D -m 0755 /target/release/openflare-edge /out/openflare-edge
+    --mount=type=cache,id=edge-musl-cargo-target-${TARGETARCH},target=/target \
+    OPENFLARE_EDGE_VERSION="${VERSION#edge-v}" CARGO_PROFILE_RELEASE_STRIP=symbols \
+    CARGO_TARGET_DIR=/target cargo build --locked --release \
+    && install -D -m 0755 /target/release/openflare-edge /out/openflare-edge \
+    && elf="$(readelf --program-headers --dynamic --wide /out/openflare-edge)" \
+    && ! printf '%s\n' "$elf" | grep -E 'INTERP|\(NEEDED\)'
 
-FROM scratch AS edge-artifact
-COPY --from=builder /out/openflare-edge /openflare-edge
+FROM alpine:3.23 AS runtime
 
-FROM debian:trixie-slim AS runtime
-
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd --gid 10001 openflare-edge \
-    && useradd --uid 10001 --gid openflare-edge --no-create-home --shell /usr/sbin/nologin openflare-edge \
+RUN test -s /etc/ssl/certs/ca-certificates.crt \
+    && addgroup -S -g 10001 openflare-edge \
+    && adduser -S -D -H -u 10001 -G openflare-edge -s /sbin/nologin openflare-edge \
     && install -d -m 0750 -o openflare-edge -g openflare-edge /var/lib/openflare-edge
 
 COPY --chmod=0755 scripts/edge-entrypoint.sh /usr/local/bin/edge-entrypoint
-COPY --from=edge-artifact /openflare-edge /usr/local/bin/openflare-edge
+COPY --from=builder /out/openflare-edge /usr/local/bin/openflare-edge
 
 ARG VERSION=dev
 ARG SOURCE_URL=https://github.com/Rain-kl/OpenFlare

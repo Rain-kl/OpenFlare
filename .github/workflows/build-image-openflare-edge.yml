@@ -52,7 +52,6 @@ jobs:
     if: needs.prepare.outputs.docker == 'true'
     runs-on: ${{ matrix.runner }}
     permissions:
-      actions: read
       contents: read
       packages: write
     strategy:
@@ -69,20 +68,14 @@ jobs:
           ref: ${{ needs.prepare.outputs.source_sha }}
           persist-credentials: false
           sparse-checkout: |
+            .dockerignore
             docker/Dockerfile.edge
+            edge/pingora
+            internal/openflare/edgeconfig/pow_static
+            internal/openflare/edgeconfig/pow_templates
+            internal/openflare/edgeconfig/site_auth.html
             scripts/edge-entrypoint.sh
           sparse-checkout-cone-mode: false
-
-      - name: Download Edge binary
-        uses: actions/download-artifact@v4
-        with:
-          name: edge-binary-${{ matrix.arch }}
-          path: artifacts
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-
-      - name: Restore binary permissions
-        run: chmod 0755 artifacts/openflare-edge
 
       - uses: docker/setup-buildx-action@v4
 
@@ -98,12 +91,11 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.edge
-          build-contexts: edge-artifact=artifacts
           build-args: |
             VERSION=${{ needs.prepare.outputs.version }}
             SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
           platforms: linux/${{ matrix.arch }}
-          outputs: type=image,name=${{ needs.prepare.outputs.image }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ needs.prepare.outputs.image }},push-by-digest=true,name-canonical=true,push=true,compression=gzip,compression-level=9
           cache-from: type=registry,ref=${{ needs.prepare.outputs.image }}:buildcache-${{ matrix.arch }}
           cache-to: type=registry,ref=${{ needs.prepare.outputs.image }}:buildcache-${{ matrix.arch }},mode=min,ignore-error=true
 

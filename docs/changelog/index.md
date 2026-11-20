@@ -17,6 +17,10 @@ sidebar: false
 
 ## [Unreleased]
 
+### ⚡️ 优化与改进
+
+- OpenFlare Edge 的 amd64 和 arm64 容器镜像改用 Alpine 和静态链接的二进制，减少拉取体积。
+
 ### 💄 其他/体验
 
 - 控制台、浏览器图标、文档站和内置响应页统一使用 OpenFlare 黑白标识，支持深色模式的界面会自动切换为反白标识。
