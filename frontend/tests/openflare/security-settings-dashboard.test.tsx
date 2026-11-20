@@ -12,6 +12,7 @@ import {
   isNavGroupActive,
   isOpenFlareConsoleRoute,
   openflareSecurityNavGroup,
+  openflareSidebarNav,
 } from '@/lib/navigation/openflare-nav';
 import {
   AccessLogService,
