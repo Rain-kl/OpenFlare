@@ -10,6 +10,7 @@ anyhow = "1"
 async-trait = "0.1"
 clap = { version = "4", features = ["derive"] }
 pingora = { version = "0.9.1", features = ["openssl", "proxy", "cache"] }
+pingap-cache = { git = "https://github.com/vicanso/pingap.git", rev = "a2c7975b1573afc8480efae58167bd0a362ed53c" }
 pingora-error = "0.9.1"
 pingora-http = "0.9.1"
 http = "1"

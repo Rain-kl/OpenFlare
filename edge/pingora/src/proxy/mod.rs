@@ -117,6 +117,7 @@ pub struct DataPlaneState {
 }
 
 pub struct ProxyService {
+    cache: cache::EdgeCache,
     state: SnapshotStore,
     rate_limiter: RateLimiter,
     login_limiter: RateLimiter,
@@ -215,7 +216,7 @@ impl ProxyHttp for ProxyService {
                     if let Some(route_cache) = route.cache.as_ref() {
                         if route.site_auth_ttl_hours == 0 && !route.basic_auth_enabled {
                             let performance = self.performance.current();
-                            cache::enable(
+                            self.cache.enable(
                                 session,
                                 policy,
                                 route_cache,
@@ -243,6 +244,7 @@ impl ProxyHttp for ProxyService {
             if ctx.https { "https" } else { "http" },
             &ctx.host,
             &snapshot.payload_checksum,
+            session.cache.max_file_size_bytes().unwrap_or_default(),
         ))
     }
 

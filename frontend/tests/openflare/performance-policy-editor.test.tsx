@@ -221,6 +221,69 @@ describe('Performance policy editor secondary page', () => {
     expect(pushMock).toHaveBeenCalledWith('/performance');
   });
 
+  it('lets operators edit disk cache parameters in the cache tab', async () => {
+    const user = userEvent.setup();
+    const diskFields = [
+      {
+        key: 'cache_disk_capacity_mib',
+        group: 'cache',
+        default: 0,
+        min: 0,
+        max: 1048576,
+      },
+      {
+        key: 'cache_disk_inactive_seconds',
+        group: 'cache',
+        default: 172800,
+        min: 60,
+        max: 2592000,
+      },
+      {
+        key: 'cache_disk_reading_max',
+        group: 'cache',
+        default: 32,
+        min: 1,
+        max: 1024,
+      },
+      {
+        key: 'cache_disk_writing_max',
+        group: 'cache',
+        default: 16,
+        min: 1,
+        max: 256,
+      },
+    ];
+    vi.mocked(PerformanceService.list).mockResolvedValue({
+      ...listFixture,
+      parameters: [...listFixture.parameters, ...diskFields],
+    });
+    searchParamsMock.current = new URLSearchParams('id=2');
+    renderWithProviders(<PolicyEditorPageClient />);
+
+    await user.click(await screen.findByRole('tab', { name: '缓存' }));
+    expect(screen.getByLabelText('磁盘缓存清理时间')).toHaveValue(172800);
+    expect(screen.getByLabelText('磁盘并发读取上限')).toHaveValue(32);
+    expect(screen.getByLabelText('磁盘并发写入上限')).toHaveValue(16);
+    const capacity = screen.getByLabelText('磁盘缓存容量');
+    await user.clear(capacity);
+    await user.type(capacity, '512');
+    await user.click(screen.getByRole('button', { name: '保存策略' }));
+
+    await waitFor(() =>
+      expect(PerformanceService.save).toHaveBeenCalledWith(
+        2,
+        expect.objectContaining({
+          settings: expect.objectContaining({
+            cache_disk_capacity_mib: 512,
+            cache_disk_inactive_seconds: 172800,
+            cache_disk_reading_max: 32,
+            cache_disk_writing_max: 16,
+          }),
+        }),
+      ),
+    );
+  });
+
   it('switches to the invalid group tab and focuses invalid fields on submit', async () => {
     const user = userEvent.setup();
     searchParamsMock.current = new URLSearchParams('id=2');
@@ -228,7 +291,7 @@ describe('Performance policy editor secondary page', () => {
 
     await screen.findByDisplayValue('2C2G');
     await user.click(screen.getByRole('tab', { name: '缓存' }));
-    const capacityInput = screen.getByLabelText('缓存容量');
+    const capacityInput = screen.getByLabelText('内存缓存容量');
     await user.clear(capacityInput);
     await user.type(capacityInput, '8');
 
@@ -236,7 +299,7 @@ describe('Performance policy editor secondary page', () => {
     await user.click(screen.getByRole('button', { name: '保存策略' }));
 
     expect(PerformanceService.save).not.toHaveBeenCalled();
-    const invalidCapacity = await screen.findByLabelText('缓存容量');
+    const invalidCapacity = await screen.findByLabelText('内存缓存容量');
     expect(invalidCapacity).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText('允许范围为 16 至 4096。')).toBeInTheDocument();
   });

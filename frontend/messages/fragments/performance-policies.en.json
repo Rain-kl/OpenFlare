@@ -234,12 +234,28 @@
         "help": "Allow site cache rules to take effect on this node."
       },
       "cache_capacity_mib": {
-        "label": "Cache capacity",
-        "help": "Object capacity of the in-memory cache, in MiB."
+        "label": "Memory cache capacity",
+        "help": "In MiB. When disk caching is enabled, this limits the in-memory cache for frequently accessed objects."
+      },
+      "cache_disk_capacity_mib": {
+        "label": "Disk cache capacity",
+        "help": "In MiB. Enter 0 for memory-only caching or a positive value to enable the disk cache."
+      },
+      "cache_disk_inactive_seconds": {
+        "label": "Disk cache inactivity period",
+        "help": "The disk cache can remove objects that have not been read for this many seconds during scheduled cleanup."
+      },
+      "cache_disk_reading_max": {
+        "label": "Concurrent disk reads",
+        "help": "Requests that need a disk read go to the origin when all read slots are in use."
+      },
+      "cache_disk_writing_max": {
+        "label": "Concurrent disk writes",
+        "help": "The disk cache skips new writes when all write slots are in use."
       },
       "cache_max_object_mib": {
         "label": "Maximum cached object",
-        "help": "Maximum size of one cached object, in MiB."
+        "help": "Maximum size of one cached object, in MiB, within the selected storage capacity."
       },
       "cache_lock_wait_timeout": {
         "label": "Cache lock wait timeout",

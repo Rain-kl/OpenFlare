@@ -95,7 +95,8 @@ pub fn run_server(state: DataPlaneState, control: Runtime, upgrade: bool) -> any
         upstream_keepalive_pool_size = conf.upstream_keepalive_pool_size,
         "starting Pingora workers"
     );
-    super::cache::configure_capacity(startup.map(|s| s.cache_capacity_mib));
+    let cache = super::cache::EdgeCache::open(&state_dir, startup)?;
+    let disk_cleanup = cache.disk_cleanup();
     let mut server = Server::new_with_opt_and_conf(
         Some(Opt {
             upgrade,
@@ -107,6 +108,7 @@ pub fn run_server(state: DataPlaneState, control: Runtime, upgrade: bool) -> any
     let mut service = http_proxy_service(
         &Arc::clone(&server.configuration),
         ProxyService {
+            cache,
             state: shared.clone(),
             rate_limiter: Default::default(),
             login_limiter: Default::default(),
@@ -171,6 +173,12 @@ pub fn run_server(state: DataPlaneState, control: Runtime, upgrade: bool) -> any
             startup.map(|s| s.socket_options(listen.is_ipv6())),
             settings,
         );
+    }
+    if let Some(cleanup) = disk_cleanup {
+        server.add_service(pingora::services::background::background_service(
+            "disk-cache-cleanup",
+            cleanup,
+        ));
     }
     let proxy = server.add_service(service);
     proxy.add_dependency(&bootstrap);

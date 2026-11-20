@@ -47,8 +47,16 @@ func TestPerformancePolicyAssignmentAndResourceSync(t *testing.T) {
 	third, err := ofnode.CreateNode(ctx, ofnode.Input{Name: "third-edge"})
 	require.NoError(t, err)
 	create := apiPath("/performance-policies/")
-	newPolicy := performJSONRequest(t, engine, http.MethodPost, create,
-		map[string]any{"name": "High performance", "settings": map[string]any{"threads": 4}}, adminHeaders)
+	newPolicy := performJSONRequest(t, engine, http.MethodPost, create, map[string]any{
+		"name": "High performance",
+		"settings": map[string]any{
+			"threads":                     4,
+			"cache_disk_capacity_mib":     512,
+			"cache_disk_inactive_seconds": 300,
+			"cache_disk_reading_max":      8,
+			"cache_disk_writing_max":      4,
+		},
+	}, adminHeaders)
 	require.Equal(t, http.StatusOK, newPolicy.Code, newPolicy.Body.String())
 	var policy policyView
 	unmarshalAPIData(t, requireAPIOK(t, newPolicy).Data, &policy)
@@ -77,6 +85,10 @@ func TestPerformancePolicyAssignmentAndResourceSync(t *testing.T) {
 	}
 	target := heartbeat(first.AccessToken)
 	require.Contains(t, target.InlineJSON, `"threads":4`)
+	require.Contains(t, target.InlineJSON, `"cache_disk_capacity_mib":512`)
+	require.Contains(t, target.InlineJSON, `"cache_disk_inactive_seconds":300`)
+	require.Contains(t, target.InlineJSON, `"cache_disk_reading_max":8`)
+	require.Contains(t, target.InlineJSON, `"cache_disk_writing_max":4`)
 	require.Equal(t, target.SHA256, heartbeat(second.AccessToken).SHA256)
 	unassigned := heartbeat(third.AccessToken)
 	require.Contains(t, unassigned.InlineJSON, `"threads_auto":true`)

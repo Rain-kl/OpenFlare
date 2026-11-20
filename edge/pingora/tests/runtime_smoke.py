@@ -153,6 +153,9 @@ class Controller(http.server.BaseHTTPRequestHandler):
             self.data({"ip": self.client_address[0]})
         elif self.path == "/origin-error":
             self.answer(b"original", 503)
+        elif self.path == "/disk-too-large":
+            self.server.origins[self.path] = self.server.origins.get(self.path, 0) + 1
+            self.answer(b"x" * (1024 * 1024 + 1))
         elif self.path == "/slow-origin":
             time.sleep(1.3)
             try:
@@ -388,6 +391,11 @@ def main(binary):
                 assert server.pulls.count("sites.v1") == 1
                 policy = json.loads(Path(__file__).with_name("performance_policy.json").read_text())
                 policy["threads"] = 2
+                policy["cache_disk_capacity_mib"] = 64
+                policy["cache_disk_inactive_seconds"] = 120
+                policy["cache_disk_reading_max"] = 4
+                policy["cache_disk_writing_max"] = 2
+                policy["cache_max_object_mib"] = 1
                 server.performance = policy
                 server.heartbeat_interval = 10_000
                 wake()
@@ -402,6 +410,23 @@ def main(binary):
                 state_file = path / "performance-policy.json"
                 assert json.loads(state_file.read_text())["settings"]["threads"] == 2
                 assert request("edge.test", "/slow-origin")[0] == 200
+                assert request("cache.edge.test", "/disk-restart")[0] == 200
+                disk_cache_path = path / "http-cache"
+
+                def disk_files():
+                    return {p for p in disk_cache_path.rglob("*")
+                            if p.is_file() and re.fullmatch(r"[0-9a-f]{32}", p.name)}
+
+                files = wait_for(disk_files)
+                assert request("cache.edge.test", "/disk-restart")[0] == 200
+                assert origin_server.origins["/disk-restart"] == 1
+                assert request("cache.edge.test", "/disk-inactive")[0] == 200
+                inactive_file = wait_for(lambda: next(iter(disk_files() - files), None))
+                inactive_timestamp = time.time() - 240
+                os.utime(inactive_file, (inactive_timestamp, inactive_timestamp))
+                assert request("cache.edge.test", "/disk-too-large")[0] == 200
+                assert request("cache.edge.test", "/disk-too-large")[0] == 200
+                assert origin_server.origins["/disk-too-large"] == 2
 
                 # A peer-only change takes effect without restarting the worker runtime.
                 server.performance = {**policy, "read_timeout": 1}
@@ -427,6 +452,9 @@ def main(binary):
                 assert 1 <= int(configured[2]) <= 1024
                 assert json.loads(state_file.read_text())["settings"]["threads_auto"] is True
                 wait_for(lambda: http_route()[0] == 301)
+                wait_for(lambda: not inactive_file.exists())
+                assert request("cache.edge.test", "/disk-inactive")[0] == 200
+                assert origin_server.origins["/disk-inactive"] == 2
 
                 server.heartbeat_interval = 250
                 server.active = release(2, origin, certificate.read_text(), key.read_text())
@@ -464,6 +492,8 @@ def main(binary):
                 wait_for(lambda: failed_attempts() == 3)
                 assert server.heartbeats[resume_heartbeat]["latest_config_version"] == "pingora-fixture-2"
                 assert request("edge.test", use_http2=True)[0] == 200
+                assert request("cache.edge.test", "/disk-restart")[0] == 200
+                assert origin_server.origins["/disk-restart"] == 1
                 assert_no_retries()
 
                 server.active = release(3, origin, certificate.read_text(), key.read_text(), empty=True)

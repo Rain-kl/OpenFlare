@@ -234,12 +234,28 @@
         "help": "开启后，站点级缓存规则可以在该节点生效。"
       },
       "cache_capacity_mib": {
-        "label": "缓存容量",
-        "help": "内存缓存的对象容量，单位为 MiB。"
+        "label": "内存缓存容量",
+        "help": "单位为 MiB。启用磁盘缓存后，此值控制内存热缓存容量。"
+      },
+      "cache_disk_capacity_mib": {
+        "label": "磁盘缓存容量",
+        "help": "单位为 MiB。填 0 时使用内存缓存，填正数时启用磁盘缓存。"
+      },
+      "cache_disk_inactive_seconds": {
+        "label": "磁盘缓存清理时间",
+        "help": "磁盘对象连续未访问超过此秒数后，可被定期清理。"
+      },
+      "cache_disk_reading_max": {
+        "label": "磁盘并发读取上限",
+        "help": "磁盘读取达到并发上限时，需要从磁盘读取对象的请求将回源。"
+      },
+      "cache_disk_writing_max": {
+        "label": "磁盘并发写入上限",
+        "help": "同时进行的磁盘写入达到上限时，跳过本次磁盘写入。"
       },
       "cache_max_object_mib": {
         "label": "最大缓存对象",
-        "help": "单个缓存对象的大小上限，单位为 MiB。"
+        "help": "单个缓存对象的大小上限，单位为 MiB，须在所选存储容量以内。"
       },
       "cache_lock_wait_timeout": {
         "label": "缓存锁等待超时",

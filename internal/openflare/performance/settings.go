@@ -88,6 +88,10 @@ var Parameters = []Parameter{
 	integer("listener", "dscp", 0, 0, 63),
 	toggle("cache", "cache_enabled", true),
 	integer("cache", "cache_capacity_mib", 128, 16, 4096),
+	integer("cache", "cache_disk_capacity_mib", 0, 0, 1048576),
+	integer("cache", "cache_disk_inactive_seconds", 172800, 60, 2592000),
+	integer("cache", "cache_disk_reading_max", 32, 1, 1024),
+	integer("cache", "cache_disk_writing_max", 16, 1, 256),
 	integer("cache", "cache_max_object_mib", 16, 1, 1024),
 	integer("cache", "cache_lock_wait_timeout", 5, 1, 60),
 	integer("cache", "cache_max_lock_retries", 1, 0, 16),
@@ -122,8 +126,12 @@ func Normalize(input map[string]json.RawMessage) (Settings, error) {
 	if total, connect := settings["total_connection_timeout"].(int), settings["connection_timeout"].(int); total > 0 && total < connect {
 		return nil, fmt.Errorf("total_connection_timeout must be at least connection_timeout")
 	}
-	if settings["cache_max_object_mib"].(int) > settings["cache_capacity_mib"].(int) {
-		return nil, fmt.Errorf("cache_max_object_mib must be at most cache_capacity_mib")
+	capacityKey := "cache_capacity_mib"
+	if settings["cache_disk_capacity_mib"].(int) > 0 {
+		capacityKey = "cache_disk_capacity_mib"
+	}
+	if settings["cache_max_object_mib"].(int) > settings[capacityKey].(int) {
+		return nil, fmt.Errorf("cache_max_object_mib must be at most %s", capacityKey)
 	}
 	return settings, nil
 }

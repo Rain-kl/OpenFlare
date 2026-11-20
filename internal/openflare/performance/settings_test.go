@@ -16,12 +16,21 @@ func TestPolicyDefaultsAndValidation(t *testing.T) {
 	require.Equal(t, 1, defaults["threads"])
 	require.Equal(t, 128, defaults["upstream_keepalive_pool_size"])
 	require.Equal(t, true, defaults["verify_cert"])
+	require.Equal(t, 0, defaults["cache_disk_capacity_mib"])
+	require.Equal(t, 172800, defaults["cache_disk_inactive_seconds"])
+	require.Equal(t, 32, defaults["cache_disk_reading_max"])
+	require.Equal(t, 16, defaults["cache_disk_writing_max"])
 
 	resolved, err := Decode(`{"threads_auto":true,"read_timeout":0,"work_stealing":false}`)
 	require.NoError(t, err)
 	require.Equal(t, true, resolved["threads_auto"])
 	require.Equal(t, 0, resolved["read_timeout"])
 	require.Equal(t, false, resolved["work_stealing"])
+
+	disk, err := Decode(`{"cache_capacity_mib":16,"cache_disk_capacity_mib":256,"cache_max_object_mib":32}`)
+	require.NoError(t, err)
+	require.Equal(t, 256, disk["cache_disk_capacity_mib"])
+	require.Equal(t, 32, disk["cache_max_object_mib"])
 
 	for _, body := range []string{
 		`{"threads":0}`,
@@ -31,6 +40,10 @@ func TestPolicyDefaultsAndValidation(t *testing.T) {
 		`{"max_frame_size":16777216}`,
 		`{"upstream_alpn":"h3"}`,
 		`{"cache_capacity_mib":16,"cache_max_object_mib":17}`,
+		`{"cache_disk_capacity_mib":4,"cache_max_object_mib":5}`,
+		`{"cache_disk_inactive_seconds":59}`,
+		`{"cache_disk_reading_max":0}`,
+		`{"cache_disk_writing_max":257}`,
 		`{"unknown":1}`,
 	} {
 		t.Run(body, func(t *testing.T) {

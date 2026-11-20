@@ -76,6 +76,41 @@ pub(crate) struct Startup {
     pub ipv6_only: bool,
     pub dscp: u8,
     pub cache_capacity_mib: usize,
+    #[serde(flatten)]
+    pub disk_cache: DiskCacheSettings,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub(crate) struct DiskCacheSettings {
+    #[serde(default)]
+    pub cache_disk_capacity_mib: u64,
+    #[serde(default = "default_disk_inactive_seconds")]
+    pub cache_disk_inactive_seconds: u64,
+    #[serde(default = "default_disk_reading_max")]
+    pub cache_disk_reading_max: u32,
+    #[serde(default = "default_disk_writing_max")]
+    pub cache_disk_writing_max: u32,
+}
+
+const fn default_disk_inactive_seconds() -> u64 {
+    172_800
+}
+
+const fn default_disk_reading_max() -> u32 {
+    32
+}
+
+const fn default_disk_writing_max() -> u32 {
+    16
+}
+
+impl DiskCacheSettings {
+    fn is_valid(&self) -> bool {
+        self.cache_disk_capacity_mib <= 1_048_576
+            && (60..=2_592_000).contains(&self.cache_disk_inactive_seconds)
+            && (1..=1024).contains(&self.cache_disk_reading_max)
+            && (1..=256).contains(&self.cache_disk_writing_max)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -138,6 +173,12 @@ impl NodePolicy {
             return Ok(());
         };
         let startup = &settings.startup;
+        let disk = &startup.disk_cache;
+        let cache_capacity = if disk.cache_disk_capacity_mib == 0 {
+            startup.cache_capacity_mib as u64
+        } else {
+            disk.cache_disk_capacity_mib
+        };
         anyhow::ensure!(
             (1..=256).contains(&startup.threads)
                 && (1..=32).contains(&startup.listener_tasks_per_fd)
@@ -152,7 +193,9 @@ impl NodePolicy {
                 && (16384..=16777215).contains(&startup.max_frame_size)
                 && startup.max_send_buffer_size <= 16777216
                 && (16..=4096).contains(&startup.cache_capacity_mib)
-                && settings.cache.cache_max_object_mib <= startup.cache_capacity_mib
+                && disk.is_valid()
+                && (1..=1024).contains(&settings.cache.cache_max_object_mib)
+                && settings.cache.cache_max_object_mib as u64 <= cache_capacity
                 && (1..=1024).contains(&settings.upstream.max_h2_streams)
                 && settings.upstream.h2_stream_window_size <= i32::MAX as u32
                 && settings.upstream.h2_connection_window_size <= i32::MAX as u32
@@ -178,7 +221,7 @@ fn automatic_runtime(cores: usize, memory_bytes: u64) -> (usize, usize) {
     (threads, pool_size)
 }
 
-fn node_memory_limit() -> u64 {
+pub(crate) fn node_memory_limit() -> u64 {
     let mut system = sysinfo::System::new();
     system.refresh_memory();
     let host_memory = match system.total_memory() {
