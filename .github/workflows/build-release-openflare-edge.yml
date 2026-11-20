@@ -20,6 +20,8 @@ jobs:
   build:
     name: Build edge ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -112,3 +114,14 @@ jobs:
           make_latest: false
           name: OpenFlare Edge ${{ steps.version.outputs.version }}
           files: dist/openflare-edge_${{ steps.version.outputs.version }}_linux_${{ matrix.arch }}.tar.gz
+
+  mark-latest:
+    name: Mark release as latest
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set release as latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: gh release edit "$VERSION" --repo "$GITHUB_REPOSITORY" --latest
