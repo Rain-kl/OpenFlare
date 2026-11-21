@@ -23,6 +23,7 @@
     "sso",
     "---Operations---",
     "automation",
+    "session-secret-rotation",
     "troubleshooting",
     "credits"
   ]

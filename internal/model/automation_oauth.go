@@ -5,7 +5,7 @@ package model
 
 import "time"
 
-// AutomationSession stores a Fosite session or a scoped MCP access token by hash.
+// AutomationSession stores an OAuth session by hash.
 type AutomationSession struct {
 	Kind      string `gorm:"primaryKey"`
 	Signature string `gorm:"primaryKey"`

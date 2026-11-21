@@ -10,11 +10,11 @@ description: 使用 OpenFlare CLI 或 MCP 为 AI 授权日常网站运营与故�
 在控制台打开「系统设置 → MCP」，填入客户端可访问的 HTTP 或 HTTPS 地址并保存。公网部署建议使用 HTTPS。该标签页显示 MCP 地址、实例 ID 和两种连接方式。清空地址并保存可暂停本实例的 CLI 和 MCP 入口。部分客户端要求 MCP 地址使用 HTTPS。
 
 - **OAuth**：复制连接说明，或在客户端添加 Streamable HTTP 连接并选择 OAuth。客户端须支持动态客户端注册和 S256 PKCE。首次连接时，在浏览器使用管理员账户登录，勾选需要授予的权限并确认。
-- **Access Token**：为支持自定义请求头的客户端勾选权限并生成 Access Token。令牌只显示一次，有效期为 30 天。将它填入客户端的 `Authorization: Bearer TOKEN` 请求头。
+- **Access Token**：在「个人访问令牌」设置页创建并管理现有的个人访问令牌，在客户端的自定义请求头中设置 `Authorization: Bearer TOKEN`。内置 MCP 仅接受已启用管理员权限的个人令牌；该令牌可调用全部 MCP 工具。需要逐项控制 MCP 权限时，使用 OAuth 授权页面。
 
-连接后可调用 `openflare_connection_info` 核对实例 ID 和已授权权限。OAuth 访问令牌有效期为 15 分钟，客户端可自动刷新，授权最长持续 30 天。「撤销全部授权」会使当前账户授予 CLI 和 MCP 客户端的授权与 Access Token 立即失效。
+连接后可调用 `openflare_connection_info` 核对实例 ID 和已授权权限。OAuth 访问令牌有效期为 15 分钟，客户端可自动刷新，授权最长持续 30 天。「撤销全部 OAuth 授权」会使当前账户授予 CLI 和 MCP 客户端的 OAuth 授权立即失效。个人访问令牌沿用系统现有的轮换与撤销管理。
 
-若页面提示会话密钥不足 32 字节，请检查 `app.session_secret` 或 `APP_SESSION_SECRET`。新实例须使用强随机密钥；已保存证书私钥、DNS 凭据等加密数据的实例须先迁移凭据，再更换密钥。
+若页面提示会话密钥不足 32 字节，请检查 `app.session_secret` 或 `APP_SESSION_SECRET`。使用 [会话密钥更换指南](./session-secret-rotation.md) 检查存量凭据并完成迁移。
 
 反向代理需将 `/mcp`、`/.well-known/`、`/oauth/automation/`、`/automation/` 和现有 API 前缀转发至同一控制端，并保留原始 `Host` 请求头。多实例部署时，各控制端应共用数据库及会话密钥。
 

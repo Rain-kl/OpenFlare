@@ -18,10 +18,17 @@ import (
 const Prefix = "enc:v1:"
 
 func encryptionKey() string {
-	if config.Config == nil || strings.TrimSpace(config.Config.App.SessionSecret) == "" {
+	if config.Config == nil {
 		return ""
 	}
-	sum := sha256.Sum256([]byte(config.Config.App.SessionSecret))
+	return deriveKey(config.Config.App.SessionSecret)
+}
+
+func deriveKey(secret string) string {
+	if strings.TrimSpace(secret) == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(secret))
 	return hex.EncodeToString(sum[:])
 }
 
@@ -36,6 +43,10 @@ func Seal(plaintext string) (string, error) {
 	if key == "" {
 		return plaintext, nil
 	}
+	return sealWithKey(key, plaintext)
+}
+
+func sealWithKey(key, plaintext string) (string, error) {
 	encrypted, err := util.Encrypt(key, plaintext)
 	if err != nil {
 		return "", err

@@ -131,25 +131,40 @@ func TestOAuthAndReadOnlyTransports(t *testing.T) {
 	postOAuthForm(t, client, server.URL+revokePath, url.Values{"client_id": {cliClientID}, "token": {refreshed.RefreshToken}}, "", http.StatusOK, nil)
 	checkRead(refreshed.AccessToken, "/nodes", http.StatusUnauthorized)
 
-	tokenReply, err := client.Post(server.URL+"/api/v1/admin/automation/mcp/token", "application/json", strings.NewReader(`{"scopes":["nodes:read"]}`))
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, tokenReply.StatusCode)
-	var direct struct {
-		Data mcpTokenResponse `json:"data"`
+	personalToken := "at_existing_personal_access_token"
+	personalTokenRecord := model.AccessToken{
+		UserID: 991, Name: "MCP integration", TokenHash: model.HashToken(personalToken),
+		MaskedToken: model.MaskTokenString(personalToken), IsAdmin: true,
 	}
-	require.NoError(t, json.NewDecoder(tokenReply.Body).Decode(&direct))
-	require.NoError(t, tokenReply.Body.Close())
-	require.True(t, direct.Data.ExpiresAt.After(time.Now()))
-	checkRead(direct.Data.AccessToken, "/nodes", http.StatusUnauthorized)
-	directClient := &http.Client{Transport: authorizationTransport{base: client.Transport, token: direct.Data.AccessToken}}
-	directSession, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
-		Endpoint: mcpURL, HTTPClient: directClient, DisableStandaloneSSE: true,
+	require.NoError(t, database.Create(&personalTokenRecord).Error)
+	personalClient := &http.Client{Transport: authorizationTransport{base: client.Transport, token: personalToken}}
+	personalSession, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: mcpURL, HTTPClient: personalClient, DisableStandaloneSSE: true,
 	}, nil)
 	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, directSession.Close()) })
-	directTools, err := directSession.ListTools(ctx, nil)
+	t.Cleanup(func() { require.NoError(t, personalSession.Close()) })
+	personalTools, err := personalSession.ListTools(ctx, nil)
 	require.NoError(t, err)
-	require.Len(t, directTools.Tools, 2)
+	require.Len(t, personalTools.Tools, len(bindings()))
+	checkRead(personalToken, "/nodes", http.StatusUnauthorized)
+	toolNames := make([]string, 0, len(personalTools.Tools))
+	for _, tool := range personalTools.Tools {
+		toolNames = append(toolNames, tool.Name)
+	}
+	require.Contains(t, toolNames, "openflare_site_create")
+
+	readOnlyToken := "at_existing_read_only_token"
+	require.NoError(t, database.Create(&model.AccessToken{
+		UserID: 991, Name: "MCP read only", TokenHash: model.HashToken(readOnlyToken),
+		MaskedToken: model.MaskTokenString(readOnlyToken), IsAdmin: false,
+	}).Error)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, mcpURL, strings.NewReader("{}"))
+	require.NoError(t, err)
+	request.Header.Set("Authorization", "Bearer "+readOnlyToken)
+	denied, err := client.Do(request)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusUnauthorized, denied.StatusCode)
+	require.NoError(t, denied.Body.Close())
 
 	require.NoError(t, database.Model(&model.User{}).Where("id = ?", 991).Update("is_admin", false).Error)
 	_, err = session.ListTools(ctx, nil)
@@ -161,8 +176,8 @@ func TestOAuthAndReadOnlyTransports(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, revoked.StatusCode)
 	require.NoError(t, revoked.Body.Close())
-	_, err = directSession.ListTools(ctx, nil)
-	require.Error(t, err)
+	_, err = personalSession.ListTools(ctx, nil)
+	require.NoError(t, err)
 	_, err = session.ListTools(ctx, nil)
 	require.Error(t, err)
 	config.Config.App.SessionSecret = "short"

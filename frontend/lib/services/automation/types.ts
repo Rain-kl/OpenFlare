@@ -4,12 +4,6 @@ export interface MCPSettings {
   client_name?: string;
   mcp_url?: string;
   instance_id?: string;
-  scopes?: string[];
-}
-
-export interface MCPAccessToken {
-  access_token: string;
-  expires_at: string;
 }
 
 export interface ConsentDetails {

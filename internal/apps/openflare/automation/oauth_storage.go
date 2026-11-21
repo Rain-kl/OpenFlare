@@ -21,7 +21,6 @@ const (
 	sessionPKCE    = "pkce"
 	sessionAccess  = "access"
 	sessionRefresh = "refresh"
-	sessionDirect  = "direct"
 )
 
 type oauthStorage struct {

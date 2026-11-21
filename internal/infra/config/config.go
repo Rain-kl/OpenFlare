@@ -301,9 +301,19 @@ func applyEnvOverrides(c *configModel) {
 	}
 }
 
-// printConfig 打印配置内容
+// printConfig logs a redacted copy without altering the active configuration.
 func printConfig(c *configModel) {
-	configJSON, err := json.MarshalIndent(c, "", "  ")
+	const redacted = "[redacted]"
+	safe := *c
+	safe.App.SessionSecret = redacted
+	safe.Database.Password = redacted
+	safe.Database.Replicas = append([]databaseReplicaConfig(nil), c.Database.Replicas...)
+	for i := range safe.Database.Replicas {
+		safe.Database.Replicas[i].Password = redacted
+	}
+	safe.Redis.Password = redacted
+	safe.ClickHouse.Password = redacted
+	configJSON, err := json.MarshalIndent(safe, "", "  ")
 	if err != nil {
 		log.Printf("[Config] failed to marshal config: %v\n", err)
 		return

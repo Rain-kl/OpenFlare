@@ -47,7 +47,7 @@
     "path": "/connection",
     "scope": "connection:read",
     "effect": "read",
-    "description": "Return the connected instance ID, display name and effective OAuth scopes. Use this read-only operation to verify a newly configured connection.",
+    "description": "Return the connected instance ID, display name and effective permissions. Use this read-only operation to verify a newly configured connection.",
     "parameters": [],
     "output": {
       "properties": {
