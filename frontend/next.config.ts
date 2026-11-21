@@ -40,6 +40,10 @@ const nextConfig: NextConfig = {
               source: '/robots.txt',
               destination: `${backendUrl}/robots.txt`,
             },
+            {
+              source: '/oauth/automation/:path*',
+              destination: `${backendUrl}/oauth/automation/:path*`,
+            },
             // 标准 RESTful API 接口
             {
               source: '/api/:path*',

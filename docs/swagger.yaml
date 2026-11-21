@@ -1244,6 +1244,38 @@ definitions:
       zone_id:
         type: string
     type: object
+  apps_openflare_automation.createMCPTokenRequest:
+    properties:
+      scopes:
+        items:
+          type: string
+        maxItems: 32
+        type: array
+    required:
+    - scopes
+    type: object
+  apps_openflare_automation.mcpSettingsResponse:
+    properties:
+      client_name:
+        type: string
+      enabled:
+        type: boolean
+      instance_id:
+        type: string
+      mcp_url:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+    type: object
+  apps_openflare_automation.mcpTokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_at:
+        type: string
+    type: object
   apps_openflare_cloudflare.AvailableDomain:
     properties:
       domain:
@@ -5426,6 +5458,106 @@ paths:
       summary: 切换认证源启用状态
       tags:
       - admin
+  /api/v1/admin/automation/grants:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      summary: Revoke the current administrator's automation grants and MCP access
+        tokens
+      tags:
+      - admin-automation
+  /api/v1/admin/automation/mcp:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.mcpSettingsResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      summary: Get MCP connection settings
+      tags:
+      - admin-automation
+  /api/v1/admin/automation/mcp/token:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Requested permissions
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_automation.createMCPTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.mcpTokenResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      summary: Create a scoped MCP access token
+      tags:
+      - admin-automation
   /api/v1/admin/cache/clear:
     post:
       description: 清除系统磁盘缓存目录中的所有临时文件，并重置缓存容量和 Key 追踪数据

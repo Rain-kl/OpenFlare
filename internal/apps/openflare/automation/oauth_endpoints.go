@@ -1,26 +1,26 @@
 package automation
 
 import (
-	"crypto/sha256"
-	"crypto/subtle"
-	"encoding/base64"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
-	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	"github.com/ory/fosite"
+	"github.com/ory/fosite/compose"
 )
 
 type oauthHandler func(*gin.Context, instance)
@@ -30,8 +30,6 @@ var redirectHost = regexp.MustCompile(`^[A-Za-z0-9.-]+(:[0-9]{1,5})?$`)
 const (
 	oauthCode        = "code"
 	publicClientAuth = "none"
-	consentRead      = "read"
-	consentOperate   = "operate"
 )
 
 func withInstance(handler oauthHandler) gin.HandlerFunc {
@@ -175,39 +173,31 @@ func (site instance) client(clientID, redirect string) (publicClient, bool) {
 	return client, client.RedirectURI == redirect
 }
 
-type authorizationRequest struct {
-	ClientID    string `json:"client_id"`
-	RedirectURI string `json:"redirect_uri"`
-	Scope       string `json:"scope"`
-	State       string `json:"state"`
-	Challenge   string `json:"challenge"`
-	Expires     int64  `json:"exp"`
-	UserID      uint64 `json:"user_id,omitempty"`
-	Nonce       string `json:"nonce,omitempty"`
+type consentIntent struct {
+	Query   string `json:"query"`
+	UserID  uint64 `json:"user_id"`
+	Nonce   string `json:"nonce"`
+	Expires int64  `json:"exp"`
 }
 
-func readAuthorization(site instance, values url.Values) (authorizationRequest, publicClient, bool) {
-	request := authorizationRequest{
-		ClientID: values.Get("client_id"), RedirectURI: values.Get("redirect_uri"),
-		State: values.Get("state"), Challenge: values.Get("code_challenge"),
-		Expires: time.Now().Add(codeLifetime).Unix(),
-	}
-	client, validClient := site.client(request.ClientID, request.RedirectURI)
-	scope, validScope := normalizeScopes(values.Get("scope"))
-	challenge, err := base64.RawURLEncoding.Strict().DecodeString(request.Challenge)
-	resource := site.clientResource(request.ClientID)
-	const maxStateLength = 1024
-	if !validClient || !validScope || err != nil || len(challenge) != sha256Size ||
-		len(request.State) == 0 || len(request.State) > maxStateLength ||
-		values.Get("response_type") != oauthCode || values.Get("code_challenge_method") != "S256" ||
-		!matchesResource(values, resource) || duplicateValues(values) {
-		return authorizationRequest{}, publicClient{}, false
-	}
-	request.Scope = scope
-	return request, client, true
-}
+const (
+	consentPagePath  = "/automation/authorize"
+	grantDeadlineKey = "grant_deadline"
+)
 
-const sha256Size = 32
+func (site instance) oauthServer(redirect string) (fosite.OAuth2Provider, *oauthStorage) {
+	cfg := &fosite.Config{
+		GlobalSecret:          []byte(site.sign("automation-oauth", site.origin)),
+		AuthorizeCodeLifespan: codeLifetime, AccessTokenLifespan: accessLifetime,
+		RefreshTokenLifespan: refreshLifetime, RefreshTokenScopes: []string{},
+		EnforcePKCE: true, TokenURL: site.origin + tokenPath,
+	}
+	storage := &oauthStorage{site: site, cliRedirect: redirect}
+	return compose.Compose(cfg, storage, compose.NewOAuth2HMACStrategy(cfg),
+		compose.OAuth2AuthorizeExplicitFactory, compose.OAuth2PKCEFactory,
+		compose.OAuth2RefreshTokenGrantFactory, compose.OAuth2TokenIntrospectionFactory,
+		compose.OAuth2TokenRevocationFactory), storage
+}
 
 func matchesResource(values url.Values, expected string) bool {
 	resources, present := values["resource"]
@@ -223,15 +213,33 @@ func duplicateValues(values url.Values) bool {
 	return false
 }
 
-func authorize(c *gin.Context, site instance) {
-	values, err := url.ParseQuery(c.Request.URL.RawQuery)
-	if err != nil {
-		oauthError(c, http.StatusBadRequest, "invalid_request")
-		return
+func authorizationRequest(c *gin.Context, site instance, rawQuery string) (fosite.OAuth2Provider, fosite.AuthorizeRequester, error) {
+	const maxAuthorizationQuery = 3600
+	values, err := url.ParseQuery(rawQuery)
+	if err != nil || len(rawQuery) > maxAuthorizationQuery || duplicateValues(values) ||
+		!matchesResource(values, site.clientResource(values.Get("client_id"))) ||
+		values.Get("code_challenge_method") != "S256" || values.Get("code_challenge") == "" ||
+		values.Get("redirect_uri") == "" || (values.Get("response_mode") != "" && values.Get("response_mode") != "query") {
+		return nil, nil, fosite.ErrInvalidRequest
 	}
-	request, client, ok := readAuthorization(site, values)
-	if !ok {
-		oauthError(c, http.StatusBadRequest, "invalid_request")
+	provider, _ := site.oauthServer(values.Get("redirect_uri"))
+	resource := site.clientResource(values.Get("client_id"))
+	values.Set("audience", resource)
+	if values.Get("scope") == "" {
+		values.Set("scope", strings.Join(availableScopes(), " "))
+	}
+	request := c.Request.Clone(c.Request.Context())
+	request.Method = http.MethodGet
+	request.URL.RawQuery = values.Encode()
+	request.Form, request.PostForm = nil, nil
+	request.Body = http.NoBody
+	authorization, err := provider.NewAuthorizeRequest(request.Context(), request)
+	return provider, authorization, err
+}
+
+func authorize(c *gin.Context, site instance) {
+	if _, _, err := authorizationRequest(c, site, c.Request.URL.RawQuery); err != nil {
+		redirectConsentError(c, "invalid_request")
 		return
 	}
 	user, err := browserAdmin(c)
@@ -241,16 +249,22 @@ func authorize(c *gin.Context, site instance) {
 	}
 	cookie, err := c.Request.Cookie(config.Config.App.SessionCookieName)
 	if err != nil {
-		oauthError(c, http.StatusUnauthorized, "login_required")
+		redirectConsentError(c, "login_required")
 		return
 	}
-	request.UserID, request.Nonce = user.ID, randomCredential("")
-	intent, err := site.pack(site.consentPurpose(cookie.Value), request)
+	intent, err := site.pack(site.consentPurpose(cookie.Value), consentIntent{
+		Query: c.Request.URL.RawQuery, UserID: user.ID,
+		Nonce: randomCredential(""), Expires: time.Now().Add(codeLifetime).Unix(),
+	})
 	if err != nil {
 		oauthInternalError(c, err)
 		return
 	}
-	showConsent(c, site, client, request, intent)
+	c.Redirect(http.StatusFound, consentPagePath+"#"+url.Values{"intent": {intent}}.Encode())
+}
+
+func redirectConsentError(c *gin.Context, code string) {
+	c.Redirect(http.StatusSeeOther, consentPagePath+"?"+url.Values{"error": {code}}.Encode())
 }
 
 func handleConsentLogin(c *gin.Context, err error) {
@@ -259,7 +273,7 @@ func handleConsentLogin(c *gin.Context, err error) {
 		target := c.Request.URL.RequestURI()
 		c.Redirect(http.StatusFound, "/login?"+url.Values{"callbackUrl": {target}}.Encode())
 	case isInvalidCredential(err):
-		oauthError(c, http.StatusForbidden, "access_denied")
+		redirectConsentError(c, "access_denied")
 	default:
 		oauthInternalError(c, err)
 	}
@@ -267,6 +281,50 @@ func handleConsentLogin(c *gin.Context, err error) {
 
 func (site instance) consentPurpose(cookie string) string {
 	return "automation-consent:" + site.origin + ":" + cookie
+}
+
+func loadConsent(c *gin.Context, site instance, signed string, userID uint64) (consentIntent, bool) {
+	var intent consentIntent
+	cookie, err := c.Request.Cookie(config.Config.App.SessionCookieName)
+	valid := err == nil && site.unpack(site.consentPurpose(cookie.Value), signed, &intent) &&
+		intent.UserID == userID && intent.Expires > time.Now().UTC().Unix()
+	return intent, valid
+}
+
+type consentInfoResponse struct {
+	ClientName  string   `json:"client_name"`
+	RedirectURI string   `json:"redirect_uri"`
+	Scopes      []string `json:"scopes"`
+}
+
+func consentInfo(c *gin.Context, site instance) {
+	user, err := browserAdmin(c)
+	if err != nil {
+		browserAPIAuthError(c, err)
+		return
+	}
+	values, ok := parseOAuthForm(c)
+	if !ok {
+		return
+	}
+	intent, ok := loadConsent(c, site, values.Get("intent"), user.ID)
+	if !ok {
+		oauthError(c, http.StatusBadRequest, "invalid_request")
+		return
+	}
+	_, request, err := authorizationRequest(c, site, intent.Query)
+	if err != nil {
+		oauthError(c, http.StatusBadRequest, "invalid_request")
+		return
+	}
+	client, ok := site.client(request.GetClient().GetID(), request.GetRedirectURI().String())
+	if !ok {
+		oauthError(c, http.StatusBadRequest, "invalid_request")
+		return
+	}
+	c.JSON(http.StatusOK, consentInfoResponse{
+		ClientName: client.Name, RedirectURI: request.GetRedirectURI().String(), Scopes: request.GetRequestedScopes(),
+	})
 }
 
 func parseOAuthForm(c *gin.Context) (url.Values, bool) {
@@ -288,58 +346,76 @@ func confirmConsent(c *gin.Context, site instance) {
 		oauthError(c, http.StatusForbidden, "access_denied")
 		return
 	}
-	cookie, cookieErr := c.Request.Cookie(config.Config.App.SessionCookieName)
-	intent := values.Get("intent")
-	var request authorizationRequest
-	now := time.Now().UTC()
-	if cookieErr != nil || !site.unpack(site.consentPurpose(cookie.Value), intent, &request) ||
-		request.UserID != user.ID || request.Expires <= now.Unix() {
-		oauthError(c, http.StatusBadRequest, "invalid_request")
+	intent, ok := loadConsent(c, site, values.Get("intent"), user.ID)
+	if !ok {
+		redirectConsentError(c, "invalid_request")
 		return
 	}
-	handleConsentDecision(c, site, request, intent, values.Get("decision"), now)
-}
-
-func handleConsentDecision(c *gin.Context, site instance, request authorizationRequest, intent, decision string, now time.Time) {
-	redirect, err := url.Parse(request.RedirectURI)
+	provider, request, err := authorizationRequest(c, site, intent.Query)
 	if err != nil {
-		oauthError(c, http.StatusBadRequest, "invalid_request")
+		redirectConsentError(c, "invalid_request")
 		return
 	}
-	query := url.Values{"state": {request.State}}
-	if decision == consentRead || decision == consentOperate {
-		scope := request.Scope
-		if decision == consentRead {
-			scope = readScopes(scope)
-		}
-		if scope == "" {
-			oauthError(c, http.StatusBadRequest, "invalid_scope")
-			return
-		}
-		code := site.sign("automation-code", intent)
-		row := model.AutomationCode{
-			Hash: digest(code), UserID: request.UserID, ClientID: request.ClientID,
-			RedirectURI: request.RedirectURI, Resource: site.clientResource(request.ClientID),
-			Scope: scope, Challenge: request.Challenge, ExpiresAt: time.Unix(request.Expires, 0).UTC(),
-		}
-		if err := repository.CreateAutomationCode(c.Request.Context(), row, now); err != nil {
-			oauthInternalError(c, err)
-			return
-		}
-		query.Set(oauthCode, code)
-	} else {
-		query.Set("error", "access_denied")
+	ctx := c.Request.Context()
+	if values.Get("decision") == "cancel" {
+		provider.WriteAuthorizeError(ctx, c.Writer, request, fosite.ErrAccessDenied)
+		return
 	}
-	redirect.RawQuery = query.Encode()
-	c.Redirect(http.StatusSeeOther, redirect.String())
+	scopes, ok := selectedScopes(values.Get("scope"), request.GetRequestedScopes())
+	if values.Get("decision") != "authorize" || !ok {
+		redirectConsentError(c, "invalid_scope")
+		return
+	}
+	for _, scope := range scopes {
+		request.GrantScope(scope)
+	}
+	request.GrantAudience(site.clientResource(request.GetClient().GetID()))
+	request.SetID(intent.Nonce)
+	issueAuthorizationCode(c, provider, request, user.ID)
 }
 
-type tokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int64  `json:"expires_in"`
-	RefreshToken string `json:"refresh_token"`
-	Scope        string `json:"scope"`
+func selectedScopes(raw string, allowed []string) ([]string, bool) {
+	scopes := strings.Fields(raw)
+	for _, scope := range scopes {
+		if !slices.Contains(allowed, scope) {
+			return nil, false
+		}
+	}
+	slices.Sort(scopes)
+	return slices.Compact(scopes), len(scopes) != 0
+}
+
+func rollbackOAuth(ctx context.Context) {
+	if err := repository.RollbackAutomationTransaction(ctx); err != nil && !errors.Is(err, sql.ErrTxDone) {
+		logger.ErrorF(ctx, "Rollback automation transaction: %v", err)
+	}
+}
+
+func issueAuthorizationCode(c *gin.Context, provider fosite.OAuth2Provider, request fosite.AuthorizeRequester, userID uint64) {
+	ctx, err := repository.BeginAutomationTransaction(c.Request.Context())
+	if err != nil {
+		oauthInternalError(c, err)
+		return
+	}
+	defer rollbackOAuth(ctx)
+	if err := repository.PruneAutomationSessions(ctx, time.Now().UTC()); err != nil {
+		oauthInternalError(c, err)
+		return
+	}
+	session := &fosite.DefaultSession{
+		Subject: strconv.FormatUint(userID, 10),
+		Extra:   map[string]any{grantDeadlineKey: time.Now().UTC().Add(refreshLifetime).Format(time.RFC3339Nano)},
+	}
+	reply, err := provider.NewAuthorizeResponse(ctx, request, session)
+	if err != nil {
+		provider.WriteAuthorizeError(ctx, c.Writer, request, err)
+		return
+	}
+	if err := repository.CommitAutomationTransaction(ctx); err != nil {
+		oauthInternalError(c, err)
+		return
+	}
+	provider.WriteAuthorizeResponse(ctx, c.Writer, request, reply)
 }
 
 func issueToken(c *gin.Context, site instance) {
@@ -347,117 +423,99 @@ func issueToken(c *gin.Context, site instance) {
 	if !ok {
 		return
 	}
-	if c.GetHeader("Authorization") != "" || values.Get("client_secret") != "" {
+	if c.GetHeader("Authorization") != "" || values.Has("client_secret") || values.Has("client_assertion") {
 		oauthError(c, http.StatusBadRequest, "invalid_client")
 		return
 	}
-	clientID := values.Get("client_id")
-	resource := site.clientResource(clientID)
-	if clientID == "" || !matchesResource(values, resource) {
+	if !matchesResource(values, site.clientResource(values.Get("client_id"))) {
 		oauthError(c, http.StatusBadRequest, "invalid_target")
 		return
 	}
-	now := time.Now().UTC()
-	var result tokenResponse
-	var err error
-	switch values.Get("grant_type") {
-	case grantCode:
-		result, err = exchangeCode(c.Request, values, clientID, resource, now)
-	case grantRefresh:
-		result, err = exchangeRefresh(c.Request, values, clientID, resource, now)
-	default:
-		oauthError(c, http.StatusBadRequest, "unsupported_grant_type")
+	provider, storage := site.oauthServer(values.Get("redirect_uri"))
+	ctx, err := repository.BeginAutomationTransaction(c.Request.Context())
+	if err != nil {
+		oauthInternalError(c, err)
 		return
 	}
-	switch {
-	case isInvalidCredential(err):
-		oauthError(c, http.StatusBadRequest, "invalid_grant")
-	case err != nil:
-		oauthInternalError(c, err)
-	default:
-		c.JSON(http.StatusOK, result)
-	}
-}
-
-func exchangeCode(request *http.Request, values url.Values, clientID, resource string, now time.Time) (tokenResponse, error) {
-	ctx := request.Context()
-	code, err := repository.GetAutomationCode(ctx, digest(values.Get(oauthCode)))
+	defer rollbackOAuth(ctx)
+	request, err := provider.NewAccessRequest(ctx, c.Request, &fosite.DefaultSession{})
 	if err != nil {
-		return tokenResponse{}, err
+		// Fosite can revoke a token family when a used code or refresh token is presented.
+		if storage.revokeAccess && storage.revokeRefresh {
+			if commitErr := repository.CommitAutomationTransaction(ctx); commitErr != nil {
+				oauthInternalError(c, commitErr)
+				return
+			}
+		}
+		provider.WriteAccessError(ctx, c.Writer, request, err)
+		return
 	}
-	verifier := values.Get("code_verifier")
-	if code.Used || !code.ExpiresAt.After(now) || code.ClientID != clientID || code.Resource != resource ||
-		code.RedirectURI != values.Get("redirect_uri") || !verifiesChallenge(verifier, code.Challenge) {
-		return tokenResponse{}, errInvalidAuth
+	if _, err := oauthSubject(ctx, request.GetSession()); err != nil {
+		provider.WriteAccessError(ctx, c.Writer, request, fosite.ErrInvalidGrant)
+		return
 	}
-	if _, err := validAdmin(ctx, code.UserID); err != nil {
-		return tokenResponse{}, err
+	if !boundTokenLifetimes(request.GetSession()) {
+		provider.WriteAccessError(ctx, c.Writer, request, fosite.ErrInvalidGrant)
+		return
 	}
-	grant := model.AutomationGrant{
-		ID: uuid.NewString(), UserID: code.UserID, ClientID: clientID, Scope: code.Scope,
-		Resource: resource, RefreshExpiresAt: now.Add(refreshLifetime),
+	reply, err := provider.NewAccessResponse(ctx, request)
+	if err != nil {
+		provider.WriteAccessError(ctx, c.Writer, request, err)
+		return
 	}
-	grant, result := grantTokens(grant, now)
-	return result, repository.ExchangeAutomationCode(ctx, code.Hash, grant, now)
+	if err := repository.CommitAutomationTransaction(ctx); err != nil {
+		oauthInternalError(c, err)
+		return
+	}
+	provider.WriteAccessResponse(ctx, c.Writer, request, reply)
 }
 
-func verifiesChallenge(verifier, expected string) bool {
-	const minVerifier, maxVerifier = 43, 128
-	if len(verifier) < minVerifier || len(verifier) > maxVerifier || strings.ContainsFunc(verifier, func(symbol rune) bool {
-		return !strings.ContainsRune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~", symbol)
-	}) {
+func boundTokenLifetimes(session fosite.Session) bool {
+	oauthSession, ok := session.(*fosite.DefaultSession)
+	if !ok {
 		return false
 	}
-	sum := sha256.Sum256([]byte(verifier))
-	encoded := base64.RawURLEncoding.EncodeToString(sum[:])
-	return subtle.ConstantTimeCompare([]byte(encoded), []byte(expected)) == 1
+	rawDeadline, _ := oauthSession.Extra[grantDeadlineKey].(string)
+	deadline, err := time.Parse(time.RFC3339Nano, rawDeadline)
+	if err != nil || !deadline.After(time.Now().UTC()) {
+		return false
+	}
+	for _, use := range []fosite.TokenType{fosite.AccessToken, fosite.RefreshToken} {
+		if session.GetExpiresAt(use).After(deadline) {
+			session.SetExpiresAt(use, deadline)
+		}
+	}
+	return true
 }
 
-func exchangeRefresh(request *http.Request, values url.Values, clientID, resource string, now time.Time) (tokenResponse, error) {
-	ctx := request.Context()
-	previous := digest(values.Get("refresh_token"))
-	grant, err := repository.GetAutomationRefreshGrant(ctx, previous, clientID, resource, now)
+func oauthSubject(ctx context.Context, session fosite.Session) (uint64, error) {
+	id, err := strconv.ParseUint(session.GetSubject(), 10, 64)
 	if err != nil {
-		return tokenResponse{}, err
+		return 0, errInvalidAuth
 	}
-	if scope := values.Get("scope"); scope != "" && scope != grant.Scope {
-		return tokenResponse{}, errInvalidAuth
-	}
-	if _, err := validAdmin(ctx, grant.UserID); err != nil {
-		return tokenResponse{}, err
-	}
-	grant, result := grantTokens(grant, now)
-	return result, repository.RotateAutomationGrant(ctx, previous, grant, now)
+	_, err = validAdmin(ctx, id)
+	return id, err
 }
 
-func grantTokens(grant model.AutomationGrant, now time.Time) (model.AutomationGrant, tokenResponse) {
-	access, refresh := randomCredential("ofa_"), randomCredential("ofr_")
-	grant.AccessHash, grant.RefreshHash = digest(access), digest(refresh)
-	grant.AccessExpiresAt = now.Add(accessLifetime)
-	if grant.RefreshExpiresAt.Before(grant.AccessExpiresAt) {
-		grant.AccessExpiresAt = grant.RefreshExpiresAt
-	}
-	return grant, tokenResponse{
-		AccessToken: access, TokenType: "Bearer", ExpiresIn: int64(grant.AccessExpiresAt.Sub(now) / time.Second),
-		RefreshToken: refresh, Scope: grant.Scope,
-	}
-}
-
-func revokeToken(c *gin.Context, _ instance) {
-	values, ok := parseOAuthForm(c)
-	if !ok {
+func revokeToken(c *gin.Context, site instance) {
+	if _, ok := parseOAuthForm(c); !ok {
 		return
 	}
-	token, clientID := values.Get("token"), values.Get("client_id")
-	if token == "" || clientID == "" {
-		oauthError(c, http.StatusBadRequest, "invalid_request")
-		return
-	}
-	if err := repository.RevokeAutomationToken(c.Request.Context(), clientID, digest(token)); err != nil {
+	provider, _ := site.oauthServer("")
+	ctx, err := repository.BeginAutomationTransaction(c.Request.Context())
+	if err != nil {
 		oauthInternalError(c, err)
 		return
 	}
-	c.Status(http.StatusOK)
+	defer rollbackOAuth(ctx)
+	err = provider.NewRevocationRequest(ctx, c.Request)
+	if err == nil {
+		if commitErr := repository.CommitAutomationTransaction(ctx); commitErr != nil {
+			oauthInternalError(c, commitErr)
+			return
+		}
+	}
+	provider.WriteRevocationResponse(ctx, c.Writer, err)
 }
 
 func oauthError(c *gin.Context, status int, code string) {
@@ -469,10 +527,11 @@ func oauthInternalError(c *gin.Context, err error) {
 	oauthError(c, http.StatusInternalServerError, "server_error")
 }
 
-// RegisterOAuth mounts authorization, registration, token exchange, and revocation endpoints.
+// RegisterOAuth mounts OAuth discovery companions and the browser consent exchange.
 func RegisterOAuth(group *gin.RouterGroup) {
 	group.GET("/authorize", withInstance(authorize))
 	group.POST("/authorize", withInstance(confirmConsent))
+	group.POST("/consent", withInstance(consentInfo))
 	group.POST("/register", withInstance(registerClient))
 	group.POST("/token", withInstance(issueToken))
 	group.POST("/revoke", withInstance(revokeToken))

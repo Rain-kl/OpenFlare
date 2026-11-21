@@ -21,6 +21,7 @@ import {
   AdminUserService,
 } from './admin';
 import { AuthService } from './auth';
+import { AutomationService } from './automation';
 import { ConfigService } from './config';
 import { DbManageService } from './db-manage';
 import { PushService } from './push';
@@ -46,6 +47,7 @@ import {
 
 const services = {
   auth: AuthService,
+  automation: AutomationService,
   adminSystemConfig: AdminSystemConfigService,
   adminAuthSource: AdminAuthSourceService,
   adminTask: AdminTaskService,

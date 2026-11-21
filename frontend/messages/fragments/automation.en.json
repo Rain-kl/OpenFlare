@@ -1,0 +1,54 @@
+{
+  "automation": {
+    "consent": {
+      "title": "Authorize OpenFlare access",
+      "description": "{client} requests access to this OpenFlare instance. Select the permissions to grant.",
+      "review": "Review the client and its requested permissions.",
+      "loading": "Loading authorization request",
+      "callback": "Callback URL",
+      "cancel": "Cancel",
+      "confirm": "Authorize",
+      "adminRequired": "An OpenFlare administrator account is required to authorize this connection.",
+      "invalidRequest": "This authorization request is invalid or has expired. Start a new connection from the client."
+    },
+    "scopes": {
+      "connection:read": "View connection details",
+      "logs:read": "Query access logs",
+      "metrics:read": "View traffic and performance metrics",
+      "nodes:read": "View node status",
+      "performance:read": "View performance policies",
+      "performance:write": "Modify performance policies",
+      "sites:read": "View sites, domains, and certificates",
+      "sites:write": "Create and modify sites and domains"
+    },
+    "permissionsTitle": "Permissions",
+    "settings": {
+      "connectionTitle": "OAuth connection",
+      "connectionDescription": "Add a remote MCP connection using Streamable HTTP. The first connection requires browser consent.",
+      "endpoint": "MCP URL",
+      "instanceId": "Instance ID",
+      "copyURL": "Copy URL",
+      "copyInstructions": "Copy OAuth instructions",
+      "instructions": "Add a remote MCP connection named {name} using Streamable HTTP at {url} with OAuth authentication. After granting access in the browser, call openflare_connection_info to confirm instance ID {instance} and the permissions granted.",
+      "tokenTitle": "Access token",
+      "tokenDescription": "For clients that support custom headers. Select permissions, generate a token, and set Authorization: Bearer TOKEN in the client. Tokens expire after 30 days.",
+      "tokenOnce": "This token is shown once and expires on {expires}.",
+      "copyToken": "Copy token",
+      "closeToken": "Close",
+      "createToken": "Generate token",
+      "grantsTitle": "Connection grants",
+      "revokeDescription": "Revoking access immediately invalidates the OAuth grants and access tokens issued to CLI and MCP clients by this account.",
+      "revoke": "Revoke all access",
+      "cancel": "Cancel",
+      "confirmRevoke": "Revoke access",
+      "revoked": "All access revoked",
+      "revokeError": "Could not revoke access",
+      "createError": "Could not generate a token",
+      "copied": "Copied",
+      "copyError": "Could not copy. Copy the value manually.",
+      "loading": "Loading MCP settings",
+      "loadError": "Could not load MCP settings",
+      "disabled": "Save the public HTTPS origin to enable MCP connections."
+    }
+  }
+}

@@ -1,35 +1,20 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package model
 
 import "time"
 
-// AutomationCode stores a single-use authorization code by hash.
-type AutomationCode struct {
-	Hash        string `gorm:"primaryKey"`
-	UserID      uint64
-	ClientID    string
-	RedirectURI string
-	Resource    string
-	Scope       string
-	Challenge   string
-	ExpiresAt   time.Time
-	Used        bool
+// AutomationSession stores a Fosite session or a scoped MCP access token by hash.
+type AutomationSession struct {
+	Kind      string `gorm:"primaryKey"`
+	Signature string `gorm:"primaryKey"`
+	RequestID string
+	UserID    uint64
+	Data      string
+	Active    bool
+	ExpiresAt time.Time
 }
 
-// TableName returns the authorization code table.
-func (AutomationCode) TableName() string { return "w_automation_codes" }
-
-// AutomationGrant stores a revocable OAuth grant and hashed credentials.
-type AutomationGrant struct {
-	ID               string `gorm:"primaryKey"`
-	UserID           uint64
-	ClientID         string
-	Resource         string
-	Scope            string
-	AccessHash       string
-	RefreshHash      string
-	AccessExpiresAt  time.Time
-	RefreshExpiresAt time.Time
-}
-
-// TableName returns the OAuth grants table.
-func (AutomationGrant) TableName() string { return "w_automation_grants" }
+// TableName returns the automation session table.
+func (AutomationSession) TableName() string { return "w_automation_sessions" }

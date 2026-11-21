@@ -70,13 +70,6 @@ export function AutomationSettings({ config }: { config: SystemConfig }) {
               >
                 {t('save')}
               </Button>
-              {config.value && (
-                <Button asChild variant='outline'>
-                  <a href={`${config.value}/automation/connect`}>
-                    {t('automationConnect')}
-                  </a>
-                </Button>
-              )}
             </div>
           </FieldGroup>
         </form>

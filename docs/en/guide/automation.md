@@ -5,12 +5,12 @@ description: Authorize OpenFlare CLI and MCP for routine site operations and tro
 
 # CLI and MCP operations
 
-In the console, open **Settings → Operation settings → CLI and MCP**. Save the public HTTPS origin, open the MCP connection instructions, and copy them to the AI client. Use a client that supports Streamable HTTP, OAuth S256 PKCE, and dynamic client registration. The first connection requires administrator sign-in and consent in a browser.
+Open **System settings → MCP** in the console. Save the public HTTPS origin to see the MCP URL, instance ID, and connection options.
 
-- **Read-only access** enables site, domain, certificate, node, log, metric, and performance policy queries.
-- **Operations access** also enables site creation, domain registration and binding, direct upstream replacement, and changes to existing performance policy parameters. OpenFlare does not require approval for each authorized call.
+- **OAuth:** Copy the connection instructions, or add a Streamable HTTP connection manually using OAuth. The client must support dynamic client registration and S256 PKCE. On the first connection, sign in as an administrator, select the permissions to grant, and confirm.
+- **Access token:** Select permissions and generate a token for a client that supports custom headers. The token is shown once and expires after 30 days. Set the `Authorization: Bearer TOKEN` request header in the client.
 
-After connecting, verify the instance ID and effective scopes using `openflare_connection_info`. Grants apply to the current instance and are limited by the requested scopes. Revoke your grants from the connection instructions page.
+Call `openflare_connection_info` to verify the instance ID and granted permissions. OAuth access tokens last 15 minutes and can be refreshed for up to 30 days. **Revoke all access** immediately invalidates the account's CLI and MCP grants and access tokens.
 
 Download the matching `openflare_cli_*` archive from [OpenFlare Releases](https://github.com/Rain-kl/OpenFlare/releases) and add the extracted binary to `PATH`. Linux requires an available Secret Service credential store.
 

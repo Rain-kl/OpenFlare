@@ -60,6 +60,15 @@ export function LoginPage() {
     resolveRedirectTargetRef.current = resolveRedirectTarget;
   }, [resolveRedirectTarget]);
 
+  const redirectAfterLogin = useCallback(() => {
+    const target = resolveRedirectTargetRef.current();
+    if (target.startsWith('/oauth/automation/authorize?')) {
+      window.location.replace(target);
+    } else {
+      router.replace(target);
+    }
+  }, [router]);
+
   /* 登录页兜底：已登录用户直接跳转 */
   useEffect(() => {
     const state = searchParams.get('state');
@@ -71,9 +80,9 @@ export function LoginPage() {
 
     if (!redirectedRef.current) {
       redirectedRef.current = true;
-      router.replace(resolveRedirectTargetRef.current());
+      redirectAfterLogin();
     }
-  }, [loading, router, searchParams, user]);
+  }, [loading, redirectAfterLogin, searchParams, user]);
 
   /* 回调逻辑 */
   useEffect(() => {
@@ -105,7 +114,7 @@ export function LoginPage() {
           setTimeout(() => {
             if (!redirectedRef.current) {
               redirectedRef.current = true;
-              router.replace(resolveRedirectTargetRef.current());
+              redirectAfterLogin();
             }
           }, 1500);
         } catch (error) {
@@ -117,7 +126,7 @@ export function LoginPage() {
       }
     };
     handleOAuthCallback();
-  }, [router, searchParams, setUser, t]);
+  }, [redirectAfterLogin, router, searchParams, setUser, t]);
 
   return (
     <AuthShell wide={showOTP}>

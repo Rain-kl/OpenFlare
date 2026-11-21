@@ -36,6 +36,12 @@ const OperationTab = dynamic(
   { loading: () => tabFallback },
 );
 
+const MCPTab = dynamic(
+  () =>
+    import('@/components/common/settings/mcp-tab').then((mod) => mod.MCPTab),
+  { loading: () => tabFallback },
+);
+
 const SystemTab = dynamic(
   () =>
     import('@/components/common/settings/system-tab').then(
@@ -89,6 +95,7 @@ export function AdminSettingsPageClient() {
     const rawTab = searchParams.get('tab');
     const validTabs = [
       'openflare-ops',
+      'mcp',
       'security',
       'operation',
       'system',
@@ -148,12 +155,18 @@ export function AdminSettingsPageClient() {
         onValueChange={handleTabChange}
         className='w-full'
       >
-        <TabsList variant='line' className='w-fit inline-flex gap-8 mb-6'>
+        <TabsList
+          variant='line'
+          className='mb-6 inline-flex h-auto w-fit max-w-full flex-wrap gap-x-6 gap-y-2'
+        >
           <TabsTrigger
             value='openflare-ops'
             className='px-0 pb-2 text-xs font-semibold'
           >
             {t('tabs.openflare')}
+          </TabsTrigger>
+          <TabsTrigger value='mcp' className='px-0 pb-2 text-xs font-semibold'>
+            {t('tabs.mcp')}
           </TabsTrigger>
           <TabsTrigger
             value='security'
@@ -190,6 +203,9 @@ export function AdminSettingsPageClient() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value='mcp' className='focus-visible:outline-none'>
+          <MCPTab config={configs.automation_public_url} />
+        </TabsContent>
         <TabsContent value='security' className='focus-visible:outline-none'>
           <SecurityTab
             configs={configs}

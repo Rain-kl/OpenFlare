@@ -1,7 +1,11 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
@@ -9,67 +13,54 @@ import (
 	"gorm.io/gorm"
 )
 
-// CreateAutomationCode stores the code and prunes expired credentials.
-func CreateAutomationCode(ctx context.Context, code model.AutomationCode, now time.Time) error {
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("expires_at <= ?", now).Delete(&model.AutomationCode{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Where("refresh_expires_at <= ?", now).Delete(&model.AutomationGrant{}).Error; err != nil {
-			return err
-		}
-		return tx.Create(&code).Error
-	})
+type automationTransactionKey struct{}
+
+func automationDB(ctx context.Context) *gorm.DB {
+	if tx, ok := ctx.Value(automationTransactionKey{}).(*gorm.DB); ok {
+		return tx.WithContext(ctx)
+	}
+	return db.DB(db.WithPrimaryReads(ctx))
 }
 
-// GetAutomationCode retrieves a code from the primary database.
-func GetAutomationCode(ctx context.Context, hash string) (model.AutomationCode, error) {
-	var code model.AutomationCode
-	err := db.DB(db.WithPrimaryReads(ctx)).First(&code, "hash = ?", hash).Error
-	return code, err
+// BeginAutomationTransaction starts a primary transaction shared by an OAuth exchange.
+func BeginAutomationTransaction(ctx context.Context) (context.Context, error) {
+	if _, ok := ctx.Value(automationTransactionKey{}).(*gorm.DB); ok {
+		return nil, errors.New("automation transaction already started")
+	}
+	tx := automationDB(ctx).Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	return context.WithValue(ctx, automationTransactionKey{}, tx), nil
 }
 
-// ExchangeAutomationCode atomically consumes one code and creates its grant.
-func ExchangeAutomationCode(ctx context.Context, hash string, grant model.AutomationGrant, now time.Time) error {
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		result := tx.Model(&model.AutomationCode{}).
-			Where("hash = ? AND used = ? AND expires_at > ?", hash, false, now).
-			Update("used", true)
-		if result.Error != nil {
-			return result.Error
-		}
-		if result.RowsAffected != 1 {
-			return gorm.ErrRecordNotFound
-		}
-		return tx.Create(&grant).Error
-	})
+// CommitAutomationTransaction commits the active OAuth transaction.
+func CommitAutomationTransaction(ctx context.Context) error {
+	return automationDB(ctx).Commit().Error
 }
 
-// GetAutomationAccessGrant checks the access credential and audience on the primary.
-func GetAutomationAccessGrant(ctx context.Context, hash, resource string, now time.Time) (model.AutomationGrant, error) {
-	var grant model.AutomationGrant
-	err := db.DB(db.WithPrimaryReads(ctx)).
-		First(&grant, "access_hash = ? AND resource = ? AND access_expires_at > ?", hash, resource, now).Error
-	return grant, err
+// RollbackAutomationTransaction discards uncommitted changes from the exchange.
+func RollbackAutomationTransaction(ctx context.Context) error {
+	return automationDB(ctx).Rollback().Error
 }
 
-// GetAutomationRefreshGrant checks the refresh credential, client, and audience.
-func GetAutomationRefreshGrant(ctx context.Context, hash, clientID, resource string, now time.Time) (model.AutomationGrant, error) {
-	var grant model.AutomationGrant
-	err := db.DB(db.WithPrimaryReads(ctx)).
-		First(&grant, "refresh_hash = ? AND client_id = ? AND resource = ? AND refresh_expires_at > ?", hash, clientID, resource, now).Error
-	return grant, err
+// CreateAutomationSession stores a hashed credential and its state.
+func CreateAutomationSession(ctx context.Context, session model.AutomationSession) error {
+	return automationDB(ctx).Create(&session).Error
 }
 
-// RotateAutomationGrant replaces credentials only while the original token is valid.
-func RotateAutomationGrant(ctx context.Context, previousHash string, grant model.AutomationGrant, now time.Time) error {
-	result := db.DB(ctx).Model(&model.AutomationGrant{}).
-		Where("id = ? AND refresh_hash = ? AND refresh_expires_at > ?", grant.ID, previousHash, now).
-		Updates(map[string]any{
-			"access_hash":       grant.AccessHash,
-			"refresh_hash":      grant.RefreshHash,
-			"access_expires_at": grant.AccessExpiresAt,
-		})
+// GetAutomationSession loads a credential that has not expired.
+func GetAutomationSession(ctx context.Context, kind, signature string, now time.Time) (model.AutomationSession, error) {
+	var session model.AutomationSession
+	err := automationDB(ctx).First(&session, "kind = ? AND signature = ? AND expires_at > ?", kind, signature, now).Error
+	return session, err
+}
+
+// ConsumeAutomationSession atomically marks an active credential as used.
+func ConsumeAutomationSession(ctx context.Context, kind, signature string, now time.Time) error {
+	result := automationDB(ctx).Model(&model.AutomationSession{}).
+		Where("kind = ? AND signature = ? AND active = ? AND expires_at > ?", kind, signature, true, now).
+		Update("active", false)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -79,18 +70,28 @@ func RotateAutomationGrant(ctx context.Context, previousHash string, grant model
 	return nil
 }
 
-// RevokeAutomationToken removes the grant associated with a credential.
-func RevokeAutomationToken(ctx context.Context, clientID, hash string) error {
-	return db.DB(ctx).Where("client_id = ? AND (access_hash = ? OR refresh_hash = ?)", clientID, hash, hash).
-		Delete(&model.AutomationGrant{}).Error
+// DeleteAutomationSession removes one credential.
+func DeleteAutomationSession(ctx context.Context, kind, signature string) error {
+	return automationDB(ctx).Where("kind = ? AND signature = ?", kind, signature).Delete(&model.AutomationSession{}).Error
 }
 
-// RevokeUserAutomationGrants removes all grants and pending codes for one account.
+// RevokeAutomationSessions removes all credentials of the given kind for a grant.
+func RevokeAutomationSessions(ctx context.Context, requestID, kind string) error {
+	return automationDB(ctx).Where("request_id = ? AND kind = ?", requestID, kind).
+		Delete(&model.AutomationSession{}).Error
+}
+
+// PruneAutomationSessions removes expired credential records.
+func PruneAutomationSessions(ctx context.Context, now time.Time) error {
+	return automationDB(ctx).Where("expires_at <= ?", now).Delete(&model.AutomationSession{}).Error
+}
+
+// RevokeUserAutomationGrants removes the user's sessions and direct access tokens.
 func RevokeUserAutomationGrants(ctx context.Context, userID uint64) error {
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("user_id = ?", userID).Delete(&model.AutomationCode{}).Error; err != nil {
-			return err
-		}
-		return tx.Where("user_id = ?", userID).Delete(&model.AutomationGrant{}).Error
-	})
+	return automationDB(ctx).Where("user_id = ?", userID).Delete(&model.AutomationSession{}).Error
+}
+
+// GetAutomationUser reads the current account from the primary or active transaction.
+func GetAutomationUser(ctx context.Context, id uint64) (model.User, error) {
+	return getActiveUserByID(automationDB(ctx), id)
 }

@@ -232,8 +232,12 @@ func ListUsernamesMatchingBase(ctx context.Context, base string) ([]string, erro
 
 // GetActiveUserByID loads a user by ID who is active.
 func GetActiveUserByID(ctx context.Context, id uint64) (model.User, error) {
+	return getActiveUserByID(db.DB(ctx), id)
+}
+
+func getActiveUserByID(conn *gorm.DB, id uint64) (model.User, error) {
 	var user model.User
-	if err := db.DB(ctx).Where("id = ? AND is_active = ?", id, true).First(&user).Error; err != nil {
+	if err := conn.Where("id = ? AND is_active = ?", id, true).First(&user).Error; err != nil {
 		return model.User{}, err
 	}
 	return user, nil

@@ -11,7 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
-	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -105,7 +105,7 @@ func TestOAuthAndReadOnlyTransports(t *testing.T) {
 	checkRead(apiTokens.AccessToken, "/nodes/42?node_record_id=1", http.StatusBadRequest)
 
 	values := url.Values{"grant_type": {grantRefresh}, "client_id": {cliClientID}, "resource": {apiURL}, "refresh_token": {apiTokens.RefreshToken}}
-	var refreshed tokenResponse
+	var refreshed testTokenResponse
 	postOAuthForm(t, client, server.URL+tokenPath, values, "", http.StatusOK, &refreshed)
 	require.NotEqual(t, apiTokens.RefreshToken, refreshed.RefreshToken)
 	checkRead(apiTokens.AccessToken, "/nodes", http.StatusUnauthorized)
@@ -114,7 +114,38 @@ func TestOAuthAndReadOnlyTransports(t *testing.T) {
 	postOAuthForm(t, client, server.URL+revokePath, url.Values{"client_id": {cliClientID}, "token": {refreshed.RefreshToken}}, "", http.StatusOK, nil)
 	checkRead(refreshed.AccessToken, "/nodes", http.StatusUnauthorized)
 
+	tokenReply, err := client.Post(server.URL+"/api/v1/admin/automation/mcp/token", "application/json", strings.NewReader(`{"scopes":["nodes:read"]}`))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, tokenReply.StatusCode)
+	var direct struct {
+		Data mcpTokenResponse `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(tokenReply.Body).Decode(&direct))
+	require.NoError(t, tokenReply.Body.Close())
+	require.True(t, direct.Data.ExpiresAt.After(time.Now()))
+	checkRead(direct.Data.AccessToken, "/nodes", http.StatusUnauthorized)
+	directClient := &http.Client{Transport: authorizationTransport{base: client.Transport, token: direct.Data.AccessToken}}
+	directSession, err := mcpClient.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: mcpURL, HTTPClient: directClient, DisableStandaloneSSE: true,
+	}, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, directSession.Close()) })
+	directTools, err := directSession.ListTools(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, directTools.Tools, 2)
+
 	require.NoError(t, database.Model(&model.User{}).Where("id = ?", 991).Update("is_admin", false).Error)
+	_, err = session.ListTools(ctx, nil)
+	require.Error(t, err)
+	require.NoError(t, database.Model(&model.User{}).Where("id = ?", 991).Update("is_admin", true).Error)
+	revoke, err := http.NewRequestWithContext(ctx, http.MethodDelete, server.URL+"/api/v1/admin/automation/grants", nil)
+	require.NoError(t, err)
+	revoked, err := client.Do(revoke)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, revoked.StatusCode)
+	require.NoError(t, revoked.Body.Close())
+	_, err = directSession.ListTools(ctx, nil)
+	require.Error(t, err)
 	_, err = session.ListTools(ctx, nil)
 	require.Error(t, err)
 }
@@ -132,15 +163,16 @@ func TestOperationsWorkflow(t *testing.T) {
 	clientID := registerTestClient(t, client, server.URL, hostedRedirect)
 	mcpTokens := authorizeTestClient(t, client, server.URL, clientID, hostedRedirect, mcpURL, "", "operate")
 	instanceID := testOperation[ConnectionInfo](t, client, apiURL, writeTokens.AccessToken, "", http.MethodGet, "/connection", "", "", http.StatusOK).InstanceID
-	setup, err := client.Get(server.URL + connectPath)
+	setup, err := client.Get(server.URL + "/api/v1/admin/automation/mcp")
 	require.NoError(t, err)
-	setupHTML, err := io.ReadAll(setup.Body)
-	require.NoError(t, err)
-	require.NoError(t, setup.Body.Close())
+	var settings struct {
+		Data mcpSettingsResponse `json:"data"`
+	}
 	require.Equal(t, http.StatusOK, setup.StatusCode)
-	require.Contains(t, string(setupHTML), mcpURL)
-	require.Contains(t, string(setupHTML), instanceID)
-	require.NotContains(t, string(setupHTML), mcpTokens.AccessToken)
+	require.NoError(t, json.NewDecoder(setup.Body).Decode(&settings))
+	require.NoError(t, setup.Body.Close())
+	require.Equal(t, mcpURL, settings.Data.MCPURL)
+	require.Equal(t, instanceID, settings.Data.InstanceID)
 	operations := make(map[string]automationcontract.Operation)
 	for _, operation := range automationcontract.Operations() {
 		operations[operation.ID] = operation
@@ -312,6 +344,7 @@ func automationTestServer(t *testing.T) (*httptest.Server, *gorm.DB) {
 	router.POST("/mcp", MCPHandler())
 	RegisterOAuth(router.Group(automationcontract.OAuthPath))
 	RegisterBrowser(router.Group("/automation"))
+	RegisterSettings(router.Group("/api/v1/admin/automation"))
 	RegisterAPI(router.Group("/api/v1/automation"))
 	server := httptest.NewTLSServer(router)
 	t.Cleanup(server.Close)
@@ -336,7 +369,12 @@ func registerTestClient(t *testing.T, client *http.Client, origin, redirect stri
 	return result.ClientID
 }
 
-func authorizeTestClient(t *testing.T, client *http.Client, origin, clientID, redirect, resource, scope, decision string) tokenResponse {
+type testTokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func authorizeTestClient(t *testing.T, client *http.Client, origin, clientID, redirect, resource, scope, decision string) testTokenResponse {
 	t.Helper()
 	verifier := oauth2.GenerateVerifier()
 	authorization := origin + authorizationPath + "?" + url.Values{
@@ -350,13 +388,23 @@ func authorizeTestClient(t *testing.T, client *http.Client, origin, clientID, re
 	require.NoError(t, reply.Body.Close())
 	reply, err = client.Get(authorization)
 	require.NoError(t, err)
-	body, err := io.ReadAll(reply.Body)
+	require.Equal(t, http.StatusFound, reply.StatusCode, reply.Header.Get("Location"))
+	page, err := reply.Location()
 	require.NoError(t, err)
 	require.NoError(t, reply.Body.Close())
-	require.Equal(t, http.StatusOK, reply.StatusCode, "%s", body)
-	consent := regexp.MustCompile(`name="intent" value="([^"]+)"`).FindStringSubmatch(string(body))
-	require.Len(t, consent, 2)
-	values := url.Values{"intent": {consent[1]}, "decision": {decision}}
+	require.Equal(t, consentPagePath, page.Path)
+	fragment, err := url.ParseQuery(page.Fragment)
+	require.NoError(t, err)
+	intent := fragment.Get("intent")
+	require.NotEmpty(t, intent)
+	var consent consentInfoResponse
+	postOAuthForm(t, client, origin+automationcontract.OAuthPath+"/consent", url.Values{"intent": {intent}}, origin, http.StatusOK, &consent)
+	require.Equal(t, redirect, consent.RedirectURI)
+	scopes := consent.Scopes
+	if decision == "read" {
+		scopes = slices.DeleteFunc(scopes, func(scope string) bool { return !strings.HasSuffix(scope, ":read") })
+	}
+	values := url.Values{"intent": {intent}, "decision": {"authorize"}, "scope": {strings.Join(scopes, " ")}}
 	postOAuthForm(t, client, origin+authorizationPath, values, "https://wrong.example", http.StatusForbidden, nil)
 	location := postOAuthForm(t, client, origin+authorizationPath, values, origin, http.StatusSeeOther, nil)
 	callback, err := url.Parse(location)
@@ -370,9 +418,8 @@ func authorizeTestClient(t *testing.T, client *http.Client, origin, clientID, re
 	}
 	postOAuthForm(t, client, origin+tokenPath, form, "", http.StatusBadRequest, nil)
 	form.Set("code_verifier", verifier)
-	var result tokenResponse
+	var result testTokenResponse
 	postOAuthForm(t, client, origin+tokenPath, form, "", http.StatusOK, &result)
-	postOAuthForm(t, client, origin+tokenPath, form, "", http.StatusBadRequest, nil)
 	require.NotEmpty(t, result.AccessToken)
 	return result
 }

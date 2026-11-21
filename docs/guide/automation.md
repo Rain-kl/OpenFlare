@@ -7,16 +7,14 @@ description: 使用 OpenFlare CLI 或 MCP 为 AI 授权日常网站运营与故�
 
 ## 开通连接
 
-在控制台的「设置 → 业务设置 → CLI 与 MCP」填写客户端可访问的 HTTPS 地址（例如 `https://openflare.example.com`），保存后打开 MCP 连接说明。反向代理需将 `/mcp`、`/.well-known/`、`/oauth/automation/`、`/automation/` 和现有 API 前缀转发至同一控制端，并保留原始 `Host` 请求头。若使用多实例控制端，各实例应共用数据库及会话密钥。
+在控制台打开「系统设置 → MCP」，填入客户端可访问的 HTTPS 地址并保存。该标签页显示 MCP 地址、实例 ID 和两种连接方式。清空地址并保存可暂停本实例的 CLI 和 MCP 入口。
 
-选择「复制给 AI」，将生成的文字发送给 AI。客户端注册 Streamable HTTP 连接后，在浏览器登录并授权。完成后通过 `openflare_connection_info` 核对实例 ID 和实际权限。客户端需支持远程 MCP、OAuth S256 PKCE 和动态客户端注册；支持带端口的 HTTP 本机回调，或与注册地址完全一致的 HTTPS 回调。无需部署独立 MCP 服务，也不需要把令牌发送给 AI。
+- **OAuth**：复制连接说明，或在客户端添加 Streamable HTTP 连接并选择 OAuth。客户端须支持动态客户端注册和 S256 PKCE。首次连接时，在浏览器使用管理员账户登录，勾选需要授予的权限并确认。
+- **Access Token**：为支持自定义请求头的客户端勾选权限并生成 Access Token。令牌只显示一次，有效期为 30 天。将它填入客户端的 `Authorization: Bearer TOKEN` 请求头。
 
-| 授权选项 | 可执行操作 |
-| --- | --- |
-| 只读排查 | 查询站点、域名、证书、节点、访问日志、指标和性能策略。 |
-| 日常运营 | 另可创建 Zone 和站点、登记并追加绑定域名、替换直连上游、修改已有性能策略的参数。档位内操作无需逐条批准。 |
+连接后可调用 `openflare_connection_info` 核对实例 ID 和已授权权限。OAuth 访问令牌有效期为 15 分钟，客户端可自动刷新，授权最长持续 30 天。「撤销全部授权」会使当前账户授予 CLI 和 MCP 客户端的授权与 Access Token 立即失效。
 
-授权面向当前实例，不限定到个别站点；实际权限也受客户端请求范围限制。在连接说明页可撤销当前账户的全部自动化授权，清空 HTTPS 地址并保存可暂停实例的自动化入口。访问令牌有效期 15 分钟，客户端可自动刷新，最长授权期为 30 天。
+反向代理需将 `/mcp`、`/.well-known/`、`/oauth/automation/`、`/automation/` 和现有 API 前缀转发至同一控制端，并保留原始 `Host` 请求头。多实例部署时，各控制端应共用数据库及会话密钥。
 
 ## 使用 CLI
 

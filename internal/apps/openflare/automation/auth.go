@@ -19,10 +19,10 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
 	"github.com/Rain-kl/Wavelet/internal/automationcontract"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/gin-gonic/gin"
+	"github.com/ory/fosite"
 	"gorm.io/gorm"
 )
 
@@ -33,7 +33,6 @@ const (
 	revokePath        = automationcontract.OAuthPath + "/revoke"
 	metadataPath      = "/.well-known/oauth-protected-resource"
 	issuerPath        = "/.well-known/oauth-authorization-server"
-	connectPath       = "/automation/connect"
 	cliClientID       = "openflare-cli"
 	grantCode         = "authorization_code"
 	grantRefresh      = "refresh_token"
@@ -159,28 +158,8 @@ var availableScopes = sync.OnceValue(func() []string {
 	return scopes
 })
 
-func normalizeScopes(raw string) (string, bool) {
-	available := availableScopes()
-	if raw == "" {
-		return strings.Join(available, " "), true
-	}
-	scopes := strings.Fields(raw)
-	for _, scope := range scopes {
-		if !slices.Contains(available, scope) {
-			return "", false
-		}
-	}
-	slices.Sort(scopes)
-	return strings.Join(slices.Compact(scopes), " "), len(scopes) != 0
-}
-
-func readScopes(scope string) string {
-	fields := strings.Fields(scope)
-	return strings.Join(slices.DeleteFunc(fields, func(value string) bool { return !strings.HasSuffix(value, ":read") }), " ")
-}
-
 func validAdmin(ctx context.Context, userID uint64) (model.User, error) {
-	user, err := repository.GetActiveUserByID(db.WithPrimaryReads(ctx), userID)
+	user, err := repository.GetAutomationUser(ctx, userID)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -214,20 +193,43 @@ func authenticate(request *http.Request, site instance, resource string) (identi
 		return identity{}, errInvalidAuth
 	}
 	fields := strings.Fields(headers[0])
-	if len(fields) != 2 || !strings.EqualFold(fields[0], "Bearer") || !strings.HasPrefix(fields[1], "ofa_") {
+	if len(fields) != 2 || !strings.EqualFold(fields[0], "Bearer") {
 		return identity{}, errInvalidAuth
 	}
 	ctx := request.Context()
-	grant, err := repository.GetAutomationAccessGrant(ctx, digest(fields[1]), resource, time.Now().UTC())
+	grant, err := automationGrant(ctx, site, fields[1], resource)
 	if err != nil {
 		return identity{}, err
 	}
-	if _, err := validAdmin(ctx, grant.UserID); err != nil {
+	if !grant.GetGrantedAudience().Has(resource) {
+		return identity{}, errInvalidAuth
+	}
+	userID, err := oauthSubject(ctx, grant.GetSession())
+	if err != nil {
 		return identity{}, err
 	}
-	return identity{userID: grant.UserID, grantID: grant.ID, scope: grant.Scope, instanceID: site.id()}, nil
+	return identity{userID: userID, grantID: grant.GetID(), scope: strings.Join(grant.GetGrantedScopes(), " "), instanceID: site.id()}, nil
+}
+
+func automationGrant(ctx context.Context, site instance, token, resource string) (fosite.Requester, error) {
+	if strings.HasPrefix(token, directTokenPrefix) {
+		if resource != site.mcpResource() {
+			return nil, errInvalidAuth
+		}
+		_, session, err := loadOAuthSession(ctx, sessionDirect, token)
+		return session, err
+	}
+	provider, _ := site.oauthServer("")
+	tokenType, session, err := provider.IntrospectToken(ctx, token, fosite.AccessToken, &fosite.DefaultSession{})
+	if errors.Is(err, fosite.ErrServerError) {
+		return nil, err
+	}
+	if err != nil || tokenType != fosite.AccessToken {
+		return nil, errInvalidAuth
+	}
+	return session, nil
 }
 
 func isInvalidCredential(err error) bool {
-	return errors.Is(err, errInvalidAuth) || errors.Is(err, gorm.ErrRecordNotFound)
+	return errors.Is(err, errInvalidAuth) || errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, fosite.ErrNotFound)
 }

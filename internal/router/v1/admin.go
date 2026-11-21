@@ -18,6 +18,7 @@ import (
 	admin_updater "github.com/Rain-kl/Wavelet/internal/apps/admin/updater"
 	admin_user "github.com/Rain-kl/Wavelet/internal/apps/admin/user"
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/automation"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/config_version"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"
 	"github.com/gin-gonic/gin"
@@ -36,6 +37,7 @@ func RegisterAdminRoutes(apiV1Router *gin.RouterGroup) {
 
 		// 3. System Configuration & Templates Settings
 		registerAdminConfigRoutes(adminRouter)
+		automation.RegisterSettings(adminRouter.Group("/automation"))
 
 		// 4. Storage & Asset Management
 		registerAdminStorageRoutes(adminRouter)

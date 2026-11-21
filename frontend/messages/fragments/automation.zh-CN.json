@@ -1,0 +1,54 @@
+{
+  "automation": {
+    "consent": {
+      "title": "授权 OpenFlare 访问",
+      "description": "「{client}」请求访问此 OpenFlare 实例。请选择允许的权限。",
+      "review": "请确认客户端及其请求的权限。",
+      "loading": "正在读取授权请求",
+      "callback": "回调地址",
+      "cancel": "取消",
+      "confirm": "确认授权",
+      "adminRequired": "此连接需要使用 OpenFlare 管理员账户授权。",
+      "invalidRequest": "授权请求无效或已过期。请从客户端重新发起连接。"
+    },
+    "scopes": {
+      "connection:read": "查看连接信息",
+      "logs:read": "查询访问日志",
+      "metrics:read": "查看流量与性能指标",
+      "nodes:read": "查看节点状态",
+      "performance:read": "查看性能策略",
+      "performance:write": "修改性能策略",
+      "sites:read": "查看站点、域名及证书",
+      "sites:write": "创建和修改站点及域名"
+    },
+    "permissionsTitle": "权限",
+    "settings": {
+      "connectionTitle": "OAuth 连接",
+      "connectionDescription": "在支持远程 MCP 的客户端添加 Streamable HTTP 连接。首次连接需要在浏览器确认授权。",
+      "endpoint": "MCP 地址",
+      "instanceId": "实例 ID",
+      "copyURL": "复制地址",
+      "copyInstructions": "复制 OAuth 连接说明",
+      "instructions": "在客户端添加名为 {name} 的远程 MCP 连接。传输方式为 Streamable HTTP，地址为 {url}，认证方式为 OAuth。浏览器授权完成后，调用 openflare_connection_info，核对实例 ID {instance} 和实际授权范围。",
+      "tokenTitle": "Access Token",
+      "tokenDescription": "适用于支持自定义请求头的客户端。选择权限并生成令牌，然后在客户端设置 Authorization: Bearer TOKEN。令牌有效期为 30 天。",
+      "tokenOnce": "此令牌仅显示一次，有效期至 {expires}。",
+      "copyToken": "复制令牌",
+      "closeToken": "关闭",
+      "createToken": "生成令牌",
+      "grantsTitle": "连接授权",
+      "revokeDescription": "撤销后，当前账户授予 CLI 和 MCP 客户端的 OAuth 权限与 Access Token 将立即失效。",
+      "revoke": "撤销全部授权",
+      "cancel": "取消",
+      "confirmRevoke": "确认撤销",
+      "revoked": "已撤销全部授权",
+      "revokeError": "无法撤销授权",
+      "createError": "无法生成令牌",
+      "copied": "已复制",
+      "copyError": "无法复制，请手动复制。",
+      "loading": "正在读取 MCP 设置",
+      "loadError": "无法读取 MCP 设置",
+      "disabled": "保存对外 HTTPS 地址后即可连接 MCP。"
+    }
+  }
+}
