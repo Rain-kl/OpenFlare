@@ -168,13 +168,18 @@ export function buildEdgeInstallCommand(serverUrl: string, agentToken: string) {
 export function buildEdgeDockerInstallCommand(
   serverUrl: string,
   agentToken: string,
-  serverVersion?: string,
+  deploymentVersion?: string,
 ) {
   const tag =
-    serverVersion?.trim().toLowerCase() === 'canary' ? 'canary' : 'latest';
+    deploymentVersion?.trim().toLowerCase() === 'development' ||
+    deploymentVersion?.trim().toLowerCase() === 'canary'
+      ? 'canary'
+      : 'latest';
   const image = `ghcr.io/rain-kl/openflare-edge:${tag}`;
   return [
-    'docker run -d --pull always --name openflare-edge --restart unless-stopped \\',
+    `docker pull ${image}`,
+    'docker rm -f openflare-edge 2>/dev/null || true',
+    'docker run -d --name openflare-edge --restart unless-stopped \\',
     '  -p 80:8080 -p 443:8443 \\',
     '  -v openflare-edge-data:/var/lib/openflare-edge \\',
     `  -e OPENFLARE_EDGE_SERVER_URL=${quoteShellArgument(serverUrl)} \\`,

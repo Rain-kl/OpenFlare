@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Copy } from 'lucide-react';
+import { Copy, Eye, EyeOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -16,6 +16,13 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { type NodeItem, StatusService } from '@/lib/services/openflare';
 
 import {
@@ -40,6 +47,10 @@ export function InstallCommand({
   const t = useTranslations('nodes.install');
   const tn = useTranslations('nodes');
   const [serverUrl, setServerUrl] = useState('');
+  const [deploymentVersion, setDeploymentVersion] = useState<
+    'stable' | 'development'
+  >('stable');
+  const [showSecrets, setShowSecrets] = useState(false);
   const variantMeta: Record<
     InstallVariant,
     {
@@ -109,7 +120,7 @@ export function InstallCommand({
       return buildEdgeDockerInstallCommand(
         normalizedServerUrl,
         node.access_token,
-        serverVersion,
+        deploymentVersion,
       );
     }
     return variant === 'relay'
@@ -123,7 +134,13 @@ export function InstallCommand({
           node.access_token,
           serverVersion,
         );
-  }, [normalizedServerUrl, node.access_token, variant, serverVersion]);
+  }, [
+    normalizedServerUrl,
+    node.access_token,
+    variant,
+    serverVersion,
+    deploymentVersion,
+  ]);
 
   const handleCopy = async (value: string, message: string) => {
     try {
@@ -175,8 +192,22 @@ export function InstallCommand({
             <p className='mt-1 text-sm break-all font-medium'>{node.node_id}</p>
           </div>
           <div className='rounded-lg border px-3 py-3'>
-            <p className='text-xs text-muted-foreground'>{meta.tokenLabel}</p>
-            <p className='mt-1 text-sm break-all font-medium'>
+            <div className='flex items-center justify-between gap-2'>
+              <p className='text-xs text-muted-foreground'>{meta.tokenLabel}</p>
+              <Button
+                type='button'
+                variant='ghost'
+                size='icon-sm'
+                aria-label={showSecrets ? t('hideToken') : t('showToken')}
+                title={showSecrets ? t('hideToken') : t('showToken')}
+                onClick={() => setShowSecrets((visible) => !visible)}
+              >
+                {showSecrets ? <EyeOff /> : <Eye />}
+              </Button>
+            </div>
+            <p
+              className={`mt-1 text-sm break-all font-medium transition-[filter] ${showSecrets ? '' : 'blur-sm select-none'}`}
+            >
               {node.access_token || tn('na')}
             </p>
           </div>
@@ -191,6 +222,29 @@ export function InstallCommand({
             placeholder='https://openflare.example.com'
           />
           <p className='text-xs text-muted-foreground'>{t('serverUrlHint')}</p>
+          {variant === 'edge' ? (
+            <div className='flex flex-col gap-2 pt-1'>
+              <Label htmlFor='edge-deployment-version'>
+                {t('deploymentVersion')}
+              </Label>
+              <Select
+                value={deploymentVersion}
+                onValueChange={(value) =>
+                  setDeploymentVersion(value as 'stable' | 'development')
+                }
+              >
+                <SelectTrigger id='edge-deployment-version' className='w-full'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='stable'>{t('stableVersion')}</SelectItem>
+                  <SelectItem value='development'>
+                    {t('developmentVersion')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
         </div>
 
         {!node.access_token ? (
@@ -207,7 +261,9 @@ export function InstallCommand({
                     {t('edgeScriptHint')}
                   </p>
                 ) : null}
-                <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs whitespace-pre-wrap'>
+                <pre
+                  className={`overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs whitespace-pre-wrap transition-[filter] ${showSecrets ? '' : 'blur-sm select-none'}`}
+                >
                   {scriptCommand}
                 </pre>
               </div>
@@ -220,7 +276,9 @@ export function InstallCommand({
                     {t('edgeDockerHint')}
                   </p>
                 ) : null}
-                <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs whitespace-pre-wrap'>
+                <pre
+                  className={`overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs whitespace-pre-wrap transition-[filter] ${showSecrets ? '' : 'blur-sm select-none'}`}
+                >
                   {dockerCommand}
                 </pre>
               </div>
