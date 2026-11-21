@@ -52,16 +52,34 @@ it('selects only the requested scopes in each enabled permission group', async (
   expect(confirm).toBeDisabled();
   expect(new FormData(form).get('scope')).toBe('');
 
+  const readToggle = screen.getByRole('button', { name: '读取权限' });
+  const writeToggle = screen.getByRole('button', { name: '写入权限' });
+  expect(readToggle).toHaveAttribute('aria-expanded', 'false');
+  expect(writeToggle).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByText('查看连接信息')).not.toBeInTheDocument();
+  expect(screen.queryByText('创建和修改站点及域名')).not.toBeInTheDocument();
+
+  await user.click(readToggle);
   const readDetails = screen.getByRole('region', { name: '读取权限' });
-  const writeDetails = screen.getByRole('region', { name: '写入权限' });
+  expect(readToggle).toHaveAttribute('aria-expanded', 'true');
+  expect(writeToggle).toHaveAttribute('aria-expanded', 'false');
   expect(within(readDetails).getAllByRole('listitem')).toHaveLength(2);
+
+  await user.click(writeToggle);
+  const writeDetails = screen.getByRole('region', { name: '写入权限' });
   expect(within(writeDetails).getByRole('listitem')).toHaveTextContent(
     '创建和修改站点及域名',
   );
+  expect(new FormData(form).get('scope')).toBe('');
 
   await user.click(read);
   expect(new FormData(form).get('scope')).toBe('connection:read sites:read');
   expect(confirm).toBeEnabled();
+
+  await user.click(readToggle);
+  expect(readToggle).toHaveAttribute('aria-expanded', 'false');
+  expect(writeToggle).toHaveAttribute('aria-expanded', 'true');
+  expect(read).toBeChecked();
 
   await user.click(write);
   expect(new FormData(form).get('scope')).toBe(

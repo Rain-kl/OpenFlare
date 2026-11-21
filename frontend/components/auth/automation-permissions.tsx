@@ -1,12 +1,18 @@
 'use client';
 
 import { useId } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { Button } from '@/components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   Field,
   FieldGroup,
-  FieldLabel,
   FieldLegend,
   FieldSet,
 } from '@/components/ui/field';
@@ -38,20 +44,31 @@ export function AutomationPermissions({
             scope.endsWith(`:${group}`),
           );
           if (!groupScopes.length) return null;
-          const switchId = `${id}-${group}`;
-          const labelId = `${switchId}-label`;
+          const labelId = `${id}-${group}`;
 
           return (
-            <div
+            <Collapsible
               key={group}
-              className='flex min-w-0 flex-col gap-3 rounded-md border border-dashed p-3'
+              className='min-w-0 rounded-md border border-dashed p-2'
             >
-              <Field orientation='horizontal' data-disabled={disabled}>
-                <FieldLabel id={labelId} htmlFor={switchId}>
-                  {t(`permissionGroups.${group}`)}
-                </FieldLabel>
+              <Field orientation='horizontal' className='pe-2'>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='sm'
+                    className='group/permission min-w-0 flex-1 justify-start'
+                  >
+                    <ChevronRight
+                      data-icon='inline-start'
+                      aria-hidden='true'
+                      className='transition-transform group-data-[state=open]/permission:rotate-90 motion-reduce:transition-none'
+                    />
+                    <span id={labelId}>{t(`permissionGroups.${group}`)}</span>
+                  </Button>
+                </CollapsibleTrigger>
                 <Switch
-                  id={switchId}
+                  aria-labelledby={labelId}
                   checked={groupScopes.every((scope) =>
                     selected.includes(scope),
                   )}
@@ -66,15 +83,10 @@ export function AutomationPermissions({
                   }}
                 />
               </Field>
-              <div
-                role='region'
-                aria-labelledby={labelId}
-                tabIndex={0}
-                className='h-24 overflow-y-auto overscroll-y-contain rounded-sm focus-visible:outline-2 focus-visible:outline-ring sm:h-32'
-              >
+              <CollapsibleContent role='region' aria-labelledby={labelId}>
                 <ul
                   role='list'
-                  className='flex list-disc flex-col gap-1.5 ps-4 pe-2 text-sm wrap-anywhere text-muted-foreground'
+                  className='flex list-disc flex-col gap-1.5 pt-2 pb-1 ps-8 pe-2 text-sm wrap-anywhere text-muted-foreground'
                 >
                   {groupScopes.map((scope) => (
                     <li key={scope}>
@@ -82,8 +94,8 @@ export function AutomationPermissions({
                     </li>
                   ))}
                 </ul>
-              </div>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
           );
         })}
       </FieldGroup>
