@@ -16,4 +16,4 @@ CLI 与 MCP 的 OAuth 授权码、S256 PKCE、令牌签发、刷新与撤销由 
 
 ## 开通与验收
 
-开通和操作步骤见 [CLI 与 MCP 运维指南](../../guide/automation.md)。发布工作流为 Linux、macOS 和 Windows 平台分别构建 CLI。服务端集成测试覆盖真实 SQLite 迁移、HTTPS、浏览器同意、OAuth 授权码交换、REST 和 MCP，验证建站、追加域名、换源、快照生成、性能参数更新、日志与指标查询、越权和参数错误。
+开通和操作步骤见 [CLI 与 MCP 指南](../../guide/automation.md)。发布工作流为 Linux、macOS 和 Windows 平台分别构建 CLI。服务端集成测试覆盖真实 SQLite 迁移、HTTPS、浏览器同意、OAuth 授权码交换、REST 和 MCP，验证建站、追加域名、换源、快照生成、性能参数更新、日志与指标查询、越权和参数错误。

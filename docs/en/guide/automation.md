@@ -1,9 +1,9 @@
 ---
-title: CLI and MCP operations
+title: CLI and MCP
 description: Authorize OpenFlare CLI and MCP for routine site operations and troubleshooting.
 ---
 
-# CLI and MCP operations
+# CLI and MCP
 
 Open **System settings → MCP** in the console. Save an HTTP or HTTPS origin reachable by clients to see the MCP URL, instance ID, and connection options. Use HTTPS for public deployments. Some MCP clients require HTTPS.
 

@@ -1,9 +1,9 @@
 ---
-title: CLI 与 MCP 运维
+title: CLI 与 MCP
 description: 使用 OpenFlare CLI 或 MCP 为 AI 授权日常网站运营与故障排查。
 ---
 
-# CLI 与 MCP 运维
+# CLI 与 MCP
 
 ## 开通连接
 
