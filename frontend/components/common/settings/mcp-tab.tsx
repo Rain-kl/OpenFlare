@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { CircleAlert, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,6 +36,7 @@ import type { SystemConfig } from '@/lib/services/admin';
 export function MCPTab({ config }: { config?: SystemConfig }) {
   const t = useTranslations('automation.settings');
   const format = useFormatter();
+  const locale = useLocale();
   const [scopes, setScopes] = useState<string[]>([]);
   const settings = useQuery({
     queryKey: ['admin', 'automation', 'mcp', config?.value],
@@ -83,7 +84,17 @@ export function MCPTab({ config }: { config?: SystemConfig }) {
       ) : details?.configuration_error === 'session_secret_too_short' ? (
         <Alert variant='destructive'>
           <CircleAlert />
-          <AlertDescription>{t('sessionSecretTooShort')}</AlertDescription>
+          <AlertDescription>
+            <p>{t('sessionSecretTooShort')}</p>
+            <a
+              href={`https://openflare.fyrn.link${locale === 'zh-CN' ? '' : '/en'}/guide/session-secret-rotation`}
+              target='_blank'
+              rel='noreferrer'
+              className='underline underline-offset-4'
+            >
+              {t('rotationGuide')}
+            </a>
+          </AlertDescription>
         </Alert>
       ) : enabled ? (
         <>

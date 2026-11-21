@@ -47,7 +47,8 @@
       "copied": "Copied",
       "copyError": "Could not copy. Copy the value manually.",
       "loading": "Loading MCP settings",
-      "sessionSecretTooShort": "Automation requires a session secret of at least 32 bytes. The same secret decrypts stored credentials. Migrate those credentials before changing the secret on an existing instance.",
+      "sessionSecretTooShort": "Automation requires a session secret of at least 32 bytes. The migration command checks whether stored credentials need to be re-encrypted.",
+      "rotationGuide": "View the session secret rotation guide",
       "loadError": "Could not load MCP settings",
       "disabled": "Save an address reachable by clients to enable MCP connections."
     }

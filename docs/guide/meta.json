@@ -23,6 +23,7 @@
     "sso",
     "---运维支持---",
     "automation",
+    "session-secret-rotation",
     "troubleshooting",
     "credits"
   ]

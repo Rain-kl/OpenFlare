@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/credential"
 	"github.com/Rain-kl/Wavelet/internal/automationcontract"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -69,8 +70,7 @@ func loadInstance(ctx context.Context) (instance, error) {
 		return instance{}, err
 	}
 	secret := config.Config.App.SessionSecret
-	const minSessionSecretLength = 32
-	if len(secret) < minSessionSecretLength {
+	if len(secret) < credential.MinSessionSecretBytes {
 		return instance{}, errShortSessionSecret
 	}
 	return instance{origin: origin, secret: secret}, nil
