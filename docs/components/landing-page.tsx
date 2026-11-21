@@ -34,7 +34,7 @@ const copy = {
     edge: 'OpenFlare Edge',
     origin: '源站与私有服务',
     statNodes: '边缘代理',
-    statSync: '版本化发布',
+    statSync: '边缘安全防护',
     statHosting: '自建部署',
     featureEyebrow: 'PLATFORM CAPABILITIES',
     featuresTitle: '从配置到边缘执行',
@@ -109,7 +109,7 @@ const copy = {
     edge: 'OpenFlare Edge',
     origin: 'Origins & private services',
     statNodes: 'edge proxy',
-    statSync: 'versioned releases',
+    statSync: 'edge security',
     statHosting: 'self-hosted',
     featureEyebrow: 'PLATFORM CAPABILITIES',
     featuresTitle: 'From configuration to edge execution',
@@ -247,7 +247,7 @@ export function LandingPage({ locale }: LandingPageProps) {
           <div className="mt-12 flex flex-wrap gap-x-8 gap-y-4 border-t border-dashed border-fd-border pt-6">
             {[
               ['PINGORA', text.statNodes],
-              ['RELEASE', text.statSync],
+              ['WAF', text.statSync],
               ['SELF-HOST', text.statHosting],
             ].map(([value, label]) => (
               <div className="flex items-center gap-2.5" key={label}>
@@ -312,7 +312,7 @@ export function LandingPage({ locale }: LandingPageProps) {
             <div className="mt-4 grid grid-cols-3 divide-x divide-dashed divide-fd-border text-center">
               {[
                 ['PINGORA', text.statNodes],
-                ['RELEASE', text.statSync],
+                ['WAF', text.statSync],
                 ['SELF-HOST', text.statHosting],
               ].map(([value, label]) => (
                 <div className="px-2" key={label}>
