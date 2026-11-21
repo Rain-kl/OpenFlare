@@ -6,7 +6,6 @@ import {
   ArrowUpRight,
   BookOpen,
   Boxes,
-  Cloud,
   Globe2,
   Network,
   ShieldCheck,
@@ -32,7 +31,6 @@ const copy = {
     status: '边缘网络拓扑示意',
     statusDetail: '控制面 · 配置发布 · 边缘节点',
     visitor: '访问者',
-    cloudflare: 'Cloudflare（可选）',
     edge: 'OpenFlare Edge',
     origin: '源站与私有服务',
     statNodes: '边缘代理',
@@ -108,7 +106,6 @@ const copy = {
     status: 'Edge network topology',
     statusDetail: 'Control plane · releases · edge nodes',
     visitor: 'Visitors',
-    cloudflare: 'Cloudflare · optional',
     edge: 'OpenFlare Edge',
     origin: 'Origins & private services',
     statNodes: 'edge proxy',
@@ -283,15 +280,10 @@ export function LandingPage({ locale }: LandingPageProps) {
                 <path className="network-line" d="M95 82 C220 102 236 236 315 236" fill="none" strokeWidth="1.5" />
                 <path className="network-line" d="M315 154 C415 154 424 102 542 102" fill="none" strokeWidth="1.5" />
                 <path className="network-line" d="M315 236 C415 236 430 102 542 102" fill="none" strokeWidth="1.5" />
-                <path className="network-line" d="M95 82 C198 46 238 46 315 154" fill="none" strokeWidth="1" />
               </svg>
               <div className="absolute left-[5%] top-[17%] flex items-center gap-2 rounded-lg border border-dashed border-fd-border bg-fd-card/90 px-2.5 py-2 text-[11px] font-medium sm:px-3 sm:text-xs">
                 <Globe2 className="size-4 text-fd-muted-foreground" />
                 {text.visitor}
-              </div>
-              <div className="absolute left-[35%] top-[7%] flex items-center gap-2 rounded-lg border border-dashed border-fd-border bg-fd-card/90 px-2.5 py-2 text-[10px] font-medium sm:px-3 sm:text-xs">
-                <Cloud className="size-4 text-fd-primary" />
-                {text.cloudflare}
               </div>
               <div className="absolute left-[35%] top-[39%] flex min-w-[168px] flex-col gap-2 rounded-xl border border-fd-primary/40 bg-fd-card px-3 py-3 shadow-[0_0_35px_rgba(16,185,129,.08)] sm:min-w-[190px] sm:px-4">
                 <div className="flex items-center gap-2 text-[11px] font-semibold sm:text-xs">
