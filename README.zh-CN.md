@@ -219,18 +219,19 @@ volumes:
 
 ### 2. 部署边缘 Agent 节点
 
-在任意作为边缘代理的服务器上执行（需开放 80/443 端口）：
+在支持 systemd 的 Linux `amd64` 或 `arm64` 边缘服务器上安装 OpenFlare Edge，并开放 TCP 入站端口 `80` 和 `443`。在控制台「系统设置 → OpenFlare → Discovery Token 与部署」中复制 Discovery Token，然后替换命令中的控制端地址和令牌：
 
 ```bash
-docker pull ghcr.io/rain-kl/openflare-agent:latest
-docker run -d --name openflare-agent --restart unless-stopped \
-  -p 80:80 -p 443:443/tcp -p 443:443/udp \
-  -v openflare-agent-pages:/data/var/lib/openflare/pages \
-  -e OPENFLARE_SERVER_URL=http://<YOUR_SERVER_IP>:3000 \
-  -e OPENFLARE_AGENT_TOKEN=<YOUR_AGENT_TOKEN> \
-  ghcr.io/rain-kl/openflare-agent:latest
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-edge.sh | sudo bash -s -- --server-url 'https://openflare.example.com' --token-type discovery --token '<Discovery Token>'
 ```
-*(Token 可在管理后台的「节点管理 -> 详情 -> 节点信息」中直接一键生成与复制)*
+
+安装脚本会下载最新正式版 Edge 并启动 `openflare-edge` systemd 服务。若要接管已有节点，请使用该节点的专属令牌，并将 `--token-type` 设为 `node`。
+
+将已部署的 Edge 节点更新到最新正式版：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash
+```
 
 ---
 

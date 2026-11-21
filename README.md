@@ -218,18 +218,19 @@ volumes:
 
 ### 2. Connect Edge Agent Node
 
-Run the Agent container on any edge server (ensure ports 80/443 are open):
+Install OpenFlare Edge on a Linux `amd64` or `arm64` edge server with systemd. Allow inbound TCP ports `80` and `443`. In the dashboard, copy the Discovery Token from **System Settings → OpenFlare → Discovery Token & Deployment**. Replace the server URL and token in this command:
 
 ```bash
-docker pull ghcr.io/rain-kl/openflare-agent:latest
-docker run -d --name openflare-agent --restart unless-stopped \
-  -p 80:80 -p 443:443/tcp -p 443:443/udp \
-  -v openflare-agent-pages:/data/var/lib/openflare/pages \
-  -e OPENFLARE_SERVER_URL=http://<YOUR_SERVER_IP>:3000 \
-  -e OPENFLARE_AGENT_TOKEN=<YOUR_AGENT_TOKEN> \
-  ghcr.io/rain-kl/openflare-agent:latest
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-edge.sh | sudo bash -s -- --server-url 'https://openflare.example.com' --token-type discovery --token '<DISCOVERY_TOKEN>'
 ```
-*(Copy the node token directly from Node Management in the dashboard)*
+
+The installer downloads the latest stable Edge release and starts the `openflare-edge` systemd service. To attach an existing node, use its node token and set `--token-type node`.
+
+Update an installed Edge node to the latest stable release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash
+```
 
 ---
 
