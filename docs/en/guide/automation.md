@@ -15,10 +15,12 @@ After connecting, verify the instance ID and effective scopes using `openflare_c
 Download the matching `openflare_cli_*` archive from [OpenFlare Releases](https://github.com/Rain-kl/OpenFlare/releases) and add the extracted binary to `PATH`. Linux requires an available Secret Service credential store.
 
 ```sh
-openflare auth login --profile prod --server https://openflare.example.com
-openflare connection info --profile prod
-openflare operations list --profile prod
+openflare auth login --server https://openflare.example.com
+openflare connection info
+openflare operations list
 openflare site create --help
 ```
 
-Write commands require an explicit `--profile`. Use `zone list` and `domain list` to resolve IDs before creating or binding sites. An HTTPS site requires existing certificates that cover its domains. Site writes do not change public DNS or issue certificates. Use `node get` to check whether the configuration has been applied to the edge.
+Read and write commands use the saved default connection. To manage another instance, sign in with a name using `openflare auth login --profile staging --server https://staging.example.com`, then pass `--profile staging` on commands for that instance.
+
+Use `zone list` and `domain list` to resolve IDs before creating or binding sites. An HTTPS site requires existing certificates that cover its domains. Site writes do not change public DNS or issue certificates. Use `node get` to check whether the configuration has been applied to the edge.

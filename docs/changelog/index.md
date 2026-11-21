@@ -29,6 +29,7 @@ sidebar: false
 ### ⚡️ 优化与改进
 
 - OpenFlare Edge 的 amd64 和 arm64 容器镜像改用 Alpine 和静态链接的二进制，减少拉取体积。
+- OpenFlare CLI 登录后可直接使用默认连接执行读写操作，管理多个实例时可按需指定 `--profile`。
 
 ### 💄 其他/体验
 

@@ -50,7 +50,7 @@ func rootCommand() *cobra.Command {
 			return nil
 		},
 	}
-	root.PersistentFlags().Var(&operationFlag{value: defaultProfile, target: &options.profile}, "profile", "Connection profile")
+	root.PersistentFlags().Var(&operationFlag{value: defaultProfile, target: &options.profile}, "profile", "Use a named connection instead of the default connection")
 	options.profile = defaultProfile
 	root.PersistentFlags().StringVar(&options.output, "output", jsonOutput, "Output format (json)")
 	operations := automationcontract.Operations()
@@ -90,9 +90,6 @@ func registerOperation(root *cobra.Command, options *cliOptions, operation autom
 		}
 	}
 	command.RunE = func(command *cobra.Command, _ []string) error {
-		if operation.Effect == automationcontract.EffectWrite && !command.Flags().Changed("profile") {
-			return errors.New("write operations require an explicit --profile")
-		}
 		parameters := make(map[string]string)
 		for _, param := range operation.Parameters {
 			flag := command.Flags().Lookup(flagName(param))

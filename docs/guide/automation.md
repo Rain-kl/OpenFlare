@@ -23,13 +23,15 @@ description: 使用 OpenFlare CLI 或 MCP 为 AI 授权日常网站运营与故�
 从 [OpenFlare Releases](https://github.com/Rain-kl/OpenFlare/releases) 下载对应系统的 `openflare_cli_*`，解压后将 `openflare`（Windows 为 `openflare.exe`）加入 `PATH`。也可在源码目录运行 `go build -o bin/openflare ./cmd/openflare`。在 Linux 上，CLI 需要可用的 Secret Service 凭据库；macOS 和 Windows 使用系统凭据库。
 
 ```sh
-openflare auth login --profile prod --server https://openflare.example.com
-openflare connection info --profile prod
-openflare operations list --profile prod
+openflare auth login --server https://openflare.example.com
+openflare connection info
+openflare operations list
 openflare site create --help
 ```
 
-写入命令必须指定 `--profile`，以明确目标实例。数组参数使用 JSON 字符串数组，数字 ID 也要加引号。浏览器侧是否启用 HTTPS 与回源 URL 的协议分别设置。
+登录时指定服务器地址，后续读写命令均使用保存的默认连接。管理多个实例时，可用 `openflare auth login --profile staging --server https://staging.example.com` 保存额外连接，访问该实例的命令再加 `--profile staging`。
+
+数组参数使用 JSON 字符串数组，数字 ID 也要加引号。浏览器侧是否启用 HTTPS 与回源 URL 的协议分别设置。
 
 ## 常用操作
 

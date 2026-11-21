@@ -13,7 +13,7 @@ import (
 	"github.com/zalando/go-keyring"
 )
 
-func TestSiteCommandTargetsExplicitProfile(t *testing.T) {
+func TestSiteCommandUsesDefaultOrNamedConnection(t *testing.T) {
 	const instanceID = "of_cli_test"
 	var captured *http.Request
 	var body []byte
@@ -46,19 +46,26 @@ func TestSiteCommandTargetsExplicitProfile(t *testing.T) {
 	}
 	args := []string{"site", "create", "--site-name", "Example", "--enable-https", "false", "--domain-record-ids", `["42"]`, "--upstreams", `["https://origin.example.com"]`}
 	_, err := invoke(args...)
-	require.ErrorContains(t, err, "explicit --profile")
+	require.ErrorContains(t, err, `profile "default" is not signed in`)
+	require.NoError(t, storeProfile(defaultProfile, connectionProfile{
+		Origin: server.URL, Prefix: "/api", InstanceID: instanceID,
+		Token: oauthTokens{AccessToken: "default-access", ExpiresAt: time.Now().Add(time.Minute)},
+	}))
 	_, err = invoke(append(append([]string{}, args...), "--profile", "production", "--site-name", "Duplicate")...)
 	require.ErrorContains(t, err, "only be specified once")
 	_, err = invoke(append(append([]string{}, args...), "--profile", "production", "--profile", "staging")...)
 	require.ErrorContains(t, err, "only be specified once")
 	require.Nil(t, captured)
-	output, err := invoke(append(args, "--profile", "production")...)
+	output, err := invoke(args...)
 	require.NoError(t, err)
 	require.JSONEq(t, `{"state":"saved_on_controller"}`, output)
 	require.Equal(t, http.MethodPost, captured.Method)
 	require.Equal(t, "/api/v1/automation/sites", captured.URL.Path)
 	require.Equal(t, instanceID, captured.Header.Get(automationcontract.InstanceHeader))
-	require.Equal(t, "Bearer test-access", captured.Header.Get("Authorization"))
+	require.Equal(t, "Bearer default-access", captured.Header.Get("Authorization"))
 	require.NotEmpty(t, captured.Header.Get(automationcontract.ContractHeader))
 	require.JSONEq(t, `{"site_name":"Example","enable_https":false,"domain_record_ids":["42"],"upstreams":["https://origin.example.com"]}`, string(body))
+	_, err = invoke(append(args, "--profile", "production")...)
+	require.NoError(t, err)
+	require.Equal(t, "Bearer test-access", captured.Header.Get("Authorization"))
 }
