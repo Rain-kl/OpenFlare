@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
-import defaultMdxComponents, { createRelativeLink } from 'fumadocs-ui/mdx';
+import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { DocsBody, DocsPage } from 'fumadocs-ui/page';
+import { getMdxComponents } from '@/components/mdx';
 import { source } from '@/lib/source';
 
 export function generateStaticParams() {
@@ -39,12 +40,7 @@ export default async function ChineseDocsPage({
       path: `docs/${page.path}`,
     }}>
       <DocsBody>
-        <MDXContent
-          components={{
-            ...defaultMdxComponents,
-            a: createRelativeLink(source, page),
-          }}
-        />
+        <MDXContent components={getMdxComponents({ a: createRelativeLink(source, page) })} />
       </DocsBody>
     </DocsPage>
   );

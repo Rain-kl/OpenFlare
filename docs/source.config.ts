@@ -1,6 +1,8 @@
 import { defineConfig, defineDocs } from 'fumadocs-mdx/config';
+import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins';
 import { pageSchema } from 'fumadocs-core/source/schema';
 import { z } from 'zod';
+import { remarkGithubAlerts } from './lib/remark-github-alerts';
 
 const sections = ['guide', 'deployment', 'reference', 'design', 'changelog'];
 const docsFiles = sections.flatMap((section) => [
@@ -39,4 +41,8 @@ export const docs = defineDocs({
   meta: { files: metaFiles },
 });
 
-export default defineConfig();
+export default defineConfig({
+  mdxOptions: {
+    remarkPlugins: (plugins) => [...plugins, remarkGithubAlerts, remarkMdxMermaid],
+  },
+});
