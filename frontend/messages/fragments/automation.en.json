@@ -2,7 +2,7 @@
   "automation": {
     "consent": {
       "title": "Authorize OpenFlare access",
-      "description": "{client} requests access to this OpenFlare instance. Select the permissions to grant.",
+      "description": "{client} requests access to this OpenFlare instance. Select the permission groups to grant.",
       "review": "Review the client and its requested permissions.",
       "loading": "Loading authorization request",
       "callback": "Callback URL",
@@ -22,6 +22,10 @@
       "sites:write": "Create and modify sites and domains"
     },
     "permissionsTitle": "Permissions",
+    "permissionGroups": {
+      "read": "Read permissions",
+      "write": "Write permissions"
+    },
     "settings": {
       "connectionTitle": "OAuth connection",
       "connectionDescription": "Add a remote MCP connection using Streamable HTTP. The first connection requires browser consent.",
@@ -31,7 +35,7 @@
       "copyInstructions": "Copy OAuth instructions",
       "instructions": "Add a remote MCP connection named {name} using Streamable HTTP at {url} with OAuth authentication. After granting access in the browser, call openflare_connection_info to confirm instance ID {instance} and the permissions granted.",
       "tokenTitle": "Access token",
-      "tokenDescription": "Connect with an existing personal access token. Built-in MCP accepts only tokens with administrator privileges enabled; that token can call all MCP tools. Use OAuth and select permissions individually when you need finer control.",
+      "tokenDescription": "Connect with an existing personal access token. Built-in MCP accepts only tokens with administrator privileges enabled; that token can call all MCP tools. OAuth allows read and write permissions to be granted separately.",
       "authorizationHeader": "Authorization: Bearer TOKEN",
       "manageAccessTokens": "Manage personal access tokens",
       "instructionsAccessToken": "Add a Streamable HTTP connection at {url}. Set Authorization: Bearer TOKEN in the custom request headers. Create a token with administrator privileges enabled on the Personal Access Tokens page, where you can also manage, rotate, or revoke it. The token can call all MCP tools.",

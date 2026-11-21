@@ -2,7 +2,7 @@
   "automation": {
     "consent": {
       "title": "授权 OpenFlare 访问",
-      "description": "「{client}」请求访问此 OpenFlare 实例。请选择允许的权限。",
+      "description": "「{client}」请求访问此 OpenFlare 实例。请选择要授予的权限组。",
       "review": "请确认客户端及其请求的权限。",
       "loading": "正在读取授权请求",
       "callback": "回调地址",
@@ -22,6 +22,10 @@
       "sites:write": "创建和修改站点及域名"
     },
     "permissionsTitle": "权限",
+    "permissionGroups": {
+      "read": "读取权限",
+      "write": "写入权限"
+    },
     "settings": {
       "connectionTitle": "OAuth 连接",
       "connectionDescription": "在支持远程 MCP 的客户端添加 Streamable HTTP 连接。首次连接需要在浏览器确认授权。",
@@ -31,7 +35,7 @@
       "copyInstructions": "复制 OAuth 连接说明",
       "instructions": "在客户端添加名为 {name} 的远程 MCP 连接。传输方式为 Streamable HTTP，地址为 {url}，认证方式为 OAuth。浏览器授权完成后，调用 openflare_connection_info，核对实例 ID {instance} 和实际授权范围。",
       "tokenTitle": "Access Token",
-      "tokenDescription": "使用系统已有的个人访问令牌连接。内置 MCP 只接受启用管理员权限的令牌；该令牌可调用全部 MCP 工具。需要逐项控制权限时，请使用 OAuth 并勾选授权项。",
+      "tokenDescription": "使用系统已有的个人访问令牌连接。内置 MCP 只接受启用管理员权限的令牌；该令牌可调用全部 MCP 工具。OAuth 支持分别授予读取和写入权限。",
       "authorizationHeader": "Authorization: Bearer TOKEN",
       "manageAccessTokens": "管理个人访问令牌",
       "instructionsAccessToken": "在客户端添加 Streamable HTTP 连接，地址为 {url}。在自定义请求头中设置 Authorization: Bearer TOKEN。请从个人访问令牌页面创建启用了管理员权限的令牌，并在该页面管理、轮换或撤销。令牌可调用全部 MCP 工具。",

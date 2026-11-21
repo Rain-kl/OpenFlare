@@ -7,8 +7,8 @@ description: Authorize OpenFlare CLI and MCP for routine site operations and tro
 
 Open **System settings → MCP** in the console. Save an HTTP or HTTPS origin reachable by clients to see the MCP URL, instance ID, and connection options. Use HTTPS for public deployments. Some MCP clients require HTTPS.
 
-- **OAuth:** Copy the connection instructions, or add a Streamable HTTP connection manually using OAuth. The client must support dynamic client registration and S256 PKCE. On the first connection, sign in as an administrator, select the permissions to grant, and confirm.
-- **Access token:** Create and manage an existing personal access token on the Personal Access Tokens settings page. Set `Authorization: Bearer TOKEN` in the client's custom request headers. Built-in MCP accepts only personal tokens with administrator privileges enabled; that token can call all MCP tools. Use OAuth when you need to grant MCP permissions individually.
+- **OAuth:** Copy the connection instructions, or add a Streamable HTTP connection manually using OAuth. The client must support dynamic client registration and S256 PKCE. On the first connection, sign in as an administrator and review the requested read and write permissions. Both groups are off by default. Enable a group and confirm to grant all the permissions listed in that group. For queries only, enable read permissions only.
+- **Access token:** Create and manage an existing personal access token on the Personal Access Tokens settings page. Set `Authorization: Bearer TOKEN` in the client's custom request headers. Built-in MCP accepts only personal tokens with administrator privileges enabled; that token can call all MCP tools.
 
 Call `openflare_connection_info` to verify the instance ID and granted permissions. OAuth access tokens last 15 minutes and can be refreshed for up to 30 days. **Revoke all OAuth grants** immediately invalidates the account's CLI and MCP OAuth grants. Manage personal access tokens through the existing rotation and revocation controls.
 
