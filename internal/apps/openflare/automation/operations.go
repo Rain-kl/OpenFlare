@@ -2,6 +2,7 @@ package automation
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -23,6 +24,7 @@ const (
 	connectionOperation = "openflare_connection_info"
 	nodeListOperation   = "openflare_node_list"
 	nodeGetOperation    = "openflare_node_get"
+	edgeNodeType        = "edge_node"
 )
 
 type operationFunc func(context.Context, identity, map[string]string) (any, *operationError)
@@ -78,24 +80,38 @@ type Catalog struct {
 
 func bindings() []binding {
 	handlers := map[string]operationFunc{
-		connectionOperation:            connectionInfo,
-		nodeListOperation:              listNodes,
-		nodeGetOperation:               getNode,
-		"openflare_zone_list":          listZones,
-		"openflare_zone_create":        createZone,
-		"openflare_domain_list":        listDomains,
-		"openflare_domain_create":      createDomain,
-		"openflare_certificate_list":   listCertificates,
-		"openflare_site_list":          listSites,
-		"openflare_site_overview":      siteOverview,
-		"openflare_site_create":        createSite,
-		"openflare_site_bind_domain":   bindDomain,
-		"openflare_site_set_upstreams": setUpstreams,
-		"openflare_logs_list":          listAccessLogs,
-		"openflare_metrics_traffic":    trafficMetrics,
-		"openflare_node_metrics":       nodeMetrics,
-		"openflare_performance_list":   listPerformance,
-		"openflare_performance_set":    setPerformance,
+		connectionOperation:             connectionInfo,
+		nodeListOperation:               listNodes,
+		nodeGetOperation:                getNode,
+		"openflare_zone_list":           listZones,
+		"openflare_zone_create":         createZone,
+		"openflare_domain_list":         listDomains,
+		"openflare_domain_create":       createDomain,
+		"openflare_certificate_list":    listCertificates,
+		"openflare_site_list":           listSites,
+		"openflare_site_overview":       siteOverview,
+		"openflare_site_create":         createSite,
+		"openflare_site_bind_domain":    bindDomain,
+		"openflare_site_set_upstreams":  setUpstreams,
+		"openflare_logs_list":           listAccessLogs,
+		"openflare_metrics_traffic":     trafficMetrics,
+		"openflare_node_metrics":        nodeMetrics,
+		"openflare_performance_list":    listPerformance,
+		"openflare_performance_set":     setPerformance,
+		"openflare_site_get_settings":   getSiteSettings,
+		"openflare_site_patch_settings": patchSiteSettings,
+		"openflare_site_set_auth":       setSiteAuth,
+		"openflare_site_get_pow":        getSitePoW,
+		"openflare_site_set_pow":        setSitePoW,
+		"openflare_waf_list":            listWAFFlows,
+		"openflare_site_set_waf":        setSiteWAF,
+		"openflare_attack_group_list":   listAttackGroups,
+		"openflare_attack_group_create": createAttackGroup,
+		"openflare_attack_group_update": updateAttackGroup,
+		"openflare_attack_group_delete": deleteAttackGroup,
+		"openflare_ip_group_list":       listIPGroups,
+		"openflare_ip_group_get":        getIPGroup,
+		"openflare_node_health":         nodeHealth,
 	}
 	var result []binding
 	for _, operation := range automationcontract.Operations() {
@@ -110,6 +126,32 @@ func bindings() []binding {
 		panic("missing generated automation operation: " + id)
 	}
 	return result
+}
+
+var bodyContracts = func() map[string]automationcontract.Operation {
+	result := make(map[string]automationcontract.Operation)
+	for _, operation := range automationcontract.Operations() {
+		if operation.Effect == automationcontract.EffectWrite {
+			result[operation.ID] = operation
+		}
+	}
+	return result
+}()
+
+// decodeBodyFields converts already validated transport arguments into their documented DTO.
+func decodeBodyFields(operationID string, input map[string]string, dst any) error {
+	operation, exists := bodyContracts[operationID]
+	if !exists {
+		panic("missing body contract: " + operationID)
+	}
+	raw, err := operation.JSONBody(input)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(raw, dst); err != nil {
+		return errors.New("request body does not match the operation's field types")
+	}
+	return nil
 }
 
 func recordID(input map[string]string, key string) (uint, error) {
@@ -223,6 +265,18 @@ func connectionInfo(ctx context.Context, actor identity, _ map[string]string) (a
 // @x-automation {"cli":"node list","scope":"nodes:read","effect":"read"}
 // @Router /api/v1/automation/nodes [get]
 func listNodes(ctx context.Context, _ identity, input map[string]string) (any, *operationError) {
+	result, failure := nodePage(ctx, nodeListOperation, input)
+	if failure != nil {
+		return nil, failure
+	}
+	results := make([]NodeSummary, 0, len(result.Results))
+	for _, item := range result.Results {
+		results = append(results, summarizeNode(item))
+	}
+	return NodePage{Total: result.Total, Results: results, Page: result.Page, PageSize: result.PageSize}, nil
+}
+
+func nodePage(ctx context.Context, operation string, input map[string]string) (*node.ListResult, *operationError) {
 	page, _ := strconv.Atoi(input["page"])
 	pageSize, _ := strconv.Atoi(input["page_size"])
 	if input["page"] != "" && page == 0 || input["page_size"] != "" && pageSize == 0 {
@@ -235,13 +289,9 @@ func listNodes(ctx context.Context, _ identity, input map[string]string) (any, *
 		if node.IsInvalidListQuery(err) {
 			return nil, invalidArguments(errors.New("invalid node pagination or filters"))
 		}
-		return nil, operationFailed(ctx, nodeListOperation, err)
+		return nil, operationFailed(ctx, operation, err)
 	}
-	results := make([]NodeSummary, 0, len(result.Results))
-	for _, item := range result.Results {
-		results = append(results, summarizeNode(item))
-	}
-	return NodePage{Total: result.Total, Results: results, Page: result.Page, PageSize: result.PageSize}, nil
+	return result, nil
 }
 
 // @ID openflare_node_get
@@ -272,7 +322,7 @@ func getNode(ctx context.Context, _ identity, input map[string]string) (any, *op
 		return nil, operationFailed(ctx, nodeGetOperation, err)
 	}
 	result := summarizeNode(view)
-	if view.NodeType == "edge_node" {
+	if view.NodeType == edgeNodeType {
 		active, err := repository.GetActivePingoraConfigMetadata(ctx)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, operationFailed(ctx, nodeGetOperation, err)

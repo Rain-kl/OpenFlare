@@ -211,14 +211,19 @@ func SaveRuleGraph(ctx context.Context, id uint, input SaveRuleGraphInput) (*Rul
 	if err != nil {
 		return nil, &RuleValidationError{Err: err}
 	}
-	if _, err = loadAttackGroupReferences(ctx, graph); err != nil {
+	groups, err := loadAttackGroupReferences(ctx, graph)
+	if err != nil {
 		return nil, err
+	}
+	ids := make([]uint, 0, len(groups))
+	for id := range groups {
+		ids = append(ids, id)
 	}
 	raw, err := json.Marshal(input.Graph)
 	if err != nil {
 		return nil, err
 	}
-	if _, err = repository.UpdateOpenFlareWAFRuleGraph(ctx, id, input.Revision, string(raw)); err != nil {
+	if _, err = repository.UpdateOpenFlareWAFRuleGraph(ctx, id, input.Revision, string(raw), sortedUniqueUints(ids)...); err != nil {
 		return nil, err
 	}
 	return GetRule(ctx, id)

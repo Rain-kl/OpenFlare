@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -79,8 +80,11 @@ func registerOperation(root *cobra.Command, options *cliOptions, operation autom
 			help += fmt.Sprintf(" Default: %v.", fallback)
 		}
 		name := flagName(param)
-		if param.Schema["type"] == automationcontract.SchemaArray {
-			help += " Pass a JSON array of strings."
+		switch param.Schema["type"] {
+		case automationcontract.SchemaArray:
+			help += " Pass a JSON array."
+		case automationcontract.SchemaObject:
+			help += " Pass a JSON object."
 		}
 		command.Flags().Var(new(operationFlag), name, help)
 		if param.Required {
@@ -89,6 +93,11 @@ func registerOperation(root *cobra.Command, options *cliOptions, operation autom
 			}
 		}
 	}
+	var passwordStdin bool
+	if operation.ID == "openflare_site_set_auth" {
+		command.Flags().BoolVar(&passwordStdin, "password-stdin", false, "Read the site password from standard input instead of --password")
+		command.MarkFlagsMutuallyExclusive("password", "password-stdin")
+	}
 	command.RunE = func(command *cobra.Command, _ []string) error {
 		parameters := make(map[string]string)
 		for _, param := range operation.Parameters {
@@ -96,6 +105,13 @@ func registerOperation(root *cobra.Command, options *cliOptions, operation autom
 			if flag.Changed {
 				parameters[param.Name] = flag.Value.String()
 			}
+		}
+		if passwordStdin {
+			password, err := readSitePassword(command.InOrStdin())
+			if err != nil {
+				return err
+			}
+			parameters["password"] = password
 		}
 		path, err := operation.PathAndQuery(parameters)
 		if err != nil {
@@ -111,6 +127,21 @@ func registerOperation(root *cobra.Command, options *cliOptions, operation autom
 		return runOperation(command, options, operation.Method, path, operation.Revision(), body)
 	}
 	parent.AddCommand(command)
+}
+
+func readSitePassword(input io.Reader) (string, error) {
+	// Allow for a trailing line ending and reject oversized input without reading it all.
+	const maxPasswordBytes = 255
+	const maxInput = maxPasswordBytes + len("\r\n") + 1
+	raw, err := io.ReadAll(io.LimitReader(input, int64(maxInput)))
+	if err != nil {
+		return "", fmt.Errorf("read site password: %w", err)
+	}
+	password := strings.TrimSuffix(strings.TrimSuffix(string(raw), "\n"), "\r")
+	if len(raw) == maxInput || len(password) > maxPasswordBytes {
+		return "", errors.New("password input exceeds 255 bytes")
+	}
+	return password, nil
 }
 
 func hasBody(operation automationcontract.Operation) bool {

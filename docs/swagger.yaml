@@ -886,6 +886,42 @@ definitions:
       totalPage:
         type: integer
     type: object
+  apps_openflare_automation.AttackGroup:
+    properties:
+      group_id:
+        type: string
+      levels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      rule_overrides:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  apps_openflare_automation.AttackGroupDeleted:
+    properties:
+      group_id:
+        type: string
+      state:
+        type: string
+    type: object
+  apps_openflare_automation.AttackGroupList:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/apps_openflare_automation.AttackGroup'
+        type: array
+    type: object
+  apps_openflare_automation.AttackGroupSaved:
+    properties:
+      group:
+        $ref: '#/definitions/apps_openflare_automation.AttackGroup'
+      state:
+        type: string
+    type: object
   apps_openflare_automation.Catalog:
     properties:
       instance_id:
@@ -1014,6 +1050,84 @@ definitions:
       site_id:
         type: string
       zone_id:
+        type: string
+    type: object
+  apps_openflare_automation.IPGroupDetails:
+    properties:
+      entries:
+        items:
+          type: string
+        type: array
+      group:
+        $ref: '#/definitions/apps_openflare_automation.IPGroupSummary'
+      synced_entries:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_waf.IPGroupExtIPView'
+        type: array
+    type: object
+  apps_openflare_automation.IPGroupList:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/apps_openflare_automation.IPGroupSummary'
+        type: array
+    type: object
+  apps_openflare_automation.IPGroupSummary:
+    properties:
+      enabled:
+        type: boolean
+      entry_count:
+        type: integer
+      flow_reference_count:
+        type: integer
+      group_id:
+        type: string
+      last_sync_status:
+        type: string
+      last_synced_at:
+        type: string
+      name:
+        type: string
+      next_sync_at:
+        type: string
+      synced_entry_count:
+        type: integer
+      type:
+        type: string
+    type: object
+  apps_openflare_automation.NodeHealthEvent:
+    properties:
+      last_triggered_at:
+        type: string
+      severity:
+        type: string
+      type:
+        type: string
+    type: object
+  apps_openflare_automation.NodeHealthPage:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/apps_openflare_automation.NodeHealthSummary'
+        type: array
+      total:
+        type: integer
+    type: object
+  apps_openflare_automation.NodeHealthSummary:
+    properties:
+      active_events:
+        items:
+          $ref: '#/definitions/apps_openflare_automation.NodeHealthEvent'
+        type: array
+      config_sync:
+        type: string
+      node:
+        $ref: '#/definitions/apps_openflare_automation.NodeSummary'
+      runtime_health:
         type: string
     type: object
   apps_openflare_automation.NodeMetrics:
@@ -1180,6 +1294,34 @@ definitions:
     required:
     - upstreams
     type: object
+  apps_openflare_automation.SiteAuthBody:
+    properties:
+      mode:
+        description: Authentication mode. Site login uses a browser session and requires
+          HTTPS.
+        enum:
+        - "off"
+        - basic
+        - site
+        type: string
+      password:
+        description: Password. Omit to preserve an existing credential. Never returned
+          by tools.
+        maxLength: 255
+        type: string
+      ttl_hours:
+        description: Session lifetime in hours, for site mode only. Omit to retain
+          an existing lifetime.
+        maximum: 720
+        minimum: 1
+        type: integer
+      username:
+        description: Username. Omit to preserve an existing credential.
+        maxLength: 255
+        type: string
+    required:
+    - mode
+    type: object
   apps_openflare_automation.SiteList:
     properties:
       results:
@@ -1233,6 +1375,62 @@ definitions:
       upstream_type:
         type: string
     type: object
+  apps_openflare_automation.SitePoW:
+    properties:
+      config:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWConfig'
+      enabled:
+        type: boolean
+      site_id:
+        type: string
+    type: object
+  apps_openflare_automation.SitePoWBody:
+    properties:
+      config:
+        allOf:
+        - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWConfig'
+        description: Complete replacement of challenge settings. Omit to retain settings
+          or use defaults on first configuration.
+      enabled:
+        description: Whether to enable the site's independent proof-of-work challenge.
+        type: boolean
+    required:
+    - enabled
+    type: object
+  apps_openflare_automation.SiteSaved:
+    properties:
+      site_id:
+        type: string
+      state:
+        type: string
+    type: object
+  apps_openflare_automation.SiteSettings:
+    properties:
+      auth_mode:
+        type: string
+      auth_ttl_hours:
+        type: integer
+      cache_enabled:
+        type: boolean
+      cache_policy:
+        type: string
+      cache_rules:
+        items:
+          type: string
+        type: array
+      custom_header_names:
+        items:
+          type: string
+        type: array
+      http2_enabled:
+        type: boolean
+      limits:
+        $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.SiteLimitsPatch'
+      redirect_http:
+        type: boolean
+      site:
+        $ref: '#/definitions/apps_openflare_automation.SiteSummary'
+    type: object
   apps_openflare_automation.SiteSummary:
     properties:
       domains:
@@ -1269,6 +1467,14 @@ definitions:
       unique_ips:
         type: integer
     type: object
+  apps_openflare_automation.SiteWAFBody:
+    properties:
+      bound:
+        description: True appends the flow if absent; false removes only this flow.
+        type: boolean
+    required:
+    - bound
+    type: object
   apps_openflare_automation.SiteWriteResult:
     properties:
       site:
@@ -1292,6 +1498,28 @@ definitions:
         $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.AccessLogOverviewSummary'
       trends:
         $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.AccessLogOverviewTrends'
+    type: object
+  apps_openflare_automation.WAFFlow:
+    properties:
+      enabled:
+        type: boolean
+      flow_id:
+        type: string
+      global:
+        type: boolean
+      name:
+        type: string
+    type: object
+  apps_openflare_automation.WAFFlowList:
+    properties:
+      bound_flow_ids:
+        items:
+          type: string
+        type: array
+      results:
+        items:
+          $ref: '#/definitions/apps_openflare_automation.WAFFlow'
+        type: array
     type: object
   apps_openflare_automation.ZoneList:
     properties:
@@ -2795,6 +3023,29 @@ definitions:
       type:
         type: string
     type: object
+  apps_openflare_waf.AttackGroupInput:
+    properties:
+      levels:
+        additionalProperties:
+          type: string
+        description: Category-to-level map. Levels are off, observe, balanced, or
+          strict. Omitted categories are disabled.
+        type: object
+      name:
+        description: Display name for the attack protection group.
+        maxLength: 100
+        minLength: 1
+        type: string
+      rule_overrides:
+        additionalProperties:
+          type: string
+        description: Decimal CRS rule IDs mapped to off, enabled, or observe. Omit
+          on update to retain overrides; {} clears them.
+        type: object
+    required:
+    - levels
+    - name
+    type: object
   apps_openflare_waf.CreateRuleInput:
     properties:
       name:
@@ -3060,19 +3311,6 @@ definitions:
         type: boolean
       name:
         type: string
-    type: object
-  apps_openflare_waf.attackGroupInput:
-    properties:
-      levels:
-        additionalProperties:
-          type: string
-        type: object
-      name:
-        type: string
-      rule_overrides:
-        additionalProperties:
-          type: string
-        type: object
     type: object
   apps_openflare_waf.attackLogEntry:
     properties:
@@ -3729,6 +3967,106 @@ definitions:
       window_ended_at:
         type: string
       window_started_at:
+        type: string
+    type: object
+  github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.CustomHeaderInput:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+    type: object
+  github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.SettingsPatch:
+    properties:
+      cache_enabled:
+        description: Whether edge caching is enabled.
+        type: boolean
+      cache_policy:
+        description: 'Cache policy: static, all, suffix, path_prefix, or path_exact.'
+        enum:
+        - static
+        - all
+        - suffix
+        - path_prefix
+        - path_exact
+        type: string
+      cache_rules:
+        description: Replace custom cache rules; an empty array clears the rules when
+          permitted by the cache policy.
+        items:
+          type: string
+        type: array
+      custom_headers:
+        description: Replace custom response headers; an empty array clears them.
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.CustomHeaderInput'
+        type: array
+      enable_http2:
+        description: Whether HTTP/2 is enabled on the HTTPS listener.
+        type: boolean
+      enable_https:
+        description: Whether the site serves HTTPS. Each bound domain needs a covering
+          certificate.
+        type: boolean
+      enabled:
+        description: Whether the site serves traffic.
+        type: boolean
+      limits:
+        allOf:
+        - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.SiteLimitsPatch'
+        description: Update site-specific connection, bandwidth, and request limits.
+          Omitted limits are preserved.
+      redirect_http:
+        description: Whether to redirect HTTP to HTTPS; requires HTTPS.
+        type: boolean
+    type: object
+  github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.SiteLimitsPatch:
+    properties:
+      limit_conn_per_ip:
+        description: Zero inherits the default. Minus one disables the limit.
+        minimum: -1
+        type: integer
+      limit_conn_per_server:
+        description: Zero inherits the default. Minus one disables the limit.
+        minimum: -1
+        type: integer
+      limit_rate:
+        description: Response rate, such as 512k or 2m. Empty inherits. Minus one
+          disables.
+        type: string
+      limit_req_per_ip:
+        description: Request rate per IP, such as 10r/s or 100r/m. Empty inherits.
+          Minus one disables.
+        type: string
+    type: object
+  github_com_Rain-kl_Wavelet_internal_apps_openflare_waf.AttackGroupInput:
+    properties:
+      levels:
+        additionalProperties:
+          type: string
+        description: Category-to-level map. Levels are off, observe, balanced, or
+          strict. Omitted categories are disabled.
+        type: object
+      name:
+        description: Display name for the attack protection group.
+        maxLength: 100
+        minLength: 1
+        type: string
+      rule_overrides:
+        additionalProperties:
+          type: string
+        description: Decimal CRS rule IDs mapped to off, enabled, or observe. Omit
+          on update to retain overrides; {} clears them.
+        type: object
+    required:
+    - levels
+    - name
+    type: object
+  github_com_Rain-kl_Wavelet_internal_apps_openflare_waf.IPGroupExtIPView:
+    properties:
+      captured_at:
+        type: string
+      ip:
         type: string
     type: object
   github_com_Rain-kl_Wavelet_internal_infra_diskcache.Status:
@@ -8501,6 +8839,90 @@ paths:
           node_record_id:
             pattern: ^[1-9][0-9]{0,18}$
         scope: metrics:read
+  /api/v1/automation/nodes/health:
+    get:
+      description: Return a page of nodes with heartbeat status, reported runtime
+        health, active health events, and comparison against the active site snapshot
+        for edge nodes. Offline nodes show the last reported runtime health. Use node
+        metrics for resource time series.
+      operationId: openflare_node_health
+      parameters:
+      - default: 1
+        description: Page number, starting at 1
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - default: 20
+        description: Number of records per page
+        in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      - description: Literal substring of the node name, registration identifier or
+          IP address
+        in: query
+        maxLength: 256
+        name: search
+        type: string
+      - description: Filter by heartbeat state; omit for all states
+        enum:
+        - pending
+        - online
+        - offline
+        in: query
+        name: status
+        type: string
+      - description: Filter by node type; omit for all types
+        enum:
+        - edge_node
+        - tunnel_relay
+        - tunnel_client
+        in: query
+        name: node_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.NodeHealthPage'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Check node connectivity, runtime health and site configuration sync
+      tags:
+      - automation
+      x-automation:
+        cli: node health
+        effect: read
+        scope: nodes:read
   /api/v1/automation/operations:
     get:
       description: Return the connected instance ID and the published contracts available
@@ -8760,6 +9182,75 @@ paths:
         cli: site create
         effect: write
         scope: sites:write
+  /api/v1/automation/sites/{site_id}/auth:
+    patch:
+      consumes:
+      - application/json
+      description: Configure HTTP Basic authentication, HTTPS site login, or disable
+        authentication. For enabled modes, omit credentials to keep them or supply
+        both for first setup. Disabling clears the stored credentials. Credentials
+        are not returned.
+      operationId: openflare_site_set_auth
+      parameters:
+      - description: Site record ID from openflare_site_list
+        in: path
+        name: site_id
+        required: true
+        type: string
+      - description: Authentication settings
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_automation.SiteAuthBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.SiteSaved'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Set a website's authentication mode
+      tags:
+      - automation
+      x-automation:
+        cli: site set-auth
+        effect: write
+        parameters:
+          site_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: security:write
   /api/v1/automation/sites/{site_id}/domains/{domain_record_id}:
     post:
       description: Bind one domain to a site without removing its other domains. An
@@ -8824,6 +9315,258 @@ paths:
         parameters:
           domain_record_id:
             pattern: ^[1-9][0-9]{0,18}$
+          site_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: sites:write
+  /api/v1/automation/sites/{site_id}/pow:
+    get:
+      description: Read challenge settings for the selected website. An unconfigured
+        website returns disabled defaults. WAF flow PoW nodes are configured separately.
+      operationId: openflare_site_get_pow
+      parameters:
+      - description: Site record ID from openflare_site_list
+        in: path
+        name: site_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.SitePoW'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Read a website's independent PoW policy
+      tags:
+      - automation
+      x-automation:
+        cli: site get-pow
+        effect: read
+        parameters:
+          site_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: security:read
+    patch:
+      consumes:
+      - application/json
+      description: Enable or disable the website's challenge. Omit config to keep
+        the existing settings or use defaults on first setup. To edit parameters,
+        read the current config and submit a full replacement. WAF flow bindings are
+        preserved.
+      operationId: openflare_site_set_pow
+      parameters:
+      - description: Site record ID from openflare_site_list
+        in: path
+        name: site_id
+        required: true
+        type: string
+      - description: Independent proof-of-work settings
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_automation.SitePoWBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.SiteSaved'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Configure independent PoW for one website
+      tags:
+      - automation
+      x-automation:
+        cli: site set-pow
+        effect: write
+        parameters:
+          site_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: security:write
+  /api/v1/automation/sites/{site_id}/settings:
+    get:
+      description: Read the selected site's proxy settings, configured limits, and
+        authentication mode. Header values, credentials, and signing keys are omitted.
+        Use openflare_site_list to resolve a site ID.
+      operationId: openflare_site_get_settings
+      parameters:
+      - description: Site record ID from openflare_site_list
+        in: path
+        name: site_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.SiteSettings'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Read website reverse proxy and authentication settings
+      tags:
+      - automation
+      x-automation:
+        cli: site get-settings
+        effect: read
+        parameters:
+          site_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: sites:read
+    patch:
+      consumes:
+      - application/json
+      description: Change only the supplied fields, including HTTPS, HTTP/2, redirection,
+        caching, response headers and rate limits. Use openflare_site_set_upstreams
+        for upstream changes. The result confirms controller storage.
+      operationId: openflare_site_patch_settings
+      parameters:
+      - description: Site record ID from openflare_site_list
+        in: path
+        name: site_id
+        required: true
+        type: string
+      - description: Partial reverse proxy settings
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.SettingsPatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.SiteSaved'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Update reverse proxy settings and limits for one website
+      tags:
+      - automation
+      x-automation:
+        cli: site patch-settings
+        effect: write
+        parameters:
+          cache_rules:
+            maxItems: 256
+            minItems: 0
+          custom_headers:
+            maxItems: 64
+            minItems: 0
           site_id:
             pattern: ^[1-9][0-9]{0,18}$
         scope: sites:write
@@ -8897,6 +9640,81 @@ paths:
           site_id:
             pattern: ^[1-9][0-9]{0,18}$
         scope: sites:write
+  /api/v1/automation/sites/{site_id}/waf/{flow_id}:
+    patch:
+      consumes:
+      - application/json
+      description: Append one existing non-global WAF flow or remove its binding.
+        Other flows retain their order. A disabled flow remains disabled. Pass flow_id
+        from openflare_waf_list, not an attack protection group ID.
+      operationId: openflare_site_set_waf
+      parameters:
+      - description: Site record ID from openflare_site_list
+        in: path
+        name: site_id
+        required: true
+        type: string
+      - description: WAF flow ID from openflare_waf_list
+        in: path
+        name: flow_id
+        required: true
+        type: string
+      - description: Whether the flow should be bound
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_automation.SiteWAFBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.SiteSaved'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Bind or unbind one WAF flow on a website
+      tags:
+      - automation
+      x-automation:
+        cli: site set-waf
+        effect: write
+        parameters:
+          flow_id:
+            pattern: ^[1-9][0-9]{0,18}$
+          site_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: security:write
   /api/v1/automation/sites/overview:
     get:
       description: Start here for the current site inventory and recent traffic. Returns
@@ -8983,6 +9801,385 @@ paths:
         requires:
         - metrics:read
         scope: sites:read
+  /api/v1/automation/waf/attack-groups:
+    get:
+      description: Read group IDs, category levels, and per-rule overrides. WAF flows
+        reference these groups through security check nodes; website bindings use
+        flow IDs.
+      operationId: openflare_attack_group_list
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.AttackGroupList'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: List attack protection rule groups
+      tags:
+      - automation
+      x-automation:
+        cli: attack-group list
+        effect: read
+        scope: security:read
+    post:
+      consumes:
+      - application/json
+      description: Create a group for use in WAF security check nodes. This operation
+        does not attach the group to a flow or a site.
+      operationId: openflare_attack_group_create
+      parameters:
+      - description: Attack protection group
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_waf.AttackGroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.AttackGroupSaved'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Create an attack protection rule group
+      tags:
+      - automation
+      x-automation:
+        cli: attack-group create
+        effect: write
+        scope: security:write
+  /api/v1/automation/waf/attack-groups/{group_id}:
+    delete:
+      description: Delete the selected group. Deletion is rejected while any WAF flow
+        references it, including disabled and global flows.
+      operationId: openflare_attack_group_delete
+      parameters:
+      - description: Attack protection group ID from openflare_attack_group_list
+        in: path
+        name: group_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.AttackGroupDeleted'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Delete an unused attack protection rule group
+      tags:
+      - automation
+      x-automation:
+        cli: attack-group delete
+        effect: write
+        parameters:
+          group_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: security:write
+    patch:
+      consumes:
+      - application/json
+      description: Replace the name and category levels. Omitted categories are disabled.
+        Omit rule_overrides to keep existing per-rule settings; an empty object clears
+        them. Changes affect all WAF flows that use this group.
+      operationId: openflare_attack_group_update
+      parameters:
+      - description: Attack protection group ID from openflare_attack_group_list
+        in: path
+        name: group_id
+        required: true
+        type: string
+      - description: Replacement group settings
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_waf.AttackGroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.AttackGroupSaved'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Update an attack protection rule group
+      tags:
+      - automation
+      x-automation:
+        cli: attack-group update
+        effect: write
+        parameters:
+          group_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: security:write
+  /api/v1/automation/waf/flows:
+    get:
+      description: Discover existing WAF flows by name and ID. Supply site_id to read
+        the site's explicit flow IDs in execution order. Enabled global flows apply
+        independently of site bindings.
+      operationId: openflare_waf_list
+      parameters:
+      - description: Site record ID from openflare_site_list
+        in: query
+        name: site_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.WAFFlowList'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: List WAF flows and optionally website bindings
+      tags:
+      - automation
+      x-automation:
+        cli: waf list
+        effect: read
+        parameters:
+          site_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: security:read
+  /api/v1/automation/waf/ip-groups:
+    get:
+      description: Read IP group IDs, entry counts, flow reference counts, and synchronization
+        status. Use openflare_ip_group_get to read the entries of a selected group.
+      operationId: openflare_ip_group_list
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.IPGroupList'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: List WAF IP groups
+      tags:
+      - automation
+      x-automation:
+        cli: ip-group list
+        effect: read
+        scope: security:read
+  /api/v1/automation/waf/ip-groups/{group_id}:
+    get:
+      description: Return manual IP addresses and CIDRs, synchronized entries, and
+        refresh status. Subscription URLs and source configurations are omitted.
+      operationId: openflare_ip_group_get
+      parameters:
+      - description: IP group ID from openflare_ip_group_list
+        in: path
+        name: group_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.IPGroupDetails'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Read entries of a WAF IP group
+      tags:
+      - automation
+      x-automation:
+        cli: ip-group get
+        effect: read
+        parameters:
+          group_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: security:read
   /api/v1/automation/zones:
     get:
       description: Resolve a registered root domain to its zone_id before adding hostnames.
@@ -13299,7 +14496,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/apps_openflare_waf.attackGroupInput'
+          $ref: '#/definitions/apps_openflare_waf.AttackGroupInput'
       responses:
         "200":
           description: OK
@@ -13345,7 +14542,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/apps_openflare_waf.attackGroupInput'
+          $ref: '#/definitions/apps_openflare_waf.AttackGroupInput'
       responses:
         "200":
           description: OK

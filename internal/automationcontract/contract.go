@@ -27,6 +27,7 @@ const (
 	SchemaArray    = "array"
 	SchemaBoolean  = "boolean"
 	SchemaInteger  = "integer"
+	SchemaObject   = "object"
 	SchemaString   = "string"
 	LocationBody   = "body"
 )
@@ -121,8 +122,8 @@ func (operation Operation) Revision() string {
 
 func (param Parameter) validate(value string) error {
 	switch param.Schema["type"] {
-	case SchemaArray:
-		return validateArray(value)
+	case SchemaArray, SchemaObject:
+		return validateStructuredArgument(value, param.Schema)
 	case SchemaBoolean:
 		if value != "true" && value != "false" {
 			return errors.New("must be true or false")
@@ -148,22 +149,6 @@ func (param Parameter) validate(value string) error {
 		match, err := regexp.MatchString(pattern, value)
 		if err != nil || !match {
 			return fmt.Errorf("must match %s", pattern)
-		}
-	}
-	return nil
-}
-
-func validateArray(value string) error {
-	var items []*string
-	if err := json.Unmarshal([]byte(value), &items); err != nil || items == nil {
-		return errors.New("must be a JSON array of strings")
-	}
-	if len(items) == 0 || len(items) > 32 {
-		return errors.New("must contain 1 to 32 items")
-	}
-	for _, item := range items {
-		if item == nil || *item == "" || len(*item) > 2048 {
-			return errors.New("items must contain 1 to 2048 bytes")
 		}
 	}
 	return nil
@@ -220,7 +205,7 @@ func (operation Operation) JSONBody(input map[string]string) (json.RawMessage, e
 				return nil, err
 			}
 			body[param.Name] = number
-		case SchemaBoolean, SchemaArray:
+		case SchemaBoolean, SchemaArray, SchemaObject:
 			body[param.Name] = json.RawMessage(value)
 		default:
 			body[param.Name] = value
@@ -280,10 +265,10 @@ func decodeArgument(decoder *json.Decoder, param Parameter) (string, error) {
 		}
 		return strconv.FormatBool(*value), nil
 	}
-	if param.Schema["type"] == SchemaArray {
+	if param.Schema["type"] == SchemaArray || param.Schema["type"] == SchemaObject {
 		var value json.RawMessage
 		if err := decoder.Decode(&value); err != nil {
-			return "", errors.New("must be an array")
+			return "", errors.New("must be valid JSON")
 		}
 		return string(value), nil
 	}

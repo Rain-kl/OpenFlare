@@ -5,6 +5,7 @@ package waf
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -27,13 +28,18 @@ var attackCategories = map[string]struct{}{
 	"csrf": {}, "malformed_http": {},
 }
 
-type attackGroupInput struct {
-	Name          string            `json:"name"`
-	Levels        map[string]string `json:"levels"`
+// AttackGroupInput defines a group's name, category levels, and per-rule overrides.
+type AttackGroupInput struct {
+	// Display name for the attack protection group.
+	Name string `json:"name" binding:"required" minLength:"1" maxLength:"100"`
+	// Category-to-level map. Levels are off, observe, balanced, or strict. Omitted categories are disabled.
+	Levels map[string]string `json:"levels" binding:"required"`
+	// Decimal CRS rule IDs mapped to off, enabled, or observe. Omit on update to retain overrides; {} clears them.
 	RuleOverrides map[string]string `json:"rule_overrides"`
 }
 
-func saveAttackGroup(ctx context.Context, id uint, input attackGroupInput) (*model.OpenFlareAttackGroup, error) {
+// SaveAttackGroup creates or updates an attack protection group.
+func SaveAttackGroup(ctx context.Context, id uint, input AttackGroupInput) (*model.OpenFlareAttackGroup, error) {
 	name := strings.TrimSpace(input.Name)
 	if name == "" || utf8.RuneCountInString(name) > 100 || strings.ContainsRune(name, '\x00') {
 		return nil, &RuleValidationError{Err: errors.New(errAttackGroupName)}
@@ -60,6 +66,32 @@ func saveAttackGroup(ctx context.Context, id uint, input attackGroupInput) (*mod
 		return nil, err
 	}
 	return group, nil
+}
+
+// DeleteAttackGroup removes a group only if no stored flow references it.
+func DeleteAttackGroup(ctx context.Context, id uint) error {
+	return repository.DeleteOpenFlareAttackGroup(ctx, id, func(raw string) (bool, error) {
+		if strings.TrimSpace(raw) == "" {
+			return false, nil
+		}
+		var graph RuleGraph
+		if err := json.Unmarshal([]byte(raw), &graph); err != nil {
+			return false, err
+		}
+		for _, node := range graph.Nodes {
+			if node.Type != RuleNodeSecurityCheck {
+				continue
+			}
+			var config SecurityCheckConfig
+			if err := json.Unmarshal(node.Config, &config); err != nil {
+				return false, err
+			}
+			if config.AttackGroupID != nil && *config.AttackGroupID == id {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
 }
 
 func loadAttackGroupReferences(ctx context.Context, graphs ...RuntimeRuleGraph) (map[uint]model.OpenFlareAttackGroup, error) {

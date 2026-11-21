@@ -33,7 +33,7 @@ func ListAttackGroupsHandler(c *gin.Context) {
 // @Description 可按类别配置防护等级。rule_overrides 以规则 ID 为键，支持 off（关闭）、enabled（开启）、observe（记录），优先于类别等级。
 // @Tags openflare-waf
 // @Security SessionCookie
-// @Param request body attackGroupInput true "规则组"
+// @Param request body AttackGroupInput true "规则组"
 // @Success 200 {object} response.Any{data=model.OpenFlareAttackGroup}
 // @Failure 400 {object} response.Any
 // @Failure 401 {object} response.Any
@@ -48,7 +48,7 @@ func CreateAttackGroupHandler(c *gin.Context) { saveAttackGroupHandler(c, 0) }
 // @Tags openflare-waf
 // @Security SessionCookie
 // @Param id path int true "规则组 ID"
-// @Param request body attackGroupInput true "规则组"
+// @Param request body AttackGroupInput true "规则组"
 // @Success 200 {object} response.Any{data=model.OpenFlareAttackGroup}
 // @Failure 400 {object} response.Any
 // @Failure 401 {object} response.Any
@@ -62,11 +62,11 @@ func UpdateAttackGroupHandler(c *gin.Context) {
 }
 
 func saveAttackGroupHandler(c *gin.Context, id uint) {
-	var input attackGroupInput
+	var input AttackGroupInput
 	if !httpx.BindJSON(c, &input) {
 		return
 	}
-	group, err := saveAttackGroup(c.Request.Context(), id, input)
+	group, err := SaveAttackGroup(c.Request.Context(), id, input)
 	if !handleRuleError(c, err) {
 		c.JSON(http.StatusOK, response.OK(group))
 	}

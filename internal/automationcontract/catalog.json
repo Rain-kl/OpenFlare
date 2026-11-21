@@ -1,5 +1,240 @@
 [
   {
+    "id": "openflare_attack_group_create",
+    "cli": "attack-group create",
+    "method": "POST",
+    "path": "/waf/attack-groups",
+    "scope": "security:write",
+    "effect": "write",
+    "description": "Create a group for use in WAF security check nodes. This operation does not attach the group to a flow or a site.",
+    "parameters": [
+      {
+        "name": "levels",
+        "in": "body",
+        "required": true,
+        "description": "Category-to-level map. Levels are off, observe, balanced, or strict. Omitted categories are disabled.",
+        "schema": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "name",
+        "in": "body",
+        "required": true,
+        "description": "Display name for the attack protection group.",
+        "schema": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      {
+        "name": "rule_overrides",
+        "in": "body",
+        "description": "Decimal CRS rule IDs mapped to off, enabled, or observe. Omit on update to retain overrides; {} clears them.",
+        "schema": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "group": {
+          "properties": {
+            "group_id": {
+              "type": "string"
+            },
+            "levels": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "name": {
+              "type": "string"
+            },
+            "rule_overrides": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_attack_group_delete",
+    "cli": "attack-group delete",
+    "method": "DELETE",
+    "path": "/waf/attack-groups/{group_id}",
+    "scope": "security:write",
+    "effect": "write",
+    "description": "Delete the selected group. Deletion is rejected while any WAF flow references it, including disabled and global flows.",
+    "parameters": [
+      {
+        "name": "group_id",
+        "in": "path",
+        "required": true,
+        "description": "Attack protection group ID from openflare_attack_group_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "group_id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_attack_group_list",
+    "cli": "attack-group list",
+    "method": "GET",
+    "path": "/waf/attack-groups",
+    "scope": "security:read",
+    "effect": "read",
+    "description": "Read group IDs, category levels, and per-rule overrides. WAF flows reference these groups through security check nodes; website bindings use flow IDs.",
+    "parameters": [],
+    "output": {
+      "properties": {
+        "results": {
+          "items": {
+            "properties": {
+              "group_id": {
+                "type": "string"
+              },
+              "levels": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "name": {
+                "type": "string"
+              },
+              "rule_overrides": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_attack_group_update",
+    "cli": "attack-group update",
+    "method": "PATCH",
+    "path": "/waf/attack-groups/{group_id}",
+    "scope": "security:write",
+    "effect": "write",
+    "description": "Replace the name and category levels. Omitted categories are disabled. Omit rule_overrides to keep existing per-rule settings; an empty object clears them. Changes affect all WAF flows that use this group.",
+    "parameters": [
+      {
+        "name": "group_id",
+        "in": "path",
+        "required": true,
+        "description": "Attack protection group ID from openflare_attack_group_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      },
+      {
+        "name": "levels",
+        "in": "body",
+        "required": true,
+        "description": "Category-to-level map. Levels are off, observe, balanced, or strict. Omitted categories are disabled.",
+        "schema": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "name",
+        "in": "body",
+        "required": true,
+        "description": "Display name for the attack protection group.",
+        "schema": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      {
+        "name": "rule_overrides",
+        "in": "body",
+        "description": "Decimal CRS rule IDs mapped to off, enabled, or observe. Omit on update to retain overrides; {} clears them.",
+        "schema": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "group": {
+          "properties": {
+            "group_id": {
+              "type": "string"
+            },
+            "levels": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "name": {
+              "type": "string"
+            },
+            "rule_overrides": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
     "id": "openflare_certificate_list",
     "cli": "certificate list",
     "method": "GET",
@@ -166,6 +401,140 @@
                 "type": "string"
               },
               "zone_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_ip_group_get",
+    "cli": "ip-group get",
+    "method": "GET",
+    "path": "/waf/ip-groups/{group_id}",
+    "scope": "security:read",
+    "effect": "read",
+    "description": "Return manual IP addresses and CIDRs, synchronized entries, and refresh status. Subscription URLs and source configurations are omitted.",
+    "parameters": [
+      {
+        "name": "group_id",
+        "in": "path",
+        "required": true,
+        "description": "IP group ID from openflare_ip_group_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "entries": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "group": {
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "entry_count": {
+              "type": "integer"
+            },
+            "flow_reference_count": {
+              "type": "integer"
+            },
+            "group_id": {
+              "type": "string"
+            },
+            "last_sync_status": {
+              "type": "string"
+            },
+            "last_synced_at": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "next_sync_at": {
+              "type": "string"
+            },
+            "synced_entry_count": {
+              "type": "integer"
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "synced_entries": {
+          "items": {
+            "properties": {
+              "captured_at": {
+                "type": "string"
+              },
+              "ip": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_ip_group_list",
+    "cli": "ip-group list",
+    "method": "GET",
+    "path": "/waf/ip-groups",
+    "scope": "security:read",
+    "effect": "read",
+    "description": "Read IP group IDs, entry counts, flow reference counts, and synchronization status. Use openflare_ip_group_get to read the entries of a selected group.",
+    "parameters": [],
+    "output": {
+      "properties": {
+        "results": {
+          "items": {
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "entry_count": {
+                "type": "integer"
+              },
+              "flow_reference_count": {
+                "type": "integer"
+              },
+              "group_id": {
+                "type": "string"
+              },
+              "last_sync_status": {
+                "type": "string"
+              },
+              "last_synced_at": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "next_sync_at": {
+                "type": "string"
+              },
+              "synced_entry_count": {
+                "type": "integer"
+              },
+              "type": {
                 "type": "string"
               }
             },
@@ -527,6 +896,162 @@
         },
         "version": {
           "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_node_health",
+    "cli": "node health",
+    "method": "GET",
+    "path": "/nodes/health",
+    "scope": "nodes:read",
+    "effect": "read",
+    "description": "Return a page of nodes with heartbeat status, reported runtime health, active health events, and comparison against the active site snapshot for edge nodes. Offline nodes show the last reported runtime health. Use node metrics for resource time series.",
+    "parameters": [
+      {
+        "name": "page",
+        "in": "query",
+        "description": "Page number, starting at 1",
+        "schema": {
+          "default": 1,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      {
+        "name": "page_size",
+        "in": "query",
+        "description": "Number of records per page",
+        "schema": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      {
+        "name": "search",
+        "in": "query",
+        "description": "Literal substring of the node name, registration identifier or IP address",
+        "schema": {
+          "maxLength": 256,
+          "type": "string"
+        }
+      },
+      {
+        "name": "status",
+        "in": "query",
+        "description": "Filter by heartbeat state; omit for all states",
+        "schema": {
+          "enum": [
+            "pending",
+            "online",
+            "offline"
+          ],
+          "type": "string"
+        }
+      },
+      {
+        "name": "node_type",
+        "in": "query",
+        "description": "Filter by node type; omit for all types",
+        "schema": {
+          "enum": [
+            "edge_node",
+            "tunnel_relay",
+            "tunnel_client"
+          ],
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "page": {
+          "type": "integer"
+        },
+        "page_size": {
+          "type": "integer"
+        },
+        "results": {
+          "items": {
+            "properties": {
+              "active_events": {
+                "items": {
+                  "properties": {
+                    "last_triggered_at": {
+                      "type": "string"
+                    },
+                    "severity": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "config_sync": {
+                "type": "string"
+              },
+              "node": {
+                "properties": {
+                  "current_version": {
+                    "type": "string"
+                  },
+                  "desired_site_version": {
+                    "type": "string"
+                  },
+                  "ip": {
+                    "type": "string"
+                  },
+                  "last_heartbeat_at": {
+                    "type": "string"
+                  },
+                  "latest_apply_at": {
+                    "type": "string"
+                  },
+                  "latest_apply_checksum": {
+                    "type": "string"
+                  },
+                  "latest_apply_result": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "node_id": {
+                    "type": "string"
+                  },
+                  "node_record_id": {
+                    "type": "string"
+                  },
+                  "node_type": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "runtime_health": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "total": {
+          "type": "integer"
         }
       },
       "type": "object"
@@ -1382,6 +1907,292 @@
     }
   },
   {
+    "id": "openflare_site_get_pow",
+    "cli": "site get-pow",
+    "method": "GET",
+    "path": "/sites/{site_id}/pow",
+    "scope": "security:read",
+    "effect": "read",
+    "description": "Read challenge settings for the selected website. An unconfigured website returns disabled defaults. WAF flow PoW nodes are configured separately.",
+    "parameters": [
+      {
+        "name": "site_id",
+        "in": "path",
+        "required": true,
+        "description": "Site record ID from openflare_site_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "config": {
+          "properties": {
+            "algorithm": {
+              "type": "string"
+            },
+            "blacklist": {
+              "properties": {
+                "ip_cidrs": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "ips": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "path_regexes": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "paths": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "user_agents": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            "challenge_ttl": {
+              "type": "integer"
+            },
+            "difficulty": {
+              "type": "integer"
+            },
+            "path_rules": {
+              "properties": {
+                "blacklist": {
+                  "items": {
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "mode": {
+                  "type": "string"
+                },
+                "whitelist": {
+                  "items": {
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            "session_ttl": {
+              "type": "integer"
+            },
+            "whitelist": {
+              "properties": {
+                "ip_cidrs": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "ips": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "path_regexes": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "paths": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "user_agents": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "site_id": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_site_get_settings",
+    "cli": "site get-settings",
+    "method": "GET",
+    "path": "/sites/{site_id}/settings",
+    "scope": "sites:read",
+    "effect": "read",
+    "description": "Read the selected site's proxy settings, configured limits, and authentication mode. Header values, credentials, and signing keys are omitted. Use openflare_site_list to resolve a site ID.",
+    "parameters": [
+      {
+        "name": "site_id",
+        "in": "path",
+        "required": true,
+        "description": "Site record ID from openflare_site_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "auth_mode": {
+          "type": "string"
+        },
+        "auth_ttl_hours": {
+          "type": "integer"
+        },
+        "cache_enabled": {
+          "type": "boolean"
+        },
+        "cache_policy": {
+          "type": "string"
+        },
+        "cache_rules": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "custom_header_names": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "http2_enabled": {
+          "type": "boolean"
+        },
+        "limits": {
+          "properties": {
+            "limit_conn_per_ip": {
+              "description": "Zero inherits the default. Minus one disables the limit.",
+              "minimum": -1,
+              "type": "integer"
+            },
+            "limit_conn_per_server": {
+              "description": "Zero inherits the default. Minus one disables the limit.",
+              "minimum": -1,
+              "type": "integer"
+            },
+            "limit_rate": {
+              "description": "Response rate, such as 512k or 2m. Empty inherits. Minus one disables.",
+              "type": "string"
+            },
+            "limit_req_per_ip": {
+              "description": "Request rate per IP, such as 10r/s or 100r/m. Empty inherits. Minus one disables.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "redirect_http": {
+          "type": "boolean"
+        },
+        "site": {
+          "properties": {
+            "domains": {
+              "items": {
+                "properties": {
+                  "certificate_id": {
+                    "type": "string"
+                  },
+                  "domain_record_id": {
+                    "type": "string"
+                  },
+                  "hostname": {
+                    "type": "string"
+                  },
+                  "site_id": {
+                    "type": "string"
+                  },
+                  "zone_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "https_enabled": {
+              "type": "boolean"
+            },
+            "origin_host": {
+              "type": "string"
+            },
+            "site_id": {
+              "type": "string"
+            },
+            "site_name": {
+              "type": "string"
+            },
+            "upstream_type": {
+              "type": "string"
+            },
+            "upstreams": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
     "id": "openflare_site_list",
     "cli": "site list",
     "method": "GET",
@@ -1636,6 +2447,408 @@
     }
   },
   {
+    "id": "openflare_site_patch_settings",
+    "cli": "site patch-settings",
+    "method": "PATCH",
+    "path": "/sites/{site_id}/settings",
+    "scope": "sites:write",
+    "effect": "write",
+    "description": "Change only the supplied fields, including HTTPS, HTTP/2, redirection, caching, response headers and rate limits. Use openflare_site_set_upstreams for upstream changes. The result confirms controller storage.",
+    "parameters": [
+      {
+        "name": "site_id",
+        "in": "path",
+        "required": true,
+        "description": "Site record ID from openflare_site_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      },
+      {
+        "name": "cache_enabled",
+        "in": "body",
+        "description": "Whether edge caching is enabled.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      {
+        "name": "cache_policy",
+        "in": "body",
+        "description": "Cache policy: static, all, suffix, path_prefix, or path_exact.",
+        "schema": {
+          "enum": [
+            "static",
+            "all",
+            "suffix",
+            "path_prefix",
+            "path_exact"
+          ],
+          "type": "string"
+        }
+      },
+      {
+        "name": "cache_rules",
+        "in": "body",
+        "description": "Replace custom cache rules; an empty array clears the rules when permitted by the cache policy.",
+        "schema": {
+          "items": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 256,
+          "minItems": 0,
+          "type": "array"
+        }
+      },
+      {
+        "name": "custom_headers",
+        "in": "body",
+        "description": "Replace custom response headers; an empty array clears them.",
+        "schema": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "maxItems": 64,
+          "minItems": 0,
+          "type": "array"
+        }
+      },
+      {
+        "name": "enable_http2",
+        "in": "body",
+        "description": "Whether HTTP/2 is enabled on the HTTPS listener.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      {
+        "name": "enable_https",
+        "in": "body",
+        "description": "Whether the site serves HTTPS. Each bound domain needs a covering certificate.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      {
+        "name": "enabled",
+        "in": "body",
+        "description": "Whether the site serves traffic.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      {
+        "name": "limits",
+        "in": "body",
+        "description": "Update site-specific connection, bandwidth, and request limits. Omitted limits are preserved.",
+        "schema": {
+          "additionalProperties": false,
+          "properties": {
+            "limit_conn_per_ip": {
+              "description": "Zero inherits the default. Minus one disables the limit.",
+              "minimum": -1,
+              "type": "integer"
+            },
+            "limit_conn_per_server": {
+              "description": "Zero inherits the default. Minus one disables the limit.",
+              "minimum": -1,
+              "type": "integer"
+            },
+            "limit_rate": {
+              "description": "Response rate, such as 512k or 2m. Empty inherits. Minus one disables.",
+              "type": "string"
+            },
+            "limit_req_per_ip": {
+              "description": "Request rate per IP, such as 10r/s or 100r/m. Empty inherits. Minus one disables.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "redirect_http",
+        "in": "body",
+        "description": "Whether to redirect HTTP to HTTPS; requires HTTPS.",
+        "schema": {
+          "type": "boolean"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "site_id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_site_set_auth",
+    "cli": "site set-auth",
+    "method": "PATCH",
+    "path": "/sites/{site_id}/auth",
+    "scope": "security:write",
+    "effect": "write",
+    "description": "Configure HTTP Basic authentication, HTTPS site login, or disable authentication. For enabled modes, omit credentials to keep them or supply both for first setup. Disabling clears the stored credentials. Credentials are not returned.",
+    "parameters": [
+      {
+        "name": "site_id",
+        "in": "path",
+        "required": true,
+        "description": "Site record ID from openflare_site_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      },
+      {
+        "name": "mode",
+        "in": "body",
+        "required": true,
+        "description": "Authentication mode. Site login uses a browser session and requires HTTPS.",
+        "schema": {
+          "enum": [
+            "off",
+            "basic",
+            "site"
+          ],
+          "type": "string"
+        }
+      },
+      {
+        "name": "password",
+        "in": "body",
+        "description": "Password. Omit to preserve an existing credential. Never returned by tools.",
+        "schema": {
+          "maxLength": 255,
+          "type": "string"
+        }
+      },
+      {
+        "name": "ttl_hours",
+        "in": "body",
+        "description": "Session lifetime in hours, for site mode only. Omit to retain an existing lifetime.",
+        "schema": {
+          "maximum": 720,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      {
+        "name": "username",
+        "in": "body",
+        "description": "Username. Omit to preserve an existing credential.",
+        "schema": {
+          "maxLength": 255,
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "site_id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_site_set_pow",
+    "cli": "site set-pow",
+    "method": "PATCH",
+    "path": "/sites/{site_id}/pow",
+    "scope": "security:write",
+    "effect": "write",
+    "description": "Enable or disable the website's challenge. Omit config to keep the existing settings or use defaults on first setup. To edit parameters, read the current config and submit a full replacement. WAF flow bindings are preserved.",
+    "parameters": [
+      {
+        "name": "site_id",
+        "in": "path",
+        "required": true,
+        "description": "Site record ID from openflare_site_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      },
+      {
+        "name": "config",
+        "in": "body",
+        "description": "Complete replacement of challenge settings. Omit to retain settings or use defaults on first configuration.",
+        "schema": {
+          "additionalProperties": false,
+          "properties": {
+            "algorithm": {
+              "type": "string"
+            },
+            "blacklist": {
+              "additionalProperties": false,
+              "properties": {
+                "ip_cidrs": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "ips": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "path_regexes": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "paths": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "user_agents": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            "challenge_ttl": {
+              "type": "integer"
+            },
+            "difficulty": {
+              "type": "integer"
+            },
+            "path_rules": {
+              "additionalProperties": false,
+              "properties": {
+                "blacklist": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "mode": {
+                  "type": "string"
+                },
+                "whitelist": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            "session_ttl": {
+              "type": "integer"
+            },
+            "whitelist": {
+              "additionalProperties": false,
+              "properties": {
+                "ip_cidrs": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "ips": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "path_regexes": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "paths": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "user_agents": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "enabled",
+        "in": "body",
+        "required": true,
+        "description": "Whether to enable the site's independent proof-of-work challenge.",
+        "schema": {
+          "type": "boolean"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "site_id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
     "id": "openflare_site_set_upstreams",
     "cli": "site set-upstreams",
     "method": "PATCH",
@@ -1736,6 +2949,108 @@
         },
         "state": {
           "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_site_set_waf",
+    "cli": "site set-waf",
+    "method": "PATCH",
+    "path": "/sites/{site_id}/waf/{flow_id}",
+    "scope": "security:write",
+    "effect": "write",
+    "description": "Append one existing non-global WAF flow or remove its binding. Other flows retain their order. A disabled flow remains disabled. Pass flow_id from openflare_waf_list, not an attack protection group ID.",
+    "parameters": [
+      {
+        "name": "site_id",
+        "in": "path",
+        "required": true,
+        "description": "Site record ID from openflare_site_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      },
+      {
+        "name": "flow_id",
+        "in": "path",
+        "required": true,
+        "description": "WAF flow ID from openflare_waf_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      },
+      {
+        "name": "bound",
+        "in": "body",
+        "required": true,
+        "description": "True appends the flow if absent; false removes only this flow.",
+        "schema": {
+          "type": "boolean"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "site_id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_waf_list",
+    "cli": "waf list",
+    "method": "GET",
+    "path": "/waf/flows",
+    "scope": "security:read",
+    "effect": "read",
+    "description": "Discover existing WAF flows by name and ID. Supply site_id to read the site's explicit flow IDs in execution order. Enabled global flows apply independently of site bindings.",
+    "parameters": [
+      {
+        "name": "site_id",
+        "in": "query",
+        "description": "Site record ID from openflare_site_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "bound_flow_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "results": {
+          "items": {
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "flow_id": {
+                "type": "string"
+              },
+              "global": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
         }
       },
       "type": "object"

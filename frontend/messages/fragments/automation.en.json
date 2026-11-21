@@ -16,6 +16,8 @@
       "logs:read": "Query access logs",
       "metrics:read": "View traffic and performance metrics",
       "nodes:read": "View node status",
+      "security:read": "View WAF flows, attack protection groups, IP groups, and PoW policies",
+      "security:write": "Manage site WAF, PoW, authentication, and attack protection groups",
       "performance:read": "View performance policies",
       "performance:write": "Modify performance policies",
       "sites:read": "View sites, domains, and certificates",

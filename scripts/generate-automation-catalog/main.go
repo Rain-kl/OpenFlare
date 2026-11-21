@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"regexp"
 	"slices"
@@ -122,9 +123,9 @@ var (
 func convert(spec document, path, method string, source swaggerOperation) (automationcontract.Operation, error) {
 	opts := source.Automation
 	read := method == "get" && opts.Effect == automationcontract.EffectRead
-	write := (method == "post" || method == "patch") && opts.Effect == automationcontract.EffectWrite
+	write := (method == "post" || method == "patch" || method == "delete") && opts.Effect == automationcontract.EffectWrite
 	if (!read && !write) || !strings.HasPrefix(path, "/api"+automationcontract.APISuffix+"/") {
-		return automationcontract.Operation{}, errors.New("expected a read GET or write POST/PATCH automation operation")
+		return automationcontract.Operation{}, errors.New("expected a read GET or write POST/PATCH/DELETE automation operation")
 	}
 	if !operationID.MatchString(source.ID) || !commandPath.MatchString(opts.CLI) ||
 		!scopeName.MatchString(opts.Scope) || !strings.HasSuffix(opts.Scope, ":"+opts.Effect) || strings.TrimSpace(source.Description) == "" {
@@ -161,6 +162,9 @@ func convertParameters(spec document, path string, source swaggerOperation) ([]a
 		location, _ := entry["in"].(string)
 		description, _ := entry["description"].(string)
 		required, _ := entry["required"].(bool)
+		if location == automationcontract.LocationBody {
+			required, _ = entry["x-required-field"].(bool)
+		}
 		if !validParameter(name, location, description) || names[name] != "" {
 			return nil, fmt.Errorf("invalid automation parameter %q", name)
 		}
@@ -199,31 +203,72 @@ func parameterSchema(entry, overrides map[string]any) (map[string]any, error) {
 	switch schema["type"] {
 	case automationcontract.SchemaArray:
 		items, _ := entry["items"].(map[string]any)
-		if items["type"] != automationcontract.SchemaString || entry["in"] != automationcontract.LocationBody {
-			return nil, errors.New("only JSON body arrays of strings are supported")
+		if items == nil || entry["in"] != automationcontract.LocationBody {
+			return nil, errors.New("arrays must be JSON body fields with explicit items")
 		}
-		schema["items"] = map[string]any{"type": automationcontract.SchemaString, "minLength": 1, "maxLength": 2048}
+		schema["items"] = closeInputObjects(items)
+		if items["type"] == automationcontract.SchemaString {
+			schema["items"] = map[string]any{"type": automationcontract.SchemaString, "minLength": 1, "maxLength": 2048}
+		}
 		schema["minItems"], schema["maxItems"] = 1, 32
+	case automationcontract.SchemaObject:
+		if entry["in"] != automationcontract.LocationBody {
+			return nil, errors.New("objects must be JSON body fields")
+		}
+		schema = closeInputObjects(entry)
+		for _, key := range []string{"name", "in", "description", "x-required-field"} {
+			delete(schema, key)
+		}
+		if _, ok := schema["required"].(bool); ok {
+			delete(schema, "required")
+		}
 	case automationcontract.SchemaInteger, automationcontract.SchemaString, automationcontract.SchemaBoolean:
 	default:
 		return nil, errors.New("unsupported parameter type")
 	}
-	for _, key := range []string{"enum", "default", "minimum", "maximum", "minLength", "maxLength", "pattern"} {
+	for _, key := range []string{"enum", "default", "minimum", "maximum", "minLength", "maxLength", "pattern", "minItems", "maxItems"} {
 		if value, exists := entry[key]; exists {
 			schema[key] = value
 		}
 	}
+	if err := applyParameterOverrides(schema, overrides); err != nil {
+		return nil, err
+	}
+	return schema, nil
+}
+
+func applyParameterOverrides(schema, overrides map[string]any) error {
 	for key, value := range overrides {
+		if size, ok := value.(float64); ok && schema["type"] == automationcontract.SchemaArray && (key == "minItems" || key == "maxItems") && size >= 0 && size == float64(int(size)) {
+			schema[key] = size
+			continue
+		}
 		pattern, ok := value.(string)
 		if key != "pattern" || !ok || schema["type"] != automationcontract.SchemaString {
-			return nil, fmt.Errorf("unsupported override %s", key)
+			return fmt.Errorf("unsupported override %s", key)
 		}
 		if _, err := regexp.Compile(pattern); err != nil {
-			return nil, err
+			return err
 		}
 		schema[key] = pattern
 	}
-	return schema, nil
+	return nil
+}
+
+func closeInputObjects(schema map[string]any) map[string]any {
+	result := maps.Clone(schema)
+	if properties, ok := schema["properties"].(map[string]any); ok {
+		children := make(map[string]any, len(properties))
+		for key, value := range properties {
+			children[key] = closeInputObjects(value.(map[string]any))
+		}
+		result["properties"] = children
+		result["additionalProperties"] = false
+	}
+	if items, ok := schema["items"].(map[string]any); ok {
+		result["items"] = closeInputObjects(items)
+	}
+	return result
 }
 
 func flattenParameters(spec document, source swaggerOperation) ([]map[string]any, error) {
@@ -255,7 +300,7 @@ func flattenParameters(spec document, source swaggerOperation) ([]map[string]any
 		slices.Sort(names)
 		for _, name := range names {
 			field, _ := properties[name].(map[string]any)
-			field["name"], field["in"], field["required"] = name, automationcontract.LocationBody, slices.Contains(required, any(name))
+			field["name"], field["in"], field["x-required-field"] = name, automationcontract.LocationBody, slices.Contains(required, any(name))
 			entries = append(entries, field)
 		}
 	}
@@ -277,6 +322,19 @@ func outputSchema(spec document, envelope map[string]any) (map[string]any, error
 }
 
 func resolveSchema(spec document, input map[string]any, parents map[string]bool) (map[string]any, error) {
+	// Swaggo wraps a reference in a single allOf entry when the field has a description.
+	if parts, ok := input["allOf"].([]any); ok && len(parts) == 1 {
+		if ref, ok := parts[0].(map[string]any); ok && ref["$ref"] != nil {
+			resolved, err := resolveSchema(spec, ref, parents)
+			if err != nil {
+				return nil, err
+			}
+			siblings := maps.Clone(input)
+			delete(siblings, "allOf")
+			maps.Copy(resolved, siblings)
+			return resolved, nil
+		}
+	}
 	if ref, ok := input["$ref"].(string); ok {
 		key := strings.TrimPrefix(ref, "#/definitions/")
 		definition := spec.Definitions[key]

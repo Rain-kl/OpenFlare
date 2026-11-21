@@ -18,6 +18,8 @@
       "nodes:read": "查看节点状态",
       "performance:read": "查看性能策略",
       "performance:write": "修改性能策略",
+      "security:read": "查看 WAF、攻击防护组、IP 组与 PoW 策略",
+      "security:write": "管理站点 WAF、PoW、认证与攻击防护组",
       "sites:read": "查看站点、域名及证书",
       "sites:write": "创建和修改站点及域名"
     },

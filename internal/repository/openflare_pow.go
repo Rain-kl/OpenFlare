@@ -8,6 +8,7 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -18,7 +19,28 @@ func ListOpenFlarePoWPolicies(ctx context.Context) ([]model.OpenFlarePoWPolicy, 
 	return policies, err
 }
 
-// SaveOpenFlarePoWPolicy replaces one site's policy.
+// GetOpenFlarePoWPolicy returns a site's stored policy, if configured.
+func GetOpenFlarePoWPolicy(ctx context.Context, id uint) (*model.OpenFlarePoWPolicy, error) {
+	var policy model.OpenFlarePoWPolicy
+	err := db.DB(ctx).Where("route_id = ?", id).Take(&policy).Error
+	return &policy, err
+}
+
+// SaveOpenFlarePoWPolicy replaces a site's policy.
 func SaveOpenFlarePoWPolicy(ctx context.Context, policy model.OpenFlarePoWPolicy) error {
-	return db.DB(ctx).Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "route_id"}}, DoUpdates: clause.AssignmentColumns([]string{"enabled", "config"})}).Create(&policy).Error
+	return SetOpenFlarePoWPolicy(ctx, policy, false)
+}
+
+// SetOpenFlarePoWPolicy optionally preserves existing parameters when toggling a policy.
+func SetOpenFlarePoWPolicy(ctx context.Context, policy model.OpenFlarePoWPolicy, preserveConfig bool) error {
+	return WithProxyRouteTx(ctx, func(tx *gorm.DB) error {
+		if _, err := LockProxyRouteTx(tx, policy.RouteID); err != nil {
+			return err
+		}
+		columns := []string{"enabled"}
+		if !preserveConfig {
+			columns = append(columns, "config")
+		}
+		return tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "route_id"}}, DoUpdates: clause.AssignmentColumns(columns)}).Create(&policy).Error
+	})
 }

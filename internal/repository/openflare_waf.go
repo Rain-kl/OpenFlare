@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -85,21 +86,69 @@ func UpdateOpenFlareWAFRuleGroup(ctx context.Context, group *model.OpenFlareWAFR
 }
 
 // UpdateOpenFlareWAFRuleGraph atomically replaces a graph when revision is current.
-func UpdateOpenFlareWAFRuleGraph(ctx context.Context, id uint, revision uint64, graph string) (uint64, error) {
+func UpdateOpenFlareWAFRuleGraph(ctx context.Context, id uint, revision uint64, graph string, attackGroupIDs ...uint) (uint64, error) {
 	conn, err := wafDB(ctx)
 	if err != nil {
 		return 0, err
 	}
-	result := conn.Model(&model.OpenFlareWAFRuleGroup{}).
-		Where("id = ? AND revision = ?", id, revision).
-		Updates(map[string]any{"graph": graph, "revision": gorm.Expr("revision + 1")})
-	if result.Error != nil {
-		return 0, result.Error
-	}
-	if result.RowsAffected != 1 {
-		return 0, model.ErrWAFRuleRevisionConflict
+	err = conn.Transaction(func(tx *gorm.DB) error {
+		for _, groupID := range attackGroupIDs {
+			var group model.OpenFlareAttackGroup
+			if err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthShare}).Select("id").Take(&group, groupID).Error; err != nil {
+				return err
+			}
+		}
+		result := tx.Model(&model.OpenFlareWAFRuleGroup{}).
+			Where("id = ? AND revision = ?", id, revision).
+			Updates(map[string]any{"graph": graph, "revision": gorm.Expr("revision + 1")})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return model.ErrWAFRuleRevisionConflict
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
 	}
 	return revision + 1, nil
+}
+
+// ErrWAFGroupGlobal identifies flows that cannot be managed through site bindings.
+var ErrWAFGroupGlobal = errors.New("global WAF flow applies independently of site bindings")
+
+// SetOpenFlareWAFSiteRuleGroup adds or removes one binding, preserving the order of other flows.
+func SetOpenFlareWAFSiteRuleGroup(ctx context.Context, routeID, groupID uint, bind bool) error {
+	return WithProxyRouteTx(ctx, func(tx *gorm.DB) error {
+		if _, err := LockProxyRouteTx(tx, routeID); err != nil {
+			return err
+		}
+		var group model.OpenFlareWAFRuleGroup
+		if err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).Select("id", "is_global").Take(&group, groupID).Error; err != nil {
+			return err
+		}
+		if group.IsGlobal {
+			return ErrWAFGroupGlobal
+		}
+		if !bind {
+			return tx.Where("proxy_route_id = ? AND rule_group_id = ?", routeID, groupID).Delete(&model.OpenFlareWAFRuleGroupBinding{}).Error
+		}
+		var bindings []model.OpenFlareWAFRuleGroupBinding
+		if err := tx.Where("proxy_route_id = ?", routeID).Order("sequence DESC").Find(&bindings).Error; err != nil {
+			return err
+		}
+		for _, binding := range bindings {
+			if binding.RuleGroupID == groupID {
+				return nil
+			}
+		}
+		sequence := 0
+		if len(bindings) > 0 {
+			sequence = bindings[0].Sequence + 1
+		}
+		return insertOpenFlareWAFRuleGroupBindings(tx, []model.OpenFlareWAFRuleGroupBinding{{ProxyRouteID: routeID, RuleGroupID: groupID, Sequence: sequence}})
+	})
 }
 
 // DeleteOpenFlareWAFRuleGroup removes a rule group.
@@ -384,6 +433,10 @@ func DeleteOpenFlareWAFRuleGroupWithBindings(ctx context.Context, groupID uint) 
 		return err
 	}
 	return conn.Transaction(func(tx *gorm.DB) error {
+		var group model.OpenFlareWAFRuleGroup
+		if err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).Select("id").Take(&group, groupID).Error; err != nil {
+			return err
+		}
 		if err = tx.Where("rule_group_id = ?", groupID).Delete(&model.OpenFlareWAFRuleGroupBinding{}).Error; err != nil {
 			return err
 		}

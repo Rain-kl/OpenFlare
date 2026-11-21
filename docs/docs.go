@@ -5258,6 +5258,127 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/automation/nodes/health": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Return a page of nodes with heartbeat status, reported runtime health, active health events, and comparison against the active site snapshot for edge nodes. Offline nodes show the last reported runtime health. Use node metrics for resource time series.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Check node connectivity, runtime health and site configuration sync",
+                "operationId": "openflare_node_health",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number, starting at 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Number of records per page",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 256,
+                        "type": "string",
+                        "description": "Literal substring of the node name, registration identifier or IP address",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "pending",
+                            "online",
+                            "offline"
+                        ],
+                        "type": "string",
+                        "description": "Filter by heartbeat state; omit for all states",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "edge_node",
+                            "tunnel_relay",
+                            "tunnel_client"
+                        ],
+                        "type": "string",
+                        "description": "Filter by node type; omit for all types",
+                        "name": "node_type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.NodeHealthPage"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "node health",
+                    "effect": "read",
+                    "scope": "nodes:read"
+                }
+            }
+        },
         "/api/v1/automation/nodes/{node_record_id}": {
             "get": {
                 "security": [
@@ -5969,6 +6090,111 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/automation/sites/{site_id}/auth": {
+            "patch": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Configure HTTP Basic authentication, HTTPS site login, or disable authentication. For enabled modes, omit credentials to keep them or supply both for first setup. Disabling clears the stored credentials. Credentials are not returned.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Set a website's authentication mode",
+                "operationId": "openflare_site_set_auth",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Site record ID from openflare_site_list",
+                        "name": "site_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Authentication settings",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.SiteAuthBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.SiteSaved"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "site set-auth",
+                    "effect": "write",
+                    "parameters": {
+                        "site_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "security:write"
+                }
+            }
+        },
         "/api/v1/automation/sites/{site_id}/domains/{domain_record_id}": {
             "post": {
                 "security": [
@@ -6063,6 +6289,394 @@ const docTemplate = `{
                     "parameters": {
                         "domain_record_id": {
                             "pattern": "^[1-9][0-9]{0,18}$"
+                        },
+                        "site_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "sites:write"
+                }
+            }
+        },
+        "/api/v1/automation/sites/{site_id}/pow": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Read challenge settings for the selected website. An unconfigured website returns disabled defaults. WAF flow PoW nodes are configured separately.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Read a website's independent PoW policy",
+                "operationId": "openflare_site_get_pow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Site record ID from openflare_site_list",
+                        "name": "site_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.SitePoW"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "site get-pow",
+                    "effect": "read",
+                    "parameters": {
+                        "site_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "security:read"
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Enable or disable the website's challenge. Omit config to keep the existing settings or use defaults on first setup. To edit parameters, read the current config and submit a full replacement. WAF flow bindings are preserved.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Configure independent PoW for one website",
+                "operationId": "openflare_site_set_pow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Site record ID from openflare_site_list",
+                        "name": "site_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Independent proof-of-work settings",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.SitePoWBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.SiteSaved"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "site set-pow",
+                    "effect": "write",
+                    "parameters": {
+                        "site_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "security:write"
+                }
+            }
+        },
+        "/api/v1/automation/sites/{site_id}/settings": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Read the selected site's proxy settings, configured limits, and authentication mode. Header values, credentials, and signing keys are omitted. Use openflare_site_list to resolve a site ID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Read website reverse proxy and authentication settings",
+                "operationId": "openflare_site_get_settings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Site record ID from openflare_site_list",
+                        "name": "site_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.SiteSettings"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "site get-settings",
+                    "effect": "read",
+                    "parameters": {
+                        "site_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "sites:read"
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Change only the supplied fields, including HTTPS, HTTP/2, redirection, caching, response headers and rate limits. Use openflare_site_set_upstreams for upstream changes. The result confirms controller storage.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Update reverse proxy settings and limits for one website",
+                "operationId": "openflare_site_patch_settings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Site record ID from openflare_site_list",
+                        "name": "site_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Partial reverse proxy settings",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.SettingsPatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.SiteSaved"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "site patch-settings",
+                    "effect": "write",
+                    "parameters": {
+                        "cache_rules": {
+                            "maxItems": 256,
+                            "minItems": 0
+                        },
+                        "custom_headers": {
+                            "maxItems": 64,
+                            "minItems": 0
                         },
                         "site_id": {
                             "pattern": "^[1-9][0-9]{0,18}$"
@@ -6174,6 +6788,715 @@ const docTemplate = `{
                         }
                     },
                     "scope": "sites:write"
+                }
+            }
+        },
+        "/api/v1/automation/sites/{site_id}/waf/{flow_id}": {
+            "patch": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Append one existing non-global WAF flow or remove its binding. Other flows retain their order. A disabled flow remains disabled. Pass flow_id from openflare_waf_list, not an attack protection group ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Bind or unbind one WAF flow on a website",
+                "operationId": "openflare_site_set_waf",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Site record ID from openflare_site_list",
+                        "name": "site_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "WAF flow ID from openflare_waf_list",
+                        "name": "flow_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Whether the flow should be bound",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.SiteWAFBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.SiteSaved"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "site set-waf",
+                    "effect": "write",
+                    "parameters": {
+                        "flow_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        },
+                        "site_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "security:write"
+                }
+            }
+        },
+        "/api/v1/automation/waf/attack-groups": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Read group IDs, category levels, and per-rule overrides. WAF flows reference these groups through security check nodes; website bindings use flow IDs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "List attack protection rule groups",
+                "operationId": "openflare_attack_group_list",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.AttackGroupList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "attack-group list",
+                    "effect": "read",
+                    "scope": "security:read"
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Create a group for use in WAF security check nodes. This operation does not attach the group to a flow or a site.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Create an attack protection rule group",
+                "operationId": "openflare_attack_group_create",
+                "parameters": [
+                    {
+                        "description": "Attack protection group",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_waf.AttackGroupInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.AttackGroupSaved"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "attack-group create",
+                    "effect": "write",
+                    "scope": "security:write"
+                }
+            }
+        },
+        "/api/v1/automation/waf/attack-groups/{group_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Delete the selected group. Deletion is rejected while any WAF flow references it, including disabled and global flows.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Delete an unused attack protection rule group",
+                "operationId": "openflare_attack_group_delete",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Attack protection group ID from openflare_attack_group_list",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.AttackGroupDeleted"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "attack-group delete",
+                    "effect": "write",
+                    "parameters": {
+                        "group_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "security:write"
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Replace the name and category levels. Omitted categories are disabled. Omit rule_overrides to keep existing per-rule settings; an empty object clears them. Changes affect all WAF flows that use this group.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Update an attack protection rule group",
+                "operationId": "openflare_attack_group_update",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Attack protection group ID from openflare_attack_group_list",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Replacement group settings",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_waf.AttackGroupInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.AttackGroupSaved"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "attack-group update",
+                    "effect": "write",
+                    "parameters": {
+                        "group_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "security:write"
+                }
+            }
+        },
+        "/api/v1/automation/waf/flows": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Discover existing WAF flows by name and ID. Supply site_id to read the site's explicit flow IDs in execution order. Enabled global flows apply independently of site bindings.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "List WAF flows and optionally website bindings",
+                "operationId": "openflare_waf_list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Site record ID from openflare_site_list",
+                        "name": "site_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.WAFFlowList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "waf list",
+                    "effect": "read",
+                    "parameters": {
+                        "site_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "security:read"
+                }
+            }
+        },
+        "/api/v1/automation/waf/ip-groups": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Read IP group IDs, entry counts, flow reference counts, and synchronization status. Use openflare_ip_group_get to read the entries of a selected group.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "List WAF IP groups",
+                "operationId": "openflare_ip_group_list",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.IPGroupList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "ip-group list",
+                    "effect": "read",
+                    "scope": "security:read"
+                }
+            }
+        },
+        "/api/v1/automation/waf/ip-groups/{group_id}": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Return manual IP addresses and CIDRs, synchronized entries, and refresh status. Subscription URLs and source configurations are omitted.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Read entries of a WAF IP group",
+                "operationId": "openflare_ip_group_get",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "IP group ID from openflare_ip_group_list",
+                        "name": "group_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.IPGroupDetails"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "ip-group get",
+                    "effect": "read",
+                    "parameters": {
+                        "group_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "security:read"
                 }
             }
         },
@@ -13307,7 +14630,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/apps_openflare_waf.attackGroupInput"
+                            "$ref": "#/definitions/apps_openflare_waf.AttackGroupInput"
                         }
                     }
                 ],
@@ -13383,7 +14706,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/apps_openflare_waf.attackGroupInput"
+                            "$ref": "#/definitions/apps_openflare_waf.AttackGroupInput"
                         }
                     }
                 ],
@@ -18768,6 +20091,62 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_automation.AttackGroup": {
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "levels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rule_overrides": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "apps_openflare_automation.AttackGroupDeleted": {
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_automation.AttackGroupList": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_automation.AttackGroup"
+                    }
+                }
+            }
+        },
+        "apps_openflare_automation.AttackGroupSaved": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "$ref": "#/definitions/apps_openflare_automation.AttackGroup"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
         "apps_openflare_automation.Catalog": {
             "type": "object",
             "properties": {
@@ -18943,6 +20322,126 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "zone_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_automation.IPGroupDetails": {
+            "type": "object",
+            "properties": {
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "group": {
+                    "$ref": "#/definitions/apps_openflare_automation.IPGroupSummary"
+                },
+                "synced_entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_waf.IPGroupExtIPView"
+                    }
+                }
+            }
+        },
+        "apps_openflare_automation.IPGroupList": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_automation.IPGroupSummary"
+                    }
+                }
+            }
+        },
+        "apps_openflare_automation.IPGroupSummary": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "entry_count": {
+                    "type": "integer"
+                },
+                "flow_reference_count": {
+                    "type": "integer"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "last_sync_status": {
+                    "type": "string"
+                },
+                "last_synced_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "next_sync_at": {
+                    "type": "string"
+                },
+                "synced_entry_count": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_automation.NodeHealthEvent": {
+            "type": "object",
+            "properties": {
+                "last_triggered_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_automation.NodeHealthPage": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_automation.NodeHealthSummary"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_automation.NodeHealthSummary": {
+            "type": "object",
+            "properties": {
+                "active_events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_automation.NodeHealthEvent"
+                    }
+                },
+                "config_sync": {
+                    "type": "string"
+                },
+                "node": {
+                    "$ref": "#/definitions/apps_openflare_automation.NodeSummary"
+                },
+                "runtime_health": {
                     "type": "string"
                 }
             }
@@ -19186,6 +20685,39 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_automation.SiteAuthBody": {
+            "type": "object",
+            "required": [
+                "mode"
+            ],
+            "properties": {
+                "mode": {
+                    "description": "Authentication mode. Site login uses a browser session and requires HTTPS.",
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "basic",
+                        "site"
+                    ]
+                },
+                "password": {
+                    "description": "Password. Omit to preserve an existing credential. Never returned by tools.",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "ttl_hours": {
+                    "description": "Session lifetime in hours, for site mode only. Omit to retain an existing lifetime.",
+                    "type": "integer",
+                    "maximum": 720,
+                    "minimum": 1
+                },
+                "username": {
+                    "description": "Username. Omit to preserve an existing credential.",
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
         "apps_openflare_automation.SiteList": {
             "type": "object",
             "properties": {
@@ -19267,6 +20799,92 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_automation.SitePoW": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWConfig"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "site_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_automation.SitePoWBody": {
+            "type": "object",
+            "required": [
+                "enabled"
+            ],
+            "properties": {
+                "config": {
+                    "description": "Complete replacement of challenge settings. Omit to retain settings or use defaults on first configuration.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_edgeconfig.PoWConfig"
+                        }
+                    ]
+                },
+                "enabled": {
+                    "description": "Whether to enable the site's independent proof-of-work challenge.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_openflare_automation.SiteSaved": {
+            "type": "object",
+            "properties": {
+                "site_id": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_automation.SiteSettings": {
+            "type": "object",
+            "properties": {
+                "auth_mode": {
+                    "type": "string"
+                },
+                "auth_ttl_hours": {
+                    "type": "integer"
+                },
+                "cache_enabled": {
+                    "type": "boolean"
+                },
+                "cache_policy": {
+                    "type": "string"
+                },
+                "cache_rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "custom_header_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "http2_enabled": {
+                    "type": "boolean"
+                },
+                "limits": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.SiteLimitsPatch"
+                },
+                "redirect_http": {
+                    "type": "boolean"
+                },
+                "site": {
+                    "$ref": "#/definitions/apps_openflare_automation.SiteSummary"
+                }
+            }
+        },
         "apps_openflare_automation.SiteSummary": {
             "type": "object",
             "properties": {
@@ -19322,6 +20940,18 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_automation.SiteWAFBody": {
+            "type": "object",
+            "required": [
+                "bound"
+            ],
+            "properties": {
+                "bound": {
+                    "description": "True appends the flow if absent; false removes only this flow.",
+                    "type": "boolean"
+                }
+            }
+        },
         "apps_openflare_automation.SiteWriteResult": {
             "type": "object",
             "properties": {
@@ -19356,6 +20986,40 @@ const docTemplate = `{
                 },
                 "trends": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.AccessLogOverviewTrends"
+                }
+            }
+        },
+        "apps_openflare_automation.WAFFlow": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "flow_id": {
+                    "type": "string"
+                },
+                "global": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_automation.WAFFlowList": {
+            "type": "object",
+            "properties": {
+                "bound_flow_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_automation.WAFFlow"
+                    }
                 }
             }
         },
@@ -21646,6 +23310,35 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_waf.AttackGroupInput": {
+            "type": "object",
+            "required": [
+                "levels",
+                "name"
+            ],
+            "properties": {
+                "levels": {
+                    "description": "Category-to-level map. Levels are off, observe, balanced, or strict. Omitted categories are disabled.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "description": "Display name for the attack protection group.",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "rule_overrides": {
+                    "description": "Decimal CRS rule IDs mapped to off, enabled, or observe. Omit on update to retain overrides; {} clears them.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "apps_openflare_waf.CreateRuleInput": {
             "type": "object",
             "properties": {
@@ -22044,26 +23737,6 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
-                }
-            }
-        },
-        "apps_openflare_waf.attackGroupInput": {
-            "type": "object",
-            "properties": {
-                "levels": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "rule_overrides": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
                 }
             }
         },
@@ -23065,6 +24738,138 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "window_started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.CustomHeaderInput": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.SettingsPatch": {
+            "type": "object",
+            "properties": {
+                "cache_enabled": {
+                    "description": "Whether edge caching is enabled.",
+                    "type": "boolean"
+                },
+                "cache_policy": {
+                    "description": "Cache policy: static, all, suffix, path_prefix, or path_exact.",
+                    "type": "string",
+                    "enum": [
+                        "static",
+                        "all",
+                        "suffix",
+                        "path_prefix",
+                        "path_exact"
+                    ]
+                },
+                "cache_rules": {
+                    "description": "Replace custom cache rules; an empty array clears the rules when permitted by the cache policy.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "custom_headers": {
+                    "description": "Replace custom response headers; an empty array clears them.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.CustomHeaderInput"
+                    }
+                },
+                "enable_http2": {
+                    "description": "Whether HTTP/2 is enabled on the HTTPS listener.",
+                    "type": "boolean"
+                },
+                "enable_https": {
+                    "description": "Whether the site serves HTTPS. Each bound domain needs a covering certificate.",
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "description": "Whether the site serves traffic.",
+                    "type": "boolean"
+                },
+                "limits": {
+                    "description": "Update site-specific connection, bandwidth, and request limits. Omitted limits are preserved.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.SiteLimitsPatch"
+                        }
+                    ]
+                },
+                "redirect_http": {
+                    "description": "Whether to redirect HTTP to HTTPS; requires HTTPS.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.SiteLimitsPatch": {
+            "type": "object",
+            "properties": {
+                "limit_conn_per_ip": {
+                    "description": "Zero inherits the default. Minus one disables the limit.",
+                    "type": "integer",
+                    "minimum": -1
+                },
+                "limit_conn_per_server": {
+                    "description": "Zero inherits the default. Minus one disables the limit.",
+                    "type": "integer",
+                    "minimum": -1
+                },
+                "limit_rate": {
+                    "description": "Response rate, such as 512k or 2m. Empty inherits. Minus one disables.",
+                    "type": "string"
+                },
+                "limit_req_per_ip": {
+                    "description": "Request rate per IP, such as 10r/s or 100r/m. Empty inherits. Minus one disables.",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_waf.AttackGroupInput": {
+            "type": "object",
+            "required": [
+                "levels",
+                "name"
+            ],
+            "properties": {
+                "levels": {
+                    "description": "Category-to-level map. Levels are off, observe, balanced, or strict. Omitted categories are disabled.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "description": "Display name for the attack protection group.",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "rule_overrides": {
+                    "description": "Decimal CRS rule IDs mapped to off, enabled, or observe. Omit on update to retain overrides; {} clears them.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_waf.IPGroupExtIPView": {
+            "type": "object",
+            "properties": {
+                "captured_at": {
+                    "type": "string"
+                },
+                "ip": {
                     "type": "string"
                 }
             }

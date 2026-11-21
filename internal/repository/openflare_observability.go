@@ -183,12 +183,28 @@ func ListOpenFlareMetricHourlySince(ctx context.Context, nodeID string, since ti
 
 // ListOpenFlareActiveHealthEvents returns active health events across all nodes.
 func ListOpenFlareActiveHealthEvents(ctx context.Context) ([]*model.OpenFlareHealthEvent, error) {
+	return listOpenFlareActiveHealthEvents(ctx, nil)
+}
+
+// ListOpenFlareActiveHealthEventsByNodeIDs returns active events for the requested node page.
+func ListOpenFlareActiveHealthEventsByNodeIDs(ctx context.Context, nodeIDs []string) ([]*model.OpenFlareHealthEvent, error) {
+	if len(nodeIDs) == 0 {
+		return nil, nil
+	}
+	return listOpenFlareActiveHealthEvents(ctx, nodeIDs)
+}
+
+func listOpenFlareActiveHealthEvents(ctx context.Context, nodeIDs []string) ([]*model.OpenFlareHealthEvent, error) {
 	conn := db.DB(ctx)
 	if conn == nil {
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
 	var rows []*model.OpenFlareHealthEvent
-	if err := conn.Where("status = ?", "active").Order("last_triggered_at desc").Find(&rows).Error; err != nil {
+	query := conn.Where("status = ?", "active")
+	if len(nodeIDs) != 0 {
+		query = query.Where("node_id IN ?", nodeIDs)
+	}
+	if err := query.Order("last_triggered_at desc").Find(&rows).Error; err != nil {
 		if isMissingTableError(err) {
 			return []*model.OpenFlareHealthEvent{}, nil
 		}

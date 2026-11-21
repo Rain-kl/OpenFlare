@@ -315,11 +315,17 @@ func validateProxyRouteZoneDomainCertificates(ctx context.Context, domains []mod
 	if !enableHTTPS {
 		return nil
 	}
+	return validateBoundCertificates(domains, func(id uint) (*model.TLSCertificate, error) {
+		return lookupTLSCertificateByID(ctx, id)
+	})
+}
+
+func validateBoundCertificates(domains []model.ZoneDomain, lookup func(uint) (*model.TLSCertificate, error)) error {
 	for _, domain := range domains {
 		if domain.CertID == nil || *domain.CertID == 0 {
 			return errors.New(errProxyRouteCertRequired)
 		}
-		certificate, err := lookupTLSCertificateByID(ctx, *domain.CertID)
+		certificate, err := lookup(*domain.CertID)
 		if err != nil {
 			return errors.New(errProxyRouteCertNotFound)
 		}

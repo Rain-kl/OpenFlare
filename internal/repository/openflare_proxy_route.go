@@ -105,6 +105,11 @@ func UpdateProxyRouteRecordTx(tx *gorm.DB, route *model.ProxyRoute) error {
 	return tx.Model(&model.ProxyRoute{}).Where("id = ?", route.ID).Updates(proxyRouteUpdateMap(route)).Error
 }
 
+// UpdateProxyRouteFieldsTx writes only the selected fields of a locked route.
+func UpdateProxyRouteFieldsTx(tx *gorm.DB, route *model.ProxyRoute, fields []string) error {
+	return tx.Model(route).Select(fields).Updates(route).Error
+}
+
 func proxyRouteUpdateMap(route *model.ProxyRoute) map[string]any {
 	return map[string]any{
 		"site_name":              route.SiteName,
@@ -188,6 +193,9 @@ func ReplaceZoneDomainRouteBindingsTx(tx *gorm.DB, routeID uint, domainIDs []uin
 // DeleteProxyRouteAndUnbind clears domain bindings then deletes the proxy route in one transaction.
 func DeleteProxyRouteAndUnbind(ctx context.Context, id uint) error {
 	return WithProxyRouteTx(ctx, func(tx *gorm.DB) error {
+		if _, err := LockProxyRouteTx(tx, id); err != nil {
+			return err
+		}
 		if err := ClearZoneDomainProxyRouteBindingsTx(tx, id); err != nil {
 			return err
 		}
