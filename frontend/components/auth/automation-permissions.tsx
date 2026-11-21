@@ -32,7 +32,7 @@ export function AutomationPermissions({
   return (
     <FieldSet className='min-w-0'>
       <FieldLegend>{t('permissionsTitle')}</FieldLegend>
-      <FieldGroup className='grid gap-3 sm:grid-cols-2'>
+      <FieldGroup className='gap-3'>
         {permissionGroups.map((group) => {
           const groupScopes = scopes.filter((scope) =>
             scope.endsWith(`:${group}`),
@@ -44,7 +44,7 @@ export function AutomationPermissions({
           return (
             <div
               key={group}
-              className='flex min-w-0 flex-col gap-3 rounded-md border border-dashed p-3 only:col-span-full'
+              className='flex min-w-0 flex-col gap-3 rounded-md border border-dashed p-3'
             >
               <Field orientation='horizontal' data-disabled={disabled}>
                 <FieldLabel id={labelId} htmlFor={switchId}>
