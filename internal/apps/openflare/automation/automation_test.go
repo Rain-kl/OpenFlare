@@ -10,7 +10,6 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -20,22 +19,19 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/config_version"
 	"github.com/Rain-kl/Wavelet/internal/automationcontract"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
-	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
-	"github.com/Rain-kl/Wavelet/internal/infra/persistence/migrator"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
+	"github.com/Rain-kl/Wavelet/internal/testhelper/testdb"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	"gorm.io/gorm"
-	gormlogger "gorm.io/gorm/logger"
 )
 
 func TestOAuthAndReadOnlyTransports(t *testing.T) {
@@ -389,27 +385,11 @@ func testOperation[Result any](t *testing.T, client *http.Client, base, token, i
 func automationTestServer(t *testing.T, useTLS bool) (*httptest.Server, *gorm.DB) {
 	t.Helper()
 	previous := config.Config
+	t.Cleanup(func() { config.Config = previous })
 	config.Config.App.APIPrefix = "/api"
 	config.Config.App.SessionSecret = "test fixture secret with at least 32 bytes"
 	config.Config.App.SessionCookieName = "automation_test"
-	config.Config.Database.Enabled = false
-	database, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "automation.sqlite")), &gorm.Config{
-		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
-	})
-	require.NoError(t, err)
-	sqlDB, err := database.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	db.SetDB(database)
-	logstore.ResetForTest()
-	t.Cleanup(func() {
-		logstore.ResetForTest()
-		repository.ResetSystemConfigRAMCacheForTest()
-		config.Config = previous
-		db.SetDB(nil)
-		require.NoError(t, sqlDB.Close())
-	})
-	migrator.Migrate()
+	database := testdb.OpenMigratedSQLite(t)
 	user := model.User{ID: 991, Username: "automation-admin", Email: "automation@openflare.test", IsAdmin: true, IsActive: true}
 	require.NoError(t, database.Create(&user).Error)
 	require.NoError(t, database.Create(&model.OpenFlareNode{
