@@ -37,6 +37,7 @@ type AccessLogStore interface {
 	WAFIPAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery) ([]analyticsmodel.NodeAccessLogWAFIPAggregate, error)
 	IPTrend(ctx context.Context, filter model.OpenFlareAccessLogQuery, bucketSeconds int64) ([]analyticsmodel.NodeAccessLogIPTrend, error)
 	TrafficSummary(ctx context.Context, filter model.OpenFlareAccessLogQuery) (model.OpenFlareAccessLogTrafficSummary, error)
+	SiteTraffic(ctx context.Context, filter model.OpenFlareAccessLogQuery, bindings []model.OpenFlareAccessLogSiteBinding) ([]model.OpenFlareAccessLogSiteTraffic, error)
 	ValueCounts(ctx context.Context, filter model.OpenFlareAccessLogQuery, column string, limit int) ([]model.OpenFlareAccessLogValueCount, error)
 	NodeAggregates(ctx context.Context, filter model.OpenFlareAccessLogQuery) ([]model.OpenFlareAccessLogNodeAggregate, error)
 	DeleteAll(ctx context.Context) (int64, error)

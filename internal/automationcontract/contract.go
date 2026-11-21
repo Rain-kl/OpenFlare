@@ -41,6 +41,7 @@ type Operation struct {
 	Method      string         `json:"method"`
 	Path        string         `json:"path"`
 	Scope       string         `json:"scope"`
+	Requires    []string       `json:"requires,omitempty"`
 	Effect      string         `json:"effect"`
 	Description string         `json:"description"`
 	Parameters  []Parameter    `json:"parameters"`

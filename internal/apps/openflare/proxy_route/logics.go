@@ -106,11 +106,11 @@ type ZoneDomainView struct {
 
 // ListProxyRoutes 列出全部代理规则。
 func ListProxyRoutes(ctx context.Context) ([]*View, error) {
-	routes, err := repository.ListProxyRoutes(ctx)
+	routes, err := repository.ListProxyRoutesWithDomains(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return buildProxyRouteViews(ctx, routes)
+	return buildProxyRouteViews(routes)
 }
 
 // GetProxyRoute 获取代理规则详情。
@@ -335,10 +335,10 @@ func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) 
 	return route, nil
 }
 
-func buildProxyRouteViews(ctx context.Context, routes []*model.ProxyRoute) ([]*View, error) {
+func buildProxyRouteViews(routes []*model.ProxyRoute) ([]*View, error) {
 	views := make([]*View, 0, len(routes))
 	for _, route := range routes {
-		view, err := buildProxyRouteView(ctx, route)
+		view, err := proxyRouteViewWithDomains(route, route.ZoneDomains)
 		if err != nil {
 			return nil, err
 		}
@@ -355,6 +355,10 @@ func buildProxyRouteView(ctx context.Context, route *model.ProxyRoute) (*View, e
 	if err != nil {
 		return nil, err
 	}
+	return proxyRouteViewWithDomains(route, domains)
+}
+
+func proxyRouteViewWithDomains(route *model.ProxyRoute, domains []model.ZoneDomain) (*View, error) {
 	upstreams, err := decodeStoredUpstreams(route.Upstreams, route.OriginURL)
 	if err != nil {
 		return nil, err

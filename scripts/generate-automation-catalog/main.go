@@ -42,6 +42,7 @@ type swaggerResponse struct {
 type automationOptions struct {
 	CLI        string                    `json:"cli"`
 	Scope      string                    `json:"scope"`
+	Requires   []string                  `json:"requires"`
 	Effect     string                    `json:"effect"`
 	Parameters map[string]map[string]any `json:"parameters"`
 }
@@ -129,6 +130,11 @@ func convert(spec document, path, method string, source swaggerOperation) (autom
 		!scopeName.MatchString(opts.Scope) || !strings.HasSuffix(opts.Scope, ":"+opts.Effect) || strings.TrimSpace(source.Description) == "" {
 		return automationcontract.Operation{}, errors.New("invalid operation ID, CLI command, scope or description")
 	}
+	for i, scope := range opts.Requires {
+		if !scopeName.MatchString(scope) || scope == opts.Scope || slices.Contains(opts.Requires[:i], scope) {
+			return automationcontract.Operation{}, fmt.Errorf("invalid additional scope %q", scope)
+		}
+	}
 	params, err := convertParameters(spec, path, source)
 	if err != nil {
 		return automationcontract.Operation{}, err
@@ -139,7 +145,7 @@ func convert(spec document, path, method string, source swaggerOperation) (autom
 	}
 	return automationcontract.Operation{
 		ID: source.ID, CLI: opts.CLI, Method: strings.ToUpper(method), Path: strings.TrimPrefix(path, "/api"+automationcontract.APISuffix),
-		Scope: opts.Scope, Effect: opts.Effect, Description: source.Description, Parameters: params, Output: output,
+		Scope: opts.Scope, Requires: opts.Requires, Effect: opts.Effect, Description: source.Description, Parameters: params, Output: output,
 	}, nil
 }
 

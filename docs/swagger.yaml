@@ -1183,6 +1183,52 @@ definitions:
           $ref: '#/definitions/apps_openflare_automation.SiteSummary'
         type: array
     type: object
+  apps_openflare_automation.SiteOverview:
+    properties:
+      enabled_site_count:
+        type: integer
+      next_offset:
+        type: integer
+      since:
+        type: string
+      site_count:
+        type: integer
+      sites:
+        items:
+          $ref: '#/definitions/apps_openflare_automation.SiteOverviewItem'
+        type: array
+      sites_with_requests:
+        type: integer
+      status_codes:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.DistributionItem'
+        type: array
+      total_traffic:
+        $ref: '#/definitions/apps_openflare_automation.SiteTrafficTotals'
+      unmatched_requests:
+        type: integer
+      until:
+        type: string
+    type: object
+  apps_openflare_automation.SiteOverviewItem:
+    properties:
+      enabled:
+        type: boolean
+      hostnames:
+        items:
+          type: string
+        type: array
+      https_enabled:
+        type: boolean
+      site_id:
+        type: string
+      site_name:
+        type: string
+      traffic:
+        $ref: '#/definitions/apps_openflare_automation.SiteTrafficTotals'
+      upstream_type:
+        type: string
+    type: object
   apps_openflare_automation.SiteSummary:
     properties:
       domains:
@@ -1205,6 +1251,19 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  apps_openflare_automation.SiteTrafficTotals:
+    properties:
+      bytes_sent:
+        type: integer
+      http_4xx:
+        type: integer
+      http_5xx:
+        type: integer
+      requests:
+        type: integer
+      unique_ips:
+        type: integer
     type: object
   apps_openflare_automation.SiteWriteResult:
     properties:
@@ -3342,6 +3401,10 @@ definitions:
         type: array
       path:
         type: string
+      requires:
+        items:
+          type: string
+        type: array
       scope:
         type: string
     type: object
@@ -8152,9 +8215,10 @@ paths:
         scope: logs:read
   /api/v1/automation/metrics/traffic:
     get:
-      description: Read access-log totals, interval series for requests, visits and
-        bandwidth, and the most common status codes. Use node_id for a single node,
-        host for one hostname, or both for their intersection.
+      description: Read traffic totals, the most common status codes and optional
+        hourly trends. Use node_id and host to narrow the result. For all sites and
+        their recent traffic, use openflare_site_overview instead of querying each
+        host separately.
       operationId: openflare_metrics_traffic
       parameters:
       - description: Node registration identifier from openflare_node_list; not node_record_id
@@ -8174,6 +8238,12 @@ paths:
         minimum: 1
         name: hours
         type: integer
+      - default: true
+        description: Include the hourly series; set false when only totals and status
+          counts are needed
+        in: query
+        name: with_trends
+        type: boolean
       produces:
       - application/json
       responses:
@@ -8821,6 +8891,92 @@ paths:
           site_id:
             pattern: ^[1-9][0-9]{0,18}$
         scope: sites:write
+  /api/v1/automation/sites/overview:
+    get:
+      description: Start here for the current site inventory and recent traffic. Returns
+        instance-wide totals, common statuses and sites ranked by requests, including
+        enabled, disabled and zero-traffic sites. Site traffic combines all hostnames
+        using current bindings. Instance totals include unmatched hostnames. Use site_list
+        for upstream configuration, metrics_traffic for a time series, or logs_list
+        for individual requests.
+      operationId: openflare_site_overview
+      parameters:
+      - default: 24
+        description: Lookback in hours, ending at query time
+        in: query
+        maximum: 720
+        minimum: 1
+        name: hours
+        type: integer
+      - description: Exclusive RFC3339 window end; default is now. Reuse the returned
+          until when paginating.
+        in: query
+        maxLength: 35
+        name: until
+        type: string
+      - description: Optional node registration identifier for traffic; the site inventory
+          is instance-wide
+        in: query
+        maxLength: 64
+        name: node_id
+        type: string
+      - default: 50
+        description: Maximum number of sites returned, descending by request count
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - default: 0
+        description: Site offset; continue with next_offset and the same filters
+        in: query
+        maximum: 2147483647
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.SiteOverview'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: List configured websites with recent traffic in one call
+      tags:
+      - automation
+      x-automation:
+        cli: site overview
+        effect: read
+        requires:
+        - metrics:read
+        scope: sites:read
   /api/v1/automation/zones:
     get:
       description: Resolve a registered root domain to its zone_id before adding hostnames.

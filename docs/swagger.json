@@ -5032,7 +5032,7 @@
                         "AutomationBearer": []
                     }
                 ],
-                "description": "Read access-log totals, interval series for requests, visits and bandwidth, and the most common status codes. Use node_id for a single node, host for one hostname, or both for their intersection.",
+                "description": "Read traffic totals, the most common status codes and optional hourly trends. Use node_id and host to narrow the result. For all sites and their recent traffic, use openflare_site_overview instead of querying each host separately.",
                 "produces": [
                     "application/json"
                 ],
@@ -5063,6 +5063,13 @@
                         "default": 24,
                         "description": "Lookback window in hours, ending at query time",
                         "name": "hours",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Include the hourly series; set false when only totals and status counts are needed",
+                        "name": "with_trends",
                         "in": "query"
                     }
                 ],
@@ -5833,6 +5840,125 @@
                     "cli": "site create",
                     "effect": "write",
                     "scope": "sites:write"
+                }
+            }
+        },
+        "/api/v1/automation/sites/overview": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Start here for the current site inventory and recent traffic. Returns instance-wide totals, common statuses and sites ranked by requests, including enabled, disabled and zero-traffic sites. Site traffic combines all hostnames using current bindings. Instance totals include unmatched hostnames. Use site_list for upstream configuration, metrics_traffic for a time series, or logs_list for individual requests.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "List configured websites with recent traffic in one call",
+                "operationId": "openflare_site_overview",
+                "parameters": [
+                    {
+                        "maximum": 720,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 24,
+                        "description": "Lookback in hours, ending at query time",
+                        "name": "hours",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 35,
+                        "type": "string",
+                        "description": "Exclusive RFC3339 window end; default is now. Reuse the returned until when paginating.",
+                        "name": "until",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 64,
+                        "type": "string",
+                        "description": "Optional node registration identifier for traffic; the site inventory is instance-wide",
+                        "name": "node_id",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Maximum number of sites returned, descending by request count",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 2147483647,
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Site offset; continue with next_offset and the same filters",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.SiteOverview"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "site overview",
+                    "effect": "read",
+                    "requires": [
+                        "metrics:read"
+                    ],
+                    "scope": "sites:read"
                 }
             }
         },
@@ -19058,6 +19184,76 @@
                 }
             }
         },
+        "apps_openflare_automation.SiteOverview": {
+            "type": "object",
+            "properties": {
+                "enabled_site_count": {
+                    "type": "integer"
+                },
+                "next_offset": {
+                    "type": "integer"
+                },
+                "since": {
+                    "type": "string"
+                },
+                "site_count": {
+                    "type": "integer"
+                },
+                "sites": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_automation.SiteOverviewItem"
+                    }
+                },
+                "sites_with_requests": {
+                    "type": "integer"
+                },
+                "status_codes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.DistributionItem"
+                    }
+                },
+                "total_traffic": {
+                    "$ref": "#/definitions/apps_openflare_automation.SiteTrafficTotals"
+                },
+                "unmatched_requests": {
+                    "type": "integer"
+                },
+                "until": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_automation.SiteOverviewItem": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "hostnames": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "https_enabled": {
+                    "type": "boolean"
+                },
+                "site_id": {
+                    "type": "string"
+                },
+                "site_name": {
+                    "type": "string"
+                },
+                "traffic": {
+                    "$ref": "#/definitions/apps_openflare_automation.SiteTrafficTotals"
+                },
+                "upstream_type": {
+                    "type": "string"
+                }
+            }
+        },
         "apps_openflare_automation.SiteSummary": {
             "type": "object",
             "properties": {
@@ -19090,6 +19286,26 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "apps_openflare_automation.SiteTrafficTotals": {
+            "type": "object",
+            "properties": {
+                "bytes_sent": {
+                    "type": "integer"
+                },
+                "http_4xx": {
+                    "type": "integer"
+                },
+                "http_5xx": {
+                    "type": "integer"
+                },
+                "requests": {
+                    "type": "integer"
+                },
+                "unique_ips": {
+                    "type": "integer"
                 }
             }
         },
@@ -22341,6 +22557,12 @@
                 },
                 "path": {
                     "type": "string"
+                },
+                "requires": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "scope": {
                     "type": "string"

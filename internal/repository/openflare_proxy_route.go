@@ -36,6 +36,15 @@ func ListProxyRoutes(ctx context.Context) ([]*model.ProxyRoute, error) {
 	return routes, nil
 }
 
+// ListProxyRoutesWithDomains reads site configuration and its bindings in bulk.
+func ListProxyRoutesWithDomains(ctx context.Context) ([]*model.ProxyRoute, error) {
+	var routes []*model.ProxyRoute
+	err := db.DB(ctx).Order("id desc").Preload("ZoneDomains", func(query *gorm.DB) *gorm.DB {
+		return query.Order("id asc")
+	}).Find(&routes).Error
+	return routes, err
+}
+
 // GetProxyRouteByID 按 ID 查询代理规则。
 func GetProxyRouteByID(ctx context.Context, id uint) (*model.ProxyRoute, error) {
 	var route model.ProxyRoute

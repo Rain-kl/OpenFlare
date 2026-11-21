@@ -153,12 +153,11 @@ func (actor identity) permits(scope string) bool {
 var availableScopes = sync.OnceValue(func() []string {
 	var scopes []string
 	for _, operation := range automationcontract.Operations() {
-		if !slices.Contains(scopes, operation.Scope) {
-			scopes = append(scopes, operation.Scope)
-		}
+		scopes = append(scopes, operation.Scope)
+		scopes = append(scopes, operation.Requires...)
 	}
 	slices.Sort(scopes)
-	return scopes
+	return slices.Compact(scopes)
 })
 
 func validAdmin(ctx context.Context, userID uint64) (model.User, error) {

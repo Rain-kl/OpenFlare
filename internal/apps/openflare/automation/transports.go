@@ -99,7 +99,7 @@ func listOperations(operations []binding) gin.HandlerFunc {
 		actor, _ := c.Request.Context().Value(actorKey{}).(identity)
 		result := Catalog{InstanceID: actor.instanceID, Operations: make([]automationcontract.Operation, 0)}
 		for _, operation := range operations {
-			if actor.permits(operation.Scope) {
+			if operation.permitted(actor) {
 				result.Operations = append(result.Operations, operation.Operation)
 			}
 		}
@@ -233,7 +233,7 @@ func loopbackOrigin(origin string) bool {
 func mcpServer(actor identity, operations []binding) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "OpenFlare", Version: buildinfo.Version}, nil)
 	for _, operation := range operations {
-		if !actor.permits(operation.Scope) {
+		if !operation.permitted(actor) {
 			continue
 		}
 		readOnly := operation.Effect == automationcontract.EffectRead

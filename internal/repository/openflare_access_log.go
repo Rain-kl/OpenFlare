@@ -90,6 +90,15 @@ func TrafficSummaryOpenFlareAccessLogs(ctx context.Context, query model.OpenFlar
 	return s.AccessLogs.TrafficSummary(ctx, query)
 }
 
+// SiteTrafficOpenFlareAccessLogs groups a window by the current site bindings.
+func SiteTrafficOpenFlareAccessLogs(ctx context.Context, query model.OpenFlareAccessLogQuery, bindings []model.OpenFlareAccessLogSiteBinding) ([]model.OpenFlareAccessLogSiteTraffic, error) {
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.AccessLogs.SiteTraffic(ctx, query, bindings)
+}
+
 // ValueCountsOpenFlareAccessLogs groups logs by status_code, host, path, remote_addr, or user_agent.
 func ValueCountsOpenFlareAccessLogs(ctx context.Context, query model.OpenFlareAccessLogQuery, column string, limit int) ([]model.OpenFlareAccessLogValueCount, error) {
 	s, err := logstore.Active(ctx)

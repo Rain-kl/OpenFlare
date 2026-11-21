@@ -87,6 +87,7 @@ func bindings() []binding {
 		"openflare_domain_create":      createDomain,
 		"openflare_certificate_list":   listCertificates,
 		"openflare_site_list":          listSites,
+		"openflare_site_overview":      siteOverview,
 		"openflare_site_create":        createSite,
 		"openflare_site_bind_domain":   bindDomain,
 		"openflare_site_set_upstreams": setUpstreams,
@@ -135,10 +136,22 @@ func resourceFailure(ctx context.Context, operation string, err error) *operatio
 	}
 }
 
+func (operation binding) permitted(actor identity) bool {
+	if !actor.permits(operation.Scope) {
+		return false
+	}
+	for _, scope := range operation.Requires {
+		if !actor.permits(scope) {
+			return false
+		}
+	}
+	return true
+}
+
 func (operation binding) execute(ctx context.Context, actor identity, input map[string]string) (any, *operationError) {
 	var result any
 	var failure *operationError
-	if !actor.permits(operation.Scope) {
+	if !operation.permitted(actor) {
 		failure = &operationError{http.StatusForbidden, "INSUFFICIENT_SCOPE", "The grant does not permit this operation."}
 	} else if err := operation.Validate(input); err != nil {
 		failure = invalidArguments(err)

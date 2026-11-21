@@ -8,8 +8,12 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/observability"
+	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/openflare/routeidentity"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
+
+const automationTopStatusCodes = 10
 
 // TrafficMetrics contains aggregate measurements for the specified window.
 type TrafficMetrics struct {
@@ -17,7 +21,7 @@ type TrafficMetrics struct {
 	Hours         int                                    `json:"hours"`
 	BucketMinutes int                                    `json:"bucket_minutes"`
 	Summary       observability.AccessLogOverviewSummary `json:"summary"`
-	Trends        observability.AccessLogOverviewTrends  `json:"trends"`
+	Trends        *observability.AccessLogOverviewTrends `json:"trends,omitempty"`
 	StatusCodes   []observability.DistributionItem       `json:"status_codes"`
 }
 
@@ -89,13 +93,14 @@ func listAccessLogs(ctx context.Context, _ identity, input map[string]string) (a
 
 // @ID openflare_metrics_traffic
 // @Summary Read HTTP traffic metrics by hostname or node
-// @Description Read access-log totals, interval series for requests, visits and bandwidth, and the most common status codes. Use node_id for a single node, host for one hostname, or both for their intersection.
+// @Description Read traffic totals, the most common status codes and optional hourly trends. Use node_id and host to narrow the result. For all sites and their recent traffic, use openflare_site_overview instead of querying each host separately.
 // @Tags automation
 // @Produce json
 // @Security AutomationBearer
 // @Param node_id query string false "Node registration identifier from openflare_node_list; not node_record_id" maxlength(64)
 // @Param host query string false "DNS hostname, or an explicit wildcard hostname" maxlength(253)
 // @Param hours query integer false "Lookback window in hours, ending at query time" minimum(1) maximum(720) default(24)
+// @Param with_trends query boolean false "Include the hourly series; set false when only totals and status counts are needed" default(true)
 // @Success 200 {object} OperationResponse{data=TrafficMetrics}
 // @Failure 400,401,403,404,500 {object} OperationResponse
 // @x-automation {"cli":"metrics traffic","scope":"metrics:read","effect":"read"}
@@ -104,11 +109,77 @@ func trafficMetrics(ctx context.Context, _ identity, input map[string]string) (a
 	if failure := validateHostFilter(input); failure != nil {
 		return nil, failure
 	}
-	result, err := observability.GetAccessLogOverview(ctx, observability.AccessLogOverviewQuery{NodeID: input["node_id"], Host: input["host"], Hours: inputInt(input, "hours"), BucketMinutes: 60})
+	query, hours := automationTrafficWindow(input, time.Now().UTC())
+	if input["host"] != "" {
+		query.Hosts = []string{input["host"]}
+	}
+	totals, statuses, err := readTrafficTotals(ctx, query)
 	if err != nil {
 		return nil, operationFailed(ctx, "read traffic metrics", err)
 	}
-	return TrafficMetrics{GeneratedAt: result.GeneratedAt, Hours: result.Hours, BucketMinutes: result.BucketMinutes, Summary: result.Summary, Trends: result.Trends, StatusCodes: result.StatusCodes}, nil
+	result := TrafficMetrics{
+		GeneratedAt: query.Until, Hours: hours, BucketMinutes: 60, StatusCodes: statuses,
+		Summary: observability.AccessLogOverviewSummary{TotalRequests: totals.RequestCount, TotalVisits: totals.UniqueIPCount, BandwidthServed: totals.BytesSent},
+	}
+	if input["with_trends"] != "false" {
+		result.Trends, err = readHourlyTraffic(ctx, query, hours)
+		if err != nil {
+			return nil, operationFailed(ctx, "read traffic trends", err)
+		}
+	}
+	return result, nil
+}
+
+func automationTrafficWindow(input map[string]string, until time.Time) (model.OpenFlareAccessLogQuery, int) {
+	hours := inputInt(input, "hours")
+	if hours == 0 {
+		hours = 24
+	}
+	return model.OpenFlareAccessLogQuery{NodeID: input["node_id"], Since: until.Add(-time.Duration(hours) * time.Hour), Until: until}, hours
+}
+
+func readTrafficTotals(ctx context.Context, query model.OpenFlareAccessLogQuery) (model.OpenFlareAccessLogTrafficSummary, []observability.DistributionItem, error) {
+	totals, err := repository.TrafficSummaryOpenFlareAccessLogs(ctx, query)
+	if err != nil {
+		return totals, nil, err
+	}
+	rows, err := repository.ValueCountsOpenFlareAccessLogs(ctx, query, "status_code", automationTopStatusCodes)
+	if err != nil {
+		return totals, nil, err
+	}
+	statuses := make([]observability.DistributionItem, 0, len(rows))
+	for _, row := range rows {
+		statuses = append(statuses, observability.DistributionItem{Key: row.Value, Value: row.Count})
+	}
+	return totals, statuses, nil
+}
+
+func readHourlyTraffic(ctx context.Context, query model.OpenFlareAccessLogQuery, hours int) (*observability.AccessLogOverviewTrends, error) {
+	rows, err := repository.ListOpenFlareAccessLogBuckets(ctx, model.OpenFlareAccessLogBucketQuery{
+		NodeID: query.NodeID, Hosts: query.Hosts, Since: query.Since, Until: query.Until, FoldMinutes: 60,
+	})
+	if err != nil {
+		return nil, err
+	}
+	byEpoch := make(map[int64]*model.OpenFlareAccessLogBucketRow, len(rows))
+	for _, row := range rows {
+		byEpoch[row.BucketEpoch] = row
+	}
+	trends := &observability.AccessLogOverviewTrends{
+		Requests:  make([]observability.AccessLogOverviewMetricPoint, 0, hours+1),
+		Visits:    make([]observability.AccessLogOverviewMetricPoint, 0, hours+1),
+		Bandwidth: make([]observability.AccessLogOverviewMetricPoint, 0, hours+1),
+	}
+	for at := query.Since.Truncate(time.Hour); at.Before(query.Until); at = at.Add(time.Hour) {
+		row := byEpoch[at.Unix()]
+		if row == nil {
+			row = &model.OpenFlareAccessLogBucketRow{}
+		}
+		trends.Requests = append(trends.Requests, observability.AccessLogOverviewMetricPoint{BucketStartedAt: at, Value: row.RequestCount})
+		trends.Visits = append(trends.Visits, observability.AccessLogOverviewMetricPoint{BucketStartedAt: at, Value: row.UniqueIPCount})
+		trends.Bandwidth = append(trends.Bandwidth, observability.AccessLogOverviewMetricPoint{BucketStartedAt: at, Value: row.BytesSent})
+	}
+	return trends, nil
 }
 
 // @ID openflare_node_metrics

@@ -118,6 +118,10 @@ func TestOAuthAndReadOnlyTransports(t *testing.T) {
 	require.Contains(t, checkRead(apiTokens.AccessToken, "/connection", http.StatusOK), "instance_id")
 	require.Contains(t, checkRead(apiTokens.AccessToken, "/nodes/42", http.StatusOK), `"node_record_id":"42"`)
 	require.NotContains(t, checkRead(apiTokens.AccessToken, "/nodes", http.StatusOK), "must-not-appear")
+	siteTokens := authorizeTestClient(t, client, server.URL, cliClientID, redirect, apiURL, "sites:read", "read")
+	checkRead(siteTokens.AccessToken, "/sites", http.StatusOK)
+	require.NotContains(t, checkRead(siteTokens.AccessToken, "/operations", http.StatusOK), "openflare_site_overview")
+	checkRead(siteTokens.AccessToken, "/sites/overview", http.StatusForbidden)
 	checkRead(apiTokens.AccessToken, "/nodes?page=1&page=2", http.StatusBadRequest)
 	checkRead(apiTokens.AccessToken, "/nodes/42?node_record_id=1", http.StatusBadRequest)
 
@@ -152,6 +156,7 @@ func TestOAuthAndReadOnlyTransports(t *testing.T) {
 		toolNames = append(toolNames, tool.Name)
 	}
 	require.Contains(t, toolNames, "openflare_site_create")
+	require.Contains(t, toolNames, "openflare_site_overview")
 
 	readOnlyToken := "at_existing_read_only_token"
 	require.NoError(t, database.Create(&model.AccessToken{
@@ -301,12 +306,25 @@ func TestOperationsWorkflow(t *testing.T) {
 	policies.Policies[0].Settings["threads"] = float64(4)
 	require.Equal(t, policies.Policies, updated.Policies)
 
+	var wildcard DomainSummary
+	require.NoError(t, json.Unmarshal(invoke("openflare_domain_create", map[string]any{
+		"zone_id": zone.ZoneID, "hostname": "*.example.com",
+	}, true), &wildcard))
+	var wildcardSite SiteWriteResult
+	require.NoError(t, json.Unmarshal(invoke("openflare_site_create", map[string]any{
+		"site_name": "Wildcard", "domain_record_ids": []string{wildcard.DomainRecordID},
+		"upstreams": []string{"http://192.0.2.20"}, "enable_https": false,
+	}, true), &wildcardSite))
+
 	now := time.Now().UTC().Add(-time.Minute)
 	store, err := logstore.Active(ctx)
 	require.NoError(t, err)
 	require.NoError(t, store.AccessLogs.BatchInsertNodeAccessLogs(ctx, []analyticsmodel.NodeAccessLog{
 		{ID: 1, NodeID: "demo-edge", LoggedAt: now, Host: "www.example.com", Path: "/health?secret=hidden", UserAgent: "untrusted-log-text", StatusCode: 503},
 		{ID: 2, NodeID: "demo-edge", LoggedAt: now, Host: "www.example.com.example.net", Path: "/other-site", StatusCode: 503},
+		{ID: 3, NodeID: "demo-edge", LoggedAt: now, Host: "APP.EXAMPLE.COM.", RemoteAddr: "192.0.2.5", StatusCode: 200, BytesSent: 16},
+		{ID: 4, NodeID: "demo-edge", LoggedAt: now, Host: "alias.example.com", RemoteAddr: "192.0.2.5", StatusCode: 502, BytesSent: 8},
+		{ID: 5, NodeID: "other-edge", LoggedAt: now, Host: "app.example.com", RemoteAddr: "192.0.2.6", StatusCode: 404},
 	}))
 	logs := invoke("openflare_logs_list", map[string]any{"host": "www.example.com", "status_code": 503}, true)
 	require.Contains(t, string(logs), "/health")
@@ -315,6 +333,32 @@ func TestOperationsWorkflow(t *testing.T) {
 	require.NotContains(t, string(logs), "/other-site")
 	traffic := testOperation[TrafficMetrics](t, client, apiURL, writeTokens.AccessToken, "", http.MethodGet, "/metrics/traffic?host=www.example.com", "", "", http.StatusOK)
 	require.EqualValues(t, 1, traffic.Summary.TotalRequests)
+	require.NotNil(t, traffic.Trends)
+	compact := invoke("openflare_metrics_traffic", map[string]any{"host": "www.example.com", "with_trends": false}, true)
+	require.NotContains(t, string(compact), `"trends"`)
+	require.Contains(t, string(compact), `"total_requests":1`)
+	overviewArgs := map[string]any{"node_id": "demo-edge", "limit": 1, "hours": 1}
+	var overview SiteOverview
+	require.NoError(t, json.Unmarshal(invoke("openflare_site_overview", overviewArgs, true), &overview))
+	require.Equal(t, time.Hour, overview.Until.Sub(overview.Since))
+	require.Equal(t, SiteTrafficTotals{Requests: 4, UniqueIPs: 1, BytesSent: 24, ServerErrors: 3}, overview.TotalTraffic)
+	require.EqualValues(t, 1, overview.UnmatchedRequests)
+	require.Equal(t, 2, overview.SiteCount)
+	require.Equal(t, 2, overview.EnabledSiteCount)
+	require.Equal(t, 2, overview.SitesWithRequests)
+	require.Len(t, overview.Sites, 1)
+	require.Equal(t, created.Site.SiteID, overview.Sites[0].SiteID)
+	require.Equal(t, []string{"app.example.com", "alias.example.com"}, overview.Sites[0].Hostnames)
+	require.Equal(t, SiteTrafficTotals{Requests: 2, UniqueIPs: 1, BytesSent: 24, ServerErrors: 1}, overview.Sites[0].Traffic)
+	require.NotNil(t, overview.NextOffset)
+	page := testOperation[SiteOverview](t, client, apiURL, readTokens.AccessToken, "", http.MethodGet,
+		"/sites/overview?node_id=demo-edge&hours=1&limit=1&offset=1&until="+url.QueryEscape(overview.Until.Format(time.RFC3339Nano)), "", "", http.StatusOK)
+	require.True(t, overview.Until.Equal(page.Until))
+	require.Equal(t, overview.TotalTraffic, page.TotalTraffic)
+	require.Nil(t, page.NextOffset)
+	require.Len(t, page.Sites, 1)
+	require.Equal(t, wildcardSite.Site.SiteID, page.Sites[0].SiteID)
+	require.Equal(t, SiteTrafficTotals{Requests: 1, ServerErrors: 1}, page.Sites[0].Traffic)
 	require.NoError(t, store.Observability.BatchInsertNodeMetricSnapshots(ctx, []analyticsmodel.NodeMetricSnapshot{{NodeID: "demo-edge", CapturedAt: now, CPUUsagePercent: 42}}))
 	metrics := invoke("openflare_node_metrics", map[string]any{"node_record_id": "42", "limit": 1}, true)
 	require.Contains(t, string(metrics), `"cpu_usage_percent":42`)

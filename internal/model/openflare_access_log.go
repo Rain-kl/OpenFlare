@@ -27,3 +27,19 @@ type OpenFlareAccessLogNodeAggregate struct {
 	ErrorCount    int64
 	UniqueIPCount int64
 }
+
+// OpenFlareAccessLogSiteBinding maps a configured hostname to its current site.
+type OpenFlareAccessLogSiteBinding struct {
+	Hostname string
+	SiteID   uint
+}
+
+// OpenFlareAccessLogSiteTraffic is a window aggregate. SiteID zero represents unmatched logs.
+type OpenFlareAccessLogSiteTraffic struct {
+	SiteID       uint
+	Requests     int64
+	UniqueIPs    int64
+	BytesSent    int64
+	ClientErrors int64
+	ServerErrors int64
+}
