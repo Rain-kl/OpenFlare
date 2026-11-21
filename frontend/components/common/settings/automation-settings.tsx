@@ -57,7 +57,7 @@ export function AutomationSettings({ config }: { config: SystemConfig }) {
               <Input
                 id='automation-address'
                 type='url'
-                placeholder='https://openflare.example.com'
+                placeholder='http://openflare.example.com:3000'
                 value={address}
                 onChange={(event) => setAddress(event.target.value)}
                 disabled={update.isPending}

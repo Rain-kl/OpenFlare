@@ -7,7 +7,7 @@ description: 使用 OpenFlare CLI 或 MCP 为 AI 授权日常网站运营与故�
 
 ## 开通连接
 
-在控制台打开「系统设置 → MCP」，填入客户端可访问的 HTTPS 地址并保存。该标签页显示 MCP 地址、实例 ID 和两种连接方式。清空地址并保存可暂停本实例的 CLI 和 MCP 入口。
+在控制台打开「系统设置 → MCP」，填入客户端可访问的 HTTP 或 HTTPS 地址并保存。公网部署建议使用 HTTPS。该标签页显示 MCP 地址、实例 ID 和两种连接方式。清空地址并保存可暂停本实例的 CLI 和 MCP 入口。部分客户端要求 MCP 地址使用 HTTPS。
 
 - **OAuth**：复制连接说明，或在客户端添加 Streamable HTTP 连接并选择 OAuth。客户端须支持动态客户端注册和 S256 PKCE。首次连接时，在浏览器使用管理员账户登录，勾选需要授予的权限并确认。
 - **Access Token**：为支持自定义请求头的客户端勾选权限并生成 Access Token。令牌只显示一次，有效期为 30 天。将它填入客户端的 `Authorization: Bearer TOKEN` 请求头。

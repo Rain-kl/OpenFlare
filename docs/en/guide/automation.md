@@ -5,7 +5,7 @@ description: Authorize OpenFlare CLI and MCP for routine site operations and tro
 
 # CLI and MCP operations
 
-Open **System settings → MCP** in the console. Save the public HTTPS origin to see the MCP URL, instance ID, and connection options.
+Open **System settings → MCP** in the console. Save an HTTP or HTTPS origin reachable by clients to see the MCP URL, instance ID, and connection options. Use HTTPS for public deployments. Some MCP clients require HTTPS.
 
 - **OAuth:** Copy the connection instructions, or add a Streamable HTTP connection manually using OAuth. The client must support dynamic client registration and S256 PKCE. On the first connection, sign in as an administrator, select the permissions to grant, and confirm.
 - **Access token:** Select permissions and generate a token for a client that supports custom headers. The token is shown once and expires after 30 days. Set the `Authorization: Bearer TOKEN` request header in the client.

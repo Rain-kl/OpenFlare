@@ -484,8 +484,8 @@
     },
     "operation": {
       "automationTitle": "CLI и MCP",
-      "automationDescription": "Укажите адрес HTTPS, доступный для ИИ-клиентов. Чтобы отключить автоматизацию, сохраните пустое значение.",
-      "automationAddress": "Внешний адрес HTTPS",
+      "automationDescription": "Укажите доступный клиентам адрес HTTP или HTTPS. Сохраните пустое значение, чтобы отключить автоматизацию.",
+      "automationAddress": "Адрес подключения",
       "automationSaved": "Настройки автоматизации сохранены",
       "automationSaveError": "Не удалось сохранить настройки автоматизации. Укажите адрес HTTPS без пути.",
       "whitelistUpdated": "Белый список доступа к файлам обновлен.",

@@ -48,7 +48,7 @@
       "copyError": "Could not copy. Copy the value manually.",
       "loading": "Loading MCP settings",
       "loadError": "Could not load MCP settings",
-      "disabled": "Save the public HTTPS origin to enable MCP connections."
+      "disabled": "Save an address reachable by clients to enable MCP connections."
     }
   }
 }

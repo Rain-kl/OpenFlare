@@ -62,7 +62,7 @@ func loadInstance(ctx context.Context) (instance, error) {
 	if err != nil {
 		return instance{}, err
 	}
-	origin, err := automationcontract.HTTPSOrigin(setting.Value)
+	origin, err := automationcontract.HTTPOrigin(setting.Value)
 	if err != nil {
 		return instance{}, err
 	}

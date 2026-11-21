@@ -32,7 +32,7 @@ func authCommand(options *cliOptions) *cobra.Command {
 			return loginProfile(command, options.profile, origin, prefix)
 		},
 	}
-	login.Flags().StringVar(&origin, "server", "", "OpenFlare HTTPS origin")
+	login.Flags().StringVar(&origin, "server", "", "OpenFlare HTTP or HTTPS origin")
 	login.Flags().StringVar(&prefix, "api-prefix", "/api", "Configured OpenFlare API prefix")
 	if err := login.MarkFlagRequired("server"); err != nil {
 		panic(err)
@@ -48,7 +48,7 @@ func authCommand(options *cliOptions) *cobra.Command {
 }
 
 func loginProfile(command *cobra.Command, name, rawOrigin, prefix string) error {
-	origin, err := automationcontract.HTTPSOrigin(rawOrigin)
+	origin, err := automationcontract.HTTPOrigin(rawOrigin)
 	if err != nil {
 		return err
 	}

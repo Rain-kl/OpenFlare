@@ -484,8 +484,8 @@
     },
     "operation": {
       "automationTitle": "CLI 与 MCP",
-      "automationDescription": "设置 AI 客户端可访问的 HTTPS 地址。留空并保存可停用自动化访问。",
-      "automationAddress": "对外 HTTPS 地址",
+      "automationDescription": "设置客户端可访问的 HTTP 或 HTTPS 地址。留空并保存可停用自动化访问。",
+      "automationAddress": "连接地址",
       "automationSaved": "自动化设置已保存",
       "automationSaveError": "保存自动化设置失败。请输入不含路径的 HTTPS 地址。",
       "whitelistUpdated": "文件访问白名单已更新",

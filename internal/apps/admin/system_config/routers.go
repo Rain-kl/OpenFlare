@@ -26,7 +26,7 @@ import (
 )
 
 const maskedConfigValue = "******"
-const errAutomationOrigin = "enter an HTTPS origin without a path, query, or credentials"
+const errAutomationOrigin = "enter an HTTP or HTTPS origin without a path, query, or credentials"
 
 // protectedConfigKeyMessage 命中受保护 key 时返回给管理员的业务错误文案。
 const protectedConfigKeyMessage = "this configuration is managed by system tasks and cannot be changed manually"
@@ -185,7 +185,7 @@ func UpdateSystemConfig(c *gin.Context) {
 		if req.Value == "disabled" {
 			req.Value = ""
 		} else {
-			origin, err := automationcontract.HTTPSOrigin(req.Value)
+			origin, err := automationcontract.HTTPOrigin(req.Value)
 			if err != nil {
 				response.AbortBadRequest(c, errAutomationOrigin)
 				return

@@ -192,9 +192,10 @@ func MCPHandler() gin.HandlerFunc {
 		DisableLocalhostProtection: true,
 	})
 	return withInstance(func(c *gin.Context, site instance) {
-		host, err := automationcontract.HTTPSOrigin("https://" + c.Request.Host)
+		scheme, _, _ := strings.Cut(site.origin, "://")
+		requestOrigin, err := automationcontract.HTTPOrigin(scheme + "://" + c.Request.Host)
 		origin := c.GetHeader("Origin")
-		if err != nil || host != site.origin || origin != "" && origin != site.origin {
+		if err != nil || requestOrigin != site.origin || origin != "" && origin != site.origin {
 			c.Status(http.StatusForbidden)
 			return
 		}

@@ -39,7 +39,7 @@ import (
 )
 
 func TestOAuthAndReadOnlyTransports(t *testing.T) {
-	server, database := automationTestServer(t)
+	server, database := automationTestServer(t, false)
 	client := server.Client()
 	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
 	client.Jar, _ = cookiejar.New(nil)
@@ -151,7 +151,7 @@ func TestOAuthAndReadOnlyTransports(t *testing.T) {
 }
 
 func TestOperationsWorkflow(t *testing.T) {
-	server, _ := automationTestServer(t)
+	server, _ := automationTestServer(t, true)
 	client := server.Client()
 	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
 	client.Jar, _ = cookiejar.New(nil)
@@ -298,7 +298,7 @@ func testOperation[Result any](t *testing.T, client *http.Client, base, token, i
 	return envelope.Data
 }
 
-func automationTestServer(t *testing.T) (*httptest.Server, *gorm.DB) {
+func automationTestServer(t *testing.T, useTLS bool) (*httptest.Server, *gorm.DB) {
 	t.Helper()
 	previous := config.Config
 	config.Config.App.APIPrefix = "/api"
@@ -346,7 +346,12 @@ func automationTestServer(t *testing.T) (*httptest.Server, *gorm.DB) {
 	RegisterBrowser(router.Group("/automation"))
 	RegisterSettings(router.Group("/api/v1/admin/automation"))
 	RegisterAPI(router.Group("/api/v1/automation"))
-	server := httptest.NewTLSServer(router)
+	server := httptest.NewUnstartedServer(router)
+	if useTLS {
+		server.StartTLS()
+	} else {
+		server.Start()
+	}
 	t.Cleanup(server.Close)
 	require.NoError(t, database.Model(&model.SystemConfig{}).Where("key = ?", model.ConfigKeyAutomationPublicURL).Update("value", server.URL).Error)
 	return server, database

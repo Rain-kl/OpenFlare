@@ -48,7 +48,7 @@
       "copyError": "无法复制，请手动复制。",
       "loading": "正在读取 MCP 设置",
       "loadError": "无法读取 MCP 设置",
-      "disabled": "保存对外 HTTPS 地址后即可连接 MCP。"
+      "disabled": "保存客户端可访问的地址后即可连接 MCP。"
     }
   }
 }

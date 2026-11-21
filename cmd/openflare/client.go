@@ -207,7 +207,7 @@ func loadProfile(name string) (connectionProfile, error) {
 	if err := json.Unmarshal([]byte(data), &profile); err != nil {
 		return profile, err
 	}
-	if origin, err := automationcontract.HTTPSOrigin(profile.Origin); err != nil || origin != profile.Origin ||
+	if origin, err := automationcontract.HTTPOrigin(profile.Origin); err != nil || origin != profile.Origin ||
 		!apiPrefix.MatchString(profile.Prefix) || profile.InstanceID == "" {
 		return profile, errors.New("the stored connection profile is invalid")
 	}

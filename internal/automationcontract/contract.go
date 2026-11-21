@@ -300,19 +300,20 @@ func decodeArgument(decoder *json.Decoder, param Parameter) (string, error) {
 	return *value, nil
 }
 
-// HTTPSOrigin normalizes a public HTTPS origin and rejects paths and credentials.
-func HTTPSOrigin(raw string) (string, error) {
+// HTTPOrigin normalizes an HTTP or HTTPS origin and rejects paths and credentials.
+func HTTPOrigin(raw string) (string, error) {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil ||
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil ||
 		parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || parsed.Opaque != "" ||
 		(parsed.EscapedPath() != "" && parsed.EscapedPath() != "/") {
-		return "", errors.New("expected an HTTPS origin such as https://openflare.example.com")
+		return "", errors.New("expected an HTTP or HTTPS origin without a path, query, or credentials")
 	}
 	parsed.Path = ""
 	parsed.RawPath = ""
 	parsed.Host = strings.ToLower(parsed.Host)
-	if parsed.Port() == "443" {
-		parsed.Host = strings.TrimSuffix(parsed.Host, ":443")
+	port := parsed.Port()
+	if (parsed.Scheme == "https" && port == "443") || (parsed.Scheme == "http" && port == "80") {
+		parsed.Host = strings.TrimSuffix(parsed.Host, ":"+port)
 	}
 	return parsed.String(), nil
 }
