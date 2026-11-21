@@ -47,6 +47,7 @@
       "copied": "已复制",
       "copyError": "无法复制，请手动复制。",
       "loading": "正在读取 MCP 设置",
+      "sessionSecretTooShort": "当前会话密钥不足 32 字节，自动化访问无法启用。该密钥也用于解密已保存的凭据，现有实例须先迁移凭据再更换密钥。",
       "loadError": "无法读取 MCP 设置",
       "disabled": "保存客户端可访问的地址后即可连接 MCP。"
     }

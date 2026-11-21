@@ -439,7 +439,7 @@ func safeUpstreamURLs(upstreams []string) []string {
 	result := make([]string, 0, len(upstreams))
 	for _, upstream := range upstreams {
 		parsed, err := url.Parse(upstream)
-		if err != nil || parsed.Hostname() == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		if err != nil || parsed.Hostname() == "" || (parsed.Scheme != schemeHTTP && parsed.Scheme != "https") {
 			continue
 		}
 		parsed.User, parsed.RawQuery, parsed.Fragment, parsed.RawFragment, parsed.ForceQuery = nil, "", "", "", false

@@ -40,10 +40,15 @@ const nextConfig: NextConfig = {
               source: '/robots.txt',
               destination: `${backendUrl}/robots.txt`,
             },
-            {
-              source: '/oauth/automation/:path*',
-              destination: `${backendUrl}/oauth/automation/:path*`,
-            },
+            ...[
+              '/mcp',
+              '/.well-known/oauth-authorization-server',
+              '/.well-known/oauth-protected-resource/:path*',
+              '/oauth/automation/:path*',
+            ].map((source) => ({
+              source,
+              destination: `${backendUrl}${source}`,
+            })),
             // 标准 RESTful API 接口
             {
               source: '/api/:path*',

@@ -145,7 +145,7 @@ func validLoopbackRedirect(raw string) bool {
 		return false
 	}
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Scheme != "http" || parsed.User != nil || parsed.Opaque != "" ||
+	if err != nil || parsed.Scheme != schemeHTTP || parsed.User != nil || parsed.Opaque != "" ||
 		parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || !strings.HasPrefix(parsed.Path, "/") {
 		return false
 	}

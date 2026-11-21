@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -192,10 +193,8 @@ func MCPHandler() gin.HandlerFunc {
 		DisableLocalhostProtection: true,
 	})
 	return withInstance(func(c *gin.Context, site instance) {
-		scheme, _, _ := strings.Cut(site.origin, "://")
-		requestOrigin, err := automationcontract.HTTPOrigin(scheme + "://" + c.Request.Host)
 		origin := c.GetHeader("Origin")
-		if err != nil || requestOrigin != site.origin || origin != "" && origin != site.origin {
+		if !site.matchesMCPHost(c.Request) || origin != "" && origin != site.origin {
 			c.Status(http.StatusForbidden)
 			return
 		}
@@ -207,6 +206,28 @@ func MCPHandler() gin.HandlerFunc {
 		request := c.Request.WithContext(context.WithValue(c.Request.Context(), actorKey{}, actor))
 		transport.ServeHTTP(c.Writer, request)
 	})
+}
+
+func (site instance) matchesMCPHost(request *http.Request) bool {
+	scheme, _, _ := strings.Cut(site.origin, "://")
+	origin, err := automationcontract.HTTPOrigin(scheme + "://" + request.Host)
+	if err == nil && origin == site.origin {
+		return true
+	}
+
+	// The local Next.js proxy changes Host and supplies X-Forwarded-Host.
+	// Accept this only when the public address, upstream and direct peer are loopback.
+	peer, _, err := net.SplitHostPort(request.RemoteAddr)
+	if scheme != schemeHTTP || err != nil || !net.ParseIP(peer).IsLoopback() {
+		return false
+	}
+	forwarded, err := automationcontract.HTTPOrigin(schemeHTTP + "://" + request.Header.Get("X-Forwarded-Host"))
+	return err == nil && forwarded == site.origin && loopbackOrigin(origin) && loopbackOrigin(forwarded)
+}
+
+func loopbackOrigin(origin string) bool {
+	parsed, err := url.Parse(origin)
+	return err == nil && (parsed.Hostname() == "localhost" || net.ParseIP(parsed.Hostname()).IsLoopback())
 }
 
 func mcpServer(actor identity, operations []binding) *mcp.Server {

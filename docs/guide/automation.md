@@ -14,6 +14,8 @@ description: 使用 OpenFlare CLI 或 MCP 为 AI 授权日常网站运营与故�
 
 连接后可调用 `openflare_connection_info` 核对实例 ID 和已授权权限。OAuth 访问令牌有效期为 15 分钟，客户端可自动刷新，授权最长持续 30 天。「撤销全部授权」会使当前账户授予 CLI 和 MCP 客户端的授权与 Access Token 立即失效。
 
+若页面提示会话密钥不足 32 字节，请检查 `app.session_secret` 或 `APP_SESSION_SECRET`。新实例须使用强随机密钥；已保存证书私钥、DNS 凭据等加密数据的实例须先迁移凭据，再更换密钥。
+
 反向代理需将 `/mcp`、`/.well-known/`、`/oauth/automation/`、`/automation/` 和现有 API 前缀转发至同一控制端，并保留原始 `Host` 请求头。多实例部署时，各控制端应共用数据库及会话密钥。
 
 ## 使用 CLI

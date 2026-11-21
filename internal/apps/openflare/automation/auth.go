@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	schemeHTTP        = "http"
 	authorizationPath = automationcontract.OAuthPath + "/authorize"
 	tokenPath         = automationcontract.OAuthPath + "/token"
 	registerPath      = automationcontract.OAuthPath + "/register"
@@ -44,9 +45,10 @@ const (
 )
 
 var (
-	errDisabled    = errors.New("automation is disabled")
-	errInvalidAuth = errors.New("the automation credential is invalid or expired")
-	errLoginNeeded = errors.New("a browser sign-in is required")
+	errDisabled           = errors.New("automation is disabled")
+	errShortSessionSecret = errors.New("automation requires a session secret at least 32 bytes long")
+	errInvalidAuth        = errors.New("the automation credential is invalid or expired")
+	errLoginNeeded        = errors.New("a browser sign-in is required")
 )
 
 type instance struct {
@@ -69,7 +71,7 @@ func loadInstance(ctx context.Context) (instance, error) {
 	secret := config.Config.App.SessionSecret
 	const minSessionSecretLength = 32
 	if len(secret) < minSessionSecretLength {
-		return instance{}, errors.New("automation requires a session secret at least 32 bytes long")
+		return instance{}, errShortSessionSecret
 	}
 	return instance{origin: origin, secret: secret}, nil
 }

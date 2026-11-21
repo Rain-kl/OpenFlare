@@ -19255,6 +19255,9 @@ const docTemplate = `{
                 "client_name": {
                     "type": "string"
                 },
+                "configuration_error": {
+                    "type": "string"
+                },
                 "enabled": {
                     "type": "boolean"
                 },

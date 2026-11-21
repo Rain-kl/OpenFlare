@@ -30,11 +30,12 @@ const (
 )
 
 type mcpSettingsResponse struct {
-	Enabled    bool     `json:"enabled"`
-	ClientName string   `json:"client_name,omitempty"`
-	MCPURL     string   `json:"mcp_url,omitempty"`
-	InstanceID string   `json:"instance_id,omitempty"`
-	Scopes     []string `json:"scopes,omitempty"`
+	Enabled            bool     `json:"enabled"`
+	ConfigurationError string   `json:"configuration_error,omitempty"`
+	ClientName         string   `json:"client_name,omitempty"`
+	MCPURL             string   `json:"mcp_url,omitempty"`
+	InstanceID         string   `json:"instance_id,omitempty"`
+	Scopes             []string `json:"scopes,omitempty"`
 }
 
 type createMCPTokenRequest struct {
@@ -82,6 +83,10 @@ func getMCPSettings(c *gin.Context) {
 	site, err := loadInstance(c.Request.Context())
 	if errors.Is(err, errDisabled) {
 		c.JSON(http.StatusOK, response.OK(mcpSettingsResponse{}))
+		return
+	}
+	if errors.Is(err, errShortSessionSecret) {
+		c.JSON(http.StatusOK, response.OK(mcpSettingsResponse{ConfigurationError: "session_secret_too_short"}))
 		return
 	}
 	if err != nil {

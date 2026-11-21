@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useFormatter, useTranslations } from 'next-intl';
-import { Copy } from 'lucide-react';
+import { CircleAlert, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { AutomationPermissions } from '@/components/auth/automation-permissions';
@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -79,6 +80,11 @@ export function MCPTab({ config }: { config?: SystemConfig }) {
         <p role='alert' className='text-sm text-destructive'>
           {t('loadError')}
         </p>
+      ) : details?.configuration_error === 'session_secret_too_short' ? (
+        <Alert variant='destructive'>
+          <CircleAlert />
+          <AlertDescription>{t('sessionSecretTooShort')}</AlertDescription>
+        </Alert>
       ) : enabled ? (
         <>
           <Card>

@@ -20,7 +20,7 @@ sidebar: false
 ### ✨ 新功能
 
 - 文档站支持 GitHub 风格的重要提示框和 Mermaid ER 图，现有 Mermaid 代码围栏可直接渲染为图表。
-- 新增 OpenFlare CLI 与内置 MCP，支持网站创建、域名绑定、上游与性能参数调整，以及访问日志、性能指标和节点状态查询。系统设置的 MCP 标签页可配置 HTTP 或 HTTPS 连接地址，提供连接说明和 Access Token；使用 OAuth 连接时可在浏览器逐项选择权限。
+- 新增 OpenFlare CLI 与内置 MCP，支持网站创建、域名绑定、上游与性能参数调整，以及访问日志、性能指标和节点状态查询。系统设置的 MCP 标签页可配置 HTTP 或 HTTPS 连接地址，提供连接说明和 Access Token；使用 OAuth 连接时可在浏览器逐项选择权限。会话密钥不满足配置要求时，设置页会显示原因。
 
 ### 🛠 修复
 

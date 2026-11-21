@@ -12,6 +12,8 @@ Open **System settings → MCP** in the console. Save an HTTP or HTTPS origin re
 
 Call `openflare_connection_info` to verify the instance ID and granted permissions. OAuth access tokens last 15 minutes and can be refreshed for up to 30 days. **Revoke all access** immediately invalidates the account's CLI and MCP grants and access tokens.
 
+If the settings tab reports a short session secret, check `app.session_secret` or `APP_SESSION_SECRET`. Use a strong random value for new instances. On existing instances, migrate encrypted credentials such as certificate keys and DNS credentials before changing the secret.
+
 Download the matching `openflare_cli_*` archive from [OpenFlare Releases](https://github.com/Rain-kl/OpenFlare/releases) and add the extracted binary to `PATH`. Linux requires an available Secret Service credential store.
 
 ```sh

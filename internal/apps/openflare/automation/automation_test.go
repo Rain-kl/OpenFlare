@@ -51,6 +51,23 @@ func TestOAuthAndReadOnlyTransports(t *testing.T) {
 	require.Contains(t, reply.Header.Get("WWW-Authenticate"), server.URL+metadataPath+"/mcp")
 	require.NoError(t, reply.Body.Close())
 
+	for _, forwarded := range []struct {
+		host   string
+		status int
+	}{
+		{strings.TrimPrefix(server.URL, "http://"), http.StatusUnauthorized},
+		{"wrong.example", http.StatusForbidden},
+	} {
+		request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, mcpURL, strings.NewReader("{}"))
+		require.NoError(t, err)
+		request.Host = "localhost:3000"
+		request.Header.Set("X-Forwarded-Host", forwarded.host)
+		reply, err := client.Do(request)
+		require.NoError(t, err)
+		require.Equal(t, forwarded.status, reply.StatusCode)
+		require.NoError(t, reply.Body.Close())
+	}
+
 	ctx := t.Context()
 	const redirect = "http://127.0.0.1:4321/callback"
 	clientID := registerTestClient(t, client, server.URL, redirect)
@@ -148,6 +165,18 @@ func TestOAuthAndReadOnlyTransports(t *testing.T) {
 	require.Error(t, err)
 	_, err = session.ListTools(ctx, nil)
 	require.Error(t, err)
+	config.Config.App.SessionSecret = "short"
+	settings, err := client.Get(server.URL + "/api/v1/admin/automation/mcp")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, settings.StatusCode)
+	var disabled struct {
+		Data mcpSettingsResponse `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(settings.Body).Decode(&disabled))
+	require.NoError(t, settings.Body.Close())
+	require.False(t, disabled.Data.Enabled)
+	require.Equal(t, "session_secret_too_short", disabled.Data.ConfigurationError)
+
 }
 
 func TestOperationsWorkflow(t *testing.T) {

@@ -122,8 +122,23 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (
+    pathname === '/mcp' ||
+    pathname === '/.well-known/oauth-authorization-server' ||
+    pathname === '/.well-known/oauth-protected-resource' ||
+    pathname.startsWith('/.well-known/oauth-protected-resource/') ||
+    pathname.startsWith('/oauth/automation/')
+  ) {
+    return NextResponse.next();
+  }
+
   /* 页面请求：默认私域，仅登录流程入口无需 session */
-  const authEntryRoutes = ['/login', '/register', '/callback'];
+  const authEntryRoutes = [
+    '/login',
+    '/register',
+    '/callback',
+    '/automation/authorize',
+  ];
 
   if (!authEntryRoutes.includes(pathname) && !sessionCookie) {
     const loginUrl = new URL('/login', request.url);
