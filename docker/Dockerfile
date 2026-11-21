@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1.7
 
-ARG GO_VERSION=1.26.2
 ARG NODE_VERSION=22
 ARG ALPINE_VERSION=3.23
 
@@ -27,17 +26,20 @@ COPY frontend/ ./
 
 RUN pnpm build:embed
 
-FROM golang:${GO_VERSION}-alpine AS backend-builder
+FROM golang:alpine AS backend-builder
 
 ARG VERSION=dev
 ARG BUILD_DATE=""
+
+ENV GOTOOLCHAIN=""
 
 RUN apk add --no-cache ca-certificates git
 
 WORKDIR /workspace
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=bind,source=docker/go-toolchain.sh,target=/tmp/go-toolchain.sh \
+    sh /tmp/go-toolchain.sh && go mod download
 
 COPY . .
 COPY --from=frontend-builder /workspace/frontend/out ./internal/router/root/dist

@@ -1,14 +1,17 @@
 # syntax=docker/dockerfile:1.7
 ARG VERSION=dev
 
-FROM golang:1.26.2-alpine AS builder
+FROM golang:alpine AS builder
 
 ARG VERSION
 
+ENV GOTOOLCHAIN=""
+
 WORKDIR /build
 COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
+RUN --mount=type=bind,source=docker/go-toolchain.sh,target=/tmp/go-toolchain.sh \
+    --mount=type=cache,target=/go/pkg/mod \
+    sh /tmp/go-toolchain.sh && go mod download
 
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \

@@ -24,7 +24,7 @@ sidebar: false
 
 ### 🛠 修复
 
-- 修复 Server、Relay 和 Flared 镜像及跨平台构建因 Docker 构建环境低于项目要求的 Go 版本而无法下载依赖的问题。
+- Server、Relay 和 Flared 镜像及跨平台构建使用 `go.mod` 指定的 Go 版本，升级 Go 时会自动选用对应编译器。
 
 ### ⚡️ 优化与改进
 

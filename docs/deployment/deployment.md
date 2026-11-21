@@ -81,6 +81,8 @@ docker compose logs -f openflare
 
 启动完成后，使用浏览器访问 `http://localhost:3000`。初始管理员账户为 `admin` / `12345678`。登录后请立即进入系统设置修改初始密码。详细部署说明见 [Server 部署](./server.md)。
 
+从仓库源码构建 Server、Relay 或 OpenFlared 镜像时，Docker 会使用根目录 `go.mod` 指定的 Go 版本。使用 `make cross-build` 构建跨平台二进制文件时也遵循该版本。
+
 ### 源码编译启动 Server
 
 如需从源码编译运行：

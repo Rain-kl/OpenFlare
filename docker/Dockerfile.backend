@@ -1,19 +1,21 @@
 # syntax=docker/dockerfile:1.7
 
-ARG GO_VERSION=1.26.2
 ARG ALPINE_VERSION=3.23
 
-FROM golang:${GO_VERSION}-alpine AS builder
+FROM golang:alpine AS builder
 
 ARG VERSION=dev
 ARG BUILD_DATE=""
+
+ENV GOTOOLCHAIN=""
 
 RUN apk add --no-cache ca-certificates git
 
 WORKDIR /workspace
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=bind,source=docker/go-toolchain.sh,target=/tmp/go-toolchain.sh \
+    sh /tmp/go-toolchain.sh && go mod download
 
 COPY . .
 
