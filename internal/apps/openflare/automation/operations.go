@@ -167,7 +167,7 @@ func operationFailed(ctx context.Context, operation string, err error) *operatio
 
 // @ID openflare_connection_info
 // @Summary Verify the OpenFlare connection
-// @Description Return the connected instance ID, display name and effective OAuth scopes. Use this read-only operation to verify a newly configured connection.
+// @Description Return the connected instance ID, display name and effective permissions. Use this read-only operation to verify a newly configured connection.
 // @Tags automation
 // @Produce json
 // @Security AutomationBearer

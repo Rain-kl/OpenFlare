@@ -1,12 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { CircleAlert, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { AutomationPermissions } from '@/components/auth/automation-permissions';
 import { AutomationSettings } from '@/components/common/settings/automation-settings';
 import {
   AlertDialog,
@@ -35,23 +34,14 @@ import type { SystemConfig } from '@/lib/services/admin';
 
 export function MCPTab({ config }: { config?: SystemConfig }) {
   const t = useTranslations('automation.settings');
-  const format = useFormatter();
   const locale = useLocale();
-  const [scopes, setScopes] = useState<string[]>([]);
   const settings = useQuery({
     queryKey: ['admin', 'automation', 'mcp', config?.value],
     queryFn: () => services.automation.getMCPSettings(),
   });
-  const token = useMutation({
-    mutationFn: (selected: string[]) =>
-      services.automation.createMCPToken(selected),
-    gcTime: 0,
-    onError: () => toast.error(t('createError')),
-  });
   const revoke = useMutation({
     mutationFn: () => services.automation.revokeGrants(),
     onSuccess: () => {
-      token.reset();
       toast.success(t('revoked'));
     },
     onError: () => toast.error(t('revokeError')),
@@ -145,52 +135,28 @@ export function MCPTab({ config }: { config?: SystemConfig }) {
               <CardTitle>{t('tokenTitle')}</CardTitle>
               <CardDescription>{t('tokenDescription')}</CardDescription>
             </CardHeader>
-            <CardContent className='flex flex-col gap-4'>
-              {token.data ? (
-                <>
-                  <p className='text-sm'>
-                    {t('tokenOnce', {
-                      expires: format.dateTime(
-                        new Date(token.data.expires_at),
-                        { dateStyle: 'medium', timeStyle: 'short' },
-                      ),
-                    })}
-                  </p>
-                  <code className='wrap-anywhere select-all text-sm'>
-                    {token.data.access_token}
-                  </code>
-                </>
-              ) : (
-                <AutomationPermissions
-                  scopes={details.scopes ?? []}
-                  selected={scopes}
-                  onChange={setScopes}
-                  disabled={token.isPending}
-                />
-              )}
+            <CardContent>
+              <code className='wrap-anywhere text-sm'>
+                {t('authorizationHeader')}
+              </code>
             </CardContent>
             <CardFooter className='flex flex-wrap gap-2'>
-              {token.data ? (
-                <>
-                  <Button onClick={() => void copy(token.data!.access_token)}>
-                    <Copy data-icon='inline-start' />
-                    {t('copyToken')}
-                  </Button>
-                  <Button variant='outline' onClick={() => token.reset()}>
-                    {t('closeToken')}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={() => token.mutate(scopes)}
-                  disabled={
-                    !scopes.length || token.isPending || revoke.isPending
-                  }
-                >
-                  {token.isPending && <Spinner data-icon='inline-start' />}
-                  {t('createToken')}
-                </Button>
-              )}
+              <Button asChild>
+                <Link href='/settings/access-token'>
+                  {t('manageAccessTokens')}
+                </Link>
+              </Button>
+              <Button
+                variant='outline'
+                onClick={() =>
+                  void copy(
+                    t('instructionsAccessToken', { url: details.mcp_url! }),
+                  )
+                }
+              >
+                <Copy data-icon='inline-start' />
+                {t('copyInstructionsAccessToken')}
+              </Button>
             </CardFooter>
           </Card>
         </>
@@ -205,10 +171,7 @@ export function MCPTab({ config }: { config?: SystemConfig }) {
         <CardFooter>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button
-                variant='outline'
-                disabled={revoke.isPending || token.isPending}
-              >
+              <Button variant='outline' disabled={revoke.isPending}>
                 {t('revoke')}
               </Button>
             </AlertDialogTrigger>

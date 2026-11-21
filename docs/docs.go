@@ -551,7 +551,7 @@ const docTemplate = `{
                 "tags": [
                     "admin-automation"
                 ],
-                "summary": "Revoke the current administrator's automation grants and MCP access tokens",
+                "summary": "Revoke the current administrator's OAuth automation grants",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -616,81 +616,6 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/admin/automation/mcp/token": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admin-automation"
-                ],
-                "summary": "Create a scoped MCP access token",
-                "parameters": [
-                    {
-                        "description": "Requested permissions",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/apps_openflare_automation.createMCPTokenRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/apps_openflare_automation.mcpTokenResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -4918,7 +4843,7 @@ const docTemplate = `{
                         "AutomationBearer": []
                     }
                 ],
-                "description": "Return the connected instance ID, display name and effective OAuth scopes. Use this read-only operation to verify a newly configured connection.",
+                "description": "Return the connected instance ID, display name and effective permissions. Use this read-only operation to verify a newly configured connection.",
                 "produces": [
                     "application/json"
                 ],
@@ -19234,21 +19159,6 @@ const docTemplate = `{
                 }
             }
         },
-        "apps_openflare_automation.createMCPTokenRequest": {
-            "type": "object",
-            "required": [
-                "scopes"
-            ],
-            "properties": {
-                "scopes": {
-                    "type": "array",
-                    "maxItems": 32,
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "apps_openflare_automation.mcpSettingsResponse": {
             "type": "object",
             "properties": {
@@ -19265,23 +19175,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "mcp_url": {
-                    "type": "string"
-                },
-                "scopes": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "apps_openflare_automation.mcpTokenResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "expires_at": {
                     "type": "string"
                 }
             }

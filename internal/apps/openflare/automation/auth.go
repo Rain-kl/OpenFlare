@@ -12,6 +12,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -199,7 +200,10 @@ func authenticate(request *http.Request, site instance, resource string) (identi
 		return identity{}, errInvalidAuth
 	}
 	ctx := request.Context()
-	grant, err := automationGrant(ctx, site, fields[1], resource)
+	if strings.HasPrefix(fields[1], "at_") {
+		return authenticatePersonalAccessToken(ctx, site, resource, fields[1])
+	}
+	grant, err := automationGrant(ctx, site, fields[1])
 	if err != nil {
 		return identity{}, err
 	}
@@ -213,14 +217,34 @@ func authenticate(request *http.Request, site instance, resource string) (identi
 	return identity{userID: userID, grantID: grant.GetID(), scope: strings.Join(grant.GetGrantedScopes(), " "), instanceID: site.id()}, nil
 }
 
-func automationGrant(ctx context.Context, site instance, token, resource string) (fosite.Requester, error) {
-	if strings.HasPrefix(token, directTokenPrefix) {
-		if resource != site.mcpResource() {
-			return nil, errInvalidAuth
-		}
-		_, session, err := loadOAuthSession(ctx, sessionDirect, token)
-		return session, err
+func authenticatePersonalAccessToken(ctx context.Context, site instance, resource, token string) (identity, error) {
+	if resource != site.mcpResource() {
+		return identity{}, errInvalidAuth
 	}
+	tokenHash := model.HashToken(token)
+	tokenRecord, err := oauth.GetCachedToken(ctx, tokenHash)
+	if err != nil {
+		record, loadErr := repository.GetAccessTokenByHash(ctx, tokenHash)
+		if loadErr != nil {
+			return identity{}, loadErr
+		}
+		tokenRecord = &record
+		oauth.SetCachedToken(ctx, tokenHash, tokenRecord)
+	}
+	user, err := repository.GetAutomationUser(ctx, tokenRecord.UserID)
+	if err != nil {
+		return identity{}, err
+	}
+	if !tokenRecord.IsAdmin || !user.IsAdmin || user.Username == "system" {
+		return identity{}, errInvalidAuth
+	}
+	return identity{
+		userID: user.ID, grantID: "access-token:" + strconv.FormatUint(tokenRecord.ID, 10),
+		scope: strings.Join(availableScopes(), " "), instanceID: site.id(),
+	}, nil
+}
+
+func automationGrant(ctx context.Context, site instance, token string) (fosite.Requester, error) {
 	provider, _ := site.oauthServer("")
 	tokenType, session, err := provider.IntrospectToken(ctx, token, fosite.AccessToken, &fosite.DefaultSession{})
 	if errors.Is(err, fosite.ErrServerError) {

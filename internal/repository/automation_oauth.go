@@ -86,7 +86,7 @@ func PruneAutomationSessions(ctx context.Context, now time.Time) error {
 	return automationDB(ctx).Where("expires_at <= ?", now).Delete(&model.AutomationSession{}).Error
 }
 
-// RevokeUserAutomationGrants removes the user's sessions and direct access tokens.
+// RevokeUserAutomationGrants removes all OAuth sessions owned by the user.
 func RevokeUserAutomationGrants(ctx context.Context, userID uint64) error {
 	return automationDB(ctx).Where("user_id = ?", userID).Delete(&model.AutomationSession{}).Error
 }
