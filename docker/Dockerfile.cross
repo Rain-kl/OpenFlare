@@ -21,7 +21,7 @@
 #   make cross-build GOOS=linux GOARCH=arm64
 #   make cross-build GOOS=darwin
 
-ARG GO_VERSION=1.26.0
+ARG GO_VERSION=1.26.2
 ARG NODE_VERSION=22
 ARG ALPINE_VERSION=3.23
 
