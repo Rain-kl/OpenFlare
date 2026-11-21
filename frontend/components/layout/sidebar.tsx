@@ -62,7 +62,6 @@ import { useTranslations } from 'next-intl';
 import { useUser } from '@/contexts/user-context';
 import { usePublicConfig } from '@/hooks/use-public-config';
 import { OpenFlareSidebarMenu } from '@/components/layout/openflare-sidebar-menu';
-import { BrandMark } from '@/components/common/brand/brand-mark';
 import { openflareSidebarNav } from '@/lib/navigation/openflare-nav';
 
 type NavItem = {
