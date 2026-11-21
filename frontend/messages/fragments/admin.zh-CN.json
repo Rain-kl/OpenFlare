@@ -818,6 +818,7 @@
       "cronHint": "使用标准 5 位 Cron 字段格式（分钟、小时、日期、月份、星期几）。",
       "scheduleActive": "启用状态",
       "scheduleActiveDesc": "决定此定时任务是否会定时触发执行。",
+      "hideSuccessLog": "隐藏任务成功日志",
       "noParamsRequired": "所选任务类型无需配置运行参数。",
       "payloadConfig": "运行参数配置 (Payload)",
       "paramOn": "开启",

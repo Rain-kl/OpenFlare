@@ -240,6 +240,7 @@ export interface Schedule {
   cron: string;
   payload: string;
   is_active: boolean;
+  hide_success_log: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -253,6 +254,7 @@ export interface CreateScheduleRequest {
   cron: string;
   payload: string;
   is_active: boolean;
+  hide_success_log?: boolean;
 }
 
 /**
@@ -264,6 +266,7 @@ export interface UpdateScheduleRequest {
   cron: string;
   payload: string;
   is_active: boolean;
+  hide_success_log?: boolean;
 }
 
 // ==================== 用户管理 ====================

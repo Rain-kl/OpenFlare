@@ -16,6 +16,7 @@ import (
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -250,6 +251,90 @@ func TestProcessTaskFailure(t *testing.T) {
 	found, err := repository.GetTaskExecutionByTaskID(ctx, "process_fail_001")
 	require.NoError(t, err)
 	assert.Contains(t, found.Log, "开始执行任务")
+}
+
+func TestScheduledTaskFailureOnlyLogs(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		hideSuccessLog bool
+		firstErr       error
+		finalErr       error
+		wantStatus     model.TaskExecutionStatus
+	}{
+		{name: "visible success", wantStatus: model.TaskExecutionStatusSucceeded},
+		{name: "hidden success", hideSuccessLog: true},
+		{name: "successful retry", hideSuccessLog: true, firstErr: errors.New("temporary failure")},
+		{name: "exhausted retries", hideSuccessLog: true, firstErr: errors.New("temporary failure"), finalErr: errors.New("final failure"), wantStatus: model.TaskExecutionStatusFailed},
+		{name: "permanent failure", hideSuccessLog: true, finalErr: PermanentError("invalid settings"), wantStatus: model.TaskExecutionStatusFailed},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, redis, cleanup := testhelper.SetupTestEnvironment(t)
+			t.Cleanup(cleanup)
+			registerScheduleLogTestHandler(test.firstErr, test.finalErr)
+			info := runScheduleLogTestTask(t, redis, test.hideSuccessLog)
+			logs, total, err := repository.ListTaskExecutions(t.Context(), model.ListTaskExecutionsRequest{TaskType: testTaskType})
+			require.NoError(t, err)
+			if test.wantStatus == "" {
+				assert.Zero(t, total)
+			} else {
+				require.Len(t, logs, 1)
+				assert.Equal(t, info.ID, logs[0].TaskID)
+				assert.Equal(t, test.wantStatus, logs[0].Status)
+				assert.Equal(t, `{"scheduled":true}`, logs[0].Payload)
+				assert.Contains(t, logs[0].Log, `payload: {"scheduled":true}`)
+				if test.finalErr != nil {
+					assert.Equal(t, test.finalErr.Error(), logs[0].ErrorMessage)
+					assert.Contains(t, logs[0].Log, "Task failed")
+				}
+				if test.firstErr != nil {
+					assert.Equal(t, 1, logs[0].RetryCount)
+					assert.Contains(t, logs[0].Log, test.firstErr.Error())
+				}
+			}
+			assert.NotContains(t, redis.Keys(), db.PrefixedKey("task:execution:log:"+info.ID))
+		})
+	}
+}
+
+func registerScheduleLogTestHandler(firstErr, finalErr error) {
+	RegisterTaskMeta(TaskMeta{Type: testTaskType, AsynqTask: testTaskType, Name: "Scheduled log test", Queue: QueueDefault, MaxRetry: 1})
+	RegisterHandler(testTaskType, &mockHandler{executeFunc: func(ctx context.Context, payload []byte) (*TaskResult, error) {
+		AppendLog(ctx, "payload: %s", payload)
+		if retry, _ := asynq.GetRetryCount(ctx); retry == 0 && firstErr != nil {
+			return nil, firstErr
+		}
+		return &TaskResult{Message: "Finished"}, finalErr
+	}})
+}
+
+func runScheduleLogTestTask(t *testing.T, redis *miniredis.Miniredis, hideSuccessLog bool) *asynq.TaskInfo {
+	t.Helper()
+	opt := asynq.RedisClientOpt{Addr: redis.Addr()}
+	client := asynq.NewClient(opt)
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	server := asynq.NewServer(opt, asynq.Config{
+		Concurrency:              1,
+		TaskCheckInterval:        10 * time.Millisecond,
+		DelayedTaskCheckInterval: 10 * time.Millisecond,
+		RetryDelayFunc:           func(int, error, *asynq.Task) time.Duration { return 0 },
+	})
+	done := make(chan struct{}, 1)
+	require.NoError(t, server.Start(asynq.HandlerFunc(func(ctx context.Context, queued *asynq.Task) error {
+		err := ProcessTask(ctx, queued)
+		if shouldFlushTaskExecutionLog(ctx, err) {
+			done <- struct{}{}
+		}
+		return err
+	})))
+	t.Cleanup(server.Shutdown)
+	info, err := client.Enqueue(NewScheduledTask(testTaskType, []byte(`{"scheduled":true}`), hideSuccessLog), asynq.MaxRetry(1))
+	require.NoError(t, err)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("task did not reach completion")
+	}
+	return info
 }
 
 func TestCompleteTaskExecutionFlushesLog(t *testing.T) {

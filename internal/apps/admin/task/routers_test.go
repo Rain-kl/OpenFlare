@@ -339,6 +339,35 @@ func TestInternalOnlyTaskAdminBoundaries(t *testing.T) {
 	})
 }
 
+func TestScheduleHideSuccessLog(t *testing.T) {
+	t.Cleanup(setupTaskTestEnvironment(t))
+	router := setupTestRouter(&model.User{ID: 1001, Username: "admin", IsAdmin: true})
+	const path = "/api/v1/admin/tasks/schedules"
+	save := func(method, path, body string, want bool) model.Schedule {
+		t.Helper()
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(method, path, bytes.NewBufferString(body))
+		request.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(recorder, request)
+		require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+		var response struct {
+			Data model.Schedule `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+		assert.Equal(t, want, response.Data.HideSuccessLog)
+		stored, err := repository.GetScheduleByID(t.Context(), response.Data.ID)
+		require.NoError(t, err)
+		assert.Equal(t, want, stored.HideSuccessLog)
+		return response.Data
+	}
+	const fields = `{"name":"Cleanup","task_type":"system_cleanup","cron":"0 3 * * *","is_active":false`
+	created := save(http.MethodPost, path, fields+`}`, false)
+	updatePath := fmt.Sprintf("%s/%d", path, created.ID)
+	save(http.MethodPut, updatePath, fields+`,"hide_success_log":true}`, true)
+	save(http.MethodPut, updatePath, fields+`}`, true)
+	save(http.MethodPut, updatePath, fields+`,"hide_success_log":false}`, false)
+}
+
 func scheduleIDs(schedules []model.Schedule) []uint64 {
 	ids := make([]uint64, 0, len(schedules))
 	for _, schedule := range schedules {

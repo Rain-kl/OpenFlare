@@ -70,6 +70,8 @@ type contextKey string
 
 const taskIDKey contextKey = "task_execution_task_id"
 const traceEnvelopeVersion = 1
+const hideSuccessLogHeader = "wavelet-hide-success-log"
+const failureOnlyLogTimeout = 5 * time.Second
 
 type traceEnvelope struct {
 	WaveletTraceEnvelope bool              `json:"_wavelet_trace_envelope"`
@@ -234,6 +236,14 @@ func RetryTask(ctx context.Context, id uint64) (string, error) {
 	return newTaskID, nil
 }
 
+// NewScheduledTask carries the log policy separately from the task payload.
+func NewScheduledTask(taskType string, payload []byte, hideSuccessLog bool) *asynq.Task {
+	if hideSuccessLog {
+		return asynq.NewTaskWithHeaders(taskType, payload, map[string]string{hideSuccessLogHeader: "true"})
+	}
+	return asynq.NewTask(taskType, payload)
+}
+
 // ProcessTask Asynq 实际调用的统一处理函数
 // Worker 注册时统一使用此函数，内部自动分发到对应的 TaskHandler
 func ProcessTask(ctx context.Context, t *asynq.Task) error {
@@ -266,12 +276,8 @@ func ProcessTask(ctx context.Context, t *asynq.Task) error {
 		return err
 	}
 
-	// 加载或动态创建执行记录
-	now := time.Now()
-	execution, err := getOrCreateTaskExecution(ctx, taskID, t, taskPayload, now)
-	if err == nil {
-		updateExecutionOnStart(ctx, execution, now)
-	}
+	_, hideSuccessLog := t.Headers()[hideSuccessLogHeader]
+	execution := startTaskExecution(ctx, taskID, t.Type(), taskPayload, time.Now(), hideSuccessLog)
 
 	if execution != nil {
 		AppendLog(ctx, "[System] Starting asynchronous task [name: %s, type: %s], retry: %d/%d",
@@ -358,37 +364,41 @@ func updateExecutionOnStart(ctx context.Context, execution *model.TaskExecution,
 	}
 }
 
-// getOrCreateTaskExecution 获取已有的任务执行记录，如果不存在则针对已知任务类型动态创建记录
-func getOrCreateTaskExecution(ctx context.Context, taskID string, t *asynq.Task, payload []byte, now time.Time) (*model.TaskExecution, error) {
-	execution, err := repository.GetTaskExecutionByTaskID(ctx, taskID)
-	if err == nil {
-		return execution, nil
+func startTaskExecution(ctx context.Context, taskID, taskType string, payload []byte, now time.Time, hideSuccessLog bool) *model.TaskExecution {
+	if !hideSuccessLog {
+		if execution, err := repository.GetTaskExecutionByTaskID(ctx, taskID); err == nil {
+			updateExecutionOnStart(ctx, execution, now)
+			return execution
+		}
 	}
 
-	meta := GetTaskMetaByAsynqTask(t.Type())
+	meta := GetTaskMetaByAsynqTask(taskType)
 	if meta == nil {
-		return nil, err
+		return nil
 	}
 
-	execution = &model.TaskExecution{
+	retryCount, _ := asynq.GetRetryCount(ctx)
+	execution := &model.TaskExecution{
 		TaskID:      taskID,
 		TaskType:    meta.AsynqTask,
 		TaskName:    meta.Name,
 		Status:      model.TaskExecutionStatusRunning,
 		Retryable:   meta.Retryable,
 		MaxRetry:    meta.MaxRetry,
-		RetryCount:  0,
+		RetryCount:  retryCount,
 		Payload:     string(payload),
 		TriggeredBy: "schedule",
 		StartedAt:   &now,
 	}
 
-	if createErr := repository.CreateTaskExecution(ctx, execution); createErr != nil {
-		logger.ErrorF(ctx, "[TaskExecutor] Failed to create execution record taskID=%s: %v", taskID, createErr)
-		return nil, createErr
+	if !hideSuccessLog {
+		if err := repository.CreateTaskExecution(ctx, execution); err != nil {
+			logger.ErrorF(ctx, "[TaskExecutor] Failed to create execution record taskID=%s: %v", taskID, err)
+			return nil
+		}
 	}
 
-	return execution, nil
+	return execution
 }
 
 // completeTaskExecution 完成并更新任务执行记录的状态和执行结果
@@ -399,23 +409,58 @@ func completeTaskExecution(ctx context.Context, execution *model.TaskExecution, 
 
 	execution.Duration = duration.Milliseconds()
 	execution.FinishedAt = &finishTime
+	_, hideSuccessLog := t.Headers()[hideSuccessLogHeader]
+	if hideSuccessLog {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.WithoutCancel(ctx), failureOnlyLogTimeout)
+		defer cancel()
+	}
 
 	if execErr != nil {
 		handleFailedTask(ctx, execution, t, duration, execErr, span)
 	} else {
-		handleSuccessfulTask(ctx, execution, t, duration, result)
+		handleSuccessfulTask(ctx, execution, t, duration, result, hideSuccessLog)
 	}
 
+	if hideSuccessLog {
+		finishFailureOnlyTaskLog(ctx, execution, execErr)
+	} else {
+		persistTaskExecution(ctx, execution, execErr)
+	}
+
+	notifyTaskCompleted(ctx, execution, result, execErr)
+}
+
+func persistTaskExecution(ctx context.Context, execution *model.TaskExecution, execErr error) {
 	if err := repository.UpdateTaskExecution(ctx, execution); err != nil {
 		logger.ErrorF(ctx, "[TaskExecutor] Failed to update execution record taskID=%s: %v", execution.TaskID, err)
 	}
 	if shouldFlushTaskExecutionLog(ctx, execErr) {
-		if err := repository.FlushTaskExecutionLog(ctx, execution.TaskID); err != nil {
-			logger.ErrorF(ctx, "[TaskExecutor] Failed to persist task log taskID=%s: %v", execution.TaskID, err)
-		}
+		flushTaskExecutionLog(ctx, execution.TaskID)
 	}
+}
 
-	notifyTaskCompleted(ctx, execution, result, execErr)
+func finishFailureOnlyTaskLog(ctx context.Context, execution *model.TaskExecution, execErr error) {
+	if execErr == nil {
+		if err := repository.DiscardTaskExecutionLog(ctx, execution.TaskID); err != nil {
+			logger.ErrorF(ctx, "[TaskExecutor] Failed to discard task log taskID=%s: %v", execution.TaskID, err)
+		}
+		return
+	}
+	if !shouldFlushTaskExecutionLog(ctx, execErr) {
+		return
+	}
+	if err := repository.CreateTaskExecution(ctx, execution); err != nil {
+		logger.ErrorF(ctx, "[TaskExecutor] Failed to create failed execution record taskID=%s: %v", execution.TaskID, err)
+		return
+	}
+	flushTaskExecutionLog(ctx, execution.TaskID)
+}
+
+func flushTaskExecutionLog(ctx context.Context, taskID string) {
+	if err := repository.FlushTaskExecutionLog(ctx, taskID); err != nil {
+		logger.ErrorF(ctx, "[TaskExecutor] Failed to persist task log taskID=%s: %v", taskID, err)
+	}
 }
 
 func notifyTaskCompleted(ctx context.Context, execution *model.TaskExecution, result *TaskResult, execErr error) {
@@ -456,7 +501,7 @@ func handleFailedTask(ctx context.Context, execution *model.TaskExecution, t *as
 	AppendLog(ctx, "[System] Task failed; duration: %d ms, error: %v", duration.Milliseconds(), execErr)
 }
 
-func handleSuccessfulTask(ctx context.Context, execution *model.TaskExecution, t *asynq.Task, duration time.Duration, result *TaskResult) {
+func handleSuccessfulTask(ctx context.Context, execution *model.TaskExecution, t *asynq.Task, duration time.Duration, result *TaskResult, hideSuccessLog bool) {
 	execution.Status = model.TaskExecutionStatusSucceeded
 	execution.ErrorMessage = "" // 清除历史重试失败遗留的错误信息
 	if result != nil {
@@ -466,6 +511,9 @@ func handleSuccessfulTask(ctx context.Context, execution *model.TaskExecution, t
 		}
 	}
 	logger.InfoF(ctx, "[TaskExecutor] Task processing completed Type: %s TaskID: %s Duration: %d ms", t.Type(), execution.TaskID, duration.Milliseconds())
+	if hideSuccessLog {
+		return
+	}
 
 	resultMsg := "Succeeded"
 	if result != nil {

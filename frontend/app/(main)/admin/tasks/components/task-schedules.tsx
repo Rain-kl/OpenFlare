@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -61,6 +62,7 @@ export function TaskSchedulesManager() {
   const [selectedTaskType, setSelectedTaskType] = useState('');
   const [cron, setCron] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [hideSuccessLog, setHideSuccessLog] = useState(false);
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
 
   // Fetch Schedules & Task Types
@@ -150,6 +152,7 @@ export function TaskSchedulesManager() {
     setSelectedTaskType(taskTypes[0]?.type || '');
     setCron('0 */2 * * *');
     setIsActive(true);
+    setHideSuccessLog(false);
     setParamValues({});
     setDialogOpen(true);
   };
@@ -160,6 +163,7 @@ export function TaskSchedulesManager() {
     setSelectedTaskType(schedule.task_type);
     setCron(schedule.cron);
     setIsActive(schedule.is_active);
+    setHideSuccessLog(schedule.hide_success_log ?? false);
     setDialogOpen(true);
   };
 
@@ -199,6 +203,7 @@ export function TaskSchedulesManager() {
           cron,
           payload: payloadStr,
           is_active: isActive,
+          hide_success_log: hideSuccessLog,
         };
         const updated = await services.adminTask.updateSchedule(
           editingSchedule.id,
@@ -215,6 +220,7 @@ export function TaskSchedulesManager() {
           cron,
           payload: payloadStr,
           is_active: isActive,
+          hide_success_log: hideSuccessLog,
         };
         const created = await services.adminTask.createSchedule(req);
         setSchedules((prev) => [created, ...prev]);
@@ -397,7 +403,7 @@ export function TaskSchedulesManager() {
             <DialogDescription>{t('scheduleDialogDesc')}</DialogDescription>
           </DialogHeader>
 
-          <div className='grid gap-4 py-4'>
+          <FieldGroup className='gap-4 py-4'>
             <div className='grid gap-2'>
               <Label htmlFor='sched-name'>{t('scheduleName')}</Label>
               <Input
@@ -453,6 +459,20 @@ export function TaskSchedulesManager() {
                 onCheckedChange={setIsActive}
               />
             </div>
+
+            <Field
+              orientation='horizontal'
+              className='rounded-lg border border-dashed p-3'
+            >
+              <FieldLabel htmlFor='sched-hide-success-log'>
+                {t('hideSuccessLog')}
+              </FieldLabel>
+              <Switch
+                id='sched-hide-success-log'
+                checked={hideSuccessLog}
+                onCheckedChange={setHideSuccessLog}
+              />
+            </Field>
 
             {(() => {
               const targetTask = getSelectedTaskMeta();
@@ -543,7 +563,7 @@ export function TaskSchedulesManager() {
                 </div>
               );
             })()}
-          </div>
+          </FieldGroup>
 
           <DialogFooter>
             <Button

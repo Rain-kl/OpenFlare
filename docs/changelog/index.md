@@ -17,6 +17,10 @@ sidebar: false
 
 ## [Unreleased]
 
+### ✨ 新功能
+
+- 定时任务新增「隐藏任务成功日志」开关，开启后仅记录最终失败的执行；OpenFlare Uptime Kuma 同步和 OpenFlare WAF IP 组同步默认开启。
+
 ### ⚡️ 优化与改进
 
 - CLI 与 MCP 支持一次查询当前站点和近期流量，按站点合并域名统计并汇总 HTTP 错误。单独查看流量指标时可省略小时趋势。

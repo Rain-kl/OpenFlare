@@ -98,7 +98,7 @@ func runPagesSourceScanScheduleMigration(
 		Payload:  `{"custom":true}`,
 		IsActive: false,
 	}
-	require.NoError(t, gormDB.Create(&custom).Error)
+	require.NoError(t, gormDB.Select("ID", "Name", "TaskType", "Cron", "Payload", "IsActive", "CreatedAt", "UpdatedAt").Create(&custom).Error)
 	require.NoError(t, goose.UpTo(sqlDB, dir, pagesSourceScanMigration))
 	var schedules []model.Schedule
 	require.NoError(t, gormDB.Where("task_type = ?", pagesSourceScanTaskType).Find(&schedules).Error)

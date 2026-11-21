@@ -818,6 +818,7 @@
       "cronHint": "Uses standard 5-field Cron format (minute, hour, day of month, month, day of week).",
       "scheduleActive": "Enabled",
       "scheduleActiveDesc": "Determines whether this scheduled task will be triggered on schedule.",
+      "hideSuccessLog": "Hide successful task logs",
       "noParamsRequired": "Selected task type does not require runtime parameters.",
       "payloadConfig": "Payload configuration",
       "paramOn": "On",

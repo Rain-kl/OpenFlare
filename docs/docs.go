@@ -2844,7 +2844,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "修改一个定时任务的配置（名称、Cron 表达式、异步任务参数和是否启用等），并触发调度器热加载，需要管理员权限",
+                "description": "修改定时任务配置并触发调度器热加载，需要管理员权限。省略 hide_success_log 时保留原值。",
                 "consumes": [
                     "application/json"
                 ],
@@ -18201,6 +18201,9 @@ const docTemplate = `{
                 "cron": {
                     "type": "string"
                 },
+                "hide_success_log": {
+                    "type": "boolean"
+                },
                 "is_active": {
                     "type": "boolean"
                 },
@@ -18249,6 +18252,9 @@ const docTemplate = `{
             "properties": {
                 "cron": {
                     "type": "string"
+                },
+                "hide_success_log": {
+                    "type": "boolean"
                 },
                 "is_active": {
                     "type": "boolean"
@@ -24824,6 +24830,9 @@ const docTemplate = `{
                 },
                 "cron": {
                     "type": "string"
+                },
+                "hide_success_log": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string",

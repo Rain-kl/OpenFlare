@@ -107,8 +107,7 @@ func ReloadScheduler() error {
 			continue // 忽略排程配置中无效的任务类型
 		}
 
-		// 构造 Asynq 载荷。定时任务使用对应 Meta 中的 Asynq 标识，同时将数据库中保存的 json 作为参数
-		t := asynq.NewTask(meta.AsynqTask, []byte(s.Payload))
+		t := task.NewScheduledTask(meta.AsynqTask, []byte(s.Payload), s.HideSuccessLog)
 
 		if _, err := newScheduler.Register(
 			s.Cron,

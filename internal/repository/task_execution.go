@@ -128,8 +128,16 @@ func FlushTaskExecutionLog(ctx context.Context, taskID string) error {
 		return fmt.Errorf("persist task execution log: task %q not found", taskID)
 	}
 
-	if err := db.Redis.Del(ctx, key).Err(); err != nil {
-		return fmt.Errorf("delete persisted task execution log from redis: %w", err)
+	return DiscardTaskExecutionLog(ctx, taskID)
+}
+
+// DiscardTaskExecutionLog removes the buffered execution log from Redis.
+func DiscardTaskExecutionLog(ctx context.Context, taskID string) error {
+	if db.Redis == nil {
+		return errors.New("redis client is not initialized")
+	}
+	if err := db.Redis.Del(ctx, taskExecutionLogRedisKey(taskID)).Err(); err != nil {
+		return fmt.Errorf("delete buffered task execution log from redis: %w", err)
 	}
 	return nil
 }

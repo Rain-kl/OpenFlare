@@ -22,6 +22,8 @@ import (
 	"github.com/glebarez/sqlite"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
@@ -116,6 +118,7 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	})
 
 	Migrate()
+	assertScheduleLogDefaults(t)
 
 	var systemConfigCount int64
 	if err := sqliteDB.Table("w_system_configs").Count(&systemConfigCount).Error; err != nil {
@@ -269,6 +272,19 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 		VALUES (?, ?, ?, '', '', '', 'pending', '')`, 2, domain.ID, false).Error; err == nil {
 		t.Error("Migrate() allowed duplicate of_cf_pointing_members.zone_domain_id")
 	}
+}
+
+func assertScheduleLogDefaults(t *testing.T) {
+	t.Helper()
+	schedules, err := repository.ListSchedules(t.Context())
+	require.NoError(t, err)
+	var failureOnlyTypes []string
+	for _, schedule := range schedules {
+		if schedule.HideSuccessLog {
+			failureOnlyTypes = append(failureOnlyTypes, schedule.TaskType)
+		}
+	}
+	assert.ElementsMatch(t, []string{"of_waf_ip_group_sync", "of_uptime_kuma_sync"}, failureOnlyTypes)
 }
 
 func TestCloudflarePointingPostgresMigrationQuotesAuthorizationColumn(t *testing.T) {

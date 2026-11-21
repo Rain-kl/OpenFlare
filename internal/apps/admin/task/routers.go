@@ -241,11 +241,12 @@ func ListSchedules(c *gin.Context) {
 
 // CreateScheduleRequest 创建定时任务请求
 type CreateScheduleRequest struct {
-	Name     string `json:"name" binding:"required"`
-	TaskType string `json:"task_type" binding:"required"`
-	Cron     string `json:"cron" binding:"required"`
-	Payload  string `json:"payload"`
-	IsActive *bool  `json:"is_active" binding:"required"`
+	Name           string `json:"name" binding:"required"`
+	TaskType       string `json:"task_type" binding:"required"`
+	Cron           string `json:"cron" binding:"required"`
+	Payload        string `json:"payload"`
+	IsActive       *bool  `json:"is_active" binding:"required"`
+	HideSuccessLog bool   `json:"hide_success_log"`
 }
 
 // CreateSchedule 创建定时任务
@@ -294,11 +295,12 @@ func CreateSchedule(c *gin.Context) {
 	}
 
 	schedule := &model.Schedule{
-		Name:     req.Name,
-		TaskType: req.TaskType,
-		Cron:     req.Cron,
-		Payload:  string(validated),
-		IsActive: *req.IsActive,
+		Name:           req.Name,
+		TaskType:       req.TaskType,
+		Cron:           req.Cron,
+		Payload:        string(validated),
+		IsActive:       *req.IsActive,
+		HideSuccessLog: req.HideSuccessLog,
 	}
 
 	if err := repository.CreateSchedule(c.Request.Context(), schedule); err != nil {
@@ -316,16 +318,17 @@ func CreateSchedule(c *gin.Context) {
 
 // UpdateScheduleRequest 修改定时任务请求
 type UpdateScheduleRequest struct {
-	Name     string `json:"name" binding:"required"`
-	TaskType string `json:"task_type" binding:"required"`
-	Cron     string `json:"cron" binding:"required"`
-	Payload  string `json:"payload"`
-	IsActive *bool  `json:"is_active" binding:"required"`
+	Name           string `json:"name" binding:"required"`
+	TaskType       string `json:"task_type" binding:"required"`
+	Cron           string `json:"cron" binding:"required"`
+	Payload        string `json:"payload"`
+	IsActive       *bool  `json:"is_active" binding:"required"`
+	HideSuccessLog *bool  `json:"hide_success_log"`
 }
 
 // UpdateSchedule 修改定时任务
 // @Summary 修改定时任务
-// @Description 修改一个定时任务的配置（名称、Cron 表达式、异步任务参数和是否启用等），并触发调度器热加载，需要管理员权限
+// @Description 修改定时任务配置并触发调度器热加载，需要管理员权限。省略 hide_success_log 时保留原值。
 // @Tags admin
 // @Accept json
 // @Produce json
@@ -392,6 +395,9 @@ func UpdateSchedule(c *gin.Context) {
 	schedule.Cron = req.Cron
 	schedule.Payload = string(validated)
 	schedule.IsActive = *req.IsActive
+	if req.HideSuccessLog != nil {
+		schedule.HideSuccessLog = *req.HideSuccessLog
+	}
 
 	if err := repository.UpdateSchedule(c.Request.Context(), schedule); err != nil {
 		response.AbortInternal(c, fmt.Sprintf("%s: %v", ScheduleSaveFailed, err))
