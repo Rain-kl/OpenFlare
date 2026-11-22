@@ -90,7 +90,7 @@ export const HeroSection = React.memo(function HeroSection({
               </Link>
 
               <Link
-                href='https://openflare.fyrn.link/'
+                href='https://openflare.cc/'
                 target='_blank'
                 rel='noopener noreferrer'
                 className='w-full sm:w-auto'

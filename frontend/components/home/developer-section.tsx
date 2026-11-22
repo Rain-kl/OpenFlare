@@ -161,7 +161,7 @@ export const DeveloperSection = React.memo(function DeveloperSection({
 
             <div className='flex flex-wrap gap-4'>
               <Link
-                href='https://openflare.fyrn.link/'
+                href='https://openflare.cc/'
                 target='_blank'
                 rel='noopener noreferrer'
               >

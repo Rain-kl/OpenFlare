@@ -81,7 +81,7 @@ export const FooterSection = React.memo(function FooterSection({
             </h3>
             <ul className='space-y-4 text-sm text-muted-foreground'>
               <li>
-                <FooterLink href='https://openflare.fyrn.link/'>
+                <FooterLink href='https://openflare.cc/'>
                   {rt('user_guide_c83b6b0a')}
                 </FooterLink>
               </li>

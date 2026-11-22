@@ -77,7 +77,7 @@ export function MCPTab({ config }: { config?: SystemConfig }) {
           <AlertDescription>
             <p>{t('sessionSecretTooShort')}</p>
             <a
-              href={`https://openflare.fyrn.link${locale === 'zh-CN' ? '' : '/en'}/guide/session-secret-rotation`}
+              href={`https://openflare.cc${locale === 'zh-CN' ? '' : '/en'}/guide/session-secret-rotation`}
               target='_blank'
               rel='noreferrer'
               className='underline underline-offset-4'

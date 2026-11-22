@@ -236,12 +236,12 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/upda
 
 ## 📚 Documentation
 
-Official Documentation: **[https://openflare.fyrn.link](https://openflare.fyrn.link)**
+Official Documentation: **[https://openflare.cc](https://openflare.cc)**
 
-* [Quick Start](https://openflare.fyrn.link/guide/quick-start)
-* [Deployment Guide](https://openflare.fyrn.link/deployment/deployment)
-* [Configuration Reference](https://openflare.fyrn.link/reference/configuration)
-* [System Design](https://openflare.fyrn.link/design/)
+* [Quick Start](https://openflare.cc/guide/quick-start)
+* [Deployment Guide](https://openflare.cc/deployment/deployment)
+* [Configuration Reference](https://openflare.cc/reference/configuration)
+* [System Design](https://openflare.cc/design/)
 
 <details>
 <summary><b>🔍 Minimum & Recommended Hardware Specifications</b></summary>

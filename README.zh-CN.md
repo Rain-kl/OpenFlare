@@ -237,12 +237,12 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/upda
 
 ## 📚 官方文档
 
-完整配置与进阶部署详见官方文档：**[https://openflare.fyrn.link](https://openflare.fyrn.link)**
+完整配置与进阶部署详见官方文档：**[https://openflare.cc](https://openflare.cc)**
 
-* [快速入门指南](https://openflare.fyrn.link/guide/quick-start)
-* [生产部署与架构说明](https://openflare.fyrn.link/deployment/deployment)
-* [配置项详细参考](https://openflare.fyrn.link/reference/configuration)
-* [系统底层设计](https://openflare.fyrn.link/design/)
+* [快速入门指南](https://openflare.cc/guide/quick-start)
+* [生产部署与架构说明](https://openflare.cc/deployment/deployment)
+* [配置项详细参考](https://openflare.cc/reference/configuration)
+* [系统底层设计](https://openflare.cc/design/)
 
 <details>
 <summary><b>🔍 查看各组件最低与推荐硬件配置要求</b></summary>

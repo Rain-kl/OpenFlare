@@ -193,7 +193,7 @@ const MENU_GROUPS: MenuGroup[] = [
     nameKey: 'groupDocs',
     items: [
       {
-        path: 'https://openflare.fyrn.link/',
+        path: 'https://openflare.cc/',
         labelKey: 'usageDocs',
         descKey: 'descUsageDocs',
         icon: FileText,

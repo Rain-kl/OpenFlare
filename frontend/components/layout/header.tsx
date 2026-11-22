@@ -260,7 +260,7 @@ function AppBanner() {
             <p className='flex flex-wrap items-center justify-center gap-x-2 text-center'>
               <span className='text-foreground'>{t('bannerTitle')}</span>
               <a
-                href='https://openflare.fyrn.link/changelog/'
+                href='https://openflare.cc/changelog/'
                 target='_blank'
                 className='underline underline-offset-4 hover:text-foreground'
               >

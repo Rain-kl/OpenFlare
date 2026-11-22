@@ -3,7 +3,7 @@ import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://openflare.io'),
+  metadataBase: new URL('https://openflare.cc'),
   title: {
     default: 'OpenFlare 文档',
     template: '%s | OpenFlare',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'OpenFlare',
-    url: 'https://openflare.io/',
+    url: 'https://openflare.cc/',
   },
 };
 

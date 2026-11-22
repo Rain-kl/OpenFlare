@@ -40,7 +40,7 @@ export function HomeMain() {
       title: rt('user_guide_c83b6b0a'),
       description: rt('api_integration_and_everyday_operation_guides_281269a1'),
       icon: HelpCircle,
-      url: 'https://openflare.fyrn.link/',
+      url: 'https://openflare.cc/',
       color: 'text-purple-500',
       bgColor: 'bg-purple-500/10',
       borderColor: 'hover:border-purple-500/30',
