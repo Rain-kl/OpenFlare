@@ -15829,6 +15829,256 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/waf/request-whitelist": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "列出全局防护白名单",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.OpenFlareWAFWhitelistEntry"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "域名与路径均匹配时，跳过全局和站点绑定的 WAF 流程。",
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "添加全局防护白名单",
+                "parameters": [
+                    {
+                        "description": "白名单条目",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_waf.whitelistEntryInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.OpenFlareWAFWhitelistEntry"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/waf/request-whitelist/{id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "删除全局防护白名单",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "条目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/waf/request-whitelist/{id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "tags": [
+                    "openflare-waf"
+                ],
+                "summary": "更新全局防护白名单",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "条目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "白名单条目",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_waf.whitelistEntryInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.OpenFlareWAFWhitelistEntry"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/waf/rule-groups": {
             "get": {
                 "security": [
@@ -23803,7 +24053,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "levels": {
-                    "description": "Category-to-level map. Levels are off, observe, balanced, or strict. Omitted categories are disabled.",
+                    "description": "Category-to-level map. Levels are off, observe, essential, balanced, or strict. Omitted categories are disabled.",
                     "type": "object",
                     "additionalProperties": {
                         "type": "string"
@@ -24321,6 +24571,36 @@ const docTemplate = `{
             "properties": {
                 "request": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFRequestPreview"
+                }
+            }
+        },
+        "apps_openflare_waf.whitelistEntryInput": {
+            "type": "object",
+            "required": [
+                "domain",
+                "path",
+                "path_match"
+            ],
+            "properties": {
+                "domain": {
+                    "description": "Exact hostname or a single left-most wildcard label.",
+                    "type": "string",
+                    "maxLength": 253
+                },
+                "path": {
+                    "description": "Case-sensitive URL path or regular expression. The query string is excluded.",
+                    "type": "string",
+                    "maxLength": 1024
+                },
+                "path_match": {
+                    "description": "One of prefix, suffix, regex, or exact.",
+                    "type": "string",
+                    "enum": [
+                        "prefix",
+                        "suffix",
+                        "regex",
+                        "exact"
+                    ]
                 }
             }
         },
@@ -25327,7 +25607,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "levels": {
-                    "description": "Category-to-level map. Levels are off, observe, balanced, or strict. Omitted categories are disabled.",
+                    "description": "Category-to-level map. Levels are off, observe, essential, balanced, or strict. Omitted categories are disabled.",
                     "type": "object",
                     "additionalProperties": {
                         "type": "string"
@@ -27010,6 +27290,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.OpenFlareWAFWhitelistEntry": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "path_match": {
                     "type": "string"
                 }
             }

@@ -15,11 +15,12 @@ import (
 
 const (
 	// ContractVersion is the Edge configuration contract supported by this controller.
-	ContractVersion             = 4
-	pingoraBaseCapability       = "tls-sni-h2-v1"
-	pingoraPolicyCapability     = "policy-runtime-v1"
-	pingoraSnapshotCapability   = "shared-snapshot-v1"
-	pingoraMemoryKeysCapability = "tls-memory-keys-v1"
+	ContractVersion               = 4
+	pingoraBaseCapability         = "tls-sni-h2-v1"
+	pingoraPolicyCapability       = "policy-runtime-v1"
+	pingoraSnapshotCapability     = "shared-snapshot-v1"
+	pingoraMemoryKeysCapability   = "tls-memory-keys-v1"
+	pingoraWAFWhitelistCapability = "waf-request-whitelist-v1"
 )
 
 // Envelope carries the exact shared business snapshot and its immutable assets.
@@ -72,9 +73,13 @@ func Encode(snapshotJSON, supportFilesJSON string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	capabilities := []string{pingoraBaseCapability, pingoraPolicyCapability, pingoraSnapshotCapability, pingoraMemoryKeysCapability}
+	if len(snapshot.WAF.RequestWhitelist) > 0 {
+		capabilities = append(capabilities, pingoraWAFWhitelistCapability)
+	}
 	data, err := json.Marshal(Envelope{
 		SchemaVersion: 1, ContractVersion: ContractVersion,
-		RequiredCapabilities: []string{pingoraBaseCapability, pingoraPolicyCapability, pingoraSnapshotCapability, pingoraMemoryKeysCapability},
+		RequiredCapabilities: capabilities,
 		Snapshot:             json.RawMessage(snapshotJSON), Assets: assets,
 	})
 	return string(data), err

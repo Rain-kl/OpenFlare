@@ -18,7 +18,13 @@ export const attackCategories = [
   'malformed_http',
 ] as const;
 
-export const attackLevels = ['off', 'observe', 'balanced', 'strict'] as const;
+export const attackLevels = [
+  'off',
+  'observe',
+  'essential',
+  'balanced',
+  'strict',
+] as const;
 export type AttackCategory = (typeof attackCategories)[number];
 export type AttackLevel = (typeof attackLevels)[number];
 export const attackRuleActions = ['off', 'enabled', 'observe'] as const;
@@ -31,6 +37,20 @@ export type AttackGroupInput = {
   rule_overrides?: AttackRuleOverrides;
 };
 export type AttackGroup = AttackGroupInput & { id: number; updated_at: string };
+
+export const whitelistPathMatches = [
+  'exact',
+  'prefix',
+  'suffix',
+  'regex',
+] as const;
+export type WhitelistPathMatch = (typeof whitelistPathMatches)[number];
+export type RequestWhitelistInput = {
+  domain: string;
+  path_match: WhitelistPathMatch;
+  path: string;
+};
+export type RequestWhitelistEntry = RequestWhitelistInput & { id: number };
 
 export type AttackLog = {
   id: string;

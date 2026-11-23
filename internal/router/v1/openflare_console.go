@@ -173,6 +173,10 @@ func registerOpenFlareSecurityRoutes(apiGroup *gin.RouterGroup) {
 		wafRoute.GET("/attack-groups", waf.ListAttackGroupsHandler)
 		wafRoute.POST("/attack-groups", waf.CreateAttackGroupHandler)
 		wafRoute.POST("/attack-groups/:id/update", waf.UpdateAttackGroupHandler)
+		wafRoute.GET("/request-whitelist", waf.ListRequestWhitelistHandler)
+		wafRoute.POST("/request-whitelist", waf.CreateRequestWhitelistHandler)
+		wafRoute.POST("/request-whitelist/:id/update", waf.UpdateRequestWhitelistHandler)
+		wafRoute.POST("/request-whitelist/:id/delete", waf.DeleteRequestWhitelistHandler)
 
 		wafRoute.GET("/rule-groups", waf.ListRulesHandler)
 		wafRoute.GET("/rule-groups/:id", waf.GetRuleHandler)

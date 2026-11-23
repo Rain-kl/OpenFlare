@@ -3,7 +3,8 @@ use super::{
     attack::{AttackGroup, Detector, EnginePool, LegacyConfig, RuleMatch},
     ip_in_cidr, RequestContext,
 };
-use crate::protocol::config::{PoWConfig, Route, WafDocument, WafRuleGroup};
+use crate::protocol::config::{PoWConfig, Route, WafDocument, WafPathMatch, WafRuleGroup};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -70,6 +71,32 @@ impl WafAudit {
 #[derive(Clone)]
 pub struct CompiledWaf {
     detectors: HashMap<u64, HashMap<String, Detector>>,
+    whitelist: RequestWhitelist,
+}
+
+#[derive(Clone, Default)]
+struct RequestWhitelist {
+    domains: HashMap<String, Vec<WhitelistPath>>,
+    wildcard_suffixes: HashMap<String, Vec<WhitelistPath>>,
+}
+
+#[derive(Clone)]
+enum WhitelistPath {
+    Prefix(String),
+    Suffix(String),
+    Regex(Regex),
+    Exact(String),
+}
+
+impl WhitelistPath {
+    fn matches(&self, path: &str) -> bool {
+        match self {
+            Self::Prefix(prefix) => path.starts_with(prefix),
+            Self::Suffix(suffix) => path.ends_with(suffix),
+            Self::Regex(regex) => regex.is_match(path),
+            Self::Exact(exact) => path == exact,
+        }
+    }
 }
 
 impl std::fmt::Debug for CompiledWaf {
@@ -179,7 +206,29 @@ pub(crate) fn compile(document: &WafDocument) -> anyhow::Result<CompiledWaf> {
             }
         }
     }
-    Ok(CompiledWaf { detectors })
+    let mut whitelist = RequestWhitelist::default();
+    for entry in &document.request_whitelist {
+        anyhow::ensure!(
+            !entry.domain.is_empty() && !entry.path.is_empty(),
+            "empty WAF whitelist domain or path"
+        );
+        let path = match entry.path_match {
+            WafPathMatch::Prefix => WhitelistPath::Prefix(entry.path.clone()),
+            WafPathMatch::Suffix => WhitelistPath::Suffix(entry.path.clone()),
+            WafPathMatch::Regex => WhitelistPath::Regex(Regex::new(&entry.path)?),
+            WafPathMatch::Exact => WhitelistPath::Exact(entry.path.clone()),
+        };
+        let paths = if let Some(suffix) = entry.domain.strip_prefix("*.") {
+            whitelist.wildcard_suffixes.entry(suffix.to_owned())
+        } else {
+            whitelist.domains.entry(entry.domain.clone())
+        };
+        paths.or_default().push(path);
+    }
+    Ok(CompiledWaf {
+        detectors,
+        whitelist,
+    })
 }
 
 fn waf_groups<'a>(
@@ -217,6 +266,20 @@ pub fn has_waf_pow(document: &WafDocument, route: &Route) -> bool {
 }
 
 impl CompiledWaf {
+    pub fn is_whitelisted(&self, host: &str, path: &str) -> bool {
+        let matches = |paths: &Vec<WhitelistPath>| paths.iter().any(|rule| rule.matches(path));
+        self.whitelist.domains.get(host).is_some_and(matches)
+            || (!self.whitelist.wildcard_suffixes.is_empty()
+                && host.split_once('.').is_some_and(|(label, suffix)| {
+                    !label.is_empty()
+                        && self
+                            .whitelist
+                            .wildcard_suffixes
+                            .get(suffix)
+                            .is_some_and(matches)
+                }))
+    }
+
     pub fn inspects(&self, document: &WafDocument, route: &Route) -> bool {
         waf_groups(document, route).any(|group| {
             self.detectors
@@ -232,6 +295,9 @@ impl CompiledWaf {
         request: WafRequest<'_>,
         pow_valid: bool,
     ) -> Result<(WafDecision, Option<WafAudit>), String> {
+        if self.is_whitelisted(&request.context.host, &request.context.path) {
+            return Ok((WafDecision::Allow, None));
+        }
         let mut observation = None;
         for group in waf_groups(document, route) {
             let (decision, audit) = execute_graph(

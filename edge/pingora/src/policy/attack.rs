@@ -35,6 +35,7 @@ pub enum Level {
     #[default]
     Off,
     Observe,
+    Essential,
     Balanced,
     Strict,
 }
@@ -338,6 +339,7 @@ mod tests {
         let mut pool = EnginePool::default();
         for (level, expected) in [
             (Level::Off, None),
+            (Level::Essential, None),
             (Level::Balanced, None),
             (Level::Observe, Some("observe")),
             (Level::Strict, Some("strict")),
@@ -435,6 +437,56 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(checked_in, attack_rule_catalog().unwrap());
+    }
+
+    #[test]
+    fn lighter_profiles_allow_ordinary_json_without_using_keyword_heuristics() {
+        let mut pool = EnginePool::default();
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        let request = RequestContext {
+            method: "POST".into(),
+            path: "/v1/notes".into(),
+            body: br#"{"message":"Where is the order from and what is in the package?"}"#.to_vec(),
+            ..RequestContext::default()
+        };
+        let compile = |pool: &mut EnginePool, level| {
+            pool.compile(
+                None,
+                CATEGORIES
+                    .into_iter()
+                    .map(|category| (category.into(), level))
+                    .collect(),
+                Default::default(),
+            )
+            .unwrap()
+        };
+        let essential = compile(&mut pool, Level::Essential);
+        let balanced = compile(&mut pool, Level::Balanced);
+        let strict = compile(&mut pool, Level::Strict);
+        let observe = compile(&mut pool, Level::Observe);
+        assert!(essential.compiled.rules.len() < balanced.compiled.rules.len());
+        assert!(balanced.compiled.rules.len() < strict.compiled.rules.len());
+        assert_eq!(strict.compiled.rules.len(), observe.compiled.rules.len());
+        assert!(essential
+            .compiled
+            .rules
+            .keys()
+            .all(|id| balanced.compiled.rules.contains_key(id)));
+        for detector in [&essential, &balanced] {
+            assert!(detector.compiled.rules.contains_key("942270"));
+            assert!(detector
+                .inspect(&request, &headers, Version::HTTP_2, true)
+                .unwrap()
+                .is_empty());
+        }
+        for (detector, level) in [(&strict, "strict"), (&observe, "observe")] {
+            assert!(detector
+                .inspect(&request, &headers, Version::HTTP_2, true)
+                .unwrap()
+                .iter()
+                .any(|rule| rule.id == 942100 && rule.level == level));
+        }
     }
 
     #[test]

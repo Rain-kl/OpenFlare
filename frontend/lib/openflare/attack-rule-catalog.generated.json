@@ -4,6 +4,7 @@
     {
       "balanced": true,
       "category": "xxe",
+      "essential": true,
       "id": 11071,
       "message": "XML external entity declaration",
       "paranoia": null
@@ -11,6 +12,7 @@
     {
       "balanced": false,
       "category": "xxe",
+      "essential": false,
       "id": 11072,
       "message": "XML DTD or entity declaration",
       "paranoia": null
@@ -18,6 +20,7 @@
     {
       "balanced": true,
       "category": "asp_injection",
+      "essential": true,
       "id": 11131,
       "message": "ASP server-side code block",
       "paranoia": null
@@ -25,6 +28,7 @@
     {
       "balanced": false,
       "category": "asp_injection",
+      "essential": false,
       "id": 11132,
       "message": "ASP expression or object creation",
       "paranoia": null
@@ -32,6 +36,7 @@
     {
       "balanced": true,
       "category": "csrf",
+      "essential": false,
       "id": 11151,
       "message": "Cross-origin request with cookies and an unsafe method",
       "paranoia": null
@@ -39,6 +44,7 @@
     {
       "balanced": false,
       "category": "csrf",
+      "essential": false,
       "id": 11152,
       "message": "Request with cookies and an unsafe method has no verifiable origin",
       "paranoia": null
@@ -46,6 +52,7 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": false,
       "id": 920100,
       "message": "Invalid HTTP Request Line",
       "paranoia": 1
@@ -53,27 +60,31 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": true,
       "id": 920160,
       "message": "Content-Length HTTP header is not numeric",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920170,
       "message": "GET or HEAD Request with Body Content",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920171,
       "message": "GET or HEAD Request with Transfer-Encoding",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920180,
       "message": "POST without Content-Length and Transfer-Encoding headers",
       "paranoia": 1
@@ -81,6 +92,7 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": true,
       "id": 920181,
       "message": "Content-Length and Transfer-Encoding headers present",
       "paranoia": 1
@@ -88,6 +100,7 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": false,
       "id": 920190,
       "message": "Range: Invalid Last Byte Value",
       "paranoia": 1
@@ -95,6 +108,7 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920200,
       "message": "Range: Too many fields (6 or more)",
       "paranoia": 2
@@ -102,6 +116,7 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920201,
       "message": "Range: Too many fields for pdf request (63 or more)",
       "paranoia": 2
@@ -109,6 +124,7 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920202,
       "message": "Range: Too many fields for pdf request (6 or more)",
       "paranoia": 4
@@ -116,6 +132,7 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": false,
       "id": 920210,
       "message": "Multiple/Conflicting Connection Header Data Found",
       "paranoia": 1
@@ -123,6 +140,7 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920230,
       "message": "Multiple URL Encoding Detected",
       "paranoia": 2
@@ -130,13 +148,15 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920240,
       "message": "URL Encoding Abuse Attack Attempt",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920260,
       "message": "Unicode Full/Half Width Abuse Attack Attempt",
       "paranoia": 1
@@ -144,6 +164,7 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": true,
       "id": 920270,
       "message": "Invalid character in request (null character)",
       "paranoia": 1
@@ -151,6 +172,7 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920271,
       "message": "Invalid character in request (non printable characters)",
       "paranoia": 2
@@ -158,20 +180,23 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920275,
       "message": "Invalid character in request headers (outside of very strict set)",
       "paranoia": 4
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920280,
       "message": "Request Missing a Host Header",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920290,
       "message": "Empty Host Header",
       "paranoia": 1
@@ -179,6 +204,7 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920460,
       "message": "Abnormal character escapes in request",
       "paranoia": 4
@@ -186,6 +212,7 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": false,
       "id": 920470,
       "message": "Illegal Content-Type header",
       "paranoia": 1
@@ -193,6 +220,7 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920510,
       "message": "Invalid Cache-Control request header",
       "paranoia": 3
@@ -200,6 +228,7 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920521,
       "message": "Illegal Accept-Encoding header",
       "paranoia": 3
@@ -207,13 +236,15 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": false,
       "id": 920530,
       "message": "Multiple charsets detected in content type header",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920610,
       "message": "Raw (unencoded) fragment in request URI",
       "paranoia": 1
@@ -221,13 +252,15 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": false,
       "id": 920620,
       "message": "Multiple Content-Type Request Headers",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 920660,
       "message": "Obsolete Request-Range header detected",
       "paranoia": 1
@@ -235,6 +268,7 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": true,
       "id": 921110,
       "message": "HTTP Request Smuggling Attack",
       "paranoia": 1
@@ -242,6 +276,7 @@
     {
       "balanced": true,
       "category": "crlf_injection",
+      "essential": true,
       "id": 921120,
       "message": "HTTP Response Splitting Attack",
       "paranoia": 1
@@ -249,6 +284,7 @@
     {
       "balanced": true,
       "category": "crlf_injection",
+      "essential": true,
       "id": 921130,
       "message": "HTTP Response Splitting Attack",
       "paranoia": 1
@@ -256,13 +292,15 @@
     {
       "balanced": true,
       "category": "crlf_injection",
+      "essential": false,
       "id": 921140,
       "message": "HTTP Header Injection Attack via headers",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "crlf_injection",
+      "essential": false,
       "id": 921150,
       "message": "HTTP Header Injection Attack via payload (CR/LF detected)",
       "paranoia": 1
@@ -270,6 +308,7 @@
     {
       "balanced": false,
       "category": "crlf_injection",
+      "essential": false,
       "id": 921151,
       "message": "HTTP Header Injection Attack via payload (CR/LF detected)",
       "paranoia": 2
@@ -277,6 +316,7 @@
     {
       "balanced": true,
       "category": "crlf_injection",
+      "essential": false,
       "id": 921160,
       "message": "HTTP Header Injection Attack via payload (CR/LF and header-name detected)",
       "paranoia": 1
@@ -284,6 +324,7 @@
     {
       "balanced": true,
       "category": "crlf_injection",
+      "essential": false,
       "id": 921190,
       "message": "HTTP Splitting (CR/LF in request filename detected)",
       "paranoia": 1
@@ -291,6 +332,7 @@
     {
       "balanced": true,
       "category": "malformed_http",
+      "essential": false,
       "id": 921421,
       "message": "Content-Type header: Dangerous content type outside the mime type declaration",
       "paranoia": 1
@@ -298,27 +340,31 @@
     {
       "balanced": false,
       "category": "malformed_http",
+      "essential": false,
       "id": 921422,
       "message": "Content-Type header: Dangerous content type outside the mime type declaration",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malicious_upload",
+      "essential": false,
       "id": 922100,
       "message": "Multipart content type global _charset_ definition is not allowed by policy",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malicious_upload",
+      "essential": false,
       "id": 922110,
       "message": "Illegal MIME Multipart Header content-type: charset parameter",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "malicious_upload",
+      "essential": false,
       "id": 922120,
       "message": "Content-Transfer-Encoding was deprecated by rfc7578 in 2015 and should not be used",
       "paranoia": 1
@@ -326,6 +372,7 @@
     {
       "balanced": true,
       "category": "malicious_upload",
+      "essential": false,
       "id": 922130,
       "message": "Multipart header contains characters outside of valid range",
       "paranoia": 1
@@ -333,6 +380,7 @@
     {
       "balanced": true,
       "category": "path_traversal",
+      "essential": true,
       "id": 930100,
       "message": "Path Traversal Attack (/../) or (/.../)",
       "paranoia": 1
@@ -340,6 +388,7 @@
     {
       "balanced": true,
       "category": "path_traversal",
+      "essential": true,
       "id": 930110,
       "message": "Path Traversal Attack (/../) or (/.../)",
       "paranoia": 1
@@ -347,6 +396,7 @@
     {
       "balanced": true,
       "category": "file_inclusion",
+      "essential": false,
       "id": 930120,
       "message": "OS File Access Attempt",
       "paranoia": 1
@@ -354,6 +404,7 @@
     {
       "balanced": false,
       "category": "file_inclusion",
+      "essential": false,
       "id": 930121,
       "message": "OS File Access Attempt in REQUEST_HEADERS",
       "paranoia": 2
@@ -361,6 +412,7 @@
     {
       "balanced": true,
       "category": "file_inclusion",
+      "essential": false,
       "id": 930130,
       "message": "Restricted File Access Attempt",
       "paranoia": 1
@@ -368,13 +420,15 @@
     {
       "balanced": true,
       "category": "file_inclusion",
+      "essential": false,
       "id": 930140,
       "message": "Restricted File Access Attempt: AI Coding Assistant Artifact",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "file_inclusion",
+      "essential": false,
       "id": 931100,
       "message": "Possible Remote File Inclusion (RFI) Attack: URL Parameter using IP Address",
       "paranoia": 1
@@ -382,13 +436,15 @@
     {
       "balanced": true,
       "category": "file_inclusion",
+      "essential": false,
       "id": 931110,
       "message": "Possible Remote File Inclusion (RFI) Attack: Common RFI Vulnerable Parameter Name used w/URL Payload",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "file_inclusion",
+      "essential": false,
       "id": 931120,
       "message": "Possible Remote File Inclusion (RFI) Attack: URL Payload Used w/Trailing Question Mark Character (?)",
       "paranoia": 1
@@ -396,6 +452,7 @@
     {
       "balanced": false,
       "category": "file_inclusion",
+      "essential": false,
       "id": 931130,
       "message": "Possible Remote File Inclusion (RFI) Attack: Off-Domain Reference/Link",
       "paranoia": 2
@@ -403,6 +460,7 @@
     {
       "balanced": false,
       "category": "file_inclusion",
+      "essential": false,
       "id": 931131,
       "message": "Possible Remote File Inclusion (RFI) Attack",
       "paranoia": 2
@@ -410,6 +468,7 @@
     {
       "balanced": true,
       "category": "command_injection",
+      "essential": false,
       "id": 932120,
       "message": "Remote Command Execution: Windows PowerShell Command Found",
       "paranoia": 1
@@ -417,13 +476,15 @@
     {
       "balanced": true,
       "category": "command_injection",
+      "essential": false,
       "id": 932125,
       "message": "Remote Command Execution: Windows Powershell Alias Command Injection",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932130,
       "message": "Remote Command Execution: Unix Shell Expression Found",
       "paranoia": 1
@@ -431,6 +492,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932131,
       "message": "Remote Command Execution: Unix Shell Expression Found",
       "paranoia": 2
@@ -438,6 +500,7 @@
     {
       "balanced": true,
       "category": "command_injection",
+      "essential": false,
       "id": 932140,
       "message": "Remote Command Execution: Windows FOR/IF Command Found",
       "paranoia": 1
@@ -445,6 +508,7 @@
     {
       "balanced": true,
       "category": "command_injection",
+      "essential": false,
       "id": 932160,
       "message": "Remote Command Execution: Unix Shell Code Found",
       "paranoia": 1
@@ -452,6 +516,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932161,
       "message": "Remote Command Execution: Unix Shell Code Found in REQUEST_HEADERS",
       "paranoia": 2
@@ -459,6 +524,7 @@
     {
       "balanced": true,
       "category": "command_injection",
+      "essential": true,
       "id": 932170,
       "message": "Remote Command Execution: Shellshock (CVE-2014-6271)",
       "paranoia": 1
@@ -466,13 +532,15 @@
     {
       "balanced": true,
       "category": "command_injection",
+      "essential": true,
       "id": 932171,
       "message": "Remote Command Execution: Shellshock (CVE-2014-6271)",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932175,
       "message": "Remote Command Execution: Unix shell alias invocation",
       "paranoia": 1
@@ -480,6 +548,7 @@
     {
       "balanced": true,
       "category": "malicious_upload",
+      "essential": true,
       "id": 932180,
       "message": "Restricted File Upload Attempt",
       "paranoia": 1
@@ -487,6 +556,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932190,
       "message": "Remote Command Execution: Wildcard bypass technique attempt",
       "paranoia": 3
@@ -494,6 +564,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932200,
       "message": "RCE Bypass Technique",
       "paranoia": 2
@@ -501,6 +572,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932205,
       "message": "RCE Bypass Technique",
       "paranoia": 2
@@ -508,6 +580,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932206,
       "message": "RCE Bypass Technique",
       "paranoia": 2
@@ -515,6 +588,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932207,
       "message": "RCE Bypass Technique",
       "paranoia": 2
@@ -522,6 +596,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932210,
       "message": "Remote Command Execution: SQLite System Command Execution",
       "paranoia": 2
@@ -529,13 +604,15 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932220,
       "message": "Remote Command Execution: Unix Command Injection with pipe",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932230,
       "message": "Remote Command Execution: Unix Command Injection (2-3 chars)",
       "paranoia": 1
@@ -543,6 +620,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932231,
       "message": "Remote Command Execution: Unix Command Injection",
       "paranoia": 2
@@ -550,13 +628,15 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932232,
       "message": "Remote Command Execution: Unix Command Injection",
       "paranoia": 3
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932235,
       "message": "Remote Command Execution: Unix Command Injection (command without evasion)",
       "paranoia": 1
@@ -564,6 +644,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932236,
       "message": "Remote Command Execution: Unix Command Injection (command without evasion)",
       "paranoia": 2
@@ -571,6 +652,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932237,
       "message": "Remote Command Execution: Unix Shell Code Found in REQUEST_HEADERS",
       "paranoia": 3
@@ -578,6 +660,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932238,
       "message": "Remote Command Execution: Unix Shell Code Found in REQUEST_HEADERS",
       "paranoia": 3
@@ -585,6 +668,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932239,
       "message": "Remote Command Execution: Unix Command Injection found in user-agent or referer header",
       "paranoia": 2
@@ -592,27 +676,31 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932240,
       "message": "Remote Command Execution: Unix Command Injection evasion attempt detected",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932250,
       "message": "Remote Command Execution: Direct Unix Command Execution",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932260,
       "message": "Remote Command Execution: Direct Unix Command Execution",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932270,
       "message": "Remote Command Execution: Unix Shell Expression Found",
       "paranoia": 1
@@ -620,13 +708,15 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932271,
       "message": "Remote Command Execution: Unix Shell Expression Found",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932280,
       "message": "Remote Command Execution: Brace Expansion Found",
       "paranoia": 1
@@ -634,6 +724,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932281,
       "message": "Remote Command Execution: Brace Expansion Found",
       "paranoia": 2
@@ -641,6 +732,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932290,
       "message": "Remote Command Execution: Quote evasion Found",
       "paranoia": 3
@@ -648,6 +740,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932300,
       "message": "Remote Command Execution: SMTP Command Execution",
       "paranoia": 2
@@ -655,6 +748,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932301,
       "message": "Remote Command Execution: SMTP Command Execution",
       "paranoia": 3
@@ -662,6 +756,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932310,
       "message": "Remote Command Execution: IMAP Command Execution",
       "paranoia": 2
@@ -669,6 +764,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932311,
       "message": "Remote Command Execution: IMAP Command Execution",
       "paranoia": 3
@@ -676,6 +772,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932320,
       "message": "Remote Command Execution: POP3 Command Execution",
       "paranoia": 2
@@ -683,13 +780,15 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932321,
       "message": "Remote Command Execution: POP3 Command Execution",
       "paranoia": 3
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932330,
       "message": "Remote Command Execution: Unix shell history invocation",
       "paranoia": 1
@@ -697,13 +796,15 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932331,
       "message": "Remote Command Execution: Unix shell history invocation",
       "paranoia": 3
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932340,
       "message": "Remote Command Execution: Direct Unix Command Execution (No Arguments)",
       "paranoia": 1
@@ -711,13 +812,15 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932350,
       "message": "Remote Command Execution: Direct Unix Command Execution (No Arguments)",
       "paranoia": 3
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932370,
       "message": "Remote Command Execution: Windows Command Injection",
       "paranoia": 1
@@ -725,13 +828,15 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932371,
       "message": "Remote Command Execution: Windows Command Injection",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932380,
       "message": "Remote Command Execution: Windows Command Injection",
       "paranoia": 1
@@ -739,6 +844,7 @@
     {
       "balanced": false,
       "category": "command_injection",
+      "essential": false,
       "id": 932390,
       "message": "Remote Command Execution: Shell Fork Bomb",
       "paranoia": 2
@@ -746,6 +852,7 @@
     {
       "balanced": true,
       "category": "php_injection",
+      "essential": false,
       "id": 933100,
       "message": "PHP Injection Attack: PHP Open Tag Found",
       "paranoia": 1
@@ -753,6 +860,7 @@
     {
       "balanced": true,
       "category": "malicious_upload",
+      "essential": true,
       "id": 933110,
       "message": "PHP Injection Attack: PHP Script File Upload Found",
       "paranoia": 1
@@ -760,20 +868,23 @@
     {
       "balanced": false,
       "category": "malicious_upload",
+      "essential": false,
       "id": 933111,
       "message": "PHP Injection Attack: PHP Script File Upload Found",
       "paranoia": 3
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933120,
       "message": "PHP Injection Attack: Configuration Directive Found",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933130,
       "message": "PHP Injection Attack: Variables Found",
       "paranoia": 1
@@ -781,13 +892,15 @@
     {
       "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933131,
       "message": "PHP Injection Attack: Variables Found",
       "paranoia": 3
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933135,
       "message": "PHP Injection Attack: Variable Access Found",
       "paranoia": 1
@@ -795,13 +908,15 @@
     {
       "balanced": true,
       "category": "php_injection",
+      "essential": false,
       "id": 933140,
       "message": "PHP Injection Attack: I/O Stream Found",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933150,
       "message": "PHP Injection Attack: High-Risk PHP Function Name Found",
       "paranoia": 1
@@ -809,6 +924,7 @@
     {
       "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933151,
       "message": "PHP Injection Attack: Medium-Risk PHP Function Name Found",
       "paranoia": 2
@@ -816,6 +932,7 @@
     {
       "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933152,
       "message": "PHP Injection Attack: Medium-Risk PHP Function Name Found",
       "paranoia": 2
@@ -823,6 +940,7 @@
     {
       "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933153,
       "message": "PHP Injection Attack: Medium-Risk PHP Function Name Found",
       "paranoia": 2
@@ -830,6 +948,7 @@
     {
       "balanced": true,
       "category": "php_injection",
+      "essential": false,
       "id": 933160,
       "message": "PHP Injection Attack: High-Risk PHP Function Call Found",
       "paranoia": 1
@@ -837,6 +956,7 @@
     {
       "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933161,
       "message": "PHP Injection Attack: Low-Value PHP Function Call Found",
       "paranoia": 3
@@ -844,6 +964,7 @@
     {
       "balanced": true,
       "category": "php_deserialization",
+      "essential": true,
       "id": 933170,
       "message": "PHP Injection Attack: Serialized Object Injection",
       "paranoia": 1
@@ -851,6 +972,7 @@
     {
       "balanced": true,
       "category": "php_injection",
+      "essential": false,
       "id": 933180,
       "message": "PHP Injection Attack: Variable Function Call Found",
       "paranoia": 1
@@ -858,6 +980,7 @@
     {
       "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933190,
       "message": "PHP Injection Attack: PHP Closing Tag Found",
       "paranoia": 3
@@ -865,6 +988,7 @@
     {
       "balanced": true,
       "category": "php_injection",
+      "essential": false,
       "id": 933200,
       "message": "PHP Injection Attack: Wrapper scheme detected",
       "paranoia": 1
@@ -872,6 +996,7 @@
     {
       "balanced": true,
       "category": "php_injection",
+      "essential": false,
       "id": 933210,
       "message": "PHP Injection Attack: Variable Function Call Found",
       "paranoia": 1
@@ -879,6 +1004,7 @@
     {
       "balanced": false,
       "category": "php_injection",
+      "essential": false,
       "id": 933211,
       "message": "PHP Injection Attack: Variable Function Call Found",
       "paranoia": 3
@@ -886,6 +1012,7 @@
     {
       "balanced": true,
       "category": "malicious_upload",
+      "essential": false,
       "id": 933220,
       "message": "PHP Injection Attack: PHP Session File Upload Attempt",
       "paranoia": 1
@@ -893,6 +1020,7 @@
     {
       "balanced": true,
       "category": "ssrf",
+      "essential": true,
       "id": 934110,
       "message": "Possible Server Side Request Forgery (SSRF) Attack: Cloud provider metadata URL in Parameter",
       "paranoia": 1
@@ -900,6 +1028,7 @@
     {
       "balanced": false,
       "category": "ssrf",
+      "essential": false,
       "id": 934120,
       "message": "Possible Server Side Request Forgery (SSRF) Attack: URL Parameter using IP Address",
       "paranoia": 2
@@ -907,6 +1036,7 @@
     {
       "balanced": true,
       "category": "ssrf",
+      "essential": false,
       "id": 934170,
       "message": "PHP data scheme attack",
       "paranoia": 1
@@ -914,13 +1044,15 @@
     {
       "balanced": false,
       "category": "template_injection",
+      "essential": false,
       "id": 934180,
       "message": "SSTI Attack",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "ssrf",
+      "essential": false,
       "id": 934190,
       "message": "Possible Server Side Request Forgery (SSRF) Attack: Scheme-less localhost or internal hostname detected",
       "paranoia": 1
@@ -928,13 +1060,15 @@
     {
       "balanced": true,
       "category": "template_injection",
+      "essential": false,
       "id": 934200,
       "message": "Server-Side Template Injection (SSTI) Attack",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941100,
       "message": "XSS Attack Detected via libinjection",
       "paranoia": 1
@@ -942,6 +1076,7 @@
     {
       "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941101,
       "message": "XSS Attack Detected via libinjection",
       "paranoia": 2
@@ -949,6 +1084,7 @@
     {
       "balanced": true,
       "category": "xss",
+      "essential": true,
       "id": 941110,
       "message": "XSS Filter - Category 1: Script Tag Vector",
       "paranoia": 1
@@ -956,6 +1092,7 @@
     {
       "balanced": true,
       "category": "xss",
+      "essential": false,
       "id": 941120,
       "message": "XSS Filter - Category 2: Event Handler Vector",
       "paranoia": 1
@@ -963,6 +1100,7 @@
     {
       "balanced": true,
       "category": "xss",
+      "essential": false,
       "id": 941130,
       "message": "XSS Filter - Category 3: Attribute Vector",
       "paranoia": 1
@@ -970,6 +1108,7 @@
     {
       "balanced": true,
       "category": "xss",
+      "essential": true,
       "id": 941140,
       "message": "XSS Filter - Category 4: Javascript URI Vector",
       "paranoia": 1
@@ -977,27 +1116,31 @@
     {
       "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941150,
       "message": "XSS Filter - Category 5: Disallowed HTML Attributes",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941160,
       "message": "NoScript XSS InjectionChecker: HTML Injection",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941170,
       "message": "NoScript XSS InjectionChecker: Attribute Injection",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941180,
       "message": "Node-Validator Deny List Keywords",
       "paranoia": 1
@@ -1005,97 +1148,111 @@
     {
       "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941181,
       "message": "Node-Validator Deny List Keywords",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941190,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941200,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941210,
       "message": "Javascript Word Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941220,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941230,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941240,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941250,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941260,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941270,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941280,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941290,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941300,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941310,
       "message": "US-ASCII Malformed Encoding XSS Filter - Attack Detected",
       "paranoia": 1
@@ -1103,6 +1260,7 @@
     {
       "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941320,
       "message": "Possible XSS Attack Detected - HTML Tag Handler",
       "paranoia": 2
@@ -1110,6 +1268,7 @@
     {
       "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941330,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 2
@@ -1117,6 +1276,7 @@
     {
       "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941340,
       "message": "IE XSS Filters - Attack Detected",
       "paranoia": 2
@@ -1124,6 +1284,7 @@
     {
       "balanced": true,
       "category": "xss",
+      "essential": false,
       "id": 941350,
       "message": "UTF-7 Encoding IE XSS - Attack Detected",
       "paranoia": 1
@@ -1131,13 +1292,15 @@
     {
       "balanced": true,
       "category": "xss",
+      "essential": false,
       "id": 941360,
       "message": "JSFuck / Hieroglyphy obfuscation detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941370,
       "message": "JavaScript global variable found",
       "paranoia": 1
@@ -1145,27 +1308,31 @@
     {
       "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941380,
       "message": "AngularJS client side template injection detected",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941390,
       "message": "Javascript method detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "xss",
+      "essential": false,
       "id": 941400,
       "message": "XSS JavaScript function without parentheses",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942100,
       "message": "SQL Injection Attack Detected via libinjection",
       "paranoia": 1
@@ -1173,6 +1340,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942101,
       "message": "SQL Injection Attack Detected via libinjection",
       "paranoia": 2
@@ -1180,6 +1348,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942120,
       "message": "SQL Injection Attack: SQL Operator Detected",
       "paranoia": 2
@@ -1187,6 +1356,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942130,
       "message": "SQL Injection Attack: SQL Boolean-based attack detected",
       "paranoia": 2
@@ -1194,13 +1364,15 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942131,
       "message": "SQL Injection Attack: SQL Boolean-based attack detected",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942140,
       "message": "SQL Injection Attack: Common DB Names Detected",
       "paranoia": 1
@@ -1208,13 +1380,15 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942150,
       "message": "SQL Injection Attack: SQL function name detected",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942151,
       "message": "SQL Injection Attack: SQL function name detected",
       "paranoia": 1
@@ -1222,6 +1396,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942152,
       "message": "SQL Injection Attack: SQL function name detected",
       "paranoia": 2
@@ -1229,6 +1404,7 @@
     {
       "balanced": true,
       "category": "sql_injection",
+      "essential": false,
       "id": 942160,
       "message": "Detects blind sqli tests using sleep() or benchmark()",
       "paranoia": 1
@@ -1236,6 +1412,7 @@
     {
       "balanced": true,
       "category": "sql_injection",
+      "essential": false,
       "id": 942170,
       "message": "Detects SQL benchmark and sleep injection attempts including conditional queries",
       "paranoia": 1
@@ -1243,6 +1420,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942180,
       "message": "Detects basic SQL authentication bypass attempts 1/3",
       "paranoia": 2
@@ -1250,6 +1428,7 @@
     {
       "balanced": true,
       "category": "sql_injection",
+      "essential": false,
       "id": 942190,
       "message": "Detects SQL code execution and information gathering attempts",
       "paranoia": 1
@@ -1257,6 +1436,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942200,
       "message": "Detects MySQL comment-/space-obfuscated injections and backtick termination",
       "paranoia": 2
@@ -1264,34 +1444,39 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942210,
       "message": "Detects chained SQL injection attempts 1/2",
       "paranoia": 2
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942220,
       "message": "Looking for integer overflow attacks, these are taken from skipfish, except 2.2.2250738585072011e-308 is the \"magic number\" crash",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942230,
       "message": "Detects conditional SQL injection attempts",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942240,
       "message": "Detects MySQL charset switch and MSSQL DoS attempts",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942250,
       "message": "Detects MATCH AGAINST, MERGE and EXECUTE IMMEDIATE injections",
       "paranoia": 1
@@ -1299,6 +1484,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942251,
       "message": "Detects HAVING injections",
       "paranoia": 3
@@ -1306,6 +1492,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942260,
       "message": "Detects basic SQL authentication bypass attempts 2/3",
       "paranoia": 2
@@ -1313,6 +1500,7 @@
     {
       "balanced": true,
       "category": "sql_injection",
+      "essential": true,
       "id": 942270,
       "message": "Looking for basic sql injection. Common attack string for mysql, oracle and others",
       "paranoia": 1
@@ -1320,13 +1508,15 @@
     {
       "balanced": true,
       "category": "sql_injection",
+      "essential": false,
       "id": 942280,
       "message": "Detects Postgres pg_sleep injection, waitfor delay attacks and database shutdown attempts",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942290,
       "message": "Finds basic MongoDB SQL injection attempts",
       "paranoia": 1
@@ -1334,6 +1524,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942300,
       "message": "Detects MySQL comments, conditions and ch(a)r injections",
       "paranoia": 2
@@ -1341,6 +1532,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942310,
       "message": "Detects chained SQL injection attempts 2/2",
       "paranoia": 2
@@ -1348,6 +1540,7 @@
     {
       "balanced": true,
       "category": "sql_injection",
+      "essential": false,
       "id": 942320,
       "message": "Detects MySQL and PostgreSQL stored procedure/function injections",
       "paranoia": 1
@@ -1355,6 +1548,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942321,
       "message": "Detects MySQL and PostgreSQL stored procedure/function injections",
       "paranoia": 2
@@ -1362,6 +1556,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942330,
       "message": "Detects classic SQL injection probings 1/3",
       "paranoia": 2
@@ -1369,6 +1564,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942340,
       "message": "Detects basic SQL authentication bypass attempts 3/3",
       "paranoia": 2
@@ -1376,6 +1572,7 @@
     {
       "balanced": true,
       "category": "sql_injection",
+      "essential": false,
       "id": 942350,
       "message": "Detects MySQL UDF injection and other data/structure manipulation attempts",
       "paranoia": 1
@@ -1383,6 +1580,7 @@
     {
       "balanced": true,
       "category": "sql_injection",
+      "essential": false,
       "id": 942360,
       "message": "Detects concatenated basic SQL injection and SQLLFI attempts",
       "paranoia": 1
@@ -1390,6 +1588,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942361,
       "message": "Detects basic SQL injection based on keyword alter or union",
       "paranoia": 2
@@ -1397,6 +1596,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942362,
       "message": "Detects concatenated basic SQL injection and SQLLFI attempts",
       "paranoia": 2
@@ -1404,6 +1604,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942370,
       "message": "Detects classic SQL injection probings 2/3",
       "paranoia": 2
@@ -1411,6 +1612,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942380,
       "message": "SQL Injection Attack",
       "paranoia": 2
@@ -1418,6 +1620,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942390,
       "message": "SQL Injection Attack using (X)OR",
       "paranoia": 2
@@ -1425,6 +1628,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942400,
       "message": "SQL Injection Attack",
       "paranoia": 2
@@ -1432,6 +1636,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942410,
       "message": "SQL Injection Attack",
       "paranoia": 2
@@ -1439,6 +1644,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942420,
       "message": "Restricted SQL Character Anomaly Detection (cookies): # of special characters exceeded (8)",
       "paranoia": 3
@@ -1446,6 +1652,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942421,
       "message": "Restricted SQL Character Anomaly Detection (cookies): # of special characters exceeded (3)",
       "paranoia": 4
@@ -1453,6 +1660,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942430,
       "message": "Restricted SQL Character Anomaly Detection (args): # of special characters exceeded (12)",
       "paranoia": 2
@@ -1460,6 +1668,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942431,
       "message": "Restricted SQL Character Anomaly Detection (args): # of special characters exceeded (6)",
       "paranoia": 3
@@ -1467,6 +1676,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942432,
       "message": "Restricted SQL Character Anomaly Detection (args): # of special characters exceeded (2)",
       "paranoia": 4
@@ -1474,6 +1684,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942440,
       "message": "SQL Comment Sequence Detected",
       "paranoia": 2
@@ -1481,6 +1692,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942450,
       "message": "SQL Bin or Hex Encoding Identified",
       "paranoia": 2
@@ -1488,6 +1700,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942460,
       "message": "Meta-Character Anomaly Detection Alert - Repetitive Non-Word Characters",
       "paranoia": 3
@@ -1495,6 +1708,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942470,
       "message": "SQL Injection Attack",
       "paranoia": 2
@@ -1502,6 +1716,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942480,
       "message": "SQL Injection Attack",
       "paranoia": 2
@@ -1509,13 +1724,15 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942490,
       "message": "Detects classic SQL injection probings 3/3",
       "paranoia": 3
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942500,
       "message": "MySQL in-line comment detected",
       "paranoia": 1
@@ -1523,6 +1740,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942510,
       "message": "SQLi bypass attempt by ticks or backticks detected",
       "paranoia": 2
@@ -1530,6 +1748,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942511,
       "message": "SQLi bypass attempt by ticks detected",
       "paranoia": 3
@@ -1537,6 +1756,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942520,
       "message": "Detects basic SQL authentication bypass attempts 4.0/4",
       "paranoia": 2
@@ -1544,6 +1764,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942521,
       "message": "Detects basic SQL authentication bypass attempts 4.1/4",
       "paranoia": 2
@@ -1551,6 +1772,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942522,
       "message": "Detects basic SQL authentication bypass attempts 4.1/4",
       "paranoia": 2
@@ -1558,6 +1780,7 @@
     {
       "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942530,
       "message": "SQLi query termination detected",
       "paranoia": 3
@@ -1565,27 +1788,31 @@
     {
       "balanced": true,
       "category": "sql_injection",
+      "essential": false,
       "id": 942540,
       "message": "SQL Authentication bypass (split query)",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942550,
       "message": "JSON-Based SQL Injection",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "sql_injection",
+      "essential": false,
       "id": 942560,
       "message": "MySQL Scientific Notation payload detected",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "java_injection",
+      "essential": false,
       "id": 944100,
       "message": "Remote Command Execution: Suspicious Java class detected",
       "paranoia": 1
@@ -1593,6 +1820,7 @@
     {
       "balanced": true,
       "category": "java_injection",
+      "essential": true,
       "id": 944110,
       "message": "Remote Command Execution: Java process spawn (CVE-2017-9805)",
       "paranoia": 1
@@ -1600,13 +1828,15 @@
     {
       "balanced": true,
       "category": "java_deserialization",
+      "essential": true,
       "id": 944120,
       "message": "Remote Command Execution: Java serialization (CVE-2015-4852)",
       "paranoia": 1
     },
     {
-      "balanced": true,
+      "balanced": false,
       "category": "java_injection",
+      "essential": false,
       "id": 944130,
       "message": "Suspicious Java class detected",
       "paranoia": 1
@@ -1614,6 +1844,7 @@
     {
       "balanced": true,
       "category": "malicious_upload",
+      "essential": false,
       "id": 944140,
       "message": "Java Injection Attack: Java Script File Upload Found",
       "paranoia": 1
@@ -1621,6 +1852,7 @@
     {
       "balanced": true,
       "category": "java_injection",
+      "essential": true,
       "id": 944150,
       "message": "Potential Remote Command Execution: Log4j / Log4shell",
       "paranoia": 1
@@ -1628,6 +1860,7 @@
     {
       "balanced": false,
       "category": "java_injection",
+      "essential": false,
       "id": 944151,
       "message": "Potential Remote Command Execution: Log4j / Log4shell",
       "paranoia": 2
@@ -1635,6 +1868,7 @@
     {
       "balanced": false,
       "category": "java_injection",
+      "essential": false,
       "id": 944152,
       "message": "Potential Remote Command Execution: Log4j / Log4shell",
       "paranoia": 4
@@ -1642,6 +1876,7 @@
     {
       "balanced": false,
       "category": "java_deserialization",
+      "essential": false,
       "id": 944200,
       "message": "Magic bytes Detected, probable java serialization in use",
       "paranoia": 2
@@ -1649,6 +1884,7 @@
     {
       "balanced": false,
       "category": "java_deserialization",
+      "essential": false,
       "id": 944210,
       "message": "Magic bytes Detected Base64 Encoded, probable java serialization in use",
       "paranoia": 2
@@ -1656,6 +1892,7 @@
     {
       "balanced": false,
       "category": "java_deserialization",
+      "essential": false,
       "id": 944240,
       "message": "Remote Command Execution: Java serialization (CVE-2015-4852)",
       "paranoia": 2
@@ -1663,6 +1900,7 @@
     {
       "balanced": false,
       "category": "java_injection",
+      "essential": false,
       "id": 944250,
       "message": "Remote Command Execution: Suspicious Java method detected",
       "paranoia": 2
@@ -1670,6 +1908,7 @@
     {
       "balanced": false,
       "category": "java_injection",
+      "essential": false,
       "id": 944260,
       "message": "Remote Command Execution: Malicious class-loading payload",
       "paranoia": 2
@@ -1677,6 +1916,7 @@
     {
       "balanced": false,
       "category": "java_injection",
+      "essential": false,
       "id": 944300,
       "message": "Base64 encoded string matched suspicious keyword",
       "paranoia": 3

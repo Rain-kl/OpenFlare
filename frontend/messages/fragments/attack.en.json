@@ -15,9 +15,9 @@
     "loadFailed": "Unable to load attack protection groups.",
     "saveFailed": "Unable to save the attack protection group.",
     "applyAll": "Set all levels",
-    "levelHelp": "Balanced runs CRS PL1 and base supplemental rules. Strict and observe run all rules in the category. Individual settings take precedence over category levels.",
+    "levelHelp": "Essential protection runs rules with specific signatures. Balanced protection adds broader coverage. High protection and observe-only mode run all rules in the category. Individual rule settings take precedence.",
     "legacy": "This node uses its existing detection settings. Selecting a group applies its detection levels.",
-    "branches": "Matches set to enabled, balanced, or strict follow the false branch. When only log-only or observe rules match, the request is logged and follows the true branch.",
+    "branches": "Matches from enabled rules or from Essential, Balanced, or High protection follow the false branch. If only log-only or observe rules match, the request is logged and follows the true branch.",
     "save": "Save",
     "cancel": "Cancel",
     "categories": {
@@ -42,6 +42,7 @@
     "levels": {
       "off": "Disabled",
       "observe": "Observe only",
+      "essential": "Essential protection",
       "balanced": "Balanced",
       "strict": "High protection",
       "enabled": "Enabled"
@@ -55,8 +56,6 @@
       "id": "Rule ID",
       "message": "Description",
       "status": "Applied status",
-      "baseRule": "Base",
-      "extendedRule": "Extended",
       "ruleCount": "{count} rules",
       "enabledRules": "{count} active",
       "noRules": "No matching detection rules.",
@@ -65,12 +64,46 @@
       "inherit": "Use category setting ({action})",
       "custom": "Custom",
       "inherited": "Inherited",
-      "overrideCount": "{count, plural, one {# custom rule} other {# custom rules}}"
+      "overrideCount": "{count, plural, one {# custom rule} other {# custom rules}}",
+      "supplemental": "Supplemental rule"
     },
     "ruleActions": {
       "off": "Off",
       "enabled": "Enabled",
       "observe": "Log only"
+    },
+    "back": "Back to attack protection",
+    "groupNotFound": "The attack protection group was not found.",
+    "whitelist": {
+      "title": "Global protection allowlist",
+      "description": "When both the domain and path match, the request bypasses global and site-bound WAF flows.",
+      "add": "Add allowlist entry",
+      "edit": "Edit allowlist entry",
+      "delete": "Delete",
+      "deleteTitle": "Delete allowlist entry",
+      "deleteDescription": "Removing the entry for {domain} and {path} restores WAF checks for matching requests.",
+      "domain": "Domain",
+      "domainHelp": "Exact domains and wildcard domains are supported. *.example.com matches one level of subdomains.",
+      "pathMatch": "Path match type",
+      "path": "Path",
+      "pathHelp": {
+        "exact": "Enter the full path beginning with /. Matching ignores the query string.",
+        "prefix": "Enter a path prefix beginning with /, such as /api/public/.",
+        "suffix": "Enter a path suffix, such as .webp.",
+        "regex": "Enter an RE2 regular expression, such as ^/hooks/[0-9]+$. Matching ignores the query string."
+      },
+      "modes": {
+        "exact": "Exact match",
+        "prefix": "Prefix",
+        "suffix": "Suffix",
+        "regex": "Regular expression"
+      },
+      "actions": "Actions",
+      "empty": "No allowlist entries.",
+      "loadFailed": "Unable to load the global protection allowlist.",
+      "saveFailed": "Unable to save the allowlist entry.",
+      "deleteFailed": "Unable to delete the allowlist entry.",
+      "invalidEntry": "The domain, path, or regular expression format is invalid."
     }
   },
   "attackLogs": {

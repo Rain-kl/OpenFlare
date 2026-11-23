@@ -186,12 +186,19 @@ type WAFBinding struct {
 	RuleGroupIDs []uint `json:"rule_group_ids"`
 }
 
-// WAFDocument is the top-level WAF configuration snapshot containing rule
-// groups, IP groups, and per-site bindings.
+// WAFWhitelistEntry exempts a domain and path combination from WAF flows.
+type WAFWhitelistEntry struct {
+	Domain    string `json:"domain"`
+	PathMatch string `json:"path_match"`
+	Path      string `json:"path"`
+}
+
+// WAFDocument is the top-level WAF configuration snapshot.
 type WAFDocument struct {
-	RuleGroups []WAFRuleGroup `json:"rule_groups"`
-	IPGroups   []WAFIPGroup   `json:"ip_groups,omitempty"`
-	Bindings   []WAFBinding   `json:"bindings"`
+	RuleGroups       []WAFRuleGroup      `json:"rule_groups"`
+	IPGroups         []WAFIPGroup        `json:"ip_groups,omitempty"`
+	Bindings         []WAFBinding        `json:"bindings"`
+	RequestWhitelist []WAFWhitelistEntry `json:"request_whitelist,omitempty"`
 }
 
 // ConfigSnapshot contains site-wide policy and response settings.

@@ -6,6 +6,8 @@ import type {
   AttackLogFilter,
   AttackLogPage,
   AttackLogRequest,
+  RequestWhitelistEntry,
+  RequestWhitelistInput,
 } from './attack-types';
 import { OpenFlareBaseService } from './base.service';
 import type {
@@ -26,6 +28,12 @@ export const attackGroupsQueryKey = [
   'openflare',
   'waf',
   'attack-groups',
+] as const;
+
+export const requestWhitelistQueryKey = [
+  'openflare',
+  'waf',
+  'request-whitelist',
 ] as const;
 
 export const ruleGroupSitesQueryKey = [
@@ -49,6 +57,24 @@ export class WafService extends OpenFlareBaseService {
       id ? `/attack-groups/${id}/update` : '/attack-groups',
       input,
     );
+  }
+
+  static async listRequestWhitelist(): Promise<RequestWhitelistEntry[]> {
+    return this.get<RequestWhitelistEntry[]>('/request-whitelist');
+  }
+
+  static async saveRequestWhitelistEntry(
+    input: RequestWhitelistInput,
+    id?: number,
+  ): Promise<RequestWhitelistEntry> {
+    return this.post<RequestWhitelistEntry>(
+      id ? `/request-whitelist/${id}/update` : '/request-whitelist',
+      input,
+    );
+  }
+
+  static async deleteRequestWhitelistEntry(id: number): Promise<void> {
+    await this.post(`/request-whitelist/${id}/delete`);
   }
 
   static async listAttackLogs(

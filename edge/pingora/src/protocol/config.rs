@@ -47,6 +47,24 @@ pub struct WafDocument {
     pub ip_groups: Vec<WafIPGroup>,
     #[serde(default)]
     pub bindings: Vec<WafBinding>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub request_whitelist: Vec<WafWhitelistEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct WafWhitelistEntry {
+    pub domain: String,
+    pub path_match: WafPathMatch,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WafPathMatch {
+    Prefix,
+    Suffix,
+    Regex,
+    Exact,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

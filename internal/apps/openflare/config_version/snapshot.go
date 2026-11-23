@@ -87,9 +87,10 @@ type snapshotWAFBinding struct {
 }
 
 type snapshotWAFDocument struct {
-	RuleGroups []snapshotWAFRuleGroup `json:"rule_groups"`
-	IPGroups   []snapshotWAFIPGroup   `json:"ip_groups,omitempty"`
-	Bindings   []snapshotWAFBinding   `json:"bindings"`
+	RuleGroups       []snapshotWAFRuleGroup         `json:"rule_groups"`
+	IPGroups         []snapshotWAFIPGroup           `json:"ip_groups,omitempty"`
+	Bindings         []snapshotWAFBinding           `json:"bindings"`
+	RequestWhitelist []edgeconfig.WAFWhitelistEntry `json:"request_whitelist,omitempty"`
 }
 
 type edgeSettingsSnapshot = edgeconfig.ConfigSnapshot
@@ -348,7 +349,11 @@ func buildSnapshotWAFDocument(ctx context.Context, routes []snapshotRoute) (snap
 		}
 		return bindings[i].SiteName < bindings[j].SiteName
 	})
-	return snapshotWAFDocument{RuleGroups: ruleGroups, IPGroups: ipGroups, Bindings: bindings}, nil
+	whitelist, err := waf.SnapshotWAFWhitelist(ctx)
+	if err != nil {
+		return snapshotWAFDocument{}, err
+	}
+	return snapshotWAFDocument{RuleGroups: ruleGroups, IPGroups: ipGroups, Bindings: bindings, RequestWhitelist: whitelist}, nil
 }
 
 func nonNilUintSlice(values []uint) []uint {

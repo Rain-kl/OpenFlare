@@ -44,7 +44,12 @@ type CatalogEditor = Preferences & {
 };
 
 function defaultAction(rule: Rule, level: AttackLevel): AttackRuleAction {
-  if (level === 'off' || (level === 'balanced' && !rule.balanced)) return 'off';
+  if (
+    level === 'off' ||
+    (level === 'essential' && !rule.essential) ||
+    (level === 'balanced' && !rule.balanced)
+  )
+    return 'off';
   return level === 'observe' ? 'observe' : 'enabled';
 }
 
@@ -183,11 +188,12 @@ function AttackRuleCatalogContent({
                     <Badge variant='outline'>
                       {rule.paranoia
                         ? `PL${rule.paranoia}`
-                        : t(
-                            rule.balanced
-                              ? 'catalog.baseRule'
-                              : 'catalog.extendedRule',
-                          )}
+                        : t('catalog.supplemental')}
+                    </Badge>
+                    <Badge variant='secondary'>
+                      {t(
+                        `levels.${rule.essential ? 'essential' : rule.balanced ? 'balanced' : 'strict'}`,
+                      )}
                     </Badge>
                   </div>
                 </TableCell>

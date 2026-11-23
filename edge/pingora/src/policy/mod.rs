@@ -335,7 +335,7 @@ mod tests {
                 ("allow".into(), allow),
             ]),
         };
-        let document = WafDocument {
+        let mut document = WafDocument {
             rule_groups: vec![crate::protocol::config::WafRuleGroup {
                 id: 7,
                 name: "global".into(),
@@ -355,7 +355,15 @@ mod tests {
                 site_name: route.site_name.clone(),
                 rule_group_ids: vec![],
             }],
+            ..Default::default()
         };
+        document.request_whitelist = serde_json::from_value(serde_json::json!([
+            {"domain":"example.test", "path_match":"exact", "path":"/health"},
+            {"domain":"example.test", "path_match":"prefix", "path":"/public/"},
+            {"domain":"*.example.test", "path_match":"suffix", "path":".webp"},
+            {"domain":"*.example.test", "path_match":"regex", "path":"^/hooks/[0-9]+$"}
+        ]))
+        .unwrap();
         let waf = compile_waf(&document).unwrap();
         let evaluate = |context: &RequestContext, route: &Route| {
             waf.execute(
@@ -383,6 +391,28 @@ mod tests {
                 body: "blocked".into()
             }
         );
+        for (host, path, allowed) in [
+            ("example.test", "/health", true),
+            ("example.test", "/public/file", true),
+            ("app.example.test", "/images/a.webp", true),
+            ("app.example.test", "/hooks/12", true),
+            ("example.test", "/health/check", false),
+            ("example.test", "/publicity/file", false),
+            ("example.test", "/images/a.webp", false),
+            ("deep.app.example.test", "/images/a.webp", false),
+            ("example.test.other", "/health", false),
+            ("app.example.test", "/hooks/name", false),
+        ] {
+            let request = RequestContext {
+                host: host.into(),
+                path: path.into(),
+                query: "query=ignored".into(),
+                ..context.clone()
+            };
+            let (decision, audit) = evaluate(&request, &route);
+            assert_eq!(decision == WafDecision::Allow, allowed, "{host}{path}");
+            assert_eq!(audit.is_none(), allowed, "{host}{path}");
+        }
         route.id = 2;
         let other = RequestContext {
             remote_addr: "198.51.100.1".into(),

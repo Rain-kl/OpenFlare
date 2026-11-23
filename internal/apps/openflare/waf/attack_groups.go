@@ -18,7 +18,10 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
-const attackLevelOff = "off"
+const (
+	attackLevelOff     = "off"
+	attackLevelObserve = "observe"
+)
 
 var attackCategories = map[string]struct{}{
 	"sql_injection": {}, "xss": {}, "malicious_upload": {}, "path_traversal": {},
@@ -32,7 +35,7 @@ var attackCategories = map[string]struct{}{
 type AttackGroupInput struct {
 	// Display name for the attack protection group.
 	Name string `json:"name" binding:"required" minLength:"1" maxLength:"100"`
-	// Category-to-level map. Levels are off, observe, balanced, or strict. Omitted categories are disabled.
+	// Category-to-level map. Levels are off, observe, essential, balanced, or strict. Omitted categories are disabled.
 	Levels map[string]string `json:"levels" binding:"required"`
 	// Decimal CRS rule IDs mapped to off, enabled, or observe. Omit on update to retain overrides; {} clears them.
 	RuleOverrides map[string]string `json:"rule_overrides"`
@@ -49,7 +52,7 @@ func SaveAttackGroup(ctx context.Context, id uint, input AttackGroupInput) (*mod
 	}
 	for category, level := range input.Levels {
 		_, validCategory := attackCategories[category]
-		if !validCategory || (level != attackLevelOff && level != "observe" && level != "balanced" && level != "strict") {
+		if !validCategory || !validAttackLevel(level) {
 			return nil, &RuleValidationError{Err: errors.New(errAttackGroupLevels)}
 		}
 	}
@@ -57,7 +60,7 @@ func SaveAttackGroup(ctx context.Context, id uint, input AttackGroupInput) (*mod
 		ruleID, err := strconv.ParseUint(key, 10, 32)
 		_, known := slices.BinarySearch(attackRuleIDs, uint32(ruleID))
 		if err != nil || !known || key != strconv.FormatUint(ruleID, 10) ||
-			(action != attackLevelOff && action != "enabled" && action != "observe") {
+			(action != attackLevelOff && action != "enabled" && action != attackLevelObserve) {
 			return nil, &RuleValidationError{Err: fmt.Errorf(errAttackRuleOverride, key)}
 		}
 	}
@@ -66,6 +69,15 @@ func SaveAttackGroup(ctx context.Context, id uint, input AttackGroupInput) (*mod
 		return nil, err
 	}
 	return group, nil
+}
+
+func validAttackLevel(level string) bool {
+	switch level {
+	case attackLevelOff, attackLevelObserve, "essential", "balanced", "strict":
+		return true
+	default:
+		return false
+	}
 }
 
 // DeleteAttackGroup removes a group only if no stored flow references it.

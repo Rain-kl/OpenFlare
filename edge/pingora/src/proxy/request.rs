@@ -282,13 +282,9 @@ async fn build_request_context(
         .req_header()
         .uri
         .path_and_query()
-        .ok_or_else(|| Error::explain(HTTPStatus(400), "request URI has no path"))?
-        .as_str()
-        .to_owned();
-    let (path, query) = path_and_query
-        .split_once('?')
-        .map(|(path, query)| (path.to_owned(), query.to_owned()))
-        .unwrap_or((path_and_query, String::new()));
+        .ok_or_else(|| Error::explain(HTTPStatus(400), "request URI has no path"))?;
+    let path = path_and_query.path().to_owned();
+    let query = path_and_query.query().unwrap_or_default().to_owned();
     let user_agent = session
         .req_header()
         .headers
@@ -352,6 +348,7 @@ async fn build_request_context(
         .to_owned();
     let login = route.site_auth_ttl_hours != 0 && path == SITE_AUTH_PATH;
     let inspect = config.waf.inspects(&config.config.waf, route)
+        && !config.waf.is_whitelisted(host, &path)
         && request_content_length(session)
             .is_some_and(|size| size > 0 && size <= MAX_INSPECTED_BODY_BYTES as u64);
     let mut body = Vec::new();
@@ -374,8 +371,8 @@ async fn build_request_context(
     Ok(RequestContext {
         method: session.req_header().method.as_str().to_owned(),
         host: host.to_owned(),
-        path: path.to_owned(),
-        query: query.to_owned(),
+        path,
+        query,
         remote_addr,
         user_agent: user_agent.unwrap_or_default(),
         cookie: cookie.unwrap_or_default(),

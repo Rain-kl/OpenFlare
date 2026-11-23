@@ -183,13 +183,16 @@ func TestWAFSnapshotResolvesCurrentAttackGroupLevels(t *testing.T) {
 		{level: "observe"},
 		{level: "strict", ruleOverrides: map[string]string{"942100": "observe"}, expectedOverrides: `,"rule_overrides":{"942100":"observe"}`},
 		{level: "balanced", expectedOverrides: `,"rule_overrides":{"942100":"observe"}`},
+		{level: "essential", expectedOverrides: `,"rule_overrides":{"942100":"observe"}`},
 		{level: "strict", ruleOverrides: map[string]string{}},
 	} {
-		group.RuleOverrides = scenario.ruleOverrides
 		level := scenario.level
 		group.Levels["sql_injection"] = level
 		group.Levels["csrf"] = level
-		require.NoError(t, repository.SaveOpenFlareAttackGroup(ctx, &group))
+		_, err := waf.SaveAttackGroup(ctx, group.ID, waf.AttackGroupInput{
+			Name: group.Name, Levels: group.Levels, RuleOverrides: scenario.ruleOverrides,
+		})
+		require.NoError(t, err)
 		snapshot, err := buildSnapshotWAFDocument(ctx, nil)
 		require.NoError(t, err)
 		require.Len(t, snapshot.RuleGroups, 1)

@@ -129,6 +129,7 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 		t.Errorf("Migrate() w_system_configs count = %d, want %d", systemConfigCount, expectedMigratedSystemConfigCount)
 	}
 	ctx := context.Background()
+	assertWAFWhitelistTriggers(t, ctx)
 	policies, _, err := repository.ListPerformancePolicies(ctx)
 	if err != nil || len(policies) != 4 {
 		t.Fatalf("performance policy seeds: %v, %v", policies, err)
@@ -421,4 +422,18 @@ func TestNodeQuarantineAndCertDeliveryMigrations(t *testing.T) {
 	var afterRevision int64
 	require.NoError(t, scrubDB.Raw("SELECT source_revision FROM of_edge_snapshot_state WHERE id = 1").Scan(&afterRevision).Error)
 	assert.Equal(t, beforeRevision+1, afterRevision)
+}
+
+func assertWAFWhitelistTriggers(t *testing.T, ctx context.Context) {
+	t.Helper()
+	before, err := repository.GetEdgeSnapshotState(ctx)
+	require.NoError(t, err)
+	entry := &model.OpenFlareWAFWhitelistEntry{Domain: "example.test", PathMatch: "prefix", Path: "/public/"}
+	require.NoError(t, repository.SaveOpenFlareWAFWhitelistEntry(ctx, entry))
+	entry.Path = "/webhooks/"
+	require.NoError(t, repository.SaveOpenFlareWAFWhitelistEntry(ctx, entry))
+	require.NoError(t, repository.DeleteOpenFlareWAFWhitelistEntry(ctx, entry.ID))
+	after, err := repository.GetEdgeSnapshotState(ctx)
+	require.NoError(t, err)
+	require.Equal(t, before.SourceRevision+3, after.SourceRevision)
 }

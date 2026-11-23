@@ -15,9 +15,9 @@
     "loadFailed": "无法加载攻击防护规则组。",
     "saveFailed": "无法保存攻击防护规则组。",
     "applyAll": "批量设置等级",
-    "levelHelp": "平衡防护运行 CRS PL1 与基础补充规则。高强度防护和仅观察运行该类别的全部规则。逐条设置优先于类别等级。",
+    "levelHelp": "必要防护仅运行特征明确的规则。平衡防护在此基础上增加检测覆盖。高强度防护和仅观察运行该类别的全部规则。逐条设置优先于类别等级。",
     "legacy": "此节点正在使用原有的检测设置。选择规则组后，节点将采用该组的检测等级。",
-    "branches": "开启、平衡或高强度规则命中时进入 false 分支。仅命中记录或仅观察规则时，记录日志并进入 true 分支。",
+    "branches": "开启、必要防护、平衡防护或高强度防护的规则命中时进入 false 分支。仅命中记录或仅观察规则时，记录日志并进入 true 分支。",
     "save": "保存",
     "cancel": "取消",
     "categories": {
@@ -42,6 +42,7 @@
     "levels": {
       "off": "禁用",
       "observe": "仅观察",
+      "essential": "必要防护",
       "balanced": "平衡防护",
       "strict": "高强度防护",
       "enabled": "开启"
@@ -55,8 +56,6 @@
       "id": "规则 ID",
       "message": "规则说明",
       "status": "应用状态",
-      "baseRule": "基础",
-      "extendedRule": "扩展",
       "ruleCount": "共 {count} 条规则",
       "enabledRules": "{count} 条运行中",
       "noRules": "没有匹配的检测规则。",
@@ -65,12 +64,46 @@
       "inherit": "沿用类别设置（{action}）",
       "custom": "自定义",
       "inherited": "沿用类别",
-      "overrideCount": "{count} 条自定义规则"
+      "overrideCount": "{count} 条自定义规则",
+      "supplemental": "补充规则"
     },
     "ruleActions": {
       "off": "关闭",
       "enabled": "开启",
       "observe": "记录"
+    },
+    "back": "返回攻击防护",
+    "groupNotFound": "找不到该攻击防护规则组。",
+    "whitelist": {
+      "title": "全局防护白名单",
+      "description": "域名与路径同时匹配时，请求跳过全局和站点绑定的 WAF 流程。",
+      "add": "添加白名单",
+      "edit": "编辑白名单条目",
+      "delete": "删除",
+      "deleteTitle": "删除白名单条目",
+      "deleteDescription": "删除 {domain} 的「{path}」条目后，匹配的请求将恢复接受 WAF 检查。",
+      "domain": "匹配域名",
+      "domainHelp": "支持完整域名和泛域名。*.example.com 仅匹配一级子域名。",
+      "pathMatch": "路径匹配方式",
+      "path": "匹配路径",
+      "pathHelp": {
+        "exact": "输入以 / 开头的完整路径。匹配时忽略查询参数。",
+        "prefix": "输入以 / 开头的路径前缀，例如 /api/public/。",
+        "suffix": "输入路径后缀，例如 .webp。",
+        "regex": "输入 RE2 正则表达式，例如 ^/hooks/[0-9]+$。匹配时忽略查询参数。"
+      },
+      "modes": {
+        "exact": "绝对匹配",
+        "prefix": "前缀",
+        "suffix": "后缀",
+        "regex": "正则"
+      },
+      "actions": "操作",
+      "empty": "尚未添加白名单条目。",
+      "loadFailed": "无法加载全局防护白名单。",
+      "saveFailed": "无法保存白名单条目。",
+      "deleteFailed": "无法删除白名单条目。",
+      "invalidEntry": "域名、路径或正则表达式格式无效。"
     }
   },
   "attackLogs": {

@@ -10,6 +10,21 @@ use zentinel_modsec::{
 
 static CRS_RULES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/vendor/owasp-crs/rules");
 
+// Explicit presets keep new CRS signatures from starting to block after a catalog update.
+// Essential uses specific protocol violations and attack signatures. Balanced adds
+// broader signatures while leaving generic keyword and libinjection heuristics to Strict.
+const ESSENTIAL_RULES: &[u64] = &[
+    11071, 11131, 920160, 920181, 920270, 921110, 921120, 921130, 930100, 930110, 932170, 932171,
+    932180, 933110, 933170, 934110, 941110, 941140, 942270, 944110, 944120, 944150,
+];
+
+const ADDITIONAL_BALANCED_RULES: &[u64] = &[
+    11151, 920100, 920190, 920210, 920470, 920530, 920620, 921140, 921160, 921190, 921421, 922130,
+    930120, 930130, 930140, 931110, 932120, 932125, 932140, 932160, 933100, 933140, 933160, 933180,
+    933200, 933210, 933220, 934170, 934200, 941120, 941130, 941350, 941360, 942160, 942170, 942190,
+    942280, 942320, 942350, 942360, 942540, 944140,
+];
+
 const SETUP: &str = r#"
 SecRuleEngine DetectionOnly
 SecRequestBodyAccess On
@@ -37,6 +52,7 @@ struct RuleInfo {
     category: &'static str,
     message: String,
     paranoia: Option<u8>,
+    essential: bool,
     balanced: bool,
 }
 
@@ -138,6 +154,8 @@ impl Rules {
                     .unwrap()]
                 {
                     Level::Off => None,
+                    Level::Essential if !info.essential => None,
+                    Level::Essential => Some("essential"),
                     Level::Balanced if !info.balanced => None,
                     Level::Balanced => Some("balanced"),
                     Level::Strict => Some("strict"),
@@ -175,15 +193,14 @@ fn rule_info(rule: &SecRule) -> Result<Option<RuleInfo>> {
     let Some(category) = category(rule, id) else {
         return Ok(None);
     };
-    let (paranoia, balanced) = match id {
-        11071 | 11131 | 11151 => (None, true),
-        11072 | 11132 | 11152 => (None, false),
-        _ => {
-            let paranoia = paranoia_level(rule)?
-                .with_context(|| format!("CRS rule {id} has no paranoia level"))?;
-            (Some(paranoia), paranoia == 1)
-        }
+    let paranoia = match id {
+        11071 | 11072 | 11131 | 11132 | 11151 | 11152 => None,
+        _ => Some(
+            paranoia_level(rule)?
+                .with_context(|| format!("CRS rule {id} has no paranoia level"))?,
+        ),
     };
+    let essential = ESSENTIAL_RULES.contains(&id);
     let message = rule
         .actions
         .iter()
@@ -197,7 +214,8 @@ fn rule_info(rule: &SecRule) -> Result<Option<RuleInfo>> {
         category,
         message,
         paranoia,
-        balanced,
+        essential,
+        balanced: essential || ADDITIONAL_BALANCED_RULES.contains(&id),
     }))
 }
 

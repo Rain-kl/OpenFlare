@@ -1,17 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
-import { List } from 'lucide-react';
+import { List, Save, Shield } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
@@ -33,15 +27,13 @@ import {
 } from '@/lib/services/openflare/attack-types';
 import { WafService } from '@/lib/services/openflare';
 
-import { AttackRuleCatalog, ruleCounts } from './attack-rule-catalog';
+import { AttackRuleCatalog, ruleCounts } from '../attack-rule-catalog';
 
 export function AttackGroupEditor({
   group,
-  onCancel,
   onSaved,
 }: {
   group?: AttackGroup;
-  onCancel: () => void;
   onSaved: () => Promise<void>;
 }) {
   const t = useTranslations('attackProtection');
@@ -75,15 +67,30 @@ export function AttackGroupEditor({
 
   return (
     <form
+      className='flex flex-col gap-4'
       onSubmit={(event) => {
         event.preventDefault();
         save.mutate();
       }}
     >
+      <header className='flex flex-wrap items-center justify-between gap-2'>
+        <div className='flex items-center gap-2'>
+          <Shield className='size-5 shrink-0 text-primary' />
+          <h1 className='text-2xl font-semibold tracking-tight'>
+            {group ? t('editGroup') : t('create')}
+          </h1>
+        </div>
+        <Button type='submit' disabled={!name.trim() || save.isPending}>
+          <Save data-icon='inline-start' />
+          {t('save')}
+        </Button>
+      </header>
+      {save.isError && (
+        <p role='alert' className='text-sm text-destructive'>
+          {t('saveFailed')}
+        </p>
+      )}
       <Card>
-        <CardHeader>
-          <CardTitle>{group ? t('editGroup') : t('create')}</CardTitle>
-        </CardHeader>
         <CardContent>
           <FieldGroup className='gap-4'>
             <Field className='max-w-md'>
@@ -92,6 +99,7 @@ export function AttackGroupEditor({
                 id='attack-group-name'
                 value={name}
                 onChange={(event) => setName(event.target.value)}
+                disabled={save.isPending}
                 required
                 maxLength={100}
               />
@@ -188,26 +196,8 @@ export function AttackGroupEditor({
                 );
               })}
             </div>
-            {save.isError && (
-              <p role='alert' className='text-sm text-destructive'>
-                {t('saveFailed')}
-              </p>
-            )}
           </FieldGroup>
         </CardContent>
-        <CardFooter className='justify-end gap-2'>
-          <Button
-            type='button'
-            variant='outline'
-            disabled={save.isPending}
-            onClick={onCancel}
-          >
-            {t('cancel')}
-          </Button>
-          <Button type='submit' disabled={!name.trim() || save.isPending}>
-            {t('save')}
-          </Button>
-        </CardFooter>
       </Card>
     </form>
   );

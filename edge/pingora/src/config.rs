@@ -14,6 +14,7 @@ const PROXY_CAPABILITY: &str = "shared-snapshot-v1";
 const BASE_CAPABILITY: &str = "tls-sni-h2-v1";
 const POLICY_CAPABILITY: &str = "policy-runtime-v1";
 const MEMORY_KEYS_CAPABILITY: &str = "tls-memory-keys-v1";
+const WAF_WHITELIST_CAPABILITY: &str = "waf-request-whitelist-v1";
 
 #[derive(Debug, Clone)]
 pub struct LoadedCertificate {
@@ -267,7 +268,11 @@ fn validate(config: &Config) -> Result<()> {
     for capability in &config.required_capabilities {
         if !matches!(
             capability.as_str(),
-            BASE_CAPABILITY | POLICY_CAPABILITY | PROXY_CAPABILITY | MEMORY_KEYS_CAPABILITY
+            BASE_CAPABILITY
+                | POLICY_CAPABILITY
+                | PROXY_CAPABILITY
+                | MEMORY_KEYS_CAPABILITY
+                | WAF_WHITELIST_CAPABILITY
         ) {
             bail!("unsupported required capability {capability}");
         }

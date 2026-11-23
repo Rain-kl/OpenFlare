@@ -91,7 +91,7 @@ class Controller(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = self.rfile.read(int(self.headers["Content-Length"]))
-        if self.path == "/waf-body-fixture":
+        if urllib.parse.urlsplit(self.path).path in ("/waf-body-fixture", "/waf-body-fixture/exempt"):
             self.answer(body)
             return
         payload = json.loads(body)
@@ -297,6 +297,10 @@ def release(seq, origin, tls_origin, certificate, key, *, empty=False):
             "site_auth_html": "<form>fixture sign-in {{login_error}}</form>",
         },
         "waf": {
+            "request_whitelist": [
+                {"domain": "strict.edge.test", "path_match": "exact", "path": "/waf-body-fixture/exempt"},
+                {"domain": "*.edge.test", "path_match": "regex", "path": r"(?-m:\A/exempt/([0-9]+)$)"},
+            ],
             "rule_groups": [{"id": 1, "enabled": True, "is_global": False,
                              "graph": {"entry": "ip", "nodes": {
                                  "ip": {"type": "ip_match", "config": {"ip_group_ids": [33]},
@@ -322,6 +326,7 @@ def release(seq, origin, tls_origin, certificate, key, *, empty=False):
             "policy-runtime-v1",
             "shared-snapshot-v1",
             "tls-memory-keys-v1",
+            "waf-request-whitelist-v1",
         ],
         "snapshot": shared,
         "assets": {
@@ -518,6 +523,8 @@ def main(binary):
                 server.pages = make_pages(2, b"second page")
                 wait_for(lambda: request("pages.edge.test", headers=basic)[3] == "second page")
                 assert request("waf.edge.test")[0] == 403
+                assert request("waf.edge.test", "/exempt/42?view=summary")[0] == 200
+                assert request("waf.edge.test", "/exempt/report")[0] == 403
                 json_headers = ("Content-Type: application/json",)
                 ordinary = json.dumps({"message": "quarterly plan"})
                 expression = json.dumps({"template": "{% sample %}"})
@@ -528,6 +535,8 @@ def main(binary):
                                headers=json_headers + ("X-API-Key: header-credential",))[0] == 403
                 assert request("observe.edge.test", "/waf-body-fixture", data=expression,
                                headers=json_headers, use_http2=True)[::3] == (200, expression)
+                assert request("strict.edge.test", "/waf-body-fixture/exempt?view=summary", data=expression,
+                               headers=json_headers)[::3] == (200, expression)
 
                 def audit_for(host, action, rule_id):
                     return next((row["waf"] for heartbeat in server.heartbeats
