@@ -156,8 +156,62 @@ pub struct Route {
     pub site_auth_key: String,
     #[serde(default)]
     pub upstream_type: String,
+    #[serde(default)]
+    pub tunnel_id: Option<u64>,
     #[serde(default, rename = "pages_deployment")]
     pub pages: Option<PagesDeployment>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct TunnelEdgeRelayEndpoint {
+    #[serde(default)]
+    pub relay_id: u64,
+    #[serde(default)]
+    pub relay_public_id: String,
+    #[serde(default)]
+    pub gateway_url: String,
+    #[serde(default)]
+    pub gateway_secret: String,
+    #[serde(default)]
+    pub zone_tag: String,
+    #[serde(default)]
+    pub colocated_edge_node_id: String,
+    #[serde(default)]
+    pub is_colocated: bool,
+    #[serde(default)]
+    pub weight: i32,
+    #[serde(default)]
+    pub best_rtt_ms: i32,
+    #[serde(default)]
+    pub active_connectors: i32,
+    #[serde(default)]
+    pub active_streams: i32,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct TunnelEdgeRoutingEntry {
+    #[serde(default)]
+    pub tunnel_id: u64,
+    #[serde(default)]
+    pub tunnel_public_id: String,
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub quarantined: bool,
+    #[serde(default)]
+    pub preferred_transport: String,
+    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
+    pub relays: Vec<TunnelEdgeRelayEndpoint>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct TunnelRoutingSnapshot {
+    #[serde(default)]
+    pub schema_version: u32,
+    #[serde(default)]
+    pub generated_at_unix: i64,
+    #[serde(default, deserialize_with = "deserialize_null_default_vec")]
+    pub tunnels: Vec<TunnelEdgeRoutingEntry>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

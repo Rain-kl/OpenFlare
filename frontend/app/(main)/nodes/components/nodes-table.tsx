@@ -26,8 +26,6 @@ import {
   getNodeTypeLabel,
   getOpenrestyStatusLabel,
   getOpenrestyStatusTone,
-  getRelayStatusLabel,
-  getRelayStatusTone,
   isMeaningfulTime,
   isWSConnectedLastSeen,
 } from './node-utils';
@@ -101,40 +99,19 @@ export function NodesTable({
                 {node.version || 'unknown'}
               </TableCell>
               <TableCell className='py-3'>
-                {node.node_type === 'tunnel_relay' ? (
-                  <NodeStatusBadge
-                    label={getRelayStatusLabel(node.relay_status, t)}
-                    tone={getRelayStatusTone(node.relay_status)}
-                  />
-                ) : node.node_type === 'tunnel_client' ? (
-                  <NodeStatusBadge
-                    label={
-                      node.status === 'online' ? t('running') : t('unknown')
-                    }
-                    tone={node.status === 'online' ? 'success' : 'warning'}
-                  />
-                ) : (
-                  <NodeStatusBadge
-                    label={getOpenrestyStatusLabel(node.openresty_status, t)}
-                    tone={getOpenrestyStatusTone(node.openresty_status)}
-                  />
-                )}
+                <NodeStatusBadge
+                  label={getOpenrestyStatusLabel(node.openresty_status, t)}
+                  tone={getOpenrestyStatusTone(node.openresty_status)}
+                />
               </TableCell>
               <TableCell className='py-3 text-muted-foreground'>
-                {node.current_version ||
-                  (node.node_type === 'tunnel_relay'
-                    ? t('liveConfig')
-                    : t('notApplied'))}
+                {node.current_version || t('notApplied')}
               </TableCell>
               <TableCell className='py-3'>
-                {node.node_type === 'tunnel_relay' ? (
-                  <span className='text-sm text-muted-foreground'>—</span>
-                ) : (
-                  <NodeStatusBadge
-                    label={getApplyLabel(node.latest_apply_result, t)}
-                    tone={getApplyTone(node.latest_apply_result)}
-                  />
-                )}
+                <NodeStatusBadge
+                  label={getApplyLabel(node.latest_apply_result, t)}
+                  tone={getApplyTone(node.latest_apply_result)}
+                />
               </TableCell>
               <TableCell className='py-3 text-muted-foreground'>
                 {isWSConnectedLastSeen(node.last_seen_at)

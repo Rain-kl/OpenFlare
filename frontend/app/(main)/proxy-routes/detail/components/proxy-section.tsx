@@ -27,7 +27,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { ProxyRouteItem } from '@/lib/services/openflare';
-import { NodeService, PagesService } from '@/lib/services/openflare';
+import { PagesService, TunnelService } from '@/lib/services/openflare';
 
 import { useTranslations } from 'next-intl';
 
@@ -49,10 +49,21 @@ type ReverseProxyValues = {
   tunnel_id?: string;
   tunnel_target_addr?: string;
   tunnel_target_protocol?: 'http' | 'https';
+  tunnel_insecure_skip_verify?: boolean;
   pages_project_id?: string;
   custom_headers_text: string;
   enable_http2: boolean;
 };
+
+function parseTunnelInsecureSkipVerify(raw?: string): boolean {
+  if (!raw?.trim()) return false;
+  try {
+    const parsed = JSON.parse(raw) as { insecure_skip_verify?: unknown };
+    return Boolean(parsed?.insecure_skip_verify);
+  } catch {
+    return false;
+  }
+}
 
 interface ProxySectionProps {
   route: ProxyRouteItem;
@@ -76,6 +87,7 @@ export function ProxySection({
       tunnel_id: z.string().optional(),
       tunnel_target_addr: z.string().trim().optional(),
       tunnel_target_protocol: z.enum(['http', 'https']).optional(),
+      tunnel_insecure_skip_verify: z.boolean().optional(),
       pages_project_id: z.string().optional(),
       custom_headers_text: z.string(),
       enable_http2: z.boolean(),
@@ -149,8 +161,8 @@ export function ProxySection({
   );
 
   const tunnelsQuery = useQuery({
-    queryKey: ['openflare', 'nodes'],
-    queryFn: () => NodeService.listNodes(),
+    queryKey: ['openflare', 'tunnels', 'list'],
+    queryFn: () => TunnelService.listTunnels(),
   });
 
   const pagesProjectsQuery = useQuery({
@@ -158,9 +170,7 @@ export function ProxySection({
     queryFn: () => PagesService.listProjects(),
   });
 
-  const tunnelClients = (tunnelsQuery.data ?? []).filter(
-    (node) => node.node_type === 'tunnel_client',
-  );
+  const tunnelList = tunnelsQuery.data ?? [];
   const pagesProjects = (pagesProjectsQuery.data ?? []).filter(
     (project) => project.enabled && project.active_deployment_id,
   );
@@ -171,10 +181,13 @@ export function ProxySection({
       upstream_type: route.upstream_type || 'direct',
       origin_urls_text: route.upstream_list.join('\n'),
       origin_host: route.origin_host || '',
-      tunnel_id: route.tunnel_node_id ? String(route.tunnel_node_id) : '',
+      tunnel_id: route.tunnel_id ? String(route.tunnel_id) : '',
       tunnel_target_addr: route.tunnel_target_addr || '',
       tunnel_target_protocol:
         (route.tunnel_target_protocol as 'http' | 'https') || 'http',
+      tunnel_insecure_skip_verify: parseTunnelInsecureSkipVerify(
+        route.tunnel_options_json,
+      ),
       pages_project_id: route.pages_project_id
         ? String(route.pages_project_id)
         : '',
@@ -188,10 +201,13 @@ export function ProxySection({
       upstream_type: route.upstream_type || 'direct',
       origin_urls_text: route.upstream_list.join('\n'),
       origin_host: route.origin_host || '',
-      tunnel_id: route.tunnel_node_id ? String(route.tunnel_node_id) : '',
+      tunnel_id: route.tunnel_id ? String(route.tunnel_id) : '',
       tunnel_target_addr: route.tunnel_target_addr || '',
       tunnel_target_protocol:
         (route.tunnel_target_protocol as 'http' | 'https') || 'http',
+      tunnel_insecure_skip_verify: parseTunnelInsecureSkipVerify(
+        route.tunnel_options_json,
+      ),
       pages_project_id: route.pages_project_id
         ? String(route.pages_project_id)
         : '',
@@ -201,6 +217,7 @@ export function ProxySection({
   }, [form, route]);
 
   const upstreamType = form.watch('upstream_type');
+  const tunnelTargetProtocol = form.watch('tunnel_target_protocol');
 
   return (
     <SectionShell
@@ -258,7 +275,7 @@ export function ProxySection({
                 upstreams,
                 custom_headers: headers,
                 upstream_type: values.upstream_type,
-                tunnel_node_id:
+                tunnel_id:
                   values.upstream_type === 'tunnel' && values.tunnel_id
                     ? Number(values.tunnel_id)
                     : null,
@@ -270,6 +287,14 @@ export function ProxySection({
                   values.upstream_type === 'tunnel'
                     ? values.tunnel_target_protocol
                     : '',
+                tunnel_options_json:
+                  values.upstream_type === 'tunnel'
+                    ? JSON.stringify({
+                        insecure_skip_verify: Boolean(
+                          values.tunnel_insecure_skip_verify,
+                        ),
+                      })
+                    : '{}',
                 pages_project_id:
                   values.upstream_type === 'pages' && values.pages_project_id
                     ? Number(values.pages_project_id)
@@ -379,10 +404,10 @@ export function ProxySection({
                         <SelectItem value='none'>
                           {t('pleaseSelect')}
                         </SelectItem>
-                        {tunnelClients.map((tunnel) => (
+                        {tunnelList.map((tunnel) => (
                           <SelectItem key={tunnel.id} value={String(tunnel.id)}>
                             {tunnel.name} (
-                            {tunnel.status === 'online'
+                            {tunnel.online_connectors > 0
                               ? t('online')
                               : t('offline')}
                             )
@@ -432,6 +457,29 @@ export function ProxySection({
                   </FormItem>
                 )}
               />
+
+              {tunnelTargetProtocol === 'https' ? (
+                <FormField
+                  control={form.control}
+                  name='tunnel_insecure_skip_verify'
+                  render={({ field }) => (
+                    <FormItem className='flex items-center justify-between rounded-lg border p-3'>
+                      <div className='space-y-1'>
+                        <FormLabel>{t('tunnelInsecureSkipVerify')}</FormLabel>
+                        <FormDescription>
+                          {t('tunnelInsecureSkipVerifyDesc')}
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={Boolean(field.value)}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              ) : null}
             </div>
           ) : null}
 

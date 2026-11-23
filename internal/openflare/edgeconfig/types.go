@@ -100,6 +100,7 @@ type Route struct {
 	SiteAuthTTLHours   int              `json:"site_auth_ttl_hours,omitempty"`
 	SiteAuthKey        string           `json:"site_auth_key,omitempty"`
 	UpstreamType       string           `json:"upstream_type,omitempty"`
+	TunnelID           *uint            `json:"tunnel_id,omitempty"`
 	PagesDeployment    *PagesDeployment `json:"pages_deployment,omitempty"`
 }
 

@@ -57,7 +57,7 @@ type snapshotRoute struct {
 	SiteAuthTTLHours   int                         `json:"site_auth_ttl_hours,omitempty"`
 	SiteAuthKey        string                      `json:"site_auth_key,omitempty"`
 	UpstreamType       string                      `json:"upstream_type,omitempty"`
-	TunnelNodeID       *uint                       `json:"tunnel_node_id,omitempty"`
+	TunnelID           *uint                       `json:"tunnel_id,omitempty"`
 	TunnelTargetAddr   string                      `json:"tunnel_target_addr,omitempty"`
 	TunnelTargetProto  string                      `json:"tunnel_target_protocol,omitempty"`
 	PagesProjectID     *uint                       `json:"pages_project_id,omitempty"`
@@ -159,7 +159,6 @@ func buildCurrentConfigBundle(ctx context.Context) (*configBundle, error) {
 
 func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]snapshotRoute, error) {
 	items := make([]snapshotRoute, 0, len(routes))
-	var relayURL string
 	for _, route := range routes {
 		zoneDomains, err := repository.ListZoneDomainsByRouteID(ctx, route.ID)
 		if err != nil {
@@ -188,22 +187,16 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 		if err != nil {
 			return nil, fmt.Errorf("invalid upstream configuration for route %s", route.SiteName)
 		}
-		var tunnelNodeID *uint
+		var tunnelID *uint
 		var tunnelTargetAddr string
 		var tunnelTargetProtocol string
 		var pagesProjectID *uint
 		var pagesDeployment *edgeconfig.PagesDeployment
 		switch upstreamType {
 		case "tunnel":
-			if relayURL == "" {
-				relayURL, err = resolveTunnelEdgeUpstreamURL(ctx)
-				if err != nil {
-					return nil, err
-				}
-			}
-			originURL = relayURL
-			upstreams = []string{originURL}
-			tunnelNodeID = route.TunnelNodeID
+			originURL = ""
+			upstreams = []string{}
+			tunnelID = route.TunnelID
 			tunnelTargetAddr = strings.TrimSpace(route.TunnelTargetAddr)
 			tunnelTargetProtocol = normalizeTunnelTargetProtocol(route.TunnelTargetProtocol)
 		case "pages":
@@ -242,7 +235,7 @@ func buildSnapshotRoutes(ctx context.Context, routes []*model.ProxyRoute) ([]sna
 			SiteAuthTTLHours:   route.SiteAuthTTLHours,
 			SiteAuthKey:        route.SiteAuthKey,
 			UpstreamType:       upstreamType,
-			TunnelNodeID:       tunnelNodeID,
+			TunnelID:           tunnelID,
 			TunnelTargetAddr:   tunnelTargetAddr,
 			TunnelTargetProto:  tunnelTargetProtocol,
 			PagesProjectID:     pagesProjectID,

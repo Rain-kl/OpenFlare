@@ -28,7 +28,7 @@ import (
 
 var logDBSwitchDBSeq int64
 
-// newLogDBSwitchDB 构造内存 sqlite 库（含日志 5 表 + 系统配置表）。
+// newLogDBSwitchDB 构造内存 sqlite 库（含日志表与系统配置表）。
 func newLogDBSwitchDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dsn := fmt.Sprintf("file:log-db-switch-%d?mode=memory&cache=shared", atomic.AddInt64(&logDBSwitchDBSeq, 1))
@@ -39,8 +39,6 @@ func newLogDBSwitchDB(t *testing.T) *gorm.DB {
 		&analyticsmodel.NodeAccessLog{},
 		&analyticsmodel.NodeMetricSnapshot{},
 		&analyticsmodel.NodeEdgeHealth{},
-		&analyticsmodel.NodeObsFrps{},
-		&analyticsmodel.NodeObsFrpc{},
 		&analyticsmodel.UserAccessLog{},
 	))
 	return gdb

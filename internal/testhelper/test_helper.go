@@ -289,16 +289,34 @@ func getSeedConfigsPart2() []model.SystemConfig {
 			Description: "文件存储驱动及连接配置（JSON）",
 		},
 		{
-			Key:         model.ConfigKeyRelayFRPSWebUIEnabled,
-			Value:       configValueFalse,
-			Type:        configTypeBusiness,
-			Description: "是否启用 FRPS 内置 Web 界面",
+			Key:         model.ConfigKeyRelayDiscoveryToken,
+			Value:       "",
+			Type:        configTypeSystem,
+			Description: "中继节点自动发现注册令牌",
 		},
 		{
-			Key:         model.ConfigKeyRelayFRPSWebUIPort,
-			Value:       "17500",
+			Key:         model.ConfigKeyTunnelUpdateRepo,
+			Value:       "Rain-kl/OpenFlare",
+			Type:        configTypeSystem,
+			Description: "隧道组件（openflare-relay / openflared）GitHub Release 更新仓库",
+		},
+		{
+			Key:         model.ConfigKeyTunnelHeartbeatInterval,
+			Value:       "5000",
+			Type:        configTypeSystem,
+			Description: "隧道中继与连接器心跳周期（毫秒）",
+		},
+		{
+			Key:         model.ConfigKeyTunnelLeaseTTLSeconds,
+			Value:       "30",
+			Type:        configTypeSystem,
+			Description: "中继连接租约有效时间（秒）",
+		},
+		{
+			Key:         model.ConfigKeyTunnelDefaultHARelays,
+			Value:       "2",
 			Type:        configTypeBusiness,
-			Description: "FRPS 内置 Web 界面端口",
+			Description: "每条隧道连接器默认并行挂载的冗余中继节点数",
 		},
 		{
 			Key:         model.ConfigKeyPagesMaxPackageSizeMB,
@@ -391,8 +409,6 @@ func SetupLogStoresForTest(t *testing.T) {
 		&analyticsmodel.UserAccessLog{},
 		&analyticsmodel.NodeMetricSnapshot{},
 		&analyticsmodel.NodeEdgeHealth{},
-		&analyticsmodel.NodeObsFrps{},
-		&analyticsmodel.NodeObsFrpc{},
 	))
 
 	logstore.ResetForTest()
@@ -421,16 +437,6 @@ func SetupLogStoresForTest(t *testing.T) {
 		QueueEdgeHealth: func(record analyticsmodel.NodeEdgeHealth) {
 			if err := store.Observability.BatchInsertNodeEdgeHealth(context.Background(), []analyticsmodel.NodeEdgeHealth{record}); err != nil {
 				t.Errorf("batch insert node edge health failed in test hook: %v", err)
-			}
-		},
-		QueueNodeObsFrps: func(record analyticsmodel.NodeObsFrps) {
-			if err := store.Observability.BatchInsertNodeObsFrps(context.Background(), []analyticsmodel.NodeObsFrps{record}); err != nil {
-				t.Errorf("batch insert node obs frps failed in test hook: %v", err)
-			}
-		},
-		QueueNodeObsFrpc: func(record analyticsmodel.NodeObsFrpc) {
-			if err := store.Observability.BatchInsertNodeObsFrpc(context.Background(), []analyticsmodel.NodeObsFrpc{record}); err != nil {
-				t.Errorf("batch insert node obs frpc failed in test hook: %v", err)
 			}
 		},
 	})

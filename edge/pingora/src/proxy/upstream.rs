@@ -3,7 +3,7 @@ use anyhow::Result as AnyhowResult;
 use http::Uri;
 use pingora::{proxy::Session, upstreams::peer::HttpPeer, Error, Result};
 use pingora_error::ErrorType::{HTTPStatus, InternalError};
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use url::Url;
 
 impl ProxyService {
@@ -17,6 +17,9 @@ impl ProxyService {
             .as_ref()
             .and_then(|config| config.route_for_host(&ctx.host))
             .ok_or_else(|| Error::explain(HTTPStatus(503), "configuration is not ready"))?;
+        if let Some(tunnel_id) = route.tunnel_id.filter(|_| route.is_tunnel()) {
+            return self.select_tunnel_upstream(tunnel_id, ctx).await;
+        }
         let pages_target = route.pages.as_ref().and_then(|deployment| {
             crate::pages::pages_api_target(deployment, session.req_header().uri.path())
         });
@@ -45,16 +48,7 @@ impl ProxyService {
                         } else {
                             upstream.host.as_str()
                         };
-                        let mut peer = HttpPeer::new(address, tls, sni.to_owned());
-                        let performance = self.performance.current();
-                        if let Some(settings) = &performance.policy.settings {
-                            peer.group_key = performance.upstream_generation;
-                            settings.upstream.configure(&mut peer);
-                        } else {
-                            peer.options.verify_cert = false;
-                            peer.options.verify_hostname = false;
-                        }
-                        return Ok(Box::new(peer));
+                        return Ok(self.configure_peer(address, tls, sni.to_owned()));
                     }
                 }
                 Err(error) => last_error = Some(error),
@@ -73,6 +67,66 @@ impl ProxyService {
         ))
     }
 
+    async fn select_tunnel_upstream(
+        &self,
+        tunnel_id: u64,
+        ctx: &mut RequestLogContext,
+    ) -> Result<Box<HttpPeer>> {
+        if ctx.upstream_index == 0 {
+            ctx.tunnel_relays = self.tunnel_routing.endpoints_for_tunnel(tunnel_id);
+        }
+        if ctx.tunnel_relays.is_empty() {
+            return Err(Error::explain(
+                HTTPStatus(503),
+                "tunnel has no healthy relay endpoint",
+            ));
+        }
+        let mut last_error = None;
+        while ctx.upstream_index < ctx.tunnel_relays.len() {
+            let relay = ctx.tunnel_relays[ctx.upstream_index].clone();
+            ctx.upstream_index += 1;
+            let upstream = normalize_upstream(&relay.gateway_url).map_err(|error| {
+                Error::because(InternalError, "invalid tunnel relay gateway URL", error)
+            })?;
+            let resolved = tokio::net::lookup_host((upstream.host.as_str(), upstream.port))
+                .await
+                .map(|mut addresses| addresses.next());
+            match resolved {
+                Ok(Some(address)) => {
+                    let tls = upstream.scheme == "https";
+                    ctx.active_tunnel_relay = Some(relay);
+                    return Ok(self.configure_peer(address, tls, upstream.host));
+                }
+                Ok(None) => {}
+                Err(error) => last_error = Some(error),
+            }
+        }
+        if let Some(error) = last_error {
+            return Err(Error::because(
+                HTTPStatus(502),
+                "failed to resolve tunnel relay",
+                error,
+            ));
+        }
+        Err(Error::explain(
+            HTTPStatus(503),
+            "all tunnel relay gateways failed",
+        ))
+    }
+
+    fn configure_peer(&self, address: SocketAddr, tls: bool, sni: String) -> Box<HttpPeer> {
+        let mut peer = HttpPeer::new(address, tls, sni);
+        let performance = self.performance.current();
+        if let Some(settings) = &performance.policy.settings {
+            peer.group_key = performance.upstream_generation;
+            settings.upstream.configure(&mut peer);
+        } else {
+            peer.options.verify_cert = false;
+            peer.options.verify_hostname = false;
+        }
+        Box::new(peer)
+    }
+
     pub(super) fn retry_upstream(
         &self,
         _session: &mut Session,
@@ -84,7 +138,13 @@ impl ProxyService {
             .snapshot
             .as_ref()
             .and_then(|snapshot| snapshot.route_for_host(&ctx.host))
-            .is_some_and(|route| !route.is_pages() && ctx.upstream_index < route.upstreams.len());
+            .is_some_and(|route| {
+                if route.is_tunnel() {
+                    ctx.upstream_index < ctx.tunnel_relays.len()
+                } else {
+                    !route.is_pages() && ctx.upstream_index < route.upstreams.len()
+                }
+            });
         error.set_retry(has_fallback);
         error
     }
@@ -144,6 +204,15 @@ impl ProxyService {
             "x-forwarded-proto",
             if ctx.https { "https" } else { "http" },
         )?;
+        if let Some(tunnel_id) = route.tunnel_id.filter(|_| route.is_tunnel()) {
+            let tunnel_id_str = tunnel_id.to_string();
+            let route_id_str = route.id.to_string();
+            set_header("x-openflare-tunnel-id", &tunnel_id_str)?;
+            set_header("x-openflare-route-id", &route_id_str)?;
+            if let Some(relay) = ctx.active_tunnel_relay.as_ref() {
+                set_header("x-openflare-relay-auth", &relay.gateway_secret)?;
+            }
+        }
         for header in &route.custom_headers {
             let name =
                 http::header::HeaderName::from_bytes(header.key.as_bytes()).map_err(|error| {
@@ -168,6 +237,9 @@ fn rewrite_upstream_uri(
     route: &crate::protocol::config::Route,
     request: &Uri,
 ) -> Result<Option<String>> {
+    if route.is_tunnel() {
+        return Ok(None);
+    }
     if let Some(deployment) = route.pages.as_ref() {
         let Some(target) = crate::pages::pages_api_target(
             deployment,

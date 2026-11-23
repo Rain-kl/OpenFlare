@@ -35,12 +35,6 @@ vi.mock('@/app/(main)/nodes/components/edge-node-detail', () => ({
     <div>Node detail {node.id}</div>
   ),
 }));
-vi.mock('@/app/(main)/nodes/components/relay-node-detail', () => ({
-  RelayNodeDetail: () => null,
-}));
-vi.mock('@/app/(main)/nodes/components/tunnel-node-detail', () => ({
-  TunnelNodeDetail: () => null,
-}));
 
 function node(id: number): NodeItem {
   return { id, name: `Edge ${id}`, node_type: 'edge_node' } as NodeItem;
@@ -124,26 +118,6 @@ it('refetches the previous valid page after deleting the only node on the last p
     ),
   );
   await screen.findByText('Edge 1');
-});
-
-it('resets the page immediately when the URL node type changes', async () => {
-  const page = renderPage();
-  await screen.findByText('Edge 1');
-  fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await screen.findByText('Edge 2');
-  params = new URLSearchParams('filter=relay');
-  page.rerender(
-    <NextIntlClientProvider locale='en' messages={en} timeZone='UTC'>
-      <QueryClientProvider client={page.client}>
-        <NodesPageClient />
-      </QueryClientProvider>
-    </NextIntlClientProvider>,
-  );
-  await waitFor(() =>
-    expect(NodeService.listNodePage).toHaveBeenLastCalledWith(
-      expect.objectContaining({ page: 1, node_type: 'tunnel_relay' }),
-    ),
-  );
 });
 
 it('keeps page errors retryable through refresh', async () => {

@@ -4,7 +4,8 @@
       "keywords": {
         "home": "главная страница|панель управления",
         "docs-how-to-use": "документы|как|руководство|помощь",
-        "console-nodes": "узел|туннель|node|nodes|edge|relay|tunnel",
+        "console-nodes": "узел|node|nodes|edge",
+        "console-tunnels": "туннель|ретранслятор|пул|tunnel|relay|openflared",
         "console-proxy-routes": "маршрут|прокси|proxy|routes",
         "console-websites": "сайт|домен",
         "console-certificates": "сертификат|ssl|tls|https",

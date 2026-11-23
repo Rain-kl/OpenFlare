@@ -5,13 +5,15 @@ mod site_sync;
 pub(crate) mod update;
 mod websocket;
 
-use config_sync::{Manifest, PERFORMANCE_KEY};
+use config_sync::{Manifest, PERFORMANCE_KEY, TUNNEL_ROUTING_KEY};
 use site_sync::{ActiveConfigMeta, SiteSync};
 
 use crate::config::{self, AppliedConfig, CertificateKeyRing};
 use crate::pages::PagesSyncer;
+use crate::protocol::config::TunnelRoutingSnapshot;
 use crate::runtime::{
     performance::{LivePolicy, NodePolicy},
+    tunnel_routing::LiveTunnelRouting,
     Listeners,
 };
 use crate::telemetry::{AccessLogSpool, HostCollector, HostTelemetry, NodeAccessLog};
@@ -45,6 +47,7 @@ pub struct Runtime {
     listeners: Listeners,
     geo_ip: crate::geoip::GeoIpStore,
     performance: LivePolicy,
+    tunnel_routing: LiveTunnelRouting,
     node_ip: node_ip::NodeIpResolver,
     ready: Arc<AtomicBool>,
     heartbeat_received: Arc<Notify>,
@@ -169,6 +172,7 @@ impl Runtime {
             .user_agent(edge_user_agent())
             .build()?;
         let performance = LivePolicy::new(NodePolicy::load(&state_dir));
+        let tunnel_routing = LiveTunnelRouting::open(&state_dir);
         let node_ip = node_ip::NodeIpResolver::new(&base_url)?;
         Ok(Self {
             base_url,
@@ -182,6 +186,7 @@ impl Runtime {
             access_logs,
             listeners,
             performance,
+            tunnel_routing,
             node_ip,
             ready: Arc::default(),
             heartbeat_received: Arc::default(),
@@ -195,6 +200,10 @@ impl Runtime {
 
     pub fn performance(&self) -> LivePolicy {
         self.performance.clone()
+    }
+
+    pub fn tunnel_routing(&self) -> LiveTunnelRouting {
+        self.tunnel_routing.clone()
     }
 
     pub fn geo_ip(&self) -> crate::geoip::GeoIpStore {
@@ -333,6 +342,9 @@ impl Runtime {
             if current.is_some() && self.reconcile_performance(performance_policy.clone()) {
                 return;
             }
+            if let Some(resource) = manifest.resources.get(TUNNEL_ROUTING_KEY) {
+                self.reconcile_tunnel_routing(resource).await;
+            }
             site.reconcile(self, node_id, &manifest, wake).await;
             if current.is_none() && self.reconcile_performance(performance_policy) {
                 return;
@@ -340,6 +352,28 @@ impl Runtime {
             tokio::select! {
                 _ = tokio::time::sleep(interval) => {}
                 _ = wake.changed() => {}
+            }
+        }
+    }
+
+    async fn reconcile_tunnel_routing(&self, resource: &config_sync::Resource) {
+        if self.tunnel_routing.matches_sha256(&resource.sha256) {
+            return;
+        }
+        match resource
+            .read::<TunnelRoutingSnapshot>(self, TUNNEL_ROUTING_KEY)
+            .await
+        {
+            Ok(snapshot) => {
+                if let Err(error) =
+                    self.tunnel_routing
+                        .apply(&self.state_dir, &resource.sha256, snapshot)
+                {
+                    tracing::error!(%error, "could not apply Pingora tunnel routing table");
+                }
+            }
+            Err(error) => {
+                tracing::error!(%error, "could not load Pingora tunnel routing snapshot");
             }
         }
     }

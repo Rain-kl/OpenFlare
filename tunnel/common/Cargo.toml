@@ -1,0 +1,29 @@
+[package]
+name = "openflare-tunnel-common"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+base64.workspace = true
+flate2.workspace = true
+futures-util.workspace = true
+http.workspace = true
+ipnet.workspace = true
+libc.workspace = true
+rand.workspace = true
+reqwest.workspace = true
+same-file.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+subtle.workspace = true
+tar.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true

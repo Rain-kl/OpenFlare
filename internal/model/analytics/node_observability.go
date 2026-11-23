@@ -14,12 +14,6 @@ const (
 
 	nodeEdgeHealthTableName     = "of_node_edge_health"
 	nodeEdgeHealthInsertColumns = "id, node_id, captured_at, status, connections, created_at"
-
-	nodeObsFrpsTableName     = "of_node_obs_frps"
-	nodeObsFrpsInsertColumns = "id, node_id, captured_at, frps_connections, frps_proxy_count, frps_client_count, frps_proxies, created_at"
-
-	nodeObsFrpcTableName     = "of_node_obs_frpc"
-	nodeObsFrpcInsertColumns = "id, node_id, captured_at, tunnel_status, connected_relays_count, created_at"
 )
 
 // NodeMetricSnapshot stores periodic node resource utilization metrics in ClickHouse.
@@ -116,56 +110,4 @@ type NodeMetricHourly struct {
 	DiskReadBytes             int64
 	DiskWriteBytes            int64
 	ReportedNodes             int
-}
-
-// NodeObsFrps stores FRPS observability snapshots in ClickHouse.
-type NodeObsFrps struct {
-	ID              uint64    `gorm:"column:id"`
-	NodeID          string    `gorm:"column:node_id"`
-	CapturedAt      time.Time `gorm:"column:captured_at"`
-	FrpsConnections int32     `gorm:"column:frps_connections"`
-	FrpsProxyCount  int32     `gorm:"column:frps_proxy_count"`
-	FrpsClientCount int32     `gorm:"column:frps_client_count"`
-	FrpsProxies     string    `gorm:"column:frps_proxies"`
-	CreatedAt       time.Time `gorm:"column:created_at"`
-}
-
-// TableName returns the ClickHouse table name.
-func (NodeObsFrps) TableName() string {
-	return nodeObsFrpsTableName
-}
-
-// InsertColumns returns comma-separated column names for batch insert.
-func (NodeObsFrps) InsertColumns() string {
-	return nodeObsFrpsInsertColumns
-}
-
-// BatchInsertSQL returns the INSERT prefix used by native batch writers.
-func (NodeObsFrps) BatchInsertSQL() string {
-	return fmt.Sprintf("INSERT INTO %s (%s)", nodeObsFrpsTableName, nodeObsFrpsInsertColumns)
-}
-
-// NodeObsFrpc stores FRPC observability snapshots in ClickHouse.
-type NodeObsFrpc struct {
-	ID                   uint64    `gorm:"column:id"`
-	NodeID               string    `gorm:"column:node_id"`
-	CapturedAt           time.Time `gorm:"column:captured_at"`
-	TunnelStatus         string    `gorm:"column:tunnel_status"`
-	ConnectedRelaysCount int32     `gorm:"column:connected_relays_count"`
-	CreatedAt            time.Time `gorm:"column:created_at"`
-}
-
-// TableName returns the ClickHouse table name.
-func (NodeObsFrpc) TableName() string {
-	return nodeObsFrpcTableName
-}
-
-// InsertColumns returns comma-separated column names for batch insert.
-func (NodeObsFrpc) InsertColumns() string {
-	return nodeObsFrpcInsertColumns
-}
-
-// BatchInsertSQL returns the INSERT prefix used by native batch writers.
-func (NodeObsFrpc) BatchInsertSQL() string {
-	return fmt.Sprintf("INSERT INTO %s (%s)", nodeObsFrpcTableName, nodeObsFrpcInsertColumns)
 }

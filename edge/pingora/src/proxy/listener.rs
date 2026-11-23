@@ -82,6 +82,7 @@ pub fn run_server(state: DataPlaneState, control: Runtime, upgrade: bool) -> any
     let pid_file = state_dir.join("openflare-edge.pid");
     let geo_ip = control.geo_ip();
     let performance = control.performance();
+    let tunnel_routing = control.tunnel_routing();
     let active_policy = performance.current();
     let startup = active_policy.policy.settings.as_ref().map(|s| &s.startup);
     let mut conf = ServerConf {
@@ -133,6 +134,7 @@ pub fn run_server(state: DataPlaneState, control: Runtime, upgrade: bool) -> any
             geo_ip,
             access_logs,
             performance: performance.clone(),
+            tunnel_routing,
         },
     );
     if let Some(startup) = startup {

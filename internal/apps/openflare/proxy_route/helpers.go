@@ -222,8 +222,8 @@ func lookupTLSCertificateByID(ctx context.Context, id uint) (*model.TLSCertifica
 	return repository.GetTLSCertificateByID(ctx, id)
 }
 
-func lookupTunnelNodeByID(ctx context.Context, id uint) (*model.OpenFlareNode, error) {
-	return repository.GetOpenFlareNodeByID(ctx, id)
+func lookupTunnelByID(ctx context.Context, id uint) (*model.Tunnel, error) {
+	return repository.GetTunnelByID(ctx, id)
 }
 
 func lookupPagesProjectByID(ctx context.Context, id uint) (*model.PagesProject, error) {
@@ -630,29 +630,38 @@ func validateOriginHost(raw string) error {
 	return nil
 }
 
-func normalizeTunnelNodeID(tunnelNodeID, legacyTunnelID *uint) (*uint, error) {
-	if tunnelNodeID != nil && *tunnelNodeID != 0 {
-		return tunnelNodeID, nil
+func normalizeTunnelID(tunnelID *uint) (*uint, error) {
+	if tunnelID != nil && *tunnelID != 0 {
+		return tunnelID, nil
 	}
-	if legacyTunnelID != nil && *legacyTunnelID != 0 {
-		return legacyTunnelID, nil
-	}
-	return nil, errors.New(errProxyRouteTunnelNodeReq)
+	return nil, errors.New(errProxyRouteTunnelIDReq)
 }
 
-func validateTunnelRouteInput(ctx context.Context, tunnelNodeID *uint, targetAddr, targetProtocol string) error {
-	if tunnelNodeID == nil || *tunnelNodeID == 0 {
-		return errors.New(errProxyRouteTunnelNodeReq)
+func normalizeTunnelOptionsJSON(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "{}", nil
 	}
-	tunnelNode, err := lookupTunnelNodeByID(ctx, *tunnelNodeID)
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(trimmed), &parsed); err != nil || parsed == nil {
+		return "", errors.New(errProxyRouteTunnelOptions)
+	}
+	encoded, err := json.Marshal(parsed)
 	if err != nil {
+		return "", errors.New(errProxyRouteTunnelOptions)
+	}
+	return string(encoded), nil
+}
+
+func validateTunnelRouteInput(ctx context.Context, tunnelID *uint, targetAddr, targetProtocol string) error {
+	if tunnelID == nil || *tunnelID == 0 {
+		return errors.New(errProxyRouteTunnelIDReq)
+	}
+	if _, err := lookupTunnelByID(ctx, *tunnelID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New(errProxyRouteTunnelNodeMissing)
+			return errors.New(errProxyRouteTunnelMissing)
 		}
 		return err
-	}
-	if tunnelNode.NodeType != "tunnel_client" {
-		return errors.New(errProxyRouteTunnelNodeType)
 	}
 	if strings.TrimSpace(targetAddr) == "" {
 		return errors.New(errProxyRouteTunnelAddrReq)

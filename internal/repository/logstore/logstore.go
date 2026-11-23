@@ -58,7 +58,7 @@ type AccessLogStore interface {
 	DropExpiredPartitions(ctx context.Context, cutoff time.Time) error
 }
 
-// ObservabilityStore 可观测 4 表（metric snapshots / edge health / frps / frpc）。
+// ObservabilityStore 可观测 2 表（metric snapshots / edge health）。
 type ObservabilityStore interface {
 	InsertMetricSnapshot(ctx context.Context, record *model.OpenFlareMetricSnapshot) error
 	ListMetricSnapshots(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareMetricSnapshot, error)
@@ -81,23 +81,9 @@ type ObservabilityStore interface {
 	DeleteEdgeHealthBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	BatchInsertNodeEdgeHealth(ctx context.Context, rows []analyticsmodel.NodeEdgeHealth) error
 
-	InsertNodeObservationFrps(ctx context.Context, record *model.OpenFlareNodeObservationFrps) error
-	ListNodeObservationFrps(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrps, error)
-	DeleteAllNodeObservationFrps(ctx context.Context) (int64, error)
-	DeleteNodeObservationFrpsBefore(ctx context.Context, cutoff time.Time) (int64, error)
-	BatchInsertNodeObsFrps(ctx context.Context, rows []analyticsmodel.NodeObsFrps) error
-
-	InsertNodeObservationFrpc(ctx context.Context, record *model.OpenFlareNodeObservationFrpc) error
-	ListNodeObservationFrpc(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrpc, error)
-	DeleteAllNodeObservationFrpc(ctx context.Context) (int64, error)
-	DeleteNodeObservationFrpcBefore(ctx context.Context, cutoff time.Time) (int64, error)
-	BatchInsertNodeObsFrpc(ctx context.Context, rows []analyticsmodel.NodeObsFrpc) error
-
 	// 迁移复制用：按 id 升序分页读取。
 	ListMetricSnapshotsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeMetricSnapshot, error)
 	ListEdgeHealthForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeEdgeHealth, error)
-	ListNodeObsFrpsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeObsFrps, error)
-	ListNodeObsFrpcForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeObsFrpc, error)
 }
 
 // UserAccessLogStore 用户访问日志（w_user_access_logs）。

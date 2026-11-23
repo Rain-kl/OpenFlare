@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 pub(crate) const VERSION: u8 = 1;
 pub(super) const SITE_KEY: &str = "sites.v1";
 pub(super) const PERFORMANCE_KEY: &str = "performance.v1";
+pub(super) const TUNNEL_ROUTING_KEY: &str = "tunnel-routing.v1";
 const IP_GROUP_PREFIX: &str = "waf.ip-group.v1/";
 
 #[derive(Debug, Deserialize)]

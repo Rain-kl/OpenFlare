@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Image version/tag to publish, for example v1.0.0-beta"
+        description: "Image version/tag to publish, for example tunnel-v0.1.0"
         required: false
         type: string
   push:
-    tags: ["v*"]
+    tags: ["tunnel-v*"]
 
 permissions:
   contents: read
@@ -47,7 +47,7 @@ jobs:
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          POINTED_TAG="$(git tag --points-at HEAD --list 'v*' | sort -V | tail -n1)"
+          POINTED_TAG="$(git tag --points-at HEAD --list 'tunnel-v*' | sort -V | tail -n1)"
           INPUT_VERSION="${INPUT_VERSION//[[:space:]]/}"
 
           OWNER="${GITHUB_REPOSITORY_OWNER,,}"
@@ -129,7 +129,7 @@ jobs:
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          POINTED_TAG="$(git tag --points-at HEAD --list 'v*' | sort -V | tail -n1)"
+          POINTED_TAG="$(git tag --points-at HEAD --list 'tunnel-v*' | sort -V | tail -n1)"
           INPUT_VERSION="${INPUT_VERSION//[[:space:]]/}"
 
           OWNER="${GITHUB_REPOSITORY_OWNER,,}"

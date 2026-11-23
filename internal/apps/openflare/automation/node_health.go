@@ -48,7 +48,7 @@ type NodeHealthPage struct {
 // @Param page_size query integer false "Number of records per page" minimum(1) maximum(100) default(20)
 // @Param search query string false "Literal substring of the node name, registration identifier or IP address" maxlength(256)
 // @Param status query string false "Filter by heartbeat state; omit for all states" Enums(pending,online,offline,quarantined)
-// @Param node_type query string false "Filter by node type; omit for all types" Enums(edge_node,tunnel_relay,tunnel_client)
+// @Param node_type query string false "Filter by node type; omit for all types" Enums(edge_node)
 // @Success 200 {object} OperationResponse{data=NodeHealthPage}
 // @Failure 400,401,403,404,500 {object} OperationResponse
 // @x-automation {"cli":"node health","scope":"nodes:read","effect":"read"}
@@ -86,9 +86,6 @@ func nodeHealth(ctx context.Context, _ identity, input map[string]string) (any, 
 		entry := NodeHealthSummary{
 			Node: summarizeNode(view), RuntimeHealth: view.OpenrestyStatus,
 			ConfigSync: "not_applicable", ActiveEvents: make([]NodeHealthEvent, 0, len(byNode[view.NodeID])),
-		}
-		if view.NodeType == "tunnel_relay" {
-			entry.RuntimeHealth = view.RelayStatus
 		}
 		if view.NodeType == edgeNodeType {
 			entry.Node.DesiredVersion = desiredVersion

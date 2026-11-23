@@ -123,40 +123,6 @@ func (OpenFlareEdgeHealth) TableName() string {
 	return "of_node_edge_health"
 }
 
-// OpenFlareNodeObservationFrpc stores tunnel client frpc observations in ClickHouse (database: openflare, table: of_node_obs_frpc).
-// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/logstore.
-type OpenFlareNodeObservationFrpc struct {
-	ID                   uint      `json:"id" gorm:"primaryKey;autoIncrement"`
-	NodeID               string    `json:"node_id" gorm:"index;size:64;not null"`
-	CapturedAt           time.Time `json:"captured_at" gorm:"index"`
-	TunnelStatus         string    `json:"tunnel_status" gorm:"size:16"`
-	ConnectedRelaysCount int       `json:"connected_relays_count"`
-	CreatedAt            time.Time `json:"created_at" gorm:"autoCreateTime"`
-}
-
-// TableName returns the GORM table name.
-func (OpenFlareNodeObservationFrpc) TableName() string {
-	return "of_node_obs_frpc"
-}
-
-// OpenFlareNodeObservationFrps stores tunnel relay frps observations in ClickHouse (database: openflare, table: of_node_obs_frps).
-// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/logstore.
-type OpenFlareNodeObservationFrps struct {
-	ID              uint      `json:"id" gorm:"primaryKey;autoIncrement"`
-	NodeID          string    `json:"node_id" gorm:"index;size:64;not null"`
-	CapturedAt      time.Time `json:"captured_at" gorm:"index"`
-	FrpsConnections int       `json:"frps_connections"`
-	FrpsProxyCount  int       `json:"frps_proxy_count"`
-	FrpsClientCount int       `json:"frps_client_count"`
-	FrpsProxies     string    `json:"frps_proxies" gorm:"type:text"`
-	CreatedAt       time.Time `json:"created_at" gorm:"autoCreateTime"`
-}
-
-// TableName returns the GORM table name.
-func (OpenFlareNodeObservationFrps) TableName() string {
-	return "of_node_obs_frps"
-}
-
 // OpenFlareAccessLogQuery filters access log list queries.
 type OpenFlareAccessLogQuery struct {
 	ID              uint64

@@ -1,84 +1,112 @@
-# 部署 Relay（Tunnel 中继）
+# 部署 Relay（内网穿透中继节点）
 
-TunnelRelay 节点为 OpenFlare 内网穿透体系提供公网中继端点。节点运行 `openflare-relay` 守护控制器与 `frps`（Fast Reverse Proxy Server）中继进程，负责维护公网隧道连接、接收由 Pingora 边缘网关转发的流量，并将其分发给内网中的 OpenFlared 客户端。
+`openflare-relay` 是基于 Rust 与内嵌 `rathole` 引擎构建的高性能公网中继节点程序。它负责终结内网 `openflared` 连接器的 Noise / WebSocket / TCP 加密隧道连接，运行 Relay Gateway（默认端口 `8443`）供 Pingora Edge 转发 L7 流量，并直接监听已分配的 L4 TCP/UDP 服务端口。
 
 ---
 
 ## 前置条件
 
-在部署 TunnelRelay 节点前，需确认以下事项：
+在部署中继节点前，请确认以下环境与网络条件：
 
-1. 节点注册：在 OpenFlare 管理后台「节点管理」中创建类型为 `tunnel_relay` 的节点，获取专属 `agent_token`（或使用系统全局 `discovery_token`）。
-2. 网络端口规划：
-   - `7000` (TCP)：frpc 客户端连接端口（`bindPort`），需允许公网客户端入方向访问。
-   - `8080` (TCP)：HTTP 虚拟主机端口（`vhostHTTPPort`），供 Pingora 边缘网关向 frps 转发流量（通常仅需本地回环或节点间内网连通）。
-   - `17500` (TCP，可选)：frps 内嵌 Web UI 管理端口（需在管理后台开启）。
-3. 软件依赖（仅主机裸机部署需要）：系统需包含 `frps` 二进制文件，或在配置中指定其绝对路径。
+1. **获取引导凭据**：
+   - 在 OpenFlare 控制台进入 **「内网穿透」** 页面，在「中继节点」页签复制 **自动发现命令**（使用全局 `oftok1_` 引导令牌一键注册到默认池），或新建指定中继池的 Relay 记录并复制专属部署命令。
+2. **网络端口规划**：
+   - `7443/tcp`：默认 `rathole` Noise / TCP 加密隧道监听端口（须对需要接入的 `openflared` 公网出向放行）。
+   - `7444/tcp`：默认 `rathole` WebSocket 穿透回退端口（用于在受限网络环境下承载 WebSocket 隧道）。
+   - `8443/tcp`：Relay Gateway 内部转发端口（须向同机或跨机关联的 Pingora Edge 节点放行；若中继同时直接承接 L4 服务，还须按需放行对应的 L4 TCP/UDP 服务端口）。
+3. **可用区与 Edge 共置规划（推荐）**：
+   - 建议为每个中继设置清晰的 `zone_tag`（可用区标签），便于客户端在多中继高可用调度时自动分散故障域。
+   - 若 Relay 与某台 Pingora Edge 部署在同一台主机，可在控制台配置其 `colocated_edge_node_id`，以优先路由本地网关回环流量。
 
 ---
 
-## 配置参数与环境变量
+## Linux 主机部署（推荐）
 
-`openflare-relay` 启动时默认读取当前工作目录下的 `relay.json`，支持通过系统环境变量覆盖全部配置项：
+官方提供独立的一键安装、更新与卸载脚本（基于 `tunnel-v*` 独立发布通道），默认创建非特权系统账号 `openflare-relay` 并托管于 systemd：
 
-| JSON 字段 | 环境变量 | 说明 | 默认值 |
-| --- | --- | --- | --- |
-| `server_url` | `OPENFLARE_SERVER_URL` | OpenFlare Server 控制端接口地址 | 必填 |
-| `agent_token` | `OPENFLARE_AGENT_TOKEN` | 节点专属 Token | 与下者二选一 |
-| `discovery_token` | `OPENFLARE_DISCOVERY_TOKEN` | 自动发现注册 Token | 与上者二选一 |
-| `node_name` | `OPENFLARE_NODE_NAME` | 节点显示名称 | 默认使用系统主机名 |
-| `node_ip` | `OPENFLARE_NODE_IP` | 节点出口/监听 IP | 自动检测公网出口 IP |
-| `frps_path` | `OPENFLARE_FRPS_PATH` | frps 二进制执行文件路径 | `"frps"` |
-| `data_dir` | `OPENFLARE_DATA_DIR` | 运行时数据与生成的 `frps.toml` 存放目录 | `"./data"` |
-| `state_path` | - | 本地状态记录文件路径 | `"{data_dir}/relay-state.json"` |
-| `heartbeat_interval`| - | 向 Server 上报心跳周期（毫秒或 Go Duration） | `10000` (10s) |
-| `request_timeout` | - | 请求 Server 接口的超时时间（毫秒或 Go Duration） | `10000` (10s) |
+### 1. 一键安装
+
+使用控制台生成的引导令牌（`oftok1_...`，已内嵌控制面地址）直接安装并启动 systemd 服务：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-relay.sh | sudo bash -s -- \
+  --token "<OFTOK1_BOOTSTRAP_TOKEN>"
+```
+
+常用可选参数（可通过环境变量或脚本参数传入）：
+
+- `--server-url URL`：使用原始 Token 时显式指定控制面地址（使用 `oftok1_` 引导令牌时可省略）。
+- `--public-addr HOST_OR_IP`：显式声明中继对外通告的公网地址/域名。
+- `--gateway-addr HOST_OR_IP`：显式声明供 Pingora Edge 访问网关的内部/内网地址。
+- `--zone-tag TAG`：指定所属故障域标签（如 `hk-az1`）。
+- `--colocated-edge-node-id ID`：关联同机部署的 Edge 节点 ID。
+- `--transport-port 7443` / `--ws-port 7444` / `--gateway-port 8443`：自定义中继监听端口。
+- `--version tunnel-vX.Y.Z`：锁定安装指定 `tunnel-v*` 版本。
+
+安装脚本会自动将二进制部署至 `/opt/openflare-relay/current`，并将令牌与运行状态以受限权限（目录 `0750` / 状态文件 `0600`）存放于 `/var/lib/openflare-relay`。
+
+### 2. 日常运维、手动更新与卸载
+
+```bash
+# 查看服务状态与实时日志
+sudo systemctl status openflare-relay
+sudo journalctl -u openflare-relay -f
+
+# 手动更新到最新稳定版本或 canary 预发布版本
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-relay.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-relay.sh | sudo bash -s -- canary
+
+# 卸载服务（如需同时清除身份与状态文件，追加 --remove-state）
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/uninstall-openflare-relay.sh | sudo bash -s -- --remove-state
+```
+
+> [!NOTE]
+> 在 systemd 非 root 托管环境中，控制端控制台也可下发双槽位热更新指令（`next → trial → active`），`openflare-relay` 会自动拉取并校验 `SHA256SUMS` 与二进制签名输出后平滑重启升级。
 
 ---
 
 ## Docker 容器部署
 
-官方 Docker 镜像内置了 `openflare-relay` 控制器及 `frps` 二进制运行时：
+官方多架构静态 Alpine 镜像为 `ghcr.io/rain-kl/openflare-relay`，使用 `tunnel-v*` 标签构建（默认 UID/GID `10001` 非 root 运行）：
 
 ```bash
 docker pull ghcr.io/rain-kl/openflare-relay:latest
 docker rm -f openflare-relay 2>/dev/null || true
 
 docker run -d --name openflare-relay --restart unless-stopped \
-  -p 7000:7000 \
-  -p 17500:17500 \
-  -e OPENFLARE_SERVER_URL=https://control.example.com \
-  -e OPENFLARE_AGENT_TOKEN=YOUR_AGENT_TOKEN \
-  -v openflare-relay-data:/app/data \
+  -p 7443:7443 \
+  -p 7444:7444 \
+  -p 8443:8443 \
+  -e OPENFLARE_RELAY_TOKEN="<OFTOK1_BOOTSTRAP_TOKEN>" \
+  -v openflare-relay-data:/var/lib/openflare-relay \
   ghcr.io/rain-kl/openflare-relay:latest
 ```
 
-配置说明：
-- `-p 7000:7000` 映射 frpc 客户端连接中继的核心端口。若在控制端设置了自定义 `relay_bind_port`，需同步调整宿主机端口映射。
-- 内嵌 frps Web 监控面板：若在控制端系统设置开启了中继监控面板（`relay_frps_web_ui_enabled: true`），需将 Web 端口（默认 `17500`）映射至宿主机。Web 界面登录用户名为 `admin`，密码为当前中继节点的 `agent_token`。
+如中继节点需要直接承接额外的 L4 TCP/UDP 转发端口，请在 `docker run` 中补充对应的 `-p` 端口映射或按需使用 `--network host`。
 
 ---
 
-## 运行与验证
+## 命令行与环境变量参考
 
-### 自动化工作流
+| CLI 参数 | 环境变量 | 说明 | 默认值 |
+| :--- | :--- | :--- | :--- |
+| `--token` | `OPENFLARE_RELAY_TOKEN` | 中继专属 Token、自动发现 Token 或 `oftok1_` 引导令牌 | — |
+| `--token-file` | `OPENFLARE_RELAY_TOKEN_FILE` | 从安全文件读取令牌 | — |
+| `--server-url` | `OPENFLARE_SERVER_URL` | OpenFlare Server 地址（使用 `oftok1_` 时可选） | — |
+| `--state-dir` | `OPENFLARE_RELAY_STATE_DIR` | 身份凭据、Noise 密钥与热更新槽位持久化目录 | `/var/lib/openflare-relay` |
+| `--name` | `OPENFLARE_RELAY_NAME` | 注册时显示的中继名称 | 系统主机名 |
+| `--public-addr` | `OPENFLARE_RELAY_PUBLIC_ADDR` | 通告给内网连接器的公网连接地址 | 自动探测 |
+| `--gateway-addr` | `OPENFLARE_RELAY_GATEWAY_ADDR` | 通告给 Pingora Edge 的网关连接地址 | 回落 `public_addr` |
+| `--zone-tag` | `OPENFLARE_RELAY_ZONE_TAG` | 故障域标签 | 空 |
+| `--colocated-edge-node-id` | `OPENFLARE_RELAY_COLOCATED_EDGE_NODE_ID` | 同机共置的 Edge 节点 ID | 空 |
+| `--transport-port` | `OPENFLARE_RELAY_TRANSPORT_PORT` | Noise/TCP 隧道监听端口 | `7443` |
+| `--ws-port` | `OPENFLARE_RELAY_WS_PORT` | WebSocket 隧道回退监听端口 | `7444` |
+| `--gateway-port` | `OPENFLARE_RELAY_GATEWAY_PORT` | Relay HTTP/WS 网关监听端口 | `8443` |
 
-Relay 启动后按以下步骤自动化运行：
-1. 向 Server 发送 HTTP 心跳完成节点注册与状态上线。
-2. 从 Server 获取中继基础配置（包含 `bindPort`、`vhostHTTPPort` 及动态生成的隧道通信凭证 `auth_token`）。
-3. 在本地数据目录渲染生成 `data/frps.toml` 配置文件。
-4. 启动并托管子进程 `frps -c data/frps.toml`。
-5. 若 `frps` 意外退出，Relay 以指数退避策略（初始 1 秒，最大 60 秒）自动重启子进程。
+---
 
-### 检查运行日志
+## 状态验证
 
-```bash
-# 查看容器运行日志
-docker logs -f openflare-relay
-```
-
-### 控制台状态确认
-
-登录 OpenFlare 管理后台，进入「节点管理」页面：
-- 确认该 TunnelRelay 节点状态标记为在线。
-- 确认节点类型为中继节点，且 frps 运行状态显示为正常 (Healthy)。
+部署启动后，进入控制台 **「内网穿透 → 中继节点」** 页签并点开中继详情：
+- 确认有效状态为 **在线（Online）**、WebSocket 控制流处于已连接状态，且已上报 Noise 公钥与中继版本号。
+- 若存在已连接的隧道，可在「拓扑概览」中核对各连接器的接入传输协议（Noise / WebSocket / TCP）与探测延迟。

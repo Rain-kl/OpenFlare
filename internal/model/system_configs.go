@@ -38,8 +38,13 @@ const (
 	ConfigKeyLoginSessionTTLHours             = "login_session_ttl_hours"             // 登录会话过期时间 (小时，0表示浏览器关闭后自动退出登录，-1表示永不过期)
 	ConfigKeyUpdateUpstreamRepository         = "update_upstream_repository"          // GitHub Actions Release 上游仓库
 	ConfigKeyStorageConfig                    = "storage_config"                      // 文件存储配置 (JSON)
-	ConfigKeyRelayFRPSWebUIEnabled            = "relay_frps_web_ui_enabled"           // 是否启用 FRPS 内置 Web 界面
-	ConfigKeyRelayFRPSWebUIPort               = "relay_frps_web_ui_port"              // FRPS 内置 Web 界面端口
+
+	// 隧道与中继配置
+	ConfigKeyRelayDiscoveryToken     = "relay_discovery_token"     //nolint:gosec // false positive: config key name. 中继节点自动发现注册令牌
+	ConfigKeyTunnelUpdateRepo        = "tunnel_update_repo"        // 隧道组件（openflare-relay / openflared）更新仓库
+	ConfigKeyTunnelHeartbeatInterval = "tunnel_heartbeat_interval" // 隧道心跳间隔（毫秒）
+	ConfigKeyTunnelLeaseTTLSeconds   = "tunnel_lease_ttl_seconds"  // 中继连接租约有效时间（秒）
+	ConfigKeyTunnelDefaultHARelays   = "tunnel_default_ha_relays"  // 默认并行挂载的冗余中继节点数
 
 	// OpenFlare 业务配置（从 of_options 迁移）
 	ConfigKeyAgentDiscoveryToken          = "agent_discovery_token"           //nolint:gosec // false positive: config key name. Agent 发现令牌

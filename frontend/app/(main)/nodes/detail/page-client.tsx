@@ -13,8 +13,6 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { NodeService } from '@/lib/services/openflare';
 
 import { EdgeNodeDetail } from '../components/edge-node-detail';
-import { RelayNodeDetail } from '../components/relay-node-detail';
-import { TunnelNodeDetail } from '../components/tunnel-node-detail';
 import { getErrorMessage } from '../components/node-utils';
 
 const nodesQueryKey = ['openflare', 'nodes'];
@@ -82,14 +80,6 @@ export function NodeDetailPageClient() {
         <EmptyStateWithBorder icon={Server} description={t('notFound')} />
       </div>
     );
-  }
-
-  if (node.node_type === 'tunnel_relay') {
-    return <RelayNodeDetail node={node} />;
-  }
-
-  if (node.node_type === 'tunnel_client') {
-    return <TunnelNodeDetail node={node} />;
   }
 
   return <EdgeNodeDetail node={node} />;

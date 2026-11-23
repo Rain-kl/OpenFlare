@@ -1,4 +1,5 @@
 pub(crate) mod performance;
+pub(crate) mod tunnel_routing;
 
 use crate::{
     config::{self, SnapshotStore},

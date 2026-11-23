@@ -350,6 +350,8 @@
     "tunnelProtocol": "Внутренний протокол обслуживания",
     "tunnelAddress": "Адрес внутреннего сервиса",
     "tunnelAddressHint": "Например: 127.0.0.1:8080 или 192.168.1.10:80.",
+    "tunnelInsecureSkipVerify": "Пропустить проверку TLS-сертификата источника",
+    "tunnelInsecureSkipVerifyDesc": "Включайте только для внутренних HTTPS-источников с самоподписанными или частными сертификатами.",
     "selectPagesProject": "Выберите проект Pages",
     "pagesProjectHint": "Показаны только включенные проекты Pages с активным развертыванием.",
     "enableSite": "Включить сайт",

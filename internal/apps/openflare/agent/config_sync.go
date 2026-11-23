@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tunnel"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/openflare/performance"
@@ -26,6 +27,7 @@ import (
 const (
 	snapshotKey            = "sites.v1"
 	performanceKey         = "performance.v1"
+	tunnelRoutingKey       = "tunnel-routing.v1"
 	ipGroupPrefix          = "waf.ip-group.v1/"
 	maxInlineConfigBytes   = 8 << 10
 	maxManifestInlineBytes = 32 << 10
@@ -53,6 +55,7 @@ type configProvider struct {
 var configProviders = []configProvider{
 	{key: performanceKey, describe: describePerformancePolicy},
 	{key: snapshotKey, describe: describeSiteSnapshot},
+	{key: tunnelRoutingKey, describe: describeTunnelRouting},
 	{key: ipGroupPrefix, prefix: true, describe: describeIPGroups},
 }
 
@@ -185,4 +188,16 @@ func describeIPGroups(ctx context.Context, _ *model.OpenFlareNode) (map[string]c
 		resources[ipGroupPrefix+strconv.FormatUint(uint64(group.ID), 10)] = resource
 	}
 	return resources, nil
+}
+
+func describeTunnelRouting(ctx context.Context, node *model.OpenFlareNode) (map[string]configResource, error) {
+	snapshot, err := tunnel.BuildEdgeTunnelRouting(ctx, node)
+	if err != nil {
+		return nil, err
+	}
+	resource, err := inlineResource(snapshot, strconv.FormatInt(snapshot.GeneratedAtUnix, 10))
+	if err != nil {
+		return nil, err
+	}
+	return map[string]configResource{tunnelRoutingKey: resource}, nil
 }

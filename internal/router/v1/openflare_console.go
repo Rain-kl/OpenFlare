@@ -19,6 +19,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pow"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/proxy_route"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tunnel"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/waf"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/zone"
 	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
@@ -37,6 +38,7 @@ func registerOpenFlareConsoleRoutes(apiV1Router *gin.RouterGroup) {
 	registerOpenFlareSystemRoutes(group)
 	registerOpenFlareTrafficRoutes(group)
 	registerOpenFlareNodeRoutes(group)
+	registerOpenFlareTunnelConsoleRoutes(group)
 	registerOpenFlareSecurityRoutes(group)
 	registerOpenFlareTLSRoutes(group)
 	registerOpenFlareCloudflareRoutes(group)
@@ -278,5 +280,57 @@ func registerOpenFlarePagesRoutes(apiGroup *gin.RouterGroup) {
 		pagesRoute.POST("/:id/deployments/:deployment_id/activate", pages.ActivateDeploymentHandler)
 		pagesRoute.POST("/:id/deployments/:deployment_id/delete", pages.DeleteDeploymentHandler)
 		pagesRoute.GET("/deployments/:deployment_id/files", pages.ListDeploymentFilesHandler)
+	}
+}
+
+func registerOpenFlareTunnelConsoleRoutes(apiGroup *gin.RouterGroup) {
+	poolRoute := apiGroup.Group("/tunnel-pools")
+	poolRoute.Use(openFlareAdminMiddlewares()...)
+	{
+		httpx.RegisterCollection(poolRoute, "GET", tunnel.ListPoolsHandler)
+		poolRoute.GET("/:id", tunnel.GetPoolHandler)
+		httpx.RegisterCollection(poolRoute, "POST", tunnel.CreatePoolHandler)
+		poolRoute.POST("/:id/update", tunnel.UpdatePoolHandler)
+		poolRoute.POST("/:id/delete", tunnel.DeletePoolHandler)
+	}
+
+	relayRoute := apiGroup.Group("/tunnel-relays")
+	relayRoute.Use(openFlareAdminMiddlewares()...)
+	{
+		httpx.RegisterCollection(relayRoute, "GET", tunnel.ListRelaysHandler)
+		httpx.RegisterCollection(relayRoute, "POST", tunnel.CreateRelayHandler)
+		relayRoute.GET("/bootstrap-token", tunnel.GetRelayBootstrapTokenHandler)
+		relayRoute.POST("/bootstrap-token/rotate", tunnel.RotateRelayBootstrapTokenHandler)
+		relayRoute.GET("/release", tunnel.GetTunnelReleaseHandler)
+		relayRoute.GET("/:id", tunnel.GetRelayHandler)
+		relayRoute.GET("/:id/deploy", tunnel.GetRelayDeployHandler)
+		relayRoute.POST("/:id/update", tunnel.UpdateRelayHandler)
+		relayRoute.POST("/:id/delete", tunnel.DeleteRelayHandler)
+		relayRoute.POST("/:id/rotate-token", tunnel.RotateRelayTokenHandler)
+		relayRoute.POST("/:id/drain", tunnel.SetRelayDrainingHandler)
+		relayRoute.POST("/:id/quarantine", tunnel.QuarantineRelayHandler)
+		relayRoute.POST("/:id/unquarantine", tunnel.UnquarantineRelayHandler)
+		relayRoute.POST("/:id/update-binary", tunnel.RequestRelayBinaryUpdateHandler)
+	}
+
+	tunnelRoute := apiGroup.Group("/tunnels")
+	tunnelRoute.Use(openFlareAdminMiddlewares()...)
+	{
+		httpx.RegisterCollection(tunnelRoute, "GET", tunnel.ListTunnelsHandler)
+		httpx.RegisterCollection(tunnelRoute, "POST", tunnel.CreateTunnelHandler)
+		tunnelRoute.GET("/topology", tunnel.GetTopologyHandler)
+		tunnelRoute.GET("/release", tunnel.GetTunnelReleaseHandler)
+		tunnelRoute.GET("/:id", tunnel.GetTunnelHandler)
+		tunnelRoute.GET("/:id/deploy", tunnel.GetTunnelDeployHandler)
+		tunnelRoute.POST("/:id/update", tunnel.UpdateTunnelHandler)
+		tunnelRoute.POST("/:id/delete", tunnel.DeleteTunnelHandler)
+		tunnelRoute.POST("/:id/rotate-token", tunnel.RotateTunnelTokenHandler)
+		tunnelRoute.POST("/:id/quarantine", tunnel.QuarantineTunnelHandler)
+		tunnelRoute.POST("/:id/unquarantine", tunnel.UnquarantineTunnelHandler)
+		tunnelRoute.POST("/:id/update-binary", tunnel.RequestTunnelBinaryUpdateHandler)
+		tunnelRoute.POST("/:id/connectors/:connector_id/revoke", tunnel.RevokeConnectorHandler)
+		tunnelRoute.POST("/:id/services", tunnel.CreateTunnelServiceHandler)
+		tunnelRoute.POST("/:id/services/:service_id/update", tunnel.UpdateTunnelServiceHandler)
+		tunnelRoute.POST("/:id/services/:service_id/delete", tunnel.DeleteTunnelServiceHandler)
 	}
 }

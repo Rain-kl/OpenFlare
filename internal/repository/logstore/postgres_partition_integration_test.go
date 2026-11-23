@@ -502,8 +502,6 @@ func TestBatchInsertGeneratesIDsPostgres(t *testing.T) {
 		postgresUserAccessLogsDDL,
 		postgresMetricSnapshotsDDL,
 		postgresEdgeHealthDDL,
-		postgresObsFrpsDDL,
-		postgresObsFrpcDDL,
 	} {
 		if err := gdb.Exec(ddl).Error; err != nil {
 			t.Fatalf("create table: %v", err)
@@ -556,28 +554,6 @@ func TestBatchInsertGeneratesIDsPostgres(t *testing.T) {
 		t.Fatalf("edge health ids not generated: %+v", edgeRows)
 	}
 
-	frpsRows := []analyticsmodel.NodeObsFrps{
-		{NodeID: "n1", CapturedAt: now, FrpsConnections: 1},
-		{NodeID: "n2", CapturedAt: now, FrpsConnections: 2},
-	}
-	if err := store.BatchInsertNodeObsFrps(ctx, frpsRows); err != nil {
-		t.Fatalf("insert obs frps with zero ids: %v", err)
-	}
-	if frpsRows[0].ID == 0 || frpsRows[1].ID == 0 || frpsRows[0].ID == frpsRows[1].ID {
-		t.Fatalf("obs frps ids not generated: %+v", frpsRows)
-	}
-
-	frpcRows := []analyticsmodel.NodeObsFrpc{
-		{NodeID: "n1", CapturedAt: now, TunnelStatus: "online"},
-		{NodeID: "n2", CapturedAt: now, TunnelStatus: "online"},
-	}
-	if err := store.BatchInsertNodeObsFrpc(ctx, frpcRows); err != nil {
-		t.Fatalf("insert obs frpc with zero ids: %v", err)
-	}
-	if frpcRows[0].ID == 0 || frpcRows[1].ID == 0 || frpcRows[0].ID == frpcRows[1].ID {
-		t.Fatalf("obs frpc ids not generated: %+v", frpcRows)
-	}
-
 	userRows := []analyticsmodel.UserAccessLog{
 		{UserID: 101, Path: "/a", CreatedAt: now},
 		{UserID: 102, Path: "/b", CreatedAt: now},
@@ -597,8 +573,6 @@ func TestBatchInsertGeneratesIDsPostgres(t *testing.T) {
 		{"of_node_access_logs", &analyticsmodel.NodeAccessLog{}, 2},
 		{"of_node_metric_snapshots", &analyticsmodel.NodeMetricSnapshot{}, 2},
 		{"of_node_edge_health", &analyticsmodel.NodeEdgeHealth{}, 2},
-		{"of_node_obs_frps", &analyticsmodel.NodeObsFrps{}, 2},
-		{"of_node_obs_frpc", &analyticsmodel.NodeObsFrpc{}, 2},
 		{"w_user_access_logs", &analyticsmodel.UserAccessLog{}, 2},
 	}
 	for _, e := range expect {
@@ -650,7 +624,7 @@ CREATE TABLE IF NOT EXISTS w_user_access_logs (
     PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at)`
 
-// postgresMetricSnapshotsDDL / postgresEdgeHealthDDL / postgresObsFrpsDDL / postgresObsFrpcDDL
+// postgresMetricSnapshotsDDL / postgresEdgeHealthDDL
 // 与 goose/postgres/202608080001_create_log_tables.sql 对齐（普通表，无分区）。
 const postgresMetricSnapshotsDDL = `
 CREATE TABLE IF NOT EXISTS of_node_metric_snapshots (
@@ -677,26 +651,4 @@ CREATE TABLE IF NOT EXISTS of_node_edge_health (
     status      VARCHAR(64) NOT NULL DEFAULT '',
     connections BIGINT NOT NULL DEFAULT 0,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-)`
-
-const postgresObsFrpsDDL = `
-CREATE TABLE IF NOT EXISTS of_node_obs_frps (
-    id                BIGINT NOT NULL PRIMARY KEY,
-    node_id           VARCHAR(64) NOT NULL DEFAULT '',
-    captured_at       TIMESTAMPTZ NOT NULL,
-    frps_connections  INTEGER NOT NULL DEFAULT 0,
-    frps_proxy_count  INTEGER NOT NULL DEFAULT 0,
-    frps_client_count INTEGER NOT NULL DEFAULT 0,
-    frps_proxies      TEXT NOT NULL DEFAULT '',
-    created_at        TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-)`
-
-const postgresObsFrpcDDL = `
-CREATE TABLE IF NOT EXISTS of_node_obs_frpc (
-    id                     BIGINT NOT NULL PRIMARY KEY,
-    node_id                VARCHAR(64) NOT NULL DEFAULT '',
-    captured_at            TIMESTAMPTZ NOT NULL,
-    tunnel_status          VARCHAR(16) NOT NULL DEFAULT '',
-    connected_relays_count INTEGER NOT NULL DEFAULT 0,
-    created_at             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`

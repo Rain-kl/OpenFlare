@@ -33,8 +33,6 @@ const (
 	openrestyStatusUnhealthy = "unhealthy"
 	openrestyStatusUnknown   = "unknown"
 	githubReleasesAPIBase    = "https://api.github.com/repos/%s/releases"
-	nodeTypeTunnelRelay      = "tunnel_relay"
-	nodeTypeTunnelClient     = "tunnel_client"
 	nodeTypeEdgeNode         = "edge_node"
 	enginePingora            = "pingora"
 
@@ -87,21 +85,7 @@ func newServerNodeID() (string, error) {
 }
 
 func normalizeNodeType(raw string) string {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case nodeTypeTunnelRelay:
-		return nodeTypeTunnelRelay
-	case nodeTypeTunnelClient:
-		return nodeTypeTunnelClient
-	default:
-		return nodeTypeEdgeNode
-	}
-}
-
-func normalizeRelayPort(port int, defaultPort int) int {
-	if port <= 0 || port > 65535 {
-		return defaultPort
-	}
-	return port
+	return nodeTypeEdgeNode
 }
 
 func normalizeReleaseChannel(channel string) releaseChannel {
@@ -229,16 +213,6 @@ func nodeViewLastSeenAt(node *model.OpenFlareNode) any {
 	if node == nil {
 		return time.Time{}
 	}
-	nodeType := strings.TrimSpace(node.NodeType)
-	if nodeType == "" {
-		nodeType = nodeTypeEdgeNode
-	}
-	if nodeType == nodeTypeTunnelRelay && ofws.IsRelayConnected(node.NodeID) {
-		return ofws.RelayWSConnectedLastSeenValue
-	}
-	if nodeType == nodeTypeTunnelClient && ofws.IsFlaredConnected(node.NodeID) {
-		return ofws.FlaredWSConnectedLastSeenValue
-	}
 	if ofws.IsAgentConnected(node.NodeID) {
 		return ofws.AgentWSConnectedLastSeenValue
 	}
@@ -282,13 +256,6 @@ func buildNodeView(node *model.OpenFlareNode) *View {
 		EdgeUpdateSupported:       node.HasCapability(model.EdgeUpdateCapability),
 		UpdateRequested:           node.UpdateRequested,
 		NodeType:                  node.NodeType,
-		RelayBindPort:             node.RelayBindPort,
-		RelayVhostHTTPPort:        node.RelayVhostHTTPPort,
-		RelayAgentAccessAddr:      node.RelayAgentAccessAddr,
-		RelayClientAccessAddr:     node.RelayClientAccessAddr,
-		RelayClientProxyURL:       node.RelayClientProxyURL,
-		RelayStatus:               node.RelayStatus,
-		RelayWebServerEnabled:     node.RelayWebServerEnabled,
 		QuarantinedAt:             node.QuarantinedAt,
 		QuarantineReason:          strings.TrimSpace(node.QuarantineReason),
 		IsQuarantined:             node.IsQuarantined(),
@@ -363,7 +330,7 @@ func fetchLatestStableGitHubRelease(ctx context.Context, repo string) (*githubRe
 		return nil, fmt.Errorf("GitHub returned an unexpected status: %s", resp.Status)
 	}
 	release, err := decodeGitHubRelease(resp.Body)
-	if err != nil || !strings.HasPrefix(release.TagName, "edge-v") {
+	if err != nil || (!strings.HasPrefix(release.TagName, "edge-v") && !strings.HasPrefix(release.TagName, "tunnel-v")) {
 		return release, err
 	}
 	return fetchGitHubReleaseFromList(ctx, repo, false)
@@ -396,7 +363,7 @@ func fetchGitHubReleaseFromList(ctx context.Context, repo string, prerelease boo
 		return nil, errors.New("failed to parse preview version information")
 	}
 	for _, release := range releases {
-		if release.Draft || release.Prerelease != prerelease || strings.HasPrefix(release.TagName, "edge-v") {
+		if release.Draft || release.Prerelease != prerelease || strings.HasPrefix(release.TagName, "edge-v") || strings.HasPrefix(release.TagName, "tunnel-v") {
 			continue
 		}
 		releaseCopy := release

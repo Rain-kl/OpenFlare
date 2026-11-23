@@ -350,6 +350,8 @@
     "tunnelProtocol": "内网服务协议",
     "tunnelAddress": "内网服务地址",
     "tunnelAddressHint": "例如: 127.0.0.1:8080 或 192.168.1.10:80",
+    "tunnelInsecureSkipVerify": "跳过源站 TLS 证书校验",
+    "tunnelInsecureSkipVerifyDesc": "仅在使用自签名证书或内网私有证书的 HTTPS 源站场景启用。",
     "selectPagesProject": "选择 Pages 项目",
     "pagesProjectHint": "仅显示已启用且已有激活部署的 Pages 项目。",
     "enableSite": "启用站点",

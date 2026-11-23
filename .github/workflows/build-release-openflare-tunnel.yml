@@ -1,0 +1,181 @@
+name: Build Release (OpenFlare Tunnel)
+
+on:
+  push:
+    tags: ["tunnel-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Tunnel release tag to build and publish, for example tunnel-v0.1.0"
+        required: true
+        type: string
+
+concurrency:
+  group: tunnel-release-${{ github.ref }}-${{ inputs.version || 'push' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_MANIFEST: tunnel/Cargo.toml
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  prepare:
+    name: Resolve Tunnel release metadata
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      clean_version: ${{ steps.meta.outputs.clean_version }}
+      source_sha: ${{ steps.meta.outputs.source_sha }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Set release metadata
+        id: meta
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          input_version="${INPUT_VERSION//[[:space:]]/}"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version="$GITHUB_REF_NAME"
+            source_sha="$(git rev-parse HEAD)"
+          elif [[ -n "$input_version" ]]; then
+            version="$input_version"
+            source_sha="$(git rev-parse --verify "refs/tags/${version}^{commit}" 2>/dev/null || git rev-parse HEAD)"
+          else
+            echo "workflow_dispatch requires an explicit version input" >&2
+            exit 1
+          fi
+
+          [[ "$version" =~ ^tunnel-v[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "invalid Tunnel version tag: $version (expected tunnel-vX.Y.Z)" >&2
+            exit 1
+          }
+
+          clean_version="${version#tunnel-v}"
+          prerelease=false
+          if [[ "$clean_version" == *-* ]]; then
+            prerelease=true
+          fi
+
+          {
+            echo "version=$version"
+            echo "clean_version=$clean_version"
+            echo "source_sha=$source_sha"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build Tunnel (${{ matrix.arch }})
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Tunnel dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tunnel
+          shared-key: openflare-tunnel-release-${{ matrix.target }}
+          cache-bin: false
+
+      - name: Run Tunnel tests
+        env:
+          TARGET: ${{ matrix.target }}
+        run: cargo test --locked --manifest-path "$CARGO_MANIFEST" --target "$TARGET"
+
+      - name: Compile and package Tunnel binaries
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          CLEAN_VERSION: ${{ needs.prepare.outputs.clean_version }}
+          ARCH: ${{ matrix.arch }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          export OPENFLARE_TUNNEL_VERSION="$CLEAN_VERSION"
+          cargo build --locked --release --manifest-path "$CARGO_MANIFEST" --target "$TARGET"
+
+          relay_bin="tunnel/target/${TARGET}/release/openflare-relay"
+          flared_bin="tunnel/target/${TARGET}/release/openflared"
+
+          relay_ver="$("$relay_bin" --version)"
+          flared_ver="$("$flared_bin" --version)"
+          [[ "$relay_ver" == "openflare-relay $CLEAN_VERSION" ]] || {
+            echo "unexpected openflare-relay version: $relay_ver" >&2
+            exit 1
+          }
+          [[ "$flared_ver" == "openflared $CLEAN_VERSION" ]] || {
+            echo "unexpected openflared version: $flared_ver" >&2
+            exit 1
+          }
+
+          pkg_name="openflare-tunnel_${VERSION}_linux_${ARCH}"
+          staging="dist/${pkg_name}"
+          mkdir -p "${staging}/scripts"
+          install -m 0755 "$relay_bin" "${staging}/openflare-relay"
+          install -m 0755 "$flared_bin" "${staging}/openflared"
+          cp LICENSE "${staging}/"
+          cp scripts/{install,update,uninstall}-{openflare-relay,openflared}.sh "${staging}/scripts/"
+          printf '%s\n' "$VERSION" > "${staging}/VERSION"
+          (cd "$staging" && sha256sum openflare-relay openflared > SHA256SUMS)
+          tar -C dist -czf "dist/${pkg_name}.tar.gz" "$pkg_name"
+
+      - name: Upload packaged archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: tunnel-archive-${{ matrix.arch }}
+          path: dist/openflare-tunnel_${{ needs.prepare.outputs.version }}_linux_${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish Tunnel Release
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download packaged archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: tunnel-archive-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.version }}
+          target_commitish: ${{ needs.prepare.outputs.source_sha }}
+          prerelease: ${{ needs.prepare.outputs.prerelease }}
+          make_latest: "false"
+          name: OpenFlare Tunnel ${{ needs.prepare.outputs.version }}
+          fail_on_unmatched_files: true
+          files: |
+            dist/openflare-tunnel_${{ needs.prepare.outputs.version }}_linux_amd64.tar.gz
+            dist/openflare-tunnel_${{ needs.prepare.outputs.version }}_linux_arm64.tar.gz

@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -110,7 +109,7 @@ func (s *clickhouseLogStore) ListMetricSnapshotsForMigration(ctx context.Context
 }
 
 // chObsRow 迁移读取共用的双字段观测行（字符串状态 + 数值计数）：
-// edge_health（status/connections）与 obs_frpc（tunnel_status/connected_relays_count）同形状。
+// edge_health（status/connections）。
 type chObsRow struct {
 	ID         uint64
 	NodeID     string
@@ -118,16 +117,6 @@ type chObsRow struct {
 	Status     string
 	Count      int64
 	CreatedAt  time.Time
-}
-
-func countToInt32(v int64) int32 {
-	if v > math.MaxInt32 {
-		return math.MaxInt32
-	}
-	if v < math.MinInt32 {
-		return math.MinInt32
-	}
-	return int32(v)
 }
 
 func scanChObsRow(rows driver.Rows) ([]chObsRow, error) {
@@ -163,30 +152,6 @@ func (s *clickhouseLogStore) ListEdgeHealthForMigration(ctx context.Context, aft
 	out := make([]analyticsmodel.NodeEdgeHealth, len(rows))
 	for i, r := range rows {
 		out[i] = analyticsmodel.NodeEdgeHealth{ID: r.ID, NodeID: r.NodeID, CapturedAt: r.CapturedAt, Status: r.Status, Connections: r.Count, CreatedAt: r.CreatedAt}
-	}
-	return out, nil
-}
-
-// ListNodeObsFrpsForMigration 按 id 升序分页读取（迁移复制用）。
-func (s *clickhouseLogStore) ListNodeObsFrpsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeObsFrps, error) {
-	return chListForMigration(ctx, afterID, limit,
-		analyticsmodel.NodeObsFrps{}.TableName(),
-		analyticsmodel.NodeObsFrps{}.InsertColumns(),
-		scanNodeObsFrpsRows)
-}
-
-// ListNodeObsFrpcForMigration 按 id 升序分页读取（迁移复制用）。
-func (s *clickhouseLogStore) ListNodeObsFrpcForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeObsFrpc, error) {
-	rows, err := chListForMigration(ctx, afterID, limit,
-		analyticsmodel.NodeObsFrpc{}.TableName(),
-		analyticsmodel.NodeObsFrpc{}.InsertColumns(),
-		scanChObsRow)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]analyticsmodel.NodeObsFrpc, len(rows))
-	for i, r := range rows {
-		out[i] = analyticsmodel.NodeObsFrpc{ID: r.ID, NodeID: r.NodeID, CapturedAt: r.CapturedAt, TunnelStatus: r.Status, ConnectedRelaysCount: countToInt32(r.Count), CreatedAt: r.CreatedAt}
 	}
 	return out, nil
 }

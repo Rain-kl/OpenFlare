@@ -27,11 +27,10 @@ type TrafficMetrics struct {
 
 // NodeMetrics combines a safe node summary with operational metrics.
 type NodeMetrics struct {
-	Node           NodeSummary                             `json:"node"`
-	Snapshots      []*observability.NodeMetricSnapshotView `json:"metric_snapshots"`
-	Analytics      observability.NodeAnalytics             `json:"analytics"`
-	Trends         observability.NodeTrends                `json:"trends"`
-	RelayDashboard *observability.RelayDashboardSnapshot   `json:"relay_dashboard,omitempty"`
+	Node      NodeSummary                             `json:"node"`
+	Snapshots []*observability.NodeMetricSnapshotView `json:"metric_snapshots"`
+	Analytics observability.NodeAnalytics             `json:"analytics"`
+	Trends    observability.NodeTrends                `json:"trends"`
 }
 
 func validateHostFilter(input map[string]string) *operationError {
@@ -208,5 +207,5 @@ func nodeMetrics(ctx context.Context, _ identity, input map[string]string) (any,
 	if err != nil {
 		return nil, resourceFailure(ctx, "read node metrics", err)
 	}
-	return NodeMetrics{Node: summarizeNode(nodeView), Snapshots: result.MetricSnapshots, Analytics: result.Analytics, Trends: result.Trends, RelayDashboard: result.RelayDashboard}, nil
+	return NodeMetrics{Node: summarizeNode(nodeView), Snapshots: result.MetricSnapshots, Analytics: result.Analytics, Trends: result.Trends}, nil
 }

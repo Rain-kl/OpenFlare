@@ -2,7 +2,7 @@ import type { XYPosition } from '@xyflow/react';
 
 export type ReleaseChannel = 'stable' | 'preview';
 
-export type NodeType = 'edge_node' | 'tunnel_relay' | 'tunnel_client';
+export type NodeType = 'edge_node';
 
 export type NodeStatus = 'online' | 'offline' | 'pending' | 'quarantined';
 
@@ -17,16 +17,6 @@ export interface NodeItem {
   name: string;
   ip: string;
   ip_manual_override: boolean;
-  relay_bind_port: number;
-  relay_vhost_http_port: number;
-  relay_client_access_addr: string;
-  relay_agent_access_addr: string;
-  relay_client_proxy_url: string;
-  relay_auth_token: string;
-  relay_status: string;
-  relay_web_server_enabled: boolean;
-  relay_frps_connections: number;
-  relay_frps_proxy_count: number;
   geo_name: string;
   geo_latitude?: number | null;
   geo_longitude?: number | null;
@@ -114,12 +104,6 @@ export interface NodeMutationPayload {
   name: string;
   ip: string;
   ip_manual_override: boolean;
-  relay_bind_port?: number;
-  relay_vhost_http_port?: number;
-  relay_client_access_addr?: string;
-  relay_agent_access_addr?: string;
-  relay_client_proxy_url?: string;
-  relay_web_server_enabled?: boolean;
   auto_update_enabled: boolean;
   geo_name: string;
   geo_latitude?: number | null;
@@ -301,10 +285,10 @@ export interface ProxyRouteItem {
   basic_auth_username: string;
   basic_auth_password: string;
   upstream_type: 'direct' | 'tunnel' | 'pages';
-  tunnel_node_id?: number | null;
   tunnel_id?: number | null;
   tunnel_target_addr?: string;
   tunnel_target_protocol?: string;
+  tunnel_options_json?: string;
   pages_project_id?: number | null;
   created_at: string;
   updated_at: string;
@@ -338,10 +322,10 @@ export interface ProxyRouteMutationPayload {
   basic_auth_username?: string;
   basic_auth_password?: string;
   upstream_type?: 'direct' | 'tunnel' | 'pages';
-  tunnel_node_id?: number | null;
   tunnel_id?: number | null;
   tunnel_target_addr?: string;
   tunnel_target_protocol?: string;
+  tunnel_options_json?: string;
   pages_project_id?: number | null;
 }
 
@@ -1527,4 +1511,297 @@ export interface DnsAccountMutationPayload {
   name: string;
   type: string;
   authorization: string;
+}
+
+// ==================== Tunnel / Rathole ====================
+
+export type TunnelTransport = 'auto' | 'noise' | 'websocket' | 'tls' | 'tcp';
+
+export interface TunnelPoolInput {
+  pool_key: string;
+  name: string;
+  description?: string;
+  region?: string;
+  is_default?: boolean;
+  routing_policy?: Record<string, unknown>;
+}
+
+export interface TunnelPoolView {
+  id: number;
+  pool_key: string;
+  name: string;
+  description: string;
+  region: string;
+  is_default: boolean;
+  routing_policy: Record<string, unknown>;
+  relay_count: number;
+  tunnel_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TunnelRelayInput {
+  pool_id?: number;
+  pool_key?: string;
+  name: string;
+  public_addr: string;
+  ip_manual_override?: boolean;
+  transport_port?: number;
+  ws_port?: number;
+  gateway_addr?: string;
+  gateway_port?: number;
+  gateway_tls?: boolean;
+  supported_transports?: string[];
+  geo_name?: string;
+  geo_latitude?: number | null;
+  geo_longitude?: number | null;
+  geo_manual_override?: boolean;
+  zone_tag?: string;
+  colocated_edge_node_id?: string;
+  weight?: number;
+  max_tunnels?: number;
+  auto_update_enabled?: boolean;
+  update_channel?: ReleaseChannel | '';
+  update_tag?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TunnelRelayDrainInput {
+  draining: boolean;
+}
+
+export interface TunnelBinaryUpdateInput {
+  channel?: ReleaseChannel | '';
+  tag_name?: string;
+}
+
+export interface TunnelRelayView {
+  id: number;
+  relay_id: string;
+  pool_id: number;
+  pool_key: string;
+  name: string;
+  public_addr: string;
+  ip_manual_override: boolean;
+  transport_port: number;
+  ws_port: number;
+  gateway_addr: string;
+  gateway_port: number;
+  gateway_tls: boolean;
+  supported_transports: string[];
+  noise_public_key: string;
+  geo_name: string;
+  geo_latitude?: number | null;
+  geo_longitude?: number | null;
+  geo_manual_override: boolean;
+  zone_tag: string;
+  colocated_edge_node_id: string;
+  weight: number;
+  max_tunnels: number;
+  draining: boolean;
+  status: string;
+  effective_status: string;
+  ws_connected: boolean;
+  runtime_status: string;
+  active_connectors: number;
+  active_streams: number;
+  cpu_usage_percent: number;
+  memory_usage_percent: number;
+  version: string;
+  engine_version: string;
+  contract_version: number;
+  capabilities: string[];
+  auto_update_enabled: boolean;
+  update_requested: boolean;
+  update_channel: string;
+  update_tag: string;
+  last_seen_at?: string | null;
+  last_error: string;
+  quarantined_at?: string | null;
+  quarantine_reason: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TunnelRelayDeployView {
+  relay: TunnelRelayView;
+  access_token: string;
+  bootstrap_token: string;
+  server_url: string;
+  deploy_command: string;
+}
+
+export interface TunnelRelayBootstrapView {
+  discovery_token: string;
+  bootstrap_token: string;
+  server_url: string;
+  deploy_command: string;
+}
+
+export interface TunnelInput {
+  name: string;
+  description?: string;
+  pool_id?: number;
+  pool_key?: string;
+  ha_relay_count?: number;
+  preferred_transport?: string;
+  fallback_transports?: string[];
+  client_proxy_url?: string;
+  allowed_target_cidrs?: string[];
+  blocked_target_cidrs?: string[];
+  max_connectors?: number;
+  enabled?: boolean;
+  auto_update_enabled?: boolean;
+  update_channel?: ReleaseChannel | '';
+  update_tag?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TunnelServiceInput {
+  name: string;
+  service_type: 'tcp' | 'udp';
+  relay_id: number;
+  listen_port: number;
+  target_addr: string;
+  enabled?: boolean;
+  options?: Record<string, unknown>;
+}
+
+export interface TunnelConnectedRelayReport {
+  relay_id: number;
+  relay_public_id?: string;
+  service_name: string;
+  transport: string;
+  state: string;
+  rtt_ms: number;
+  active_streams: number;
+}
+
+export interface TunnelConnectorView {
+  id: number;
+  connector_id: string;
+  tunnel_id: number;
+  hostname: string;
+  os_arch: string;
+  public_ip: string;
+  version: string;
+  engine_version: string;
+  contract_version: number;
+  capabilities: string[];
+  applied_revision: number;
+  status: string;
+  effective_status: string;
+  ws_connected: boolean;
+  last_error: string;
+  connected_relays: TunnelConnectedRelayReport[];
+  draining: boolean;
+  revoked_at?: string | null;
+  last_seen_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TunnelAttachmentView {
+  id: number;
+  tunnel_id: number;
+  connector_id: string;
+  relay_id: number;
+  relay_name: string;
+  relay_public_id: string;
+  service_name: string;
+  transport: string;
+  state: string;
+  rtt_ms: number;
+  active_streams: number;
+  relay_verified_at?: string | null;
+  lease_expires_at?: string | null;
+  updated_at: string;
+}
+
+export interface TunnelServiceView {
+  id: number;
+  tunnel_id: number;
+  name: string;
+  service_type: 'tcp' | 'udp';
+  relay_id: number;
+  listen_port: number;
+  target_addr: string;
+  enabled: boolean;
+  options: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TunnelBoundRouteView {
+  route_id: number;
+  site_name: string;
+  domains: string[];
+  enabled: boolean;
+  tunnel_target_addr: string;
+  tunnel_target_protocol: string;
+}
+
+export interface TunnelView {
+  id: number;
+  tunnel_id: string;
+  name: string;
+  description: string;
+  pool_id: number;
+  pool_key: string;
+  ha_relay_count: number;
+  preferred_transport: string;
+  fallback_transports: string[];
+  client_proxy_url: string;
+  allowed_target_cidrs: string[];
+  blocked_target_cidrs: string[];
+  max_connectors: number;
+  enabled: boolean;
+  config_revision: number;
+  status: string;
+  online_connectors: number;
+  active_attachments: number;
+  bound_routes_count: number;
+  auto_update_enabled: boolean;
+  update_requested: boolean;
+  update_channel: string;
+  update_tag: string;
+  quarantined_at?: string | null;
+  quarantine_reason: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TunnelDeployView {
+  tunnel: TunnelView;
+  access_token: string;
+  bootstrap_token: string;
+  server_url: string;
+  deploy_command: string;
+}
+
+export interface TunnelDetailView {
+  tunnel: TunnelView;
+  connectors: TunnelConnectorView[];
+  attachments: TunnelAttachmentView[];
+  services: TunnelServiceView[];
+  bound_routes: TunnelBoundRouteView[];
+}
+
+export interface TunnelTopologyView {
+  pools: TunnelPoolView[];
+  relays: TunnelRelayView[];
+  tunnels: TunnelView[];
+  connectors: TunnelConnectorView[];
+  attachments: TunnelAttachmentView[];
+}
+
+export interface TunnelReleaseInfo {
+  tag_name: string;
+  body: string;
+  html_url: string;
+  published_at: string;
+  channel: ReleaseChannel;
+  prerelease: boolean;
 }

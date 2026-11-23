@@ -1,130 +1,77 @@
 # 内网穿透隧道设计文档
 
-你会学到：OpenFlare 内网穿透隧道的架构设计、双端管控组件（Relay 与 Client）的内部原理、交互逻辑以及数据面与控制面的通信流程。
+本文档说明 OpenFlare 原生内网穿透子系统的架构设计、控制面数据模型、多中继高可用调度机制、内嵌 rathole 数据面协议、边界安全校验与独立版本升级机制。
 
 ---
 
-## 需求分析
+## 设计背景与架构演进
 
-在典型的 Web 应用托管场景中，许多源站（Origin Server）部署在内网环境（如本地开发机、局域网服务器或受防火墙限制的内网集群）。这些服务器通常：
-1. **无公网 IP**：无法直接被公网流量访问。
-2. **安全合规限制**：不允许随意在边界路由器上配置端口映射（NAT）。
-3. **动态 IP 变动**：传统的 DDNS 方案延迟高且极不稳定。
+内网源站通常部署于局域网、私有 VPC 或无公网 IP 的环境，无法直接对外暴露入站端口。OpenFlare 彻底废除早期基于外部 `frps`/`frpc` 进程的包装方案，改以原生 Rust 工作区 `tunnel/`（内嵌 `rathole` 引擎）构建新一代高可用穿透体系：
 
-为了让内网源站能够无缝接入 OpenFlare 全局数据网关并享受 WAF 地域防护、TLS 证书托管等增值服务，OpenFlare 设计了基于 **反向中继穿透隧道** 的整体解决方案。在该架构中，公网边缘节点作为反代入口和流量中继，内网侧仅需发起安全出向连接，即可实现公网流量安全、稳定地反向穿透到内网源站。
-
----
-
-## 核心功能
-
-内网穿透隧道子系统包含以下核心能力：
-
-* **Relay 节点动态管理**：由控制面动态派发中继服务（frps），动态分发服务端口与认证令牌（Token）。
-* **多隧道反向代理映射**：支持在单个内网客户端上映射多个内网 Web 端口，并将多域名路由绑定至对应的中继节点。
-* **独立进程生命周期管控**：中继与客户端均为 Go 编写的独立二进制守护进程，内部负责拉起、监控、自愈及热升级底层的 frp 引擎。
-* **基于 Token 的独立认证隔离**：中继端使用 `agent_token`，内网客户端使用专属 `tunnel_token`，权限与路由边界隔离。
-* **配置校验与增量热重载**：仅在隧道绑定关系、证书或 Relay 拓扑发生实际变化时，才重写配置文件并平滑重载进程，降低运行开销。
+1. **进程内嵌与零外部二进制依赖**：`openflare-relay` 与 `openflared` 直接通过库形式链接 `rathole`，通过内存管理配置与运行时生命周期，消除第三方可执行文件路径依赖及子进程孤儿残留风险。
+2. **中继池与可用区容灾（Closest-K）**：引入 `Pool → Relay → Tunnel → Connector → Attachment` 多对多调度模型，支持按 `zone_tag` 故障域分散接入多台健康中继，结合 RTT 探测与迟滞切换（Make-Before-Break）实现跨中继高可用。
+3. **L7 与 L4 双协议穿透**：同时支持 Pingora Edge 协同的 L7 HTTP/WebSocket 反向代理，以及通过中继节点直接暴露的 L4 TCP/UDP 端口转发。
+4. **独立发布线与双槽位自更新**：隧道组件采用 `tunnel-v*` 独立版本标签与二进制双槽位（`next → trial → active`）自更新通道，与 Server 主版本解耦演进。
 
 ---
 
-## 内网穿透与隧道架构
+## 控制面数据模型
 
-内网穿透子系统基于成熟的 `frp` 高性能隧道协议进行整合，分为 **控制面 (Control Plane)** 与 **数据面 (Data Plane)**。
+控制面在主数据库维护 6 张核心关系表（统一采用 `w_` 前缀，无物理外键，由 `internal/repository/openflare_tunnel.go` 与 `internal/apps/openflare/tunnel/` 驱动）：
+
+| 数据表 | 核心职责 |
+| :--- | :--- |
+| `w_tunnel_relay_pools` | 中继池定义：配置默认传输偏好（`auto` / `noise` / `websocket` / `tcp`）、回退传输顺序、默认高可用中继数（`ha_relays`）、就近探测策略、允许/禁止回源 CIDR 及升级渠道。 |
+| `w_tunnel_relays` | 公网中继实例：记录公网传输地址、网关地址、`transport_port`（默认 7443）、`ws_port`（默认 7444）、`gateway_port`（默认 8443）、Noise 公私钥、网关签名密钥、`zone_tag`、`colocated_edge_node_id`、排水状态（`draining`）、隔离状态与运行时遥测。 |
+| `w_tunnels` | 逻辑隧道实体：绑定所属中继池（`pool_id`）、默认传输协议与独立 CIDRs 安全策略，签发唯一 `tunnel_token` 并支持紧急隔离与密钥轮换。 |
+| `w_tunnel_connectors` | 内网连接器实例：同一隧道可横向部署多个 `openflared` 副本（按持久化 `connector_id` 区分），记录公网出口 IP、版本号、契约版本与在线租约（`lease_expires_at`）。 |
+| `w_tunnel_attachments` | 隧道附加状态账本：记录各连接器当前附着的中继、活跃传输协议、服务编号、往返时延（RTT）与负载摘要。 |
+| `w_tunnel_services` | L4/L7 转发服务定义：声明 `tcp` / `udp` 监听端口、目标内网地址及扩展选项（L7 HTTP/WS 可直接由 `/proxy-routes` 绑定 `tunnel_id` 自动接入，亦支持静态服务配置）。 |
+
+> [!NOTE]
+> 数据库迁移 `202611230004`–`202611230006` 及 ClickHouse 迁移 `202611230001` 会清除旧版 FRP 表结构与 `tunnel_relay`/`tunnel_client` 遗留节点记录，保证现有实例平滑升级至新体系。
+
+---
+
+## 系统架构与通信链路
 
 ```mermaid
-graph TD
-    %% 数据流
-    Browser[1. 浏览器 / 访客] -->|HTTPS 请求| Agent[2. OpenResty / Agent]
-    Agent -->|本机转发 proxy_pass| RelayFrps[3. OpenFlare Relay / frps]
-    RelayFrps -->|加密隧道协议| FlaredFrpc[4. OpenFlared / frpc]
-    FlaredFrpc -->|转发本地请求| LocalOrigin[5. 内网源站 192.168.x.x]
-
-    %% 控制流与心跳
-    Server[OpenFlare Server 控制面] <-->|Relay API / Heartbeat| RelayManager[openflare-relay 进程]
-    Server <-->|Client API / Heartbeat| ClientManager[openflared 进程]
-
-    RelayManager -.->|管控进程及配置| RelayFrps
-    ClientManager -.->|管控多 Relay 进程| FlaredFrpc
-
-    style Browser fill:#f9f,stroke:#333,stroke-width:2px
-    style LocalOrigin fill:#9f9,stroke:#333,stroke-width:2px
-    style Server fill:#f96,stroke:#333,stroke-width:2px
+graph LR
+    Client[访客浏览器 / TCP 客户端] -->|HTTPS / L7| Edge[Pingora Edge<br/>tunnel-routing.v1]
+    Edge -->|HTTP/WS<br/>X-OpenFlare-Gateway-Auth| Gateway[Relay Gateway :8443]
+    L4Client[公网 TCP/UDP 访问] -->|L4 服务端口| RatholeSrv[openflare-relay 内嵌 rathole server]
+    Gateway -->|本机动态端口路由<br/>故障自动切换 Connector| RatholeSrv
+    RatholeSrv -->|Noise / WebSocket / TCP<br/>:7443 / :7444| RatholeCli[openflared 内嵌 rathole client]
+    RatholeCli -->|L7 HTTP/WS Ingress<br/>CIDR SSRF 校验| OriginL7[内网 Web / WS 源站]
+    RatholeCli -->|L4 TCP/UDP Forward<br/>CIDR SSRF 校验| OriginL4[内网数据库 / 私有服务]
+    Server[OpenFlare Server] <-->|HTTP 心跳 + WebSocket Wake| RatholeSrv
+    Server <-->|HTTP 心跳 + WebSocket Wake| RatholeCli
 ```
 
-* **控制面（Control Plane）**：Server 维护数据库状态；中继节点上的 `openflare-relay` 进程与内网服务器上的 `openflared` 进程通过 HTTP 心跳与 WebSocket 长通道同步隧道配置。
-* **数据面（Data Plane）**：公网流量首先进入公网边缘的 Agent (OpenResty)，在此完成 HTTPS 握手、TLS 终止和 WAF 过滤，接着通过 `proxy_pass` 转发到同机部署的 `openflare-relay (frps)`。`frps` 再将请求封包通过与内网 `openflared (frpc)` 建立的持久隧道传输过去，最后由 `frpc` 拆包并分发给内网实际的源站服务。
+### 1. 控制面接入与引导令牌（Bootstrap Token）
 
----
+`oftok1_` 引导令牌采用无填充 Base64URL 编码的 JSON 载荷，内置 `server_url`、`kind`（`relay` 或 `tunnel`）、原始接入密钥与目标池标识（`pool`）。运维人员在主机或容器启动 `openflare-relay` 或 `openflared` 时，仅需传递 `--token oftok1_...`（或写入 `--token-file`），进程即自动解析控制面地址与身份凭据：
 
-## Relay (中继端) 设计
+- **中继端自动发现注册**：使用池级 `discovery_token` 或单节点 `access_token` 请求 `POST /api/v1/relay/register`，控制面分配全局唯一 `relay_id`、Noise X25519 密钥对与 `gateway_secret`，并在本地 `$STATE_DIR/relay_identity.json`（权限 `0600`）持久化来源令牌摘要（`source_token_sha256`），确保常规重启与自更新升级期间复用既有身份而不重复注册。
+- **实时唤醒与增量同步**：中继与客户端分别维持 `/api/v1/relay/ws` 与 `/api/v1/tunnel/ws` 长连接以接收拓扑变更、配置修订通知、升级计划及隔离/吊销广播；同时辅以周期性心跳（默认 5 秒心跳、30 秒租约 TTL）与配置拉取保证最终一致性。
 
-`openflare-relay` 是部署在公网边缘的中继管理器，运行在 `tunnel_relay` 类型的节点上。
+### 2. 多中继发现与 Make-Before-Break 容灾调度
 
-### 1. 核心架构与逻辑
-* **进程守护**：Relay 进程内部持有 `frps` 二进制，通过 `exec.Command` 拉起 `frps -c frps.toml` 子进程，并启动 goroutine 异步监听其退出状态。如果发现 `frps` 异常退出，会结合退避机制自动拉起。
-* **动态配置渲染**：通过 HTTP 心跳向控制面同步状态，获取当前的 `RelayConfig`，主要参数包括：
-  * `bindPort`：frps 用于监听内网 frpc 客户端连接的公网控制端口。
-  * `vhostHTTPPort`：虚拟主机（Virtual Host）HTTP 流量监听端口，Agent 的 proxy_pass 会指向此端口。
-  * `authToken`：客户端连接时进行握手校验的安全凭证。
-  * `webServer`：开启 frps 的仪表盘 API，Relay 基于此接口或管理控制端口收集实时的活跃隧道数和流量指标。
-* **状态上报**：Relay 每周期心跳会向控制面上报底层 `frps` 的活跃连接数、注册客户端数、各个代理通道的实时状态以及 Relay 版本。
+`openflared` 周期向控制面 `GET /api/v1/tunnel/relays/discover` 拉取所属池内的候选健康中继（排除已隔离或处于 `draining` 排水状态的中继），并在本地执行就近调度：
 
----
+1. **并行延迟探测**：向各中继网关的 `/_openflare/health` 发送探测请求，维护指数加权移动平均（EWMA）RTT，并结合中继当前负载、权重与健康状态评分。
+2. **故障域分散（Zone Diversity）**：优先从不同 `zone_tag` 的可用区中挑选最优的前 `K` 个中继（由 `ha_relays` 控制，默认 2 个），避免所有连接集中于同一机房。
+3. **迟滞与先建后断（Make-Before-Break）**：仅当候选替代中继连续 2 轮探测优于现役中继且超过阈值时才触发替换，并在新中继 rathole 隧道就绪后再注销旧连接，抑制网络微抖动引起的震荡。
+4. **多传输协议自适应与回退**：按中继池指定的 `preferred_transport` 与 `fallback_transports` 依次尝试 `noise`（基于端口 `7443` 的端到端加密通道）、`websocket`（端口 `7444` 穿透受限防火墙）或原生 `tcp`。
 
-## Openflared (客户端) 设计
+### 3. L7 边缘协同（`tunnel-routing.v1`）与 L4 安全直连
 
-`openflared` 是运行在用户内网服务器侧的客户端管理器，使用独立的 `tunnel_token` 进行鉴权。
+- **Pingora Edge 动态路由**：控制面向边缘节点额外发布 `tunnel-routing.v1` 清单（包含各隧道的健康中继 Gateway 端点列表、同可用区优先策略与网关密钥）。当站点的反向代理上游设置为某个 `tunnel_id` 时，Pingora Edge 将请求直接调度至就近或同机中继 Gateway（附带 `X-OpenFlare-Gateway-Auth`、目标内网地址及 `insecure_skip_verify` 选项）。
+- **Relay Gateway 故障转移**：Relay Gateway 在校验边缘请求鉴权头后，按活跃连接器列表顺序转发至内嵌 rathole 实例，在单个 Connector 异常断开时自动故障转移至同隧道的其余健康副本。
+- **L4 服务确定性凭据派生**：针对 TCP/UDP 转发服务，控制面基于 `tunnel_id`、`service_id` 与内部密钥确定性派生服务标识与 rathole `token`，同时校验同一中继下 `listen_port` 与 `gateway_port` / `transport_port` / `ws_port` 无端口冲突。
+- **CIDR SSRF 防护**：`openflared` 在发起内网 L7/L4 建连前，强制对解析后的目标 IP（含 IPv4 映射的 IPv6 地址如 `::ffff:169.254.169.254`）核验 `allowed_cidrs` 与 `blocked_cidrs`（默认禁止 `169.254.169.254/32` 云元数据地址）。禁止或未命中的目标将被立即拦截（L7 返回 `403 Forbidden`，L4 拒绝转发）。
 
-### 1. 核心设计机制
-* **多 Relay 支持（多路复用）**：
-  为保障高可用或就近接入，控制面可能会将客户端连接调度到多个公网 Relay。`openflared` 会读取 `TunnelConfig` 中下发的 Relays 列表，在本地为每一个 Relay 节点独立生成一个专用的配置文件（命名为 `frpc_<relay_node_id>.toml`），并分别为每个 Relay 进程分配独立的 cancelable context。
-* **子进程独立监控**：
-  `openflared` 内部维护一个 `processes` 映射表，对每个 `frpc` 子进程进行独立的生命周期管控。当控制面增加或移除 Relay 时，客户端会增量拉起新进程或优雅注销老进程，避免影响其他正常工作的隧道。
-* **动态 TOML 生成**：
-  为每个 Relay 渲染 TOML 时，客户端会遍历 Proxies 列表，将每个内网服务的 `LocalAddr`、`LocalPort`、绑定的 `CustomDomains` 写入到 `[[proxies]]` 块中。
+### 4. 紧急隔离、密钥轮换与双槽位自更新
 
----
-
-## 交互逻辑与流量模型
-
-内网穿透子系统实现了一致性版本控制和状态反馈。
-
-### 1. 控制面发布与同步流程
-
-```text
-管理员修改隧道/内网端口映射 -> 提交发布 -> 生成新 Tunnel 版本与 Checksum
-                                            |
-                                            v (推送或心跳拉取)
-+-------------------------------------------+-------------------------------------------+
-|                                                                                       |
-v (中继端)                                                                               v (内网客户端)
-openflare-relay 心跳检测到 frps 端口/Token 变化                                          openflared 心跳检测到 tunnel_version 发生变更
-重新渲染本地 frps.toml                                                                   请求拉取最新代理映射包
-Kill 并重新拉起 frps 进程                                                               重新渲染 frpc_<relay_id>.toml
-上报健康状态为 healthy                                                                   对有变更的 Relay 进程执行重启与配置热重载
-                                                                                        上报应用结果 (Apply Success/Error)
-```
-
-1. **版本化控制**：所有内网隧道的路由和映射关系与主路由系统类似，也经过版本化控制，下发 `version` 与 `checksum`，确保客户端不重复写入和频繁重载进程。
-2. **应用结果闭环**：客户端应用新配置后，会在心跳中携带应用结果上报控制面。若因内网端口不可达或证书配置有误导致 frpc 无法建连，客户端会截获进程输出将 `LastError` 上报，管理员在 Server 即可直观查看穿透失败原因。
-
-### 2. 数据面流量模型
-1. **公网入口 (Agent)**：
-   ```nginx
-   server {
-       listen 443 ssl;
-       server_name intranet.example.com;
-       # ... TLS 证书与 WAF 过滤逻辑 ...
-       location / {
-           proxy_pass http://127.0.0.1:8080; # 指向本地 frps 的虚拟主机端口
-           proxy_set_header Host $host; # 必须保留原 Host，因为 frps 依靠 Host 进行内部路由分发
-           proxy_set_header X-Real-IP $remote_addr;
-       }
-   }
-   ```
-2. **中继节点 (frps)**：
-   `frps` 在虚拟主机端口（默认 `8080`）收到 HTTP 请求，读取 HTTP 请求头中的 `Host: intranet.example.com`，在其已注册的活跃隧道表中检索该域名对应的加密 TCP 连接（由内网 frpc 建立）。
-3. **加密隧道传输 (TCP)**：
-   `frps` 将 HTTP 请求封装进内部 TCP 隧道协议，发送给内网的 `frpc` 客户端。
-4. **内网客户端分发 (frpc)**：
-   `openflared` 管理的 `frpc` 收到封包，根据本地配置（`localIP = "127.0.0.1"`, `localPort = 8080`）将请求建立本地 TCP 连接转发给内网 Web 服务，并将 Web 服务的响应原路打包返回，最终呈现给公网用户。
+- **一键紧急隔离（Quarantine）**：在控制台对指定 Relay 或 Tunnel 执行隔离后，控制面立即吊销其接入令牌、失效会话缓存并通过 WebSocket 下发强制下线指令，Pingora Edge 在下一配置版本同步中自动剔除相关中继，解除隔离时同步签发全新令牌并生成新部署命令。
+- **双槽位二进制热更新**：在受 systemd 托管（携带 `NOTIFY_SOCKET` 与 `INVOCATION_ID`）的 Linux 非 root 运行环境下，`openflare-relay` 与 `openflared` 支持从 GitHub Release（`tunnel-v*`）拉取发布包并核验 `SHA256SUMS` 与 `--version` 输出，经 `next → trial → active` 双槽位切换完成原子替换与服务自愈。

@@ -350,6 +350,8 @@
     "tunnelProtocol": "Internal service protocol",
     "tunnelAddress": "Internal service address",
     "tunnelAddressHint": "For example: 127.0.0.1:8080 or 192.168.1.10:80",
+    "tunnelInsecureSkipVerify": "Skip origin TLS certificate verification",
+    "tunnelInsecureSkipVerifyDesc": "Enable only for internal HTTPS origins using self-signed or private CA certificates.",
     "selectPagesProject": "Select a Pages project",
     "pagesProjectHint": "Only enabled Pages projects with an active deployment are shown.",
     "enableSite": "Enable site",

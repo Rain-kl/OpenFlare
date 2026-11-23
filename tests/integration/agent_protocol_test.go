@@ -18,6 +18,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	ofnode "github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
+	oftunnel "github.com/Rain-kl/Wavelet/internal/apps/openflare/tunnel"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
@@ -42,7 +43,22 @@ func setupProtocolTestEnv(t *testing.T) (*gin.Engine, func()) {
 		&model.OpenFlareNodeSystemProfile{},
 		&model.OpenFlareHealthEvent{},
 		&model.ConfigVersion{},
+		&model.TunnelRelayPool{},
+		&model.TunnelRelay{},
+		&model.Tunnel{},
+		&model.TunnelConnector{},
+		&model.TunnelAttachment{},
+		&model.TunnelService{},
+		&model.Zone{},
+		&model.ZoneDomain{},
+		&model.ProxyRoute{},
 	))
+	require.NoError(t, sqliteDB.Create(&model.TunnelRelayPool{
+		PoolKey:           "default",
+		Name:              "Default Pool",
+		IsDefault:         true,
+		RoutingPolicyJSON: "{}",
+	}).Error)
 
 	db.SetDB(sqliteDB)
 	agent.ResetAuthCacheForTest()
@@ -91,62 +107,125 @@ func TestAgentRelayFlaredProtocol(t *testing.T) {
 		assert.NotNil(t, data["config"])
 	})
 
-	t.Run("create tunnel_relay node and relay heartbeat", func(t *testing.T) {
-		relayNode, err := ofnode.CreateNode(ctx, ofnode.Input{
-			Name:     "relay-1",
-			NodeType: "tunnel_relay",
-		})
+	t.Run("relay discovery registration, connector negotiation, verified heartbeat and edge tunnel-routing.v1 manifest", func(t *testing.T) {
+		bootstrap, err := oftunnel.GetRelayBootstrapToken(ctx)
 		require.NoError(t, err)
-		require.NotEmpty(t, relayNode.AccessToken)
+		require.NotEmpty(t, bootstrap.BootstrapToken)
 
-		rec := performJSONRequest(t, engine, http.MethodPost, "/api/v1/relay/heartbeat", map[string]any{
-			"version":      "v0.1.0",
-			"frp_version":  "0.61.0",
-			"relay_status": "healthy",
-			"name":         "relay-1",
-			"ip":           "203.0.113.20",
+		// 1. Relay self-registers using bootstrap discovery token.
+		regRec := performJSONRequest(t, engine, http.MethodPost, "/api/v1/relay/register", map[string]any{
+			"relay_id":               "relay-edge-pop",
+			"name":                   "HK Pop",
+			"public_addr":            "198.51.100.50",
+			"transport_port":         7443,
+			"gateway_port":           8443,
+			"zone_tag":               "hk-1",
+			"colocated_edge_node_id": "",
+			"supported_transports":   []string{"noise", "tcp"},
 		}, map[string]string{
-			"X-Agent-Token": relayNode.AccessToken,
+			"X-Relay-Token": bootstrap.BootstrapToken,
 		})
-		assert.Equal(t, http.StatusOK, rec.Code)
+		require.Equal(t, http.StatusOK, regRec.Code, regRec.Body.String())
+		var regResp protocol.RelayRegisterResponse
+		unmarshalAPIData(t, requireAPIOK(t, regRec).Data, &regResp)
+		require.NotEmpty(t, regResp.AccessToken)
+		require.NotEmpty(t, regResp.NoisePrivateKey)
+		require.NotEmpty(t, regResp.NoisePublicKey)
+		require.NotEmpty(t, regResp.GatewaySecret)
 
-		resp := requireAPIOK(t, rec)
-		var heartbeatData struct {
-			RelayConfig   map[string]any `json:"relay_config"`
-			RelaySettings map[string]any `json:"relay_settings"`
-		}
-		unmarshalAPIData(t, resp.Data, &heartbeatData)
-		assert.NotNil(t, heartbeatData.RelayConfig)
-		assert.NotNil(t, heartbeatData.RelaySettings)
-
-		stored, err := repository.GetOpenFlareNodeByNodeID(ctx, relayNode.NodeID)
-		require.NoError(t, err)
-		assert.Equal(t, "online", stored.Status)
-		assert.Equal(t, "healthy", stored.RelayStatus)
-	})
-
-	t.Run("create tunnel_client node and flared heartbeat with X-Tunnel-Token", func(t *testing.T) {
-		clientNode, err := ofnode.CreateNode(ctx, ofnode.Input{
-			Name:     "client-1",
-			NodeType: "tunnel_client",
+		// 2. Provision logical tunnel.
+		tunDeploy, err := oftunnel.CreateTunnel(ctx, oftunnel.TunnelInput{
+			Name:         "Intranet App",
+			HARelayCount: 1,
 		})
 		require.NoError(t, err)
-		require.NotEmpty(t, clientNode.AccessToken)
 
-		rec := performJSONRequest(t, engine, http.MethodPost, "/api/v1/tunnel/heartbeat", map[string]any{
-			"client_version": "v0.2.0",
-			"frp_version":    "0.61.0",
-			"tunnel_status":  "running",
+		// 3. Connector heartbeats and pulls candidate relays.
+		hbRec := performJSONRequest(t, engine, http.MethodPost, "/api/v1/tunnel/heartbeat", map[string]any{
+			"connector_id": "conn-int-1",
+			"version":      "0.1.0",
 		}, map[string]string{
-			"X-Tunnel-Token": clientNode.AccessToken,
+			"X-Tunnel-Token": tunDeploy.BootstrapToken,
+			"X-Connector-ID": "conn-int-1",
 		})
-		assert.Equal(t, http.StatusOK, rec.Code)
-		requireAPIOK(t, rec)
+		require.Equal(t, http.StatusOK, hbRec.Code, hbRec.Body.String())
 
-		stored, err := repository.GetOpenFlareNodeByNodeID(ctx, clientNode.NodeID)
+		cfgRec := performJSONRequest(t, engine, http.MethodGet, "/api/v1/tunnel/config?connector_id=conn-int-1", nil, map[string]string{
+			"X-Tunnel-Token": tunDeploy.BootstrapToken,
+		})
+		require.Equal(t, http.StatusOK, cfgRec.Code, cfgRec.Body.String())
+		var connCfg protocol.TunnelConnectorConfigResponse
+		unmarshalAPIData(t, requireAPIOK(t, cfgRec).Data, &connCfg)
+		require.Len(t, connCfg.CandidateRelays, 1)
+
+		// 4. Connector negotiates attachment to relay-edge-pop.
+		negRec := performJSONRequest(t, engine, http.MethodPost, "/api/v1/tunnel/attachments", map[string]any{
+			"connector_id": "conn-int-1",
+			"desired": []map[string]any{
+				{"relay_id": regResp.ID, "transport": "noise", "rtt_ms": 18},
+			},
+		}, map[string]string{
+			"X-Tunnel-Token": tunDeploy.AccessToken,
+		})
+		require.Equal(t, http.StatusOK, negRec.Code, negRec.Body.String())
+		var negResp protocol.TunnelNegotiateAttachmentsResponse
+		unmarshalAPIData(t, requireAPIOK(t, negRec).Data, &negResp)
+		require.Len(t, negResp.Attachments, 1)
+
+		// 5. Relay pulls runtime config and verifies active attachment via heartbeat.
+		relayCfgRec := performJSONRequest(t, engine, http.MethodGet, "/api/v1/relay/config", nil, map[string]string{
+			"X-Relay-Token": regResp.AccessToken,
+		})
+		require.Equal(t, http.StatusOK, relayCfgRec.Code, relayCfgRec.Body.String())
+		var relayCfg protocol.RelayRuntimeConfigResponse
+		unmarshalAPIData(t, requireAPIOK(t, relayCfgRec).Data, &relayCfg)
+		require.Len(t, relayCfg.Services, 1)
+		assert.Equal(t, negResp.Attachments[0].SessionToken, relayCfg.Services[0].Token)
+
+		relayHBRec := performJSONRequest(t, engine, http.MethodPost, "/api/v1/relay/heartbeat", map[string]any{
+			"version":           "0.1.0",
+			"runtime_status":    "healthy",
+			"active_connectors": 1,
+			"verified_attachments": []map[string]any{
+				{"connector_id": "conn-int-1", "service_name": relayCfg.Services[0].ServiceName, "rtt_ms": 18, "active_streams": 1},
+			},
+		}, map[string]string{
+			"X-Relay-Token": regResp.AccessToken,
+		})
+		require.Equal(t, http.StatusOK, relayHBRec.Code, relayHBRec.Body.String())
+
+		// 6. Edge node receives tunnel-routing.v1 inside config manifest on heartbeat.
+		edgeNode, err := ofnode.CreateNode(ctx, ofnode.Input{Name: "edge-routing-check", IP: "10.0.0.9"})
 		require.NoError(t, err)
-		assert.Equal(t, "online", stored.Status)
-		assert.Equal(t, "v0.2.0", stored.Version)
+		edgeHBRec := performJSONRequest(t, engine, http.MethodPost, "/api/v1/agent/nodes/heartbeat", map[string]any{
+			"name":                "edge-routing-check",
+			"ip":                  "203.0.113.9",
+			"version":             "0.1.0",
+			"engine":              "pingora",
+			"contract_version":    edgeconfig.ContractVersion,
+			"config_sync_version": protocol.EdgeConfigSyncVersion,
+		}, map[string]string{
+			"X-Agent-Token": edgeNode.AccessToken,
+		})
+		require.Equal(t, http.StatusOK, edgeHBRec.Code, edgeHBRec.Body.String())
+		edgeResp := unmarshalAPIMap(t, requireAPIOK(t, edgeHBRec).Data)
+		manifest := edgeResp["config"].(map[string]any)
+		resources := manifest["resources"].(map[string]any)
+		tunnelRoutingRes := resources["tunnel-routing.v1"].(map[string]any)
+		inlineJSON, ok := tunnelRoutingRes["inline_json"].(string)
+		require.True(t, ok)
+		var routingSnap protocol.TunnelRoutingSnapshot
+		require.NoError(t, json.Unmarshal([]byte(inlineJSON), &routingSnap))
+		require.Len(t, routingSnap.Tunnels, 1)
+		require.Len(t, routingSnap.Tunnels[0].Relays, 1)
+		assert.Equal(t, "http://198.51.100.50:8443", routingSnap.Tunnels[0].Relays[0].GatewayURL)
+
+		// 7. Revoking connector blocks subsequent connector requests with 403.
+		require.NoError(t, oftunnel.RevokeConnector(ctx, tunDeploy.Tunnel.ID, "conn-int-1"))
+		revokedRec := performJSONRequest(t, engine, http.MethodGet, "/api/v1/tunnel/config?connector_id=conn-int-1", nil, map[string]string{
+			"X-Tunnel-Token": tunDeploy.AccessToken,
+		})
+		assert.Equal(t, http.StatusForbidden, revokedRec.Code)
 	})
 
 	t.Run("agent register with discovery token from options", func(t *testing.T) {

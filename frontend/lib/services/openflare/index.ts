@@ -1,6 +1,7 @@
 export { OpenFlareBaseService } from './base.service';
 
 export { NodeService } from './node.service';
+export { TunnelService, tunnelQueryKey } from './tunnel.service';
 export { ProxyRouteService } from './proxy-route.service';
 export { ApplyLogService } from './apply-log.service';
 export { DashboardService } from './dashboard.service';
@@ -155,6 +156,27 @@ export type {
   CloudflareOverview,
   CloudflareSyncReceipt,
   CloudflareSyncStatus,
+  TunnelAttachmentView,
+  TunnelBinaryUpdateInput,
+  TunnelBoundRouteView,
+  TunnelConnectedRelayReport,
+  TunnelConnectorView,
+  TunnelDeployView,
+  TunnelDetailView,
+  TunnelInput,
+  TunnelPoolInput,
+  TunnelPoolView,
+  TunnelRelayBootstrapView,
+  TunnelRelayDeployView,
+  TunnelRelayDrainInput,
+  TunnelRelayInput,
+  TunnelRelayView,
+  TunnelReleaseInfo,
+  TunnelServiceInput,
+  TunnelServiceView,
+  TunnelTopologyView,
+  TunnelTransport,
+  TunnelView,
 } from './types';
 
 import { AccessLogService } from './access-log.service';
@@ -162,6 +184,7 @@ import { ApplyLogService } from './apply-log.service';
 import { DashboardService } from './dashboard.service';
 import { DnsAccountService } from './dns-account.service';
 import { NodeService } from './node.service';
+import { TunnelService } from './tunnel.service';
 import { OptionService } from './option.service';
 import { StatusService } from './status.service';
 import { UptimeKumaService } from './uptimekuma.service';
@@ -175,6 +198,7 @@ import { CloudflareService } from './cloudflare.service';
 
 export const openflareServices = {
   node: NodeService,
+  tunnel: TunnelService,
   proxyRoute: ProxyRouteService,
   applyLog: ApplyLogService,
   dashboard: DashboardService,

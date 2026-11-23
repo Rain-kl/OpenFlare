@@ -216,6 +216,7 @@ mod tests {
             site_auth_ttl_hours: 2,
             site_auth_key: "32bytes".into(),
             upstream_type: String::new(),
+            tunnel_id: None,
             pages: None,
         }
     }

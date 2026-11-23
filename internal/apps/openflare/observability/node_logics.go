@@ -5,7 +5,6 @@ package observability
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -55,27 +54,6 @@ type NodeTrends struct {
 	DiskIO24h   []DiskIOTrendPoint   `json:"disk_io_24h"`
 }
 
-// RelayDashboardSnapshot summarizes tunnel relay status.
-type RelayDashboardSnapshot struct {
-	TotalProxies     int              `json:"total_proxies"`
-	OnlineProxies    int              `json:"online_proxies"`
-	OfflineProxies   int              `json:"offline_proxies"`
-	Proxies          []RelayProxyStat `json:"proxies"`
-	TotalConnections int              `json:"total_connections"`
-	ClientCounts     int              `json:"client_counts"`
-}
-
-// RelayProxyStat is a single relay proxy entry.
-type RelayProxyStat struct {
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	Status        string `json:"status"`
-	ClientVersion string `json:"client_version"`
-	LastStartTime string `json:"last_start_time"`
-	LastCloseTime string `json:"last_close_time"`
-	ClientAddr    string `json:"client_addr"`
-}
-
 // NodeView is the node observability API response.
 type NodeView struct {
 	NodeID          string                            `json:"node_id"`
@@ -84,7 +62,6 @@ type NodeView struct {
 	HealthEvents    []*model.OpenFlareHealthEvent     `json:"health_events"`
 	Analytics       NodeAnalytics                     `json:"analytics"`
 	Trends          NodeTrends                        `json:"trends"`
-	RelayDashboard  *RelayDashboardSnapshot           `json:"relay_dashboard,omitempty"`
 }
 
 // HealthEventCleanupResult reports health event cleanup outcome.
@@ -150,17 +127,6 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 		},
 		Trends: BuildNodeTrends(ctx, now, node.NodeID, snapshots),
 	}
-	if node.NodeType == "tunnel_relay" {
-		frpsObs, frpsErr := repository.ListOpenFlareNodeObservationFrps(ctx, node.NodeID, time.Time{}, 1)
-		if frpsErr != nil {
-			return nil, frpsErr
-		}
-		var latestFrps *model.OpenFlareNodeObservationFrps
-		if len(frpsObs) > 0 {
-			latestFrps = frpsObs[0]
-		}
-		view.RelayDashboard = buildRelayDashboardSnapshot(node, latestFrps)
-	}
 	if cacheable {
 		setCachedNodeObservability(node.NodeID, view)
 	}
@@ -206,59 +172,6 @@ func CleanupHealthEvents(ctx context.Context, id uint) (*HealthEventCleanupResul
 		NodeID:       node.NodeID,
 		DeletedCount: deletedCount,
 	}, nil
-}
-
-func buildRelayDashboardSnapshot(node *model.OpenFlareNode, obs *model.OpenFlareNodeObservationFrps) *RelayDashboardSnapshot {
-	if node == nil {
-		return nil
-	}
-	totalProxies := 0
-	totalConnections := 0
-	clientCounts := 0
-	proxies := []RelayProxyStat{}
-
-	if obs != nil {
-		totalProxies = obs.FrpsProxyCount
-		totalConnections = obs.FrpsConnections
-		clientCounts = obs.FrpsClientCount
-		if obs.FrpsProxies != "" {
-			var decoded []RelayProxyStat
-			if err := json.Unmarshal([]byte(obs.FrpsProxies), &decoded); err == nil {
-				proxies = decoded
-			}
-		}
-	}
-	if totalProxies < 0 {
-		totalProxies = 0
-	}
-	onlineProxies := 0
-	for _, proxy := range proxies {
-		if proxy.Status == "online" {
-			onlineProxies++
-		}
-	}
-	if len(proxies) == 0 {
-		onlineProxies = totalProxies
-		if node.RelayStatus != "healthy" {
-			onlineProxies = 0
-		}
-	}
-
-	return &RelayDashboardSnapshot{
-		TotalProxies:     totalProxies,
-		OnlineProxies:    onlineProxies,
-		OfflineProxies:   totalProxies - onlineProxies,
-		Proxies:          proxies,
-		TotalConnections: maxInt(totalConnections, 0),
-		ClientCounts:     maxInt(clientCounts, 0),
-	}
-}
-
-func maxInt(a int, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func normalizeObservabilityLimit(limit int) int {

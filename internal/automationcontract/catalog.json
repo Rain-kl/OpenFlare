@@ -960,9 +960,7 @@
         "description": "Filter by node type; omit for all types",
         "schema": {
           "enum": [
-            "edge_node",
-            "tunnel_relay",
-            "tunnel_client"
+            "edge_node"
           ],
           "type": "string"
         }
@@ -1117,9 +1115,7 @@
         "description": "Filter by node type. Omit for all types.",
         "schema": {
           "enum": [
-            "edge_node",
-            "tunnel_relay",
-            "tunnel_client"
+            "edge_node"
           ],
           "type": "string"
         }
@@ -1419,55 +1415,6 @@
             },
             "version": {
               "type": "string"
-            }
-          },
-          "type": "object"
-        },
-        "relay_dashboard": {
-          "properties": {
-            "client_counts": {
-              "type": "integer"
-            },
-            "offline_proxies": {
-              "type": "integer"
-            },
-            "online_proxies": {
-              "type": "integer"
-            },
-            "proxies": {
-              "items": {
-                "properties": {
-                  "client_addr": {
-                    "type": "string"
-                  },
-                  "client_version": {
-                    "type": "string"
-                  },
-                  "last_close_time": {
-                    "type": "string"
-                  },
-                  "last_start_time": {
-                    "type": "string"
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "status": {
-                    "type": "string"
-                  },
-                  "type": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              },
-              "type": "array"
-            },
-            "total_connections": {
-              "type": "integer"
-            },
-            "total_proxies": {
-              "type": "integer"
             }
           },
           "type": "object"

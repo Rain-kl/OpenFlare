@@ -19,11 +19,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	defaultRelayBindPort      = 7000
-	defaultRelayVhostHTTPPort = 8080
-)
-
 // AgentUpdateRepo returns the configured node release repository.
 func AgentUpdateRepo(ctx context.Context) string {
 	config, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyAgentUpdateRepo)
@@ -35,21 +30,15 @@ func AgentUpdateRepo(ctx context.Context) string {
 
 // Input is the create/update node payload.
 type Input struct {
-	Name                  string   `json:"name"`
-	IP                    string   `json:"ip"`
-	IPManualOverride      *bool    `json:"ip_manual_override"`
-	AutoUpdateEnabled     bool     `json:"auto_update_enabled"`
-	GeoName               string   `json:"geo_name"`
-	GeoLatitude           *float64 `json:"geo_latitude"`
-	GeoLongitude          *float64 `json:"geo_longitude"`
-	GeoManualOverride     bool     `json:"geo_manual_override"`
-	NodeType              string   `json:"node_type"`
-	RelayBindPort         int      `json:"relay_bind_port"`
-	RelayVhostHTTPPort    int      `json:"relay_vhost_http_port"`
-	RelayAgentAccessAddr  string   `json:"relay_agent_access_addr"`
-	RelayClientAccessAddr string   `json:"relay_client_access_addr"`
-	RelayClientProxyURL   string   `json:"relay_client_proxy_url"`
-	RelayWebServerEnabled bool     `json:"relay_web_server_enabled"`
+	Name              string   `json:"name"`
+	IP                string   `json:"ip"`
+	IPManualOverride  *bool    `json:"ip_manual_override"`
+	AutoUpdateEnabled bool     `json:"auto_update_enabled"`
+	GeoName           string   `json:"geo_name"`
+	GeoLatitude       *float64 `json:"geo_latitude"`
+	GeoLongitude      *float64 `json:"geo_longitude"`
+	GeoManualOverride bool     `json:"geo_manual_override"`
+	NodeType          string   `json:"node_type"`
 }
 
 // AgentUpdateInput requests an agent self-update on a node.
@@ -115,13 +104,6 @@ type View struct {
 	CreatedAt                 time.Time  `json:"created_at"`
 	UpdatedAt                 time.Time  `json:"updated_at"`
 	NodeType                  string     `json:"node_type"`
-	RelayBindPort             int        `json:"relay_bind_port"`
-	RelayVhostHTTPPort        int        `json:"relay_vhost_http_port"`
-	RelayAgentAccessAddr      string     `json:"relay_agent_access_addr"`
-	RelayClientAccessAddr     string     `json:"relay_client_access_addr"`
-	RelayClientProxyURL       string     `json:"relay_client_proxy_url"`
-	RelayStatus               string     `json:"relay_status"`
-	RelayWebServerEnabled     bool       `json:"relay_web_server_enabled"`
 	QuarantinedAt             *time.Time `json:"quarantined_at"`
 	QuarantineReason          string     `json:"quarantine_reason"`
 	IsQuarantined             bool       `json:"is_quarantined"`
@@ -211,18 +193,6 @@ func CreateNode(ctx context.Context, input Input) (*View, error) {
 	if node.NodeType == "edge_node" {
 		node.Engine = enginePingora
 	}
-	if node.NodeType == "tunnel_relay" {
-		node.RelayBindPort = normalizeRelayPort(input.RelayBindPort, defaultRelayBindPort)
-		node.RelayVhostHTTPPort = normalizeRelayPort(input.RelayVhostHTTPPort, defaultRelayVhostHTTPPort)
-		node.RelayAuthToken, err = newRandomToken()
-		if err != nil {
-			return nil, err
-		}
-		node.RelayAgentAccessAddr = strings.TrimSpace(input.RelayAgentAccessAddr)
-		node.RelayClientAccessAddr = strings.TrimSpace(input.RelayClientAccessAddr)
-		node.RelayClientProxyURL = strings.TrimSpace(input.RelayClientProxyURL)
-		node.RelayWebServerEnabled = input.RelayWebServerEnabled
-	}
 	if err = repository.CreateOpenFlareNode(ctx, node); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errNodeIDConflict)
@@ -256,21 +226,6 @@ func UpdateNode(ctx context.Context, id uint, input Input) (*View, error) {
 	node.GeoManualOverride = geoManualOverride
 	node.AutoUpdateEnabled = input.AutoUpdateEnabled
 	fields := []string{"name", "ip", "ip_manual_override", "geo_name", "geo_latitude", "geo_longitude", "geo_manual_override", "auto_update_enabled"}
-	if node.NodeType == "tunnel_relay" {
-		node.RelayAgentAccessAddr = strings.TrimSpace(input.RelayAgentAccessAddr)
-		node.RelayClientAccessAddr = strings.TrimSpace(input.RelayClientAccessAddr)
-		node.RelayClientProxyURL = strings.TrimSpace(input.RelayClientProxyURL)
-		node.RelayWebServerEnabled = input.RelayWebServerEnabled
-		fields = append(fields, "relay_agent_access_addr", "relay_client_access_addr", "relay_client_proxy_url", "relay_web_server_enabled")
-		if input.RelayBindPort > 0 {
-			node.RelayBindPort = input.RelayBindPort
-			fields = append(fields, "relay_bind_port")
-		}
-		if input.RelayVhostHTTPPort > 0 {
-			node.RelayVhostHTTPPort = input.RelayVhostHTTPPort
-			fields = append(fields, "relay_vhost_http_port")
-		}
-	}
 	if err = repository.UpdateOpenFlareNodeFields(ctx, node, fields...); err != nil {
 		return nil, err
 	}

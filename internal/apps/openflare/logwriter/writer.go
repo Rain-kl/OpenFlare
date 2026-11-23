@@ -43,14 +43,10 @@ var (
 
 	metricSnapshotWriter *batchwriter.Writer[analyticsmodel.NodeMetricSnapshot]
 	edgeHealthWriter     *batchwriter.Writer[analyticsmodel.NodeEdgeHealth]
-	frpsWriter           *batchwriter.Writer[analyticsmodel.NodeObsFrps]
-	frpcWriter           *batchwriter.Writer[analyticsmodel.NodeObsFrpc]
 	nodeAccessLogWriter  *batchwriter.Writer[analyticsmodel.NodeAccessLog]
 
 	metricSnapshotDedup *dedupSet
 	edgeHealthDedup     *dedupSet
-	frpsDedup           *dedupSet
-	frpcDedup           *dedupSet
 )
 
 // Init starts OpenFlare log batch writers. Safe to call multiple times.
@@ -60,8 +56,6 @@ func Init(ctx context.Context) {
 	initOnce.Do(func() {
 		metricSnapshotDedup = newDedupSet()
 		edgeHealthDedup = newDedupSet()
-		frpsDedup = newDedupSet()
-		frpcDedup = newDedupSet()
 
 		metricSnapshotWriter = mustNewObservabilityWriter(
 			"metric_snapshots",
@@ -75,24 +69,10 @@ func Init(ctx context.Context) {
 			edgeHealthDedup,
 			edgeHealthKey,
 		)
-		frpsWriter = mustNewObservabilityWriter(
-			"frps_obs",
-			withFlushRetries(flushNodeObsFrps),
-			frpsDedup,
-			frpsKey,
-		)
-		frpcWriter = mustNewObservabilityWriter(
-			"frpc_obs",
-			withFlushRetries(flushNodeObsFrpc),
-			frpcDedup,
-			frpcKey,
-		)
 		nodeAccessLogWriter = mustNewNodeAccessLogWriter()
 
 		metricSnapshotWriter.Start(ctx)
 		edgeHealthWriter.Start(ctx)
-		frpsWriter.Start(ctx)
-		frpcWriter.Start(ctx)
 		nodeAccessLogWriter.Start(ctx)
 
 		wireModelInsertHooks()
@@ -110,8 +90,6 @@ func Stop(ctx context.Context) error {
 	for _, writer := range []batchStopper{
 		metricSnapshotWriter,
 		edgeHealthWriter,
-		frpsWriter,
-		frpcWriter,
 		nodeAccessLogWriter,
 	} {
 		if writer == nil {
@@ -174,8 +152,6 @@ func WriterStats() []batchwriter.Stats {
 	writers := []statsProvider{
 		metricSnapshotWriter,
 		edgeHealthWriter,
-		frpsWriter,
-		frpcWriter,
 		nodeAccessLogWriter,
 	}
 	out := make([]batchwriter.Stats, 0, len(writers))
@@ -196,16 +172,6 @@ func QueueMetricSnapshot(snapshot analyticsmodel.NodeMetricSnapshot) {
 // QueueEdgeHealth enqueues an L2 edge health snapshot for asynchronous flush.
 func QueueEdgeHealth(row analyticsmodel.NodeEdgeHealth) {
 	queueWithDedup(edgeHealthWriter, edgeHealthDedup, edgeHealthKey(row), row)
-}
-
-// QueueFrpsObservation enqueues an FRPS observation for asynchronous flush.
-func QueueFrpsObservation(observation analyticsmodel.NodeObsFrps) {
-	queueWithDedup(frpsWriter, frpsDedup, frpsKey(observation), observation)
-}
-
-// QueueFrpcObservation enqueues an FRPC observation for asynchronous flush.
-func QueueFrpcObservation(observation analyticsmodel.NodeObsFrpc) {
-	queueWithDedup(frpcWriter, frpcDedup, frpcKey(observation), observation)
 }
 
 // QueueNodeAccessLogs enqueues node access logs for asynchronous flush.
@@ -323,8 +289,6 @@ func wireModelInsertHooks() {
 	logstore.SetObservabilityHooks(logstore.ObservabilityHooks{
 		QueueMetricSnapshot: QueueMetricSnapshot,
 		QueueEdgeHealth:     QueueEdgeHealth,
-		QueueNodeObsFrps:    QueueFrpsObservation,
-		QueueNodeObsFrpc:    QueueFrpcObservation,
 	})
 	logstore.SetAccessLogHooks(logstore.AccessLogHooks{
 		QueueNodeAccessLogs: QueueNodeAccessLogs,
@@ -349,22 +313,6 @@ func flushNodeEdgeHealth(ctx context.Context, rows []analyticsmodel.NodeEdgeHeal
 	return s.Observability.BatchInsertNodeEdgeHealth(ctx, rows)
 }
 
-func flushNodeObsFrps(ctx context.Context, rows []analyticsmodel.NodeObsFrps) error {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return err
-	}
-	return s.Observability.BatchInsertNodeObsFrps(ctx, rows)
-}
-
-func flushNodeObsFrpc(ctx context.Context, rows []analyticsmodel.NodeObsFrpc) error {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return err
-	}
-	return s.Observability.BatchInsertNodeObsFrpc(ctx, rows)
-}
-
 func flushNodeAccessLogs(ctx context.Context, rows []analyticsmodel.NodeAccessLog) error {
 	s, err := logstore.Active(ctx)
 	if err != nil {
@@ -379,14 +327,6 @@ func metricSnapshotKey(snapshot analyticsmodel.NodeMetricSnapshot) string {
 
 func edgeHealthKey(row analyticsmodel.NodeEdgeHealth) string {
 	return fmt.Sprintf("%s|%d", row.NodeID, row.CapturedAt.UTC().UnixNano())
-}
-
-func frpsKey(observation analyticsmodel.NodeObsFrps) string {
-	return fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
-}
-
-func frpcKey(observation analyticsmodel.NodeObsFrpc) string {
-	return fmt.Sprintf("%s|%d", observation.NodeID, observation.CapturedAt.UTC().UnixNano())
 }
 
 type batchStopper interface {

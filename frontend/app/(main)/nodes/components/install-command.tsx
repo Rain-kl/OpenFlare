@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Copy, Eye, EyeOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -23,26 +22,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { type NodeItem, StatusService } from '@/lib/services/openflare';
+import type { NodeItem } from '@/lib/services/openflare';
 
 import {
   buildEdgeDockerInstallCommand,
   buildEdgeInstallCommand,
-  buildRelayDockerInstallCommand,
-  buildRelayInstallCommand,
-  buildTunnelDockerInstallCommand,
-  buildTunnelInstallCommand,
   getServerUrl,
 } from './node-utils';
 
-type InstallVariant = 'edge' | 'relay' | 'tunnel';
+type InstallVariant = 'edge';
 
 export function InstallCommand({
   node,
-  variant,
+  variant = 'edge',
 }: {
   node: NodeItem;
-  variant: InstallVariant;
+  variant?: InstallVariant;
 }) {
   const t = useTranslations('nodes.install');
   const tn = useTranslations('nodes');
@@ -51,47 +46,13 @@ export function InstallCommand({
     'stable' | 'development'
   >('stable');
   const [showSecrets, setShowSecrets] = useState(false);
-  const variantMeta: Record<
-    InstallVariant,
-    {
-      title: string;
-      description: string;
-      tokenLabel: string;
-      scriptLabel?: string;
-      dockerLabel?: string;
-    }
-  > = {
-    edge: {
-      title: t('edgeTitle'),
-      description: t('edgeDesc'),
-      tokenLabel: t('agentToken'),
-      scriptLabel: t('edgeScriptLabel'),
-      dockerLabel: t('dockerLabel'),
-    },
-    relay: {
-      title: t('relayTitle'),
-      description: t('relayDesc'),
-      tokenLabel: t('discoveryToken'),
-      scriptLabel: t('scriptLabel'),
-      dockerLabel: t('dockerLabel'),
-    },
-    tunnel: {
-      title: t('tunnelTitle'),
-      description: t('tunnelDesc'),
-      tokenLabel: t('tunnelToken'),
-      scriptLabel: t('scriptLabel'),
-      dockerLabel: t('dockerLabel'),
-    },
+  const meta = {
+    title: t('edgeTitle'),
+    description: t('edgeDesc'),
+    tokenLabel: t('agentToken'),
+    scriptLabel: t('edgeScriptLabel'),
+    dockerLabel: t('dockerLabel'),
   };
-  const meta = variantMeta[variant];
-
-  const statusQuery = useQuery({
-    queryKey: ['openflare', 'public-status'],
-    queryFn: () => StatusService.getPublicStatus(),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const serverVersion = statusQuery.data?.version;
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !serverUrl) {
@@ -104,43 +65,19 @@ export function InstallCommand({
     if (!normalizedServerUrl || !node.access_token) {
       return '';
     }
-    if (variant === 'edge') {
-      return buildEdgeInstallCommand(normalizedServerUrl, node.access_token);
-    }
-    return variant === 'relay'
-      ? buildRelayInstallCommand(normalizedServerUrl, node.access_token)
-      : buildTunnelInstallCommand(normalizedServerUrl, node.access_token);
-  }, [normalizedServerUrl, node.access_token, variant]);
+    return buildEdgeInstallCommand(normalizedServerUrl, node.access_token);
+  }, [normalizedServerUrl, node.access_token]);
 
   const dockerCommand = useMemo(() => {
     if (!normalizedServerUrl || !node.access_token) {
       return '';
     }
-    if (variant === 'edge') {
-      return buildEdgeDockerInstallCommand(
-        normalizedServerUrl,
-        node.access_token,
-        deploymentVersion,
-      );
-    }
-    return variant === 'relay'
-      ? buildRelayDockerInstallCommand(
-          normalizedServerUrl,
-          node.access_token,
-          serverVersion,
-        )
-      : buildTunnelDockerInstallCommand(
-          normalizedServerUrl,
-          node.access_token,
-          serverVersion,
-        );
-  }, [
-    normalizedServerUrl,
-    node.access_token,
-    variant,
-    serverVersion,
-    deploymentVersion,
-  ]);
+    return buildEdgeDockerInstallCommand(
+      normalizedServerUrl,
+      node.access_token,
+      deploymentVersion,
+    );
+  }, [normalizedServerUrl, node.access_token, deploymentVersion]);
 
   const handleCopy = async (value: string, message: string) => {
     try {

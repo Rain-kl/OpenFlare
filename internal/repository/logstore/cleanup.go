@@ -135,16 +135,6 @@ func CleanupExpired(ctx context.Context) (*CleanupSummary, error) {
 	}, summary); err != nil {
 		return nil, err
 	}
-	if err := cleanupTable("obs_frps", func() (int64, error) {
-		return s.Observability.DeleteNodeObservationFrpsBefore(ctx, cutoff)
-	}, summary); err != nil {
-		return nil, err
-	}
-	if err := cleanupTable("obs_frpc", func() (int64, error) {
-		return s.Observability.DeleteNodeObservationFrpcBefore(ctx, cutoff)
-	}, summary); err != nil {
-		return nil, err
-	}
 	return summary, nil
 }
 

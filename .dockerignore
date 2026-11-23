@@ -35,3 +35,4 @@ internal/router/dist/
 internal/router/root/dist/
 
 edge/pingora/target/
+tunnel/target/

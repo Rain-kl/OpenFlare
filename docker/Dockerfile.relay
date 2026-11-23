@@ -1,34 +1,44 @@
 # syntax=docker/dockerfile:1.7
+FROM rust:1.95-alpine3.23 AS builder
+
+WORKDIR /build/tunnel
+RUN apk add --no-cache build-base ca-certificates git
+COPY tunnel/Cargo.toml tunnel/Cargo.lock ./
+COPY tunnel/common/ common/
+COPY tunnel/relay/ relay/
+COPY tunnel/flared/ flared/
 ARG VERSION=dev
+ARG TARGETARCH
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,id=tunnel-musl-cargo-target-${TARGETARCH},target=/target \
+    ver="${VERSION#tunnel-v}"; \
+    ver="${ver#v}"; \
+    OPENFLARE_TUNNEL_VERSION="$ver" CARGO_PROFILE_RELEASE_STRIP=symbols \
+    CARGO_TARGET_DIR=/target cargo build --locked --release -p openflare-relay \
+    && install -D -m 0755 /target/release/openflare-relay /out/openflare-relay \
+    && elf="$(readelf --program-headers --dynamic --wide /out/openflare-relay)" \
+    && ! printf '%s\n' "$elf" | grep -E 'INTERP|\(NEEDED\)'
 
-FROM golang:alpine AS builder
+FROM alpine:3.23 AS runtime
 
-ARG VERSION
+RUN apk add --no-cache ca-certificates \
+    && test -s /etc/ssl/certs/ca-certificates.crt \
+    && addgroup -S -g 10001 openflare-relay \
+    && adduser -S -D -H -u 10001 -G openflare-relay -s /sbin/nologin openflare-relay \
+    && install -d -m 0750 -o openflare-relay -g openflare-relay /var/lib/openflare-relay
 
-ENV GOTOOLCHAIN=""
+COPY --from=builder /out/openflare-relay /usr/local/bin/openflare-relay
 
-WORKDIR /build
-COPY go.mod go.sum ./
-RUN --mount=type=bind,source=docker/go-toolchain.sh,target=/tmp/go-toolchain.sh \
-    --mount=type=cache,target=/go/pkg/mod \
-    sh /tmp/go-toolchain.sh && go mod download
+ARG VERSION=dev
+ARG SOURCE_URL=https://github.com/Rain-kl/OpenFlare
+LABEL org.opencontainers.image.source=$SOURCE_URL \
+      org.opencontainers.image.version=$VERSION
 
-COPY . .
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w -X 'github.com/Rain-kl/Wavelet/internal/edge/relay/config.Version=$VERSION'" -o /build/bin/openflare-relay ./cmd/relay/main.go
+ENV OPENFLARE_RELAY_STATE_DIR=/var/lib/openflare-relay
 
-# Final runtime image
-FROM fatedier/frps:v0.69.0
-
-WORKDIR /app
-
-# Copy openflare-relay binary
-COPY --from=builder /build/bin/openflare-relay ./openflare-relay
-
-VOLUME ["/app/data"]
-
-ENV OPENFLARE_FRPS_PATH=/usr/bin/frps
-ENV OPENFLARE_DATA_DIR=/app/data
-
-ENTRYPOINT ["/app/openflare-relay"]
+VOLUME ["/var/lib/openflare-relay"]
+EXPOSE 7443/tcp 7444/tcp 8443/tcp
+USER 10001:10001
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["/usr/local/bin/openflare-relay"]

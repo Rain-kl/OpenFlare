@@ -413,9 +413,10 @@ export function buildPayloadFromRoute(
     basic_auth_username: route.basic_auth_username,
     basic_auth_password: route.basic_auth_password,
     upstream_type: route.upstream_type,
-    tunnel_node_id: route.tunnel_node_id ?? route.tunnel_id ?? null,
+    tunnel_id: route.tunnel_id ?? null,
     tunnel_target_addr: route.tunnel_target_addr || '',
     tunnel_target_protocol: route.tunnel_target_protocol || '',
+    tunnel_options_json: route.tunnel_options_json || '{}',
     pages_project_id: route.pages_project_id ?? null,
     ...overrides,
   };

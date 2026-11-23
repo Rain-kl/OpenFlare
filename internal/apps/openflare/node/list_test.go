@@ -146,7 +146,7 @@ func TestNodePageFiltersUseComputedStatus(t *testing.T) {
 	quarantinedAt := now.Add(-time.Minute)
 	nodes := []model.OpenFlareNode{
 		{NodeID: "literal", Name: "EDGE 100%_!", NodeType: "edge_node", Status: "offline", LastSeenAt: &cutoff},
-		{NodeID: "old", Name: "old", NodeType: "tunnel_relay", Status: "online", LastSeenAt: &old},
+		{NodeID: "old", Name: "old", NodeType: "edge_node", Status: "online", LastSeenAt: &old},
 		{NodeID: "pending", Name: "pending", NodeType: "edge_node"},
 		{NodeID: "zero", Name: "zero", NodeType: "edge_node", LastSeenAt: &zero},
 		{NodeID: "quarantined", Name: "quarantined", NodeType: "edge_node", Status: "quarantined", LastSeenAt: &cutoff, QuarantinedAt: &quarantinedAt},
@@ -165,11 +165,10 @@ func TestNodePageFiltersUseComputedStatus(t *testing.T) {
 		{query: model.OpenFlareNodeListQuery{Status: "offline"}, want: 1},
 		{query: model.OpenFlareNodeListQuery{Status: "pending"}, want: 2},
 		{query: model.OpenFlareNodeListQuery{Status: "quarantined"}, want: 1},
-		{query: model.OpenFlareNodeListQuery{NodeType: "edge_node"}, want: 4},
-		{query: model.OpenFlareNodeListQuery{NodeType: "tunnel_relay"}, want: 1},
+		{query: model.OpenFlareNodeListQuery{NodeType: "edge_node"}, want: 5},
 		{query: model.OpenFlareNodeListQuery{Search: "100%_!"}, want: 1},
 		{query: model.OpenFlareNodeListQuery{Search: "edge"}, want: 1},
-		{query: model.OpenFlareNodeListQuery{Status: "pending", NodeType: "tunnel_relay"}, want: 0},
+		{query: model.OpenFlareNodeListQuery{Status: "pending", NodeType: "edge_node"}, want: 2},
 	}
 	for _, test := range cases {
 		test.query.Page = 1
@@ -228,7 +227,7 @@ func TestNodePageIndexes(t *testing.T) {
 		arg   any
 		index string
 	}{
-		{sql: "SELECT count(*) FROM of_nodes WHERE node_type = ?", arg: "tunnel_client", index: "idx_of_nodes_type_id"},
+		{sql: "SELECT count(*) FROM of_nodes WHERE node_type = ?", arg: "edge_node", index: "idx_of_nodes_type_id"},
 		{sql: "SELECT count(*) FROM of_nodes WHERE last_seen_at >= ?", arg: time.Now().Add(-time.Minute), index: "idx_of_nodes_last_seen_id"},
 	}
 	for _, query := range queries {

@@ -27,7 +27,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 )
 
-const expectedDefaultConfigsCount = 39
+const expectedDefaultConfigsCount = 42
 
 func setupTestRouter(authUser *model.User) *gin.Engine {
 	r := testhelper.NewTestGinEngine()
@@ -168,8 +168,8 @@ func TestListSystemConfigs(t *testing.T) {
 		var configs []model.SystemConfig
 		_ = json.Unmarshal(dataBytes, &configs)
 
-		if len(configs) != 10 {
-			t.Errorf("expected 10 business configs, got %d: %v", len(configs), configs)
+		if len(configs) != 9 {
+			t.Errorf("expected 9 business configs, got %d: %v", len(configs), configs)
 		}
 	})
 }

@@ -8,8 +8,6 @@ import type {
 } from '@/lib/services/openflare';
 
 export const WS_CONNECTED_LAST_SEEN = '__OPENFLARE_WS_CONNECTED__';
-export const FLARED_WS_CONNECTED_LAST_SEEN =
-  '__OPENFLARE_FLARED_WS_CONNECTED__';
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'info';
 
@@ -19,9 +17,7 @@ export type NodeMessageT = (
 ) => string;
 
 export function isWSConnectedLastSeen(value: string | null | undefined) {
-  return (
-    value === WS_CONNECTED_LAST_SEEN || value === FLARED_WS_CONNECTED_LAST_SEEN
-  );
+  return value === WS_CONNECTED_LAST_SEEN;
 }
 
 export function isMeaningfulTime(
@@ -96,26 +92,8 @@ export function getOpenrestyStatusLabel(
   return t('health.unknown');
 }
 
-export function getRelayStatusTone(
-  status: string | null | undefined,
-): StatusTone {
-  if (status === 'healthy') return 'success';
-  if (status === 'unhealthy') return 'danger';
-  return 'warning';
-}
-
-export function getRelayStatusLabel(
-  status: string | null | undefined,
-  t: NodeMessageT,
-) {
-  if (status === 'healthy') return t('health.healthy');
-  if (status === 'unhealthy') return t('health.unhealthy');
-  return t('health.unknown');
-}
-
 export function getNodeTypeLabel(nodeType: NodeItem['node_type']) {
-  if (nodeType === 'tunnel_relay') return runtimeText('node_type_relay');
-  if (nodeType === 'tunnel_client') return runtimeText('node_type_tunnel');
+  void nodeType;
   return runtimeText('node_type_edge');
 }
 
@@ -126,12 +104,6 @@ export function getErrorMessage(error: unknown, fallback: string) {
 export function getServerUrl(value: string) {
   return value.trim().replace(/\/+$/, '');
 }
-
-const relayInstallerScriptUrl =
-  'https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-relay.sh';
-
-const flaredInstallerScriptUrl =
-  'https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-flared.sh';
 
 export function getImageTag(version?: string): string {
   if (!version) {
@@ -186,64 +158,6 @@ export function buildEdgeDockerInstallCommand(
     `  -e OPENFLARE_EDGE_SERVER_URL=${quoteShellArgument(serverUrl)} \\`,
     '  -e OPENFLARE_EDGE_TOKEN_TYPE=node \\',
     `  -e OPENFLARE_EDGE_TOKEN=${quoteShellArgument(agentToken)} \\`,
-    `  ${image}`,
-  ].join('\n');
-}
-
-export function buildRelayInstallCommand(
-  serverUrl: string,
-  discoveryToken: string,
-) {
-  return [
-    `curl -fsSL ${relayInstallerScriptUrl} | bash -s -- \\`,
-    `  --server-url ${serverUrl} \\`,
-    `  --discovery-token ${discoveryToken}`,
-  ].join('\n');
-}
-
-export function buildRelayDockerInstallCommand(
-  serverUrl: string,
-  discoveryToken: string,
-  version?: string,
-) {
-  const tag = getImageTag(version);
-  const image = `ghcr.io/rain-kl/openflare-relay:${tag}`;
-
-  return [
-    `docker pull ${image}`,
-    `docker rm -f openflare-relay 2>/dev/null || true`,
-    `docker run -d --name openflare-relay --net host --restart unless-stopped \\`,
-    `  -e OPENFLARE_SERVER_URL=${serverUrl} \\`,
-    `  -e OPENFLARE_DISCOVERY_TOKEN=${discoveryToken} \\`,
-    `  ${image}`,
-  ].join('\n');
-}
-
-export function buildTunnelInstallCommand(
-  serverUrl: string,
-  tunnelToken: string,
-) {
-  return [
-    `curl -fsSL ${flaredInstallerScriptUrl} | bash -s -- \\`,
-    `  --server-url ${serverUrl} \\`,
-    `  --tunnel-token ${tunnelToken}`,
-  ].join('\n');
-}
-
-export function buildTunnelDockerInstallCommand(
-  serverUrl: string,
-  tunnelToken: string,
-  version?: string,
-) {
-  const tag = getImageTag(version);
-  const image = `ghcr.io/rain-kl/openflared:${tag}`;
-
-  return [
-    `docker pull ${image}`,
-    `docker rm -f openflared 2>/dev/null || true`,
-    `docker run -d --name openflared --restart unless-stopped \\`,
-    `  -e OPENFLARE_SERVER_URL=${serverUrl} \\`,
-    `  -e OPENFLARE_TUNNEL_TOKEN=${tunnelToken} \\`,
     `  ${image}`,
   ].join('\n');
 }
@@ -335,27 +249,4 @@ export function getHealthEventTone(event: {
 
 export function getHealthEventLabel(event: { event_type: string }) {
   return event.event_type.replaceAll('_', ' ');
-}
-
-export function getFlaredStatusLabel(node: NodeItem, t: NodeMessageT) {
-  if (isWSConnectedLastSeen(node.last_seen_at)) {
-    return t('status.wsConnected');
-  }
-  if (node.status === 'online') {
-    return t('status.running');
-  }
-  if (node.status === 'pending') {
-    return t('status.pending');
-  }
-  return t('status.offline');
-}
-
-export function getFlaredStatusTone(node: NodeItem): StatusTone {
-  if (isWSConnectedLastSeen(node.last_seen_at) || node.status === 'online') {
-    return 'success';
-  }
-  if (node.status === 'pending') {
-    return 'warning';
-  }
-  return 'danger';
 }

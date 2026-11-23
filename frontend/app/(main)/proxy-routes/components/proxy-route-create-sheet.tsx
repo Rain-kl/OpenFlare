@@ -37,9 +37,9 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import type { ProxyRouteItem } from '@/lib/services/openflare';
 import {
-  NodeService,
   PagesService,
   ProxyRouteService,
+  TunnelService,
   ZoneService,
   zoneQueryKey,
 } from '@/lib/services/openflare';
@@ -57,6 +57,7 @@ type CreateProxyRouteFormValues = {
   tunnel_id?: string;
   tunnel_target_addr?: string;
   tunnel_target_protocol?: 'http' | 'https';
+  tunnel_insecure_skip_verify?: boolean;
   pages_project_id?: string;
   enabled: boolean;
 };
@@ -69,6 +70,7 @@ const defaultValues: CreateProxyRouteFormValues = {
   tunnel_id: '',
   tunnel_target_addr: '',
   tunnel_target_protocol: 'http',
+  tunnel_insecure_skip_verify: false,
   pages_project_id: '',
   enabled: true,
 };
@@ -97,6 +99,7 @@ export function ProxyRouteCreateSheet({
       tunnel_id: z.string().optional(),
       tunnel_target_addr: z.string().trim().optional(),
       tunnel_target_protocol: z.enum(['http', 'https']).optional(),
+      tunnel_insecure_skip_verify: z.boolean().optional(),
       pages_project_id: z.string().optional(),
       enabled: z.boolean(),
     })
@@ -163,8 +166,8 @@ export function ProxyRouteCreateSheet({
   });
 
   const tunnelsQuery = useQuery({
-    queryKey: ['openflare', 'nodes'],
-    queryFn: () => NodeService.listNodes(),
+    queryKey: ['openflare', 'tunnels', 'list'],
+    queryFn: () => TunnelService.listTunnels(),
     enabled: open,
   });
 
@@ -174,14 +177,13 @@ export function ProxyRouteCreateSheet({
     enabled: open,
   });
 
-  const tunnelClients = (tunnelsQuery.data ?? []).filter(
-    (node) => node.node_type === 'tunnel_client',
-  );
+  const tunnelList = tunnelsQuery.data ?? [];
   const pagesProjects = (pagesProjectsQuery.data ?? []).filter(
     (project) => project.enabled && project.active_deployment_id,
   );
 
   const upstreamType = form.watch('upstream_type');
+  const tunnelTargetProtocol = form.watch('tunnel_target_protocol');
 
   useEffect(() => {
     if (!open) {
@@ -248,7 +250,7 @@ export function ProxyRouteCreateSheet({
         custom_headers: [],
         basic_auth_enabled: false,
         upstream_type: values.upstream_type,
-        tunnel_node_id:
+        tunnel_id:
           values.upstream_type === 'tunnel' && values.tunnel_id
             ? Number(values.tunnel_id)
             : null,
@@ -258,6 +260,14 @@ export function ProxyRouteCreateSheet({
           values.upstream_type === 'tunnel'
             ? values.tunnel_target_protocol
             : '',
+        tunnel_options_json:
+          values.upstream_type === 'tunnel'
+            ? JSON.stringify({
+                insecure_skip_verify: Boolean(
+                  values.tunnel_insecure_skip_verify,
+                ),
+              })
+            : '{}',
         pages_project_id:
           values.upstream_type === 'pages' && values.pages_project_id
             ? Number(values.pages_project_id)
@@ -402,13 +412,13 @@ export function ProxyRouteCreateSheet({
                           <SelectItem value='none'>
                             {t('pleaseSelect')}
                           </SelectItem>
-                          {tunnelClients.map((tunnel) => (
+                          {tunnelList.map((tunnel) => (
                             <SelectItem
                               key={tunnel.id}
                               value={String(tunnel.id)}
                             >
                               {tunnel.name} (
-                              {tunnel.status === 'online'
+                              {tunnel.online_connectors > 0
                                 ? t('online')
                                 : t('offline')}
                               )
@@ -465,6 +475,29 @@ export function ProxyRouteCreateSheet({
                     </FormItem>
                   )}
                 />
+
+                {tunnelTargetProtocol === 'https' ? (
+                  <FormField
+                    control={form.control}
+                    name='tunnel_insecure_skip_verify'
+                    render={({ field }) => (
+                      <FormItem className='flex items-center justify-between rounded-lg border p-3'>
+                        <div className='space-y-1'>
+                          <FormLabel>{t('tunnelInsecureSkipVerify')}</FormLabel>
+                          <FormDescription>
+                            {t('tunnelInsecureSkipVerifyDesc')}
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={Boolean(field.value)}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                ) : null}
               </div>
             ) : null}
 

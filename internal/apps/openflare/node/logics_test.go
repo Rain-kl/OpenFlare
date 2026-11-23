@@ -68,36 +68,18 @@ func TestCreateEdgeNode(t *testing.T) {
 	assert.True(t, view.AutoUpdateEnabled)
 }
 
-func TestCreateTunnelRelayNode(t *testing.T) {
+func TestCreateNodeDefaultsToEdgeNode(t *testing.T) {
 	cleanup := setupNodeTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
 
 	view, err := CreateNode(ctx, Input{
-		Name:     "relay-1",
-		NodeType: "tunnel_relay",
+		Name:     "edge-default-1",
+		NodeType: "edge_node",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "tunnel_relay", view.NodeType)
-	assert.Equal(t, 7000, view.RelayBindPort)
-	assert.Equal(t, 8080, view.RelayVhostHTTPPort)
-
-	stored, err := repository.GetOpenFlareNodeByID(ctx, view.ID)
-	require.NoError(t, err)
-	assert.NotEmpty(t, stored.RelayAuthToken)
-}
-
-func TestCreateTunnelClientNode(t *testing.T) {
-	cleanup := setupNodeTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-
-	view, err := CreateNode(ctx, Input{
-		Name:     "client-1",
-		NodeType: "tunnel_client",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "tunnel_client", view.NodeType)
+	assert.Equal(t, "edge_node", view.NodeType)
+	assert.NotEmpty(t, view.AccessToken)
 }
 
 func TestCreateNodeRequiresName(t *testing.T) {
@@ -236,17 +218,21 @@ func TestRequestAgentUpdateWithPreviewTag(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	created, err := CreateNode(ctx, Input{Name: "tunnel-update-agent", NodeType: "tunnel_client"})
+	created, err := CreateNode(ctx, Input{Name: "edge-update-agent", NodeType: "edge_node"})
 	require.NoError(t, err)
+	record, err := repository.GetOpenFlareNodeByID(ctx, created.ID)
+	require.NoError(t, err)
+	record.CapabilitiesJSON = "[\"edge_self_update_v1\"]"
+	require.NoError(t, repository.UpdateOpenFlareNodeFields(ctx, record, "capabilities_json"))
 
 	originalClient := setReleaseHTTPClientForTest(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			expected := "https://api.github.com/repos/Rain-kl/OpenFlare/releases/tags/v0.5.0-rc.1"
+			expected := "https://api.github.com/repos/Rain-kl/OpenFlare/releases/tags/edge-v0.5.0-rc.1"
 			require.Equal(t, expected, req.URL.String())
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Header:     make(http.Header),
-				Body:       io.NopCloser(strings.NewReader(`{"tag_name":"v0.5.0-rc.1","prerelease":true}`)),
+				Body:       io.NopCloser(strings.NewReader(`{"tag_name":"edge-v0.5.0-rc.1","prerelease":true,"assets":[{"name":"openflare-edge_edge-v0.5.0-rc.1_linux_amd64.tar.gz"}]}`)),
 			}, nil
 		}),
 	})
@@ -256,12 +242,12 @@ func TestRequestAgentUpdateWithPreviewTag(t *testing.T) {
 
 	updated, err := RequestAgentUpdate(ctx, created.ID, AgentUpdateInput{
 		Channel: "preview",
-		TagName: "v0.5.0-rc.1",
+		TagName: "edge-v0.5.0-rc.1",
 	})
 	require.NoError(t, err)
 	assert.True(t, updated.UpdateRequested)
 	assert.Equal(t, "preview", updated.UpdateChannel)
-	assert.Equal(t, "v0.5.0-rc.1", updated.UpdateTag)
+	assert.Equal(t, "edge-v0.5.0-rc.1", updated.UpdateTag)
 }
 
 func TestRequestEdgeRestart(t *testing.T) {

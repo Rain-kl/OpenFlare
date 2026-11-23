@@ -10,7 +10,8 @@ pub use listener::run_server;
 use crate::{
     config::{AppliedConfig, SnapshotStore},
     policy::{self, RateLimiter},
-    runtime::performance::LivePolicy,
+    protocol::config::TunnelEdgeRelayEndpoint,
+    runtime::{performance::LivePolicy, tunnel_routing::LiveTunnelRouting},
     telemetry::{AccessLogBuffer, NodeAccessLog},
 };
 use async_trait::async_trait;
@@ -37,6 +38,8 @@ pub struct RequestLogContext {
     snapshot: Option<Arc<AppliedConfig>>,
     upstream_index: usize,
     upstream_start: usize,
+    tunnel_relays: Vec<TunnelEdgeRelayEndpoint>,
+    active_tunnel_relay: Option<TunnelEdgeRelayEndpoint>,
     remote_ip: String,
     https: bool,
     request_header_bytes: usize,
@@ -62,6 +65,8 @@ impl Default for RequestLogContext {
             snapshot: None,
             upstream_index: 0,
             upstream_start: 0,
+            tunnel_relays: Vec::new(),
+            active_tunnel_relay: None,
             remote_ip: String::new(),
             https: false,
             request_header_bytes: 0,
@@ -131,6 +136,7 @@ pub struct ProxyService {
     pow: policy::PowState,
     access_logs: AccessLogBuffer,
     performance: LivePolicy,
+    tunnel_routing: LiveTunnelRouting,
 }
 
 #[async_trait]

@@ -1,4 +1,4 @@
-.PHONY: swagger license license-check format build-embedded build-test cross-build code-check build-backend build-frontend build-edge build-relay build-flared build-all
+.PHONY: swagger license license-check format build-embedded build-test cross-build code-check build-backend build-frontend build-edge build-relay build-flared test-tunnel build-all
 
 VERSION ?= dev
 BUILD_DATE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -62,17 +62,16 @@ build-edge:
 
 build-relay:
 	@echo "==> Building relay version=$(VERSION)..."
-	go build \
-		-ldflags "-s -w -X '$(MODULE)/internal/edge/relay/config.Version=$(VERSION)'" \
-		-o bin/openflare-relay \
-		cmd/relay/main.go
+	OPENFLARE_TUNNEL_VERSION="$(VERSION)" cargo build --manifest-path tunnel/Cargo.toml --release --locked -p openflare-relay
+	install -D -m 0755 tunnel/target/release/openflare-relay bin/openflare-relay
 
 build-flared:
 	@echo "==> Building flared version=$(VERSION)..."
-	go build \
-		-ldflags "-s -w -X '$(MODULE)/internal/edge/flared/config.Version=$(VERSION)'" \
-		-o bin/flared \
-		cmd/flared/main.go
+	OPENFLARE_TUNNEL_VERSION="$(VERSION)" cargo build --manifest-path tunnel/Cargo.toml --release --locked -p openflared
+	install -D -m 0755 tunnel/target/release/openflared bin/openflared
+
+test-tunnel:
+	cargo test --manifest-path tunnel/Cargo.toml --locked
 
 build-all: build-backend build-edge build-relay build-flared
 

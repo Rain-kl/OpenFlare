@@ -34,9 +34,10 @@ type ProxyRoute struct {
 	SiteAuthTTLHours     int          `json:"site_auth_ttl_hours" gorm:"not null;default:0"`
 	SiteAuthKey          string       `json:"-" gorm:"size:64;not null;default:''"`
 	UpstreamType         string       `json:"upstream_type" gorm:"size:32;not null;default:'direct'"`
-	TunnelNodeID         *uint        `json:"tunnel_node_id" gorm:"index"`
+	TunnelID             *uint        `json:"tunnel_id" gorm:"index"`
 	TunnelTargetAddr     string       `json:"tunnel_target_addr" gorm:"size:512"`
 	TunnelTargetProtocol string       `json:"tunnel_target_protocol" gorm:"size:16"`
+	TunnelOptionsJSON    string       `json:"tunnel_options_json" gorm:"type:text;not null;default:'{}'"`
 	PagesProjectID       *uint        `json:"pages_project_id" gorm:"index"`
 	CreatedAt            time.Time    `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt            time.Time    `json:"updated_at" gorm:"autoUpdateTime"`

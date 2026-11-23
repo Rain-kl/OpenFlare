@@ -17,24 +17,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import type {
-  NodeItem,
-  NodeMutationPayload,
-  NodeType,
-} from '@/lib/services/openflare';
+import type { NodeItem, NodeMutationPayload } from '@/lib/services/openflare';
 
 function buildNodeSchema(t: (key: string) => string) {
   return z
     .object({
-      node_type: z.enum(['edge_node', 'tunnel_relay', 'tunnel_client']),
+      node_type: z.literal('edge_node'),
       name: z.string().trim().min(1, t('editor.errName')).max(255),
       ip: z.string(),
       ip_manual_override: z.boolean(),
@@ -43,8 +32,6 @@ function buildNodeSchema(t: (key: string) => string) {
       geo_name: z.string(),
       geo_latitude: z.string(),
       geo_longitude: z.string(),
-      relay_bind_port: z.string(),
-      relay_vhost_http_port: z.string(),
     })
     .superRefine((value, context) => {
       if (value.ip_manual_override && !value.ip.trim()) {
@@ -53,24 +40,6 @@ function buildNodeSchema(t: (key: string) => string) {
           path: ['ip'],
           message: t('editor.errLockIp'),
         });
-      }
-      if (value.node_type === 'tunnel_relay') {
-        const bindPort = Number(value.relay_bind_port);
-        const vhostPort = Number(value.relay_vhost_http_port);
-        if (!Number.isFinite(bindPort) || bindPort <= 0) {
-          context.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['relay_bind_port'],
-            message: t('editor.errBindPort'),
-          });
-        }
-        if (!Number.isFinite(vhostPort) || vhostPort <= 0) {
-          context.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['relay_vhost_http_port'],
-            message: t('editor.errVhostPort'),
-          });
-        }
       }
     });
 }
@@ -87,15 +56,13 @@ const defaultForm: NodeFormValues = {
   geo_name: '',
   geo_latitude: '',
   geo_longitude: '',
-  relay_bind_port: '7000',
-  relay_vhost_http_port: '8080',
 };
 
 function buildFormValues(node?: NodeItem | null): NodeFormValues {
   if (!node) return defaultForm;
 
   return {
-    node_type: node.node_type,
+    node_type: 'edge_node',
     name: node.name,
     ip: node.ip,
     ip_manual_override: node.ip_manual_override,
@@ -110,13 +77,11 @@ function buildFormValues(node?: NodeItem | null): NodeFormValues {
       node.geo_longitude === undefined || node.geo_longitude === null
         ? ''
         : String(node.geo_longitude),
-    relay_bind_port: String(node.relay_bind_port || 7000),
-    relay_vhost_http_port: String(node.relay_vhost_http_port || 8080),
   };
 }
 
 function toPayload(form: NodeFormValues): NodeMutationPayload {
-  const base: NodeMutationPayload = {
+  return {
     node_type: form.node_type,
     name: form.name.trim(),
     ip: form.ip.trim(),
@@ -133,17 +98,6 @@ function toPayload(form: NodeFormValues): NodeMutationPayload {
         ? Number(form.geo_longitude)
         : null,
   };
-
-  if (form.node_type === 'tunnel_relay') {
-    return {
-      ...base,
-      relay_bind_port: Number(form.relay_bind_port),
-      relay_vhost_http_port: Number(form.relay_vhost_http_port),
-      relay_web_server_enabled: true,
-    };
-  }
-
-  return base;
 }
 
 export function NodeEditorDialog({
@@ -172,7 +126,6 @@ export function NodeEditorDialog({
     }
   }, [form, open, node]);
 
-  const nodeType = form.watch('node_type');
   const ipManualOverride = form.watch('ip_manual_override');
   const geoManualOverride = form.watch('geo_manual_override');
 
@@ -194,32 +147,6 @@ export function NodeEditorDialog({
           onSubmit={(event) => void handleSubmit(event)}
           className='space-y-4'
         >
-          <div className='space-y-2'>
-            <Label>{t('editor.nodeType')}</Label>
-            <Select
-              value={nodeType}
-              disabled={Boolean(node)}
-              onValueChange={(value) =>
-                form.setValue('node_type', value as NodeType)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='edge_node'>
-                  {t('editor.typeEdge')}
-                </SelectItem>
-                <SelectItem value='tunnel_relay'>
-                  {t('editor.typeRelay')}
-                </SelectItem>
-                <SelectItem value='tunnel_client'>
-                  {t('editor.typeTunnel')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className='space-y-2'>
             <Label htmlFor='node-name'>{t('editor.name')}</Label>
             <Input
@@ -268,9 +195,7 @@ export function NodeEditorDialog({
               <p className='text-sm font-medium'>{t('editor.autoUpdate')}</p>
               <p className='text-xs text-muted-foreground'>
                 {t(
-                  nodeType === 'edge_node' &&
-                    node &&
-                    !node.edge_update_supported
+                  node && !node.edge_update_supported
                     ? 'edge.updateUnsupported'
                     : 'editor.autoUpdateDesc',
                 )}
@@ -284,37 +209,6 @@ export function NodeEditorDialog({
               }
             />
           </div>
-
-          {nodeType === 'tunnel_relay' ? (
-            <div className='grid gap-3 sm:grid-cols-2'>
-              <div className='space-y-2'>
-                <Label htmlFor='relay-bind-port'>{t('editor.bindPort')}</Label>
-                <Input
-                  id='relay-bind-port'
-                  {...form.register('relay_bind_port')}
-                />
-                {form.formState.errors.relay_bind_port ? (
-                  <p className='text-xs text-destructive'>
-                    {form.formState.errors.relay_bind_port.message}
-                  </p>
-                ) : null}
-              </div>
-              <div className='space-y-2'>
-                <Label htmlFor='relay-vhost-port'>
-                  {t('editor.vhostPort')}
-                </Label>
-                <Input
-                  id='relay-vhost-port'
-                  {...form.register('relay_vhost_http_port')}
-                />
-                {form.formState.errors.relay_vhost_http_port ? (
-                  <p className='text-xs text-destructive'>
-                    {form.formState.errors.relay_vhost_http_port.message}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
 
           <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
             <div>

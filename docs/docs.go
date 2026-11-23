@@ -5291,9 +5291,7 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
-                            "edge_node",
-                            "tunnel_relay",
-                            "tunnel_client"
+                            "edge_node"
                         ],
                         "type": "string",
                         "description": "Filter by node type. Omit for all types.",
@@ -5413,9 +5411,7 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
-                            "edge_node",
-                            "tunnel_relay",
-                            "tunnel_client"
+                            "edge_node"
                         ],
                         "type": "string",
                         "description": "Filter by node type; omit for all types",
@@ -10706,7 +10702,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "edge_node、tunnel_relay 或 tunnel_client",
+                        "description": "节点类型（edge_node）",
                         "name": "node_type",
                         "in": "query"
                     }
@@ -14750,6 +14746,1901 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/tunnel-pools": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回全部中继节点池及其中继、隧道数量统计",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取中继节点池列表",
+                "responses": {
+                    "200": {
+                        "description": "中继节点池列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/apps_openflare_tunnel.PoolView"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "创建中继节点池",
+                "parameters": [
+                    {
+                        "description": "中继池参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.PoolInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.PoolView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "pool_key 已存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-pools/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取中继节点池详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继池 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "中继池详情",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.PoolView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "中继池不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-pools/{id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "删除中继节点池",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继池 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "中继池不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "默认池或非空池不可删除",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-pools/{id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "更新中继节点池",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继池 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "中继池参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.PoolInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.PoolView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "中继池不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取中继 PoP 列表",
+                "responses": {
+                    "200": {
+                        "description": "中继节点列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/apps_openflare_tunnel.RelayView"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "创建中继 PoP",
+                "parameters": [
+                    {
+                        "description": "中继节点参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.RelayInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功及部署命令",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayDeployView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/bootstrap-token": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取中继发现引导令牌",
+                "responses": {
+                    "200": {
+                        "description": "中继引导令牌",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayBootstrapView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/bootstrap-token/rotate": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "轮换中继发现引导令牌",
+                "responses": {
+                    "200": {
+                        "description": "新中继引导令牌",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayBootstrapView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取中继 PoP 详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "中继详情",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "中继不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/{id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "删除中继 PoP",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "中继不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/{id}/deploy": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取中继 PoP 部署命令",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "部署命令与凭证",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayDeployView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "中继不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/{id}/drain": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "设置中继排空状态",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "排空开关",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.RelayDrainInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新后的中继",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "中继不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/{id}/quarantine": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "紧急隔离中继 PoP",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "隔离原因",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.RelayQuarantineInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已隔离的中继",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "中继不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/{id}/rotate-token": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "轮换中继访问令牌",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "轮换后的凭证",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayDeployView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "中继不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/{id}/unquarantine": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "解除中继隔离并签发新令牌",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "解除隔离后的中继",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayDeployView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "中继不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/{id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "更新中继 PoP",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "中继节点参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.RelayInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "中继不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnel-relays/{id}/update-binary": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "下发中继二进制更新",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "中继节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新参数",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.BinaryUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新已登记",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.RelayView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "中继不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取隧道列表",
+                "responses": {
+                    "200": {
+                        "description": "隧道列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/apps_openflare_tunnel.TunnelView"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "创建隧道",
+                "parameters": [
+                    {
+                        "description": "隧道参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功及部署命令",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelDeployView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/release": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取隧道组件最新版本信息",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "发布渠道（stable/preview）",
+                        "name": "channel",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "版本信息",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelReleaseInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数或查询错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/topology": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取隧道全局拓扑视图",
+                "responses": {
+                    "200": {
+                        "description": "拓扑数据",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelTopologyView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取隧道详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "隧道详情",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelDetailView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "隧道不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/connectors/{connector_id}/revoke": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "吊销指定连接器副本",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "连接器实例 ID",
+                        "name": "connector_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "吊销成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "隧道或连接器不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "删除隧道",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "隧道不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "隧道仍被路由引用",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/deploy": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "获取隧道连接器部署命令",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "部署命令与凭证",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelDeployView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "隧道不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/quarantine": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "紧急隔离隧道",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "隔离原因",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelQuarantineInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已隔离的隧道",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "隧道不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/rotate-token": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "轮换隧道接入令牌",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "新凭证与部署命令",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelDeployView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "隧道不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/services": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "创建隧道 L4 端口转发服务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "L4 服务参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelServiceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelServiceView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "隧道不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/services/{service_id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "删除隧道 L4 端口转发服务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "服务 ID",
+                        "name": "service_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "服务不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/services/{service_id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "更新隧道 L4 端口转发服务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "服务 ID",
+                        "name": "service_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "L4 服务参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelServiceInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelServiceView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "服务不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/unquarantine": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "解除隧道隔离并签发新令牌",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "解除隔离后的隧道",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelDeployView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "隧道不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "更新隧道配置",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "隧道参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "隧道不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tunnels/{id}/update-binary": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tunnel"
+                ],
+                "summary": "下发连接器二进制更新",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "隧道 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新参数",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_tunnel.BinaryUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新已登记",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_tunnel.TunnelView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "隧道不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/uptimekuma/sync": {
             "post": {
                 "security": [
@@ -17815,14 +19706,60 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/relay/heartbeat": {
-            "post": {
-                "security": [
+        "/api/v1/relay/config": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-relay"
+                ],
+                "summary": "拉取中继运行时配置",
+                "parameters": [
                     {
-                        "AgentTokenAuth": []
+                        "type": "string",
+                        "description": "中继访问令牌",
+                        "name": "X-Relay-Token",
+                        "in": "header",
+                        "required": true
                     }
                 ],
-                "description": "Relay 节点定期上报运行状态与 frps 观测数据，返回运行时配置",
+                "responses": {
+                    "200": {
+                        "description": "中继运行时配置",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayRuntimeConfigResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "中继已隔离",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/relay/heartbeat": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -17832,10 +19769,17 @@ const docTemplate = `{
                 "tags": [
                     "openflare-relay"
                 ],
-                "summary": "上报 Relay 心跳",
+                "summary": "中继 PoP 心跳与租约续期",
                 "parameters": [
                     {
-                        "description": "心跳载荷",
+                        "type": "string",
+                        "description": "中继访问令牌",
+                        "name": "X-Relay-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "中继心跳载荷",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -17870,13 +19814,82 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Agent Token 无效",
+                        "description": "Token 无效",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
-                        "description": "节点类型不匹配",
+                        "description": "中继已隔离",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/relay/register": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-relay"
+                ],
+                "summary": "注册隧道中继 PoP",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "中继令牌或发现引导令牌",
+                        "name": "X-Relay-Token",
+                        "in": "header"
+                    },
+                    {
+                        "description": "中继注册信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayRegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "注册响应",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayRegisterResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "中继已隔离",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -17886,25 +19899,22 @@ const docTemplate = `{
         },
         "/api/v1/relay/ws": {
             "get": {
-                "security": [
-                    {
-                        "AgentTokenAuth": []
-                    }
-                ],
-                "description": "将已认证的 Relay 连接升级为 WebSocket 长连接，用于配置推送",
                 "tags": [
                     "openflare-relay"
                 ],
-                "summary": "升级 Relay WebSocket 连接",
+                "summary": "中继控制面 WebSocket",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "中继访问令牌",
+                        "name": "X-Relay-Token",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "401": {
-                        "description": "Agent Token 无效",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
-                    "403": {
-                        "description": "节点类型不匹配",
+                        "description": "Token 无效",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -17912,14 +19922,8 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/tunnel/apply-log": {
+        "/api/v1/tunnel/attachments": {
             "post": {
-                "security": [
-                    {
-                        "TunnelTokenAuth": []
-                    }
-                ],
-                "description": "Tunnel 客户端上报配置应用结果，服务端记录下发日志",
                 "consumes": [
                     "application/json"
                 ],
@@ -17927,23 +19931,30 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "openflare-tunnel"
+                    "openflare-tunnel-agent"
                 ],
-                "summary": "上报 Tunnel 配置下发结果",
+                "summary": "协商连接器中继挂载租约",
                 "parameters": [
                     {
-                        "description": "下发结果载荷",
+                        "type": "string",
+                        "description": "隧道访问令牌",
+                        "name": "X-Tunnel-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "选定中继请求",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.ApplyLogPayload"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelNegotiateAttachmentsRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "下发日志记录",
+                        "description": "签发会话凭证",
                         "schema": {
                             "allOf": [
                                 {
@@ -17953,7 +19964,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.OpenFlareApplyLog"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelNegotiateAttachmentsResponse"
                                         }
                                     }
                                 }
@@ -17967,13 +19978,13 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Tunnel Token 无效",
+                        "description": "Token 无效",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
-                        "description": "节点类型不匹配",
+                        "description": "隧道已隔离",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -17981,24 +19992,33 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/tunnel/config/active": {
+        "/api/v1/tunnel/config": {
             "get": {
-                "security": [
-                    {
-                        "TunnelTokenAuth": []
-                    }
-                ],
-                "description": "返回 Tunnel 客户端当前应应用的完整路由配置（含中继列表与代理定义）",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "openflare-tunnel"
+                    "openflare-tunnel-agent"
                 ],
-                "summary": "获取活跃隧道配置",
+                "summary": "拉取连接器配置与候选中继目录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "隧道访问令牌",
+                        "name": "X-Tunnel-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "连接器实例 ID",
+                        "name": "connector_id",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "隧道配置",
+                        "description": "连接器配置",
                         "schema": {
                             "allOf": [
                                 {
@@ -18008,27 +20028,21 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredTunnelConfigResponse"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectorConfigResponse"
                                         }
                                     }
                                 }
                             ]
                         }
                     },
-                    "400": {
-                        "description": "参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
-                        }
-                    },
                     "401": {
-                        "description": "Tunnel Token 无效",
+                        "description": "Token 无效",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
-                        "description": "节点类型不匹配",
+                        "description": "隧道已隔离",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -18038,12 +20052,6 @@ const docTemplate = `{
         },
         "/api/v1/tunnel/heartbeat": {
             "post": {
-                "security": [
-                    {
-                        "TunnelTokenAuth": []
-                    }
-                ],
-                "description": "Tunnel 客户端定期上报运行状态与中继连接信息，返回活跃配置元数据与隧道设置",
                 "consumes": [
                     "application/json"
                 ],
@@ -18051,17 +20059,24 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "openflare-tunnel"
+                    "openflare-tunnel-agent"
                 ],
-                "summary": "上报 Tunnel 心跳",
+                "summary": "连接器心跳上报",
                 "parameters": [
                     {
-                        "description": "心跳载荷",
+                        "type": "string",
+                        "description": "隧道访问令牌",
+                        "name": "X-Tunnel-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "连接器心跳载荷",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredHeartbeatPayload"
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectorHeartbeatPayload"
                         }
                     }
                 ],
@@ -18077,7 +20092,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredHeartbeatResponse"
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectorHeartbeatResponse"
                                         }
                                     }
                                 }
@@ -18091,13 +20106,13 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Tunnel Token 无效",
+                        "description": "Token 无效",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
-                        "description": "节点类型不匹配",
+                        "description": "隧道已隔离或连接器已吊销",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -18107,25 +20122,46 @@ const docTemplate = `{
         },
         "/api/v1/tunnel/ws": {
             "get": {
-                "security": [
+                "tags": [
+                    "openflare-tunnel-agent"
+                ],
+                "summary": "连接器控制面 WebSocket",
+                "parameters": [
                     {
-                        "TunnelTokenAuth": []
+                        "type": "string",
+                        "description": "隧道访问令牌",
+                        "name": "X-Tunnel-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "连接器实例 ID",
+                        "name": "X-Connector-ID",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "连接器实例 ID",
+                        "name": "connector_id",
+                        "in": "query"
                     }
                 ],
-                "description": "将已认证的 Tunnel 客户端连接升级为 WebSocket 长连接，用于配置推送",
-                "tags": [
-                    "openflare-tunnel"
-                ],
-                "summary": "升级 Tunnel WebSocket 连接",
                 "responses": {
+                    "400": {
+                        "description": "缺少连接器 ID",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
                     "401": {
-                        "description": "Tunnel Token 无效",
+                        "description": "Token 无效",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
                     },
                     "403": {
-                        "description": "节点类型不匹配",
+                        "description": "隧道已隔离或连接器已吊销",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -21088,9 +23124,6 @@ const docTemplate = `{
                 "node": {
                     "$ref": "#/definitions/apps_openflare_automation.NodeSummary"
                 },
-                "relay_dashboard": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.RelayDashboardSnapshot"
-                },
                 "trends": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeTrends"
                 }
@@ -22277,24 +24310,6 @@ const docTemplate = `{
                 },
                 "node_type": {
                     "type": "string"
-                },
-                "relay_agent_access_addr": {
-                    "type": "string"
-                },
-                "relay_bind_port": {
-                    "type": "integer"
-                },
-                "relay_client_access_addr": {
-                    "type": "string"
-                },
-                "relay_client_proxy_url": {
-                    "type": "string"
-                },
-                "relay_vhost_http_port": {
-                    "type": "integer"
-                },
-                "relay_web_server_enabled": {
-                    "type": "boolean"
                 }
             }
         },
@@ -22341,9 +24356,6 @@ const docTemplate = `{
                 },
                 "profile": {
                     "$ref": "#/definitions/model.OpenFlareNodeSystemProfile"
-                },
-                "relay_dashboard": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.RelayDashboardSnapshot"
                 },
                 "trends": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeTrends"
@@ -22495,27 +24507,6 @@ const docTemplate = `{
                 },
                 "quarantined_at": {
                     "type": "string"
-                },
-                "relay_agent_access_addr": {
-                    "type": "string"
-                },
-                "relay_bind_port": {
-                    "type": "integer"
-                },
-                "relay_client_access_addr": {
-                    "type": "string"
-                },
-                "relay_client_proxy_url": {
-                    "type": "string"
-                },
-                "relay_status": {
-                    "type": "string"
-                },
-                "relay_vhost_http_port": {
-                    "type": "integer"
-                },
-                "relay_web_server_enabled": {
-                    "type": "boolean"
                 },
                 "restart_openresty_requested": {
                     "type": "boolean"
@@ -23746,8 +25737,8 @@ const docTemplate = `{
                 "tunnel_id": {
                     "type": "integer"
                 },
-                "tunnel_node_id": {
-                    "type": "integer"
+                "tunnel_options_json": {
+                    "type": "string"
                 },
                 "tunnel_target_addr": {
                     "type": "string"
@@ -23859,8 +25850,8 @@ const docTemplate = `{
                 "tunnel_id": {
                     "type": "integer"
                 },
-                "tunnel_node_id": {
-                    "type": "integer"
+                "tunnel_options_json": {
+                    "type": "string"
                 },
                 "tunnel_target_addr": {
                     "type": "string"
@@ -24041,6 +26032,860 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.BinaryUpdateInput": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.PoolInput": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pool_key": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "routing_policy": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "apps_openflare_tunnel.PoolView": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pool_key": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "relay_count": {
+                    "type": "integer"
+                },
+                "routing_policy": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "tunnel_count": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.RelayBootstrapView": {
+            "type": "object",
+            "properties": {
+                "bootstrap_token": {
+                    "type": "string"
+                },
+                "deploy_command": {
+                    "type": "string"
+                },
+                "discovery_token": {
+                    "type": "string"
+                },
+                "server_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.RelayDeployView": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "bootstrap_token": {
+                    "type": "string"
+                },
+                "deploy_command": {
+                    "type": "string"
+                },
+                "relay": {
+                    "$ref": "#/definitions/apps_openflare_tunnel.RelayView"
+                },
+                "server_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.RelayDrainInput": {
+            "type": "object",
+            "properties": {
+                "draining": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_openflare_tunnel.RelayInput": {
+            "type": "object",
+            "properties": {
+                "auto_update_enabled": {
+                    "type": "boolean"
+                },
+                "colocated_edge_node_id": {
+                    "type": "string"
+                },
+                "gateway_addr": {
+                    "type": "string"
+                },
+                "gateway_port": {
+                    "type": "integer"
+                },
+                "gateway_tls": {
+                    "type": "boolean"
+                },
+                "geo_latitude": {
+                    "type": "number"
+                },
+                "geo_longitude": {
+                    "type": "number"
+                },
+                "geo_manual_override": {
+                    "type": "boolean"
+                },
+                "geo_name": {
+                    "type": "string"
+                },
+                "ip_manual_override": {
+                    "type": "boolean"
+                },
+                "max_tunnels": {
+                    "type": "integer"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "pool_key": {
+                    "type": "string"
+                },
+                "public_addr": {
+                    "type": "string"
+                },
+                "supported_transports": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "transport_port": {
+                    "type": "integer"
+                },
+                "update_channel": {
+                    "type": "string"
+                },
+                "update_tag": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "integer"
+                },
+                "ws_port": {
+                    "type": "integer"
+                },
+                "zone_tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.RelayQuarantineInput": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.RelayView": {
+            "type": "object",
+            "properties": {
+                "active_connectors": {
+                    "type": "integer"
+                },
+                "active_streams": {
+                    "type": "integer"
+                },
+                "auto_update_enabled": {
+                    "type": "boolean"
+                },
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "colocated_edge_node_id": {
+                    "type": "string"
+                },
+                "contract_version": {
+                    "type": "integer"
+                },
+                "cpu_usage_percent": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "draining": {
+                    "type": "boolean"
+                },
+                "effective_status": {
+                    "type": "string"
+                },
+                "engine_version": {
+                    "type": "string"
+                },
+                "gateway_addr": {
+                    "type": "string"
+                },
+                "gateway_port": {
+                    "type": "integer"
+                },
+                "gateway_tls": {
+                    "type": "boolean"
+                },
+                "geo_latitude": {
+                    "type": "number"
+                },
+                "geo_longitude": {
+                    "type": "number"
+                },
+                "geo_manual_override": {
+                    "type": "boolean"
+                },
+                "geo_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip_manual_override": {
+                    "type": "boolean"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_seen_at": {
+                    "type": "string"
+                },
+                "max_tunnels": {
+                    "type": "integer"
+                },
+                "memory_usage_percent": {
+                    "type": "number"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "type": "string"
+                },
+                "noise_public_key": {
+                    "type": "string"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "pool_key": {
+                    "type": "string"
+                },
+                "public_addr": {
+                    "type": "string"
+                },
+                "quarantine_reason": {
+                    "type": "string"
+                },
+                "quarantined_at": {
+                    "type": "string"
+                },
+                "relay_id": {
+                    "type": "string"
+                },
+                "runtime_status": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "supported_transports": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "transport_port": {
+                    "type": "integer"
+                },
+                "update_channel": {
+                    "type": "string"
+                },
+                "update_requested": {
+                    "type": "boolean"
+                },
+                "update_tag": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "integer"
+                },
+                "ws_connected": {
+                    "type": "boolean"
+                },
+                "ws_port": {
+                    "type": "integer"
+                },
+                "zone_tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelAttachmentView": {
+            "type": "object",
+            "properties": {
+                "active_streams": {
+                    "type": "integer"
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lease_expires_at": {
+                    "type": "string"
+                },
+                "relay_id": {
+                    "type": "integer"
+                },
+                "relay_name": {
+                    "type": "string"
+                },
+                "relay_public_id": {
+                    "type": "string"
+                },
+                "relay_verified_at": {
+                    "type": "string"
+                },
+                "rtt_ms": {
+                    "type": "integer"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "transport": {
+                    "type": "string"
+                },
+                "tunnel_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelBoundRouteView": {
+            "type": "object",
+            "properties": {
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "route_id": {
+                    "type": "integer"
+                },
+                "site_name": {
+                    "type": "string"
+                },
+                "tunnel_target_addr": {
+                    "type": "string"
+                },
+                "tunnel_target_protocol": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelConnectorView": {
+            "type": "object",
+            "properties": {
+                "applied_revision": {
+                    "type": "integer"
+                },
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "connected_relays": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectedRelayReport"
+                    }
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "contract_version": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "draining": {
+                    "type": "boolean"
+                },
+                "effective_status": {
+                    "type": "string"
+                },
+                "engine_version": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_seen_at": {
+                    "type": "string"
+                },
+                "os_arch": {
+                    "type": "string"
+                },
+                "public_ip": {
+                    "type": "string"
+                },
+                "revoked_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tunnel_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "ws_connected": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelDeployView": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "bootstrap_token": {
+                    "type": "string"
+                },
+                "deploy_command": {
+                    "type": "string"
+                },
+                "server_url": {
+                    "type": "string"
+                },
+                "tunnel": {
+                    "$ref": "#/definitions/apps_openflare_tunnel.TunnelView"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelDetailView": {
+            "type": "object",
+            "properties": {
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_tunnel.TunnelAttachmentView"
+                    }
+                },
+                "bound_routes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_tunnel.TunnelBoundRouteView"
+                    }
+                },
+                "connectors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_tunnel.TunnelConnectorView"
+                    }
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_tunnel.TunnelServiceView"
+                    }
+                },
+                "tunnel": {
+                    "$ref": "#/definitions/apps_openflare_tunnel.TunnelView"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelInput": {
+            "type": "object",
+            "properties": {
+                "allowed_target_cidrs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "auto_update_enabled": {
+                    "type": "boolean"
+                },
+                "blocked_target_cidrs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "client_proxy_url": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "fallback_transports": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ha_relay_count": {
+                    "type": "integer"
+                },
+                "max_connectors": {
+                    "type": "integer"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "pool_key": {
+                    "type": "string"
+                },
+                "preferred_transport": {
+                    "type": "string"
+                },
+                "update_channel": {
+                    "type": "string"
+                },
+                "update_tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelQuarantineInput": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelReleaseInfo": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "html_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "prerelease": {
+                    "type": "boolean"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelServiceInput": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "listen_port": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "relay_id": {
+                    "type": "integer"
+                },
+                "service_type": {
+                    "type": "string"
+                },
+                "target_addr": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelServiceView": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "listen_port": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "relay_id": {
+                    "type": "integer"
+                },
+                "service_type": {
+                    "type": "string"
+                },
+                "target_addr": {
+                    "type": "string"
+                },
+                "tunnel_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelTopologyView": {
+            "type": "object",
+            "properties": {
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_tunnel.TunnelAttachmentView"
+                    }
+                },
+                "connectors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_tunnel.TunnelConnectorView"
+                    }
+                },
+                "pools": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_tunnel.PoolView"
+                    }
+                },
+                "relays": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_tunnel.RelayView"
+                    }
+                },
+                "tunnels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_tunnel.TunnelView"
+                    }
+                }
+            }
+        },
+        "apps_openflare_tunnel.TunnelView": {
+            "type": "object",
+            "properties": {
+                "active_attachments": {
+                    "type": "integer"
+                },
+                "allowed_target_cidrs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "auto_update_enabled": {
+                    "type": "boolean"
+                },
+                "blocked_target_cidrs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "bound_routes_count": {
+                    "type": "integer"
+                },
+                "client_proxy_url": {
+                    "type": "string"
+                },
+                "config_revision": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "fallback_transports": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ha_relay_count": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "max_connectors": {
+                    "type": "integer"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "type": "string"
+                },
+                "online_connectors": {
+                    "type": "integer"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "pool_key": {
+                    "type": "string"
+                },
+                "preferred_transport": {
+                    "type": "string"
+                },
+                "quarantine_reason": {
+                    "type": "string"
+                },
+                "quarantined_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tunnel_id": {
+                    "type": "string"
+                },
+                "update_channel": {
+                    "type": "string"
+                },
+                "update_requested": {
+                    "type": "boolean"
+                },
+                "update_tag": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -25380,58 +28225,6 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.RelayDashboardSnapshot": {
-            "type": "object",
-            "properties": {
-                "client_counts": {
-                    "type": "integer"
-                },
-                "offline_proxies": {
-                    "type": "integer"
-                },
-                "online_proxies": {
-                    "type": "integer"
-                },
-                "proxies": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.RelayProxyStat"
-                    }
-                },
-                "total_connections": {
-                    "type": "integer"
-                },
-                "total_proxies": {
-                    "type": "integer"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.RelayProxyStat": {
-            "type": "object",
-            "properties": {
-                "client_addr": {
-                    "type": "string"
-                },
-                "client_version": {
-                    "type": "string"
-                },
-                "last_close_time": {
-                    "type": "string"
-                },
-                "last_start_time": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
         "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.TrafficDistributions": {
             "type": "object",
             "properties": {
@@ -25900,116 +28693,6 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {}
         },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.ActiveConfigMeta": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "engine": {
-                    "type": "string"
-                },
-                "payload_checksum": {
-                    "type": "string"
-                },
-                "release_sequence": {
-                    "type": "integer"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeHealthEvent": {
-            "type": "object",
-            "properties": {
-                "event_type": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "severity": {
-                    "type": "string"
-                },
-                "triggered_at_unix": {
-                    "type": "integer"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeMetricSnapshot": {
-            "type": "object",
-            "properties": {
-                "captured_at_unix": {
-                    "type": "integer"
-                },
-                "cpu_usage_percent": {
-                    "type": "number"
-                },
-                "disk_read_bytes": {
-                    "type": "integer"
-                },
-                "disk_write_bytes": {
-                    "type": "integer"
-                },
-                "memory_total_bytes": {
-                    "type": "integer"
-                },
-                "memory_used_bytes": {
-                    "type": "integer"
-                },
-                "storage_total_bytes": {
-                    "type": "integer"
-                },
-                "storage_used_bytes": {
-                    "type": "integer"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeSystemProfile": {
-            "type": "object",
-            "properties": {
-                "architecture": {
-                    "type": "string"
-                },
-                "cpu_cores": {
-                    "type": "integer"
-                },
-                "cpu_model": {
-                    "type": "string"
-                },
-                "hostname": {
-                    "type": "string"
-                },
-                "kernel_version": {
-                    "type": "string"
-                },
-                "os_name": {
-                    "type": "string"
-                },
-                "os_version": {
-                    "type": "string"
-                },
-                "reported_at_unix": {
-                    "type": "integer"
-                },
-                "total_disk_bytes": {
-                    "type": "integer"
-                },
-                "total_memory_bytes": {
-                    "type": "integer"
-                },
-                "uptime_seconds": {
-                    "type": "integer"
-                }
-            }
-        },
         "github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentSettings": {
             "type": "object",
             "properties": {
@@ -26150,123 +28833,6 @@ const docTemplate = `{
                 },
                 "release_sequence": {
                     "type": "integer"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredConnectedRelay": {
-            "type": "object",
-            "properties": {
-                "proxy_count": {
-                    "type": "integer"
-                },
-                "relay_node_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredHeartbeatPayload": {
-            "type": "object",
-            "properties": {
-                "client_version": {
-                    "type": "string"
-                },
-                "connected_relays": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredConnectedRelay"
-                    }
-                },
-                "current_checksum": {
-                    "type": "string"
-                },
-                "current_version": {
-                    "type": "string"
-                },
-                "frp_version": {
-                    "type": "string"
-                },
-                "ip": {
-                    "type": "string"
-                },
-                "tunnel_status": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredHeartbeatResponse": {
-            "type": "object",
-            "properties": {
-                "active_config": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.ActiveConfigMeta"
-                },
-                "tunnel_settings": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelaySettings"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredProxyEntry": {
-            "type": "object",
-            "properties": {
-                "custom_domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "local_addr": {
-                    "type": "string"
-                },
-                "local_port": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredRelayInfo": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "auth_token": {
-                    "type": "string"
-                },
-                "proxy_url": {
-                    "type": "string"
-                },
-                "relay_node_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredTunnelConfigResponse": {
-            "type": "object",
-            "properties": {
-                "checksum": {
-                    "type": "string"
-                },
-                "proxies": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredProxyEntry"
-                    }
-                },
-                "relays": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredRelayInfo"
-                    }
-                },
-                "version": {
-                    "type": "string"
                 }
             }
         },
@@ -26605,136 +29171,330 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayConfig": {
-            "type": "object",
-            "properties": {
-                "auth_token": {
-                    "type": "string"
-                },
-                "bind_port": {
-                    "type": "integer"
-                },
-                "log_level": {
-                    "type": "string"
-                },
-                "vhost_http_port": {
-                    "type": "integer"
-                },
-                "web_server_enabled": {
-                    "type": "boolean"
-                },
-                "web_server_port": {
-                    "type": "integer"
-                }
-            }
-        },
         "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayHeartbeatPayload": {
             "type": "object",
             "properties": {
-                "frp_version": {
+                "active_connectors": {
+                    "type": "integer"
+                },
+                "active_streams": {
+                    "type": "integer"
+                },
+                "applied_update_tag": {
                     "type": "string"
                 },
-                "frps_client_count": {
-                    "type": "integer"
-                },
-                "frps_connections": {
-                    "type": "integer"
-                },
-                "frps_proxies": {
+                "capabilities": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayProxyStat"
+                        "type": "string"
                     }
                 },
-                "frps_proxy_count": {
+                "contract_version": {
                     "type": "integer"
                 },
-                "health_events": {
+                "cpu_usage_percent": {
+                    "type": "number"
+                },
+                "draining": {
+                    "type": "boolean"
+                },
+                "engine_version": {
+                    "type": "string"
+                },
+                "gateway_addr": {
+                    "type": "string"
+                },
+                "gateway_port": {
+                    "type": "integer"
+                },
+                "gateway_tls": {
+                    "type": "boolean"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "memory_usage_percent": {
+                    "type": "number"
+                },
+                "public_addr": {
+                    "type": "string"
+                },
+                "runtime_status": {
+                    "type": "string"
+                },
+                "supported_transports": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeHealthEvent"
+                        "type": "string"
                     }
                 },
-                "ip": {
-                    "type": "string"
+                "transport_port": {
+                    "type": "integer"
                 },
-                "name": {
-                    "type": "string"
-                },
-                "profile": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeSystemProfile"
-                },
-                "relay_status": {
-                    "type": "string"
-                },
-                "snapshot": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.AgentNodeMetricSnapshot"
+                "verified_attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayVerifiedAttachment"
+                    }
                 },
                 "version": {
                     "type": "string"
+                },
+                "ws_port": {
+                    "type": "integer"
                 }
             }
         },
         "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayHeartbeatResponse": {
             "type": "object",
             "properties": {
-                "relay_config": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayConfig"
+                "draining": {
+                    "type": "boolean"
                 },
-                "relay_settings": {
-                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelaySettings"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayProxyStat": {
-            "type": "object",
-            "properties": {
-                "client_addr": {
-                    "type": "string"
-                },
-                "client_version": {
-                    "type": "string"
-                },
-                "last_close_time": {
-                    "type": "string"
-                },
-                "last_start_time": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelaySettings": {
-            "type": "object",
-            "properties": {
-                "auto_update": {
+                "force_sync": {
                     "type": "boolean"
                 },
                 "heartbeat_interval": {
                     "type": "integer"
                 },
-                "update_channel": {
+                "lease_ttl_seconds": {
+                    "type": "integer"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "quarantine_reason": {
                     "type": "string"
                 },
-                "update_now": {
+                "quarantined": {
                     "type": "boolean"
                 },
-                "update_repo": {
+                "relay_id": {
                     "type": "string"
                 },
-                "update_tag": {
+                "update_settings": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelUpdateSettings"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayRegisterRequest": {
+            "type": "object",
+            "properties": {
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "colocated_edge_node_id": {
                     "type": "string"
                 },
-                "websocket_upgrade_enabled": {
+                "contract_version": {
+                    "type": "integer"
+                },
+                "engine_version": {
+                    "type": "string"
+                },
+                "gateway_addr": {
+                    "type": "string"
+                },
+                "gateway_port": {
+                    "type": "integer"
+                },
+                "gateway_tls": {
                     "type": "boolean"
+                },
+                "geo_latitude": {
+                    "type": "number"
+                },
+                "geo_longitude": {
+                    "type": "number"
+                },
+                "geo_name": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "type": "string"
+                },
+                "noise_public_key": {
+                    "type": "string"
+                },
+                "pool_key": {
+                    "type": "string"
+                },
+                "public_addr": {
+                    "type": "string"
+                },
+                "relay_id": {
+                    "type": "string"
+                },
+                "supported_transports": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "transport_port": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "integer"
+                },
+                "ws_port": {
+                    "type": "integer"
+                },
+                "zone_tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayRegisterResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "gateway_secret": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "noise_private_key": {
+                    "type": "string"
+                },
+                "noise_public_key": {
+                    "type": "string"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "public_addr": {
+                    "type": "string"
+                },
+                "relay_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayRuntimeConfigResponse": {
+            "type": "object",
+            "properties": {
+                "draining": {
+                    "type": "boolean"
+                },
+                "gateway_addr": {
+                    "type": "string"
+                },
+                "gateway_port": {
+                    "type": "integer"
+                },
+                "gateway_secret": {
+                    "type": "string"
+                },
+                "gateway_tls": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lease_ttl_seconds": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "noise_private_key": {
+                    "type": "string"
+                },
+                "noise_public_key": {
+                    "type": "string"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "public_addr": {
+                    "type": "string"
+                },
+                "relay_id": {
+                    "type": "string"
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayServiceSpec"
+                    }
+                },
+                "supported_transports": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "transport_port": {
+                    "type": "integer"
+                },
+                "updated_at_unix": {
+                    "type": "integer"
+                },
+                "ws_port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayServiceSpec": {
+            "type": "object",
+            "properties": {
+                "connector_id": {
+                    "type": "string"
+                },
+                "listen_port": {
+                    "type": "integer"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "service_type": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "transport": {
+                    "type": "string"
+                },
+                "tunnel_id": {
+                    "type": "integer"
+                },
+                "tunnel_public_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RelayVerifiedAttachment": {
+            "type": "object",
+            "properties": {
+                "active_streams": {
+                    "type": "integer"
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "rtt_ms": {
+                    "type": "integer"
+                },
+                "service_name": {
+                    "type": "string"
                 }
             }
         },
@@ -26746,6 +29506,429 @@ const docTemplate = `{
                 },
                 "certificate_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectedRelayReport": {
+            "type": "object",
+            "properties": {
+                "active_streams": {
+                    "type": "integer"
+                },
+                "relay_id": {
+                    "type": "integer"
+                },
+                "relay_public_id": {
+                    "type": "string"
+                },
+                "rtt_ms": {
+                    "type": "integer"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "transport": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectorAttachmentGrant": {
+            "type": "object",
+            "properties": {
+                "lease_expires_at_unix": {
+                    "type": "integer"
+                },
+                "relay_id": {
+                    "type": "integer"
+                },
+                "relay_public_id": {
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "session_token": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "transport": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectorConfigResponse": {
+            "type": "object",
+            "properties": {
+                "allowed_target_cidrs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectorAttachmentGrant"
+                    }
+                },
+                "blocked_target_cidrs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "candidate_relays": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelRelayCandidate"
+                    }
+                },
+                "client_proxy_url": {
+                    "type": "string"
+                },
+                "config_revision": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "fallback_transports": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ha_relay_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "preferred_transport": {
+                    "type": "string"
+                },
+                "routes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelHTTPRouteRule"
+                    }
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelL4ServiceRule"
+                    }
+                },
+                "tunnel_id": {
+                    "type": "integer"
+                },
+                "tunnel_public_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectorHeartbeatPayload": {
+            "type": "object",
+            "properties": {
+                "applied_revision": {
+                    "type": "integer"
+                },
+                "applied_update_tag": {
+                    "type": "string"
+                },
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "connected_relays": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectedRelayReport"
+                    }
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "contract_version": {
+                    "type": "integer"
+                },
+                "draining": {
+                    "type": "boolean"
+                },
+                "engine_version": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "os_arch": {
+                    "type": "string"
+                },
+                "public_ip": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectorHeartbeatResponse": {
+            "type": "object",
+            "properties": {
+                "config_revision": {
+                    "type": "integer"
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "disabled": {
+                    "type": "boolean"
+                },
+                "force_sync": {
+                    "type": "boolean"
+                },
+                "heartbeat_interval": {
+                    "type": "integer"
+                },
+                "quarantine_reason": {
+                    "type": "string"
+                },
+                "quarantined": {
+                    "type": "boolean"
+                },
+                "revoked": {
+                    "type": "boolean"
+                },
+                "tunnel_id": {
+                    "type": "integer"
+                },
+                "tunnel_public_id": {
+                    "type": "string"
+                },
+                "update_settings": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelUpdateSettings"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelDesiredAttachment": {
+            "type": "object",
+            "properties": {
+                "relay_id": {
+                    "type": "integer"
+                },
+                "rtt_ms": {
+                    "type": "integer"
+                },
+                "transport": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelHTTPRouteRule": {
+            "type": "object",
+            "properties": {
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "options_json": {
+                    "type": "string"
+                },
+                "origin_host": {
+                    "type": "string"
+                },
+                "route_id": {
+                    "type": "integer"
+                },
+                "site_name": {
+                    "type": "string"
+                },
+                "target_addr": {
+                    "type": "string"
+                },
+                "target_protocol": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelL4ServiceRule": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "listen_port": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "options_json": {
+                    "type": "string"
+                },
+                "relay_id": {
+                    "type": "integer"
+                },
+                "service_type": {
+                    "type": "string"
+                },
+                "target_addr": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelNegotiateAttachmentsRequest": {
+            "type": "object",
+            "properties": {
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "contract_version": {
+                    "type": "integer"
+                },
+                "desired": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelDesiredAttachment"
+                    }
+                },
+                "engine_version": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "os_arch": {
+                    "type": "string"
+                },
+                "public_ip": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelNegotiateAttachmentsResponse": {
+            "type": "object",
+            "properties": {
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelConnectorAttachmentGrant"
+                    }
+                },
+                "config_revision": {
+                    "type": "integer"
+                },
+                "lease_ttl_seconds": {
+                    "type": "integer"
+                },
+                "tunnel_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelRelayCandidate": {
+            "type": "object",
+            "properties": {
+                "draining": {
+                    "type": "boolean"
+                },
+                "gateway_addr": {
+                    "type": "string"
+                },
+                "gateway_port": {
+                    "type": "integer"
+                },
+                "gateway_tls": {
+                    "type": "boolean"
+                },
+                "geo_latitude": {
+                    "type": "number"
+                },
+                "geo_longitude": {
+                    "type": "number"
+                },
+                "geo_name": {
+                    "type": "string"
+                },
+                "health_path": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "noise_public_key": {
+                    "type": "string"
+                },
+                "pool_id": {
+                    "type": "integer"
+                },
+                "public_addr": {
+                    "type": "string"
+                },
+                "relay_id": {
+                    "type": "string"
+                },
+                "supported_transports": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "transport_port": {
+                    "type": "integer"
+                },
+                "weight": {
+                    "type": "integer"
+                },
+                "ws_port": {
+                    "type": "integer"
+                },
+                "zone_tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TunnelUpdateSettings": {
+            "type": "object",
+            "properties": {
+                "auto_update": {
+                    "type": "boolean"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "repo": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
                 }
             }
         },
@@ -27188,27 +30371,6 @@ const docTemplate = `{
                 },
                 "quarantined_at": {
                     "type": "string"
-                },
-                "relay_agent_access_addr": {
-                    "type": "string"
-                },
-                "relay_bind_port": {
-                    "type": "integer"
-                },
-                "relay_client_access_addr": {
-                    "type": "string"
-                },
-                "relay_client_proxy_url": {
-                    "type": "string"
-                },
-                "relay_status": {
-                    "type": "string"
-                },
-                "relay_vhost_http_port": {
-                    "type": "integer"
-                },
-                "relay_web_server_enabled": {
-                    "type": "boolean"
                 },
                 "restart_openresty_requested": {
                     "type": "boolean"

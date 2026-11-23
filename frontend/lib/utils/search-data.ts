@@ -81,6 +81,14 @@ export const searchData: SearchItemSource[] = [
     keywordKey: 'search.keywords.console-nodes',
   },
   {
+    id: 'console-tunnels',
+    titleKey: 'nav.tunnels',
+    descriptionKey: 'search.items.tunnelsDesc',
+    url: '/tunnels',
+    category: 'page',
+    keywordKey: 'search.keywords.console-tunnels',
+  },
+  {
     id: 'console-proxy-routes',
     titleKey: 'nav.proxyRoutes',
     descriptionKey: 'search.items.proxyRoutesDesc',

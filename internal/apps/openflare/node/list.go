@@ -69,7 +69,7 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 		return query, errBadListQuery
 	}
 	switch query.NodeType {
-	case "", nodeTypeEdgeNode, nodeTypeTunnelRelay, nodeTypeTunnelClient:
+	case "", nodeTypeEdgeNode:
 	default:
 		return query, errBadListQuery
 	}

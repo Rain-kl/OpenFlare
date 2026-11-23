@@ -202,7 +202,7 @@ func buildTargetStore(ctx context.Context, database string) (*logstore.Store, er
 }
 
 func clearTargetLogTables(ctx context.Context, dst *logstore.Store) error {
-	// 依次清空 6 张表：AccessLogs.DeleteAll、UserAccessLogs.DeleteAll、Observability.DeleteAll*
+	// 依次清空 4 张表：AccessLogs.DeleteAll、UserAccessLogs.DeleteAll、Observability.DeleteAll*
 	// （SQLite/PG 用 DeleteAll；CH 用 TRUNCATE 语义）。
 	if _, err := dst.AccessLogs.DeleteAll(ctx); err != nil {
 		return fmt.Errorf("failed to clear target access logs: %w", err)
@@ -213,8 +213,6 @@ func clearTargetLogTables(ctx context.Context, dst *logstore.Store) error {
 	for _, fn := range []func(context.Context) (int64, error){
 		dst.Observability.DeleteAllMetricSnapshots,
 		dst.Observability.DeleteAllEdgeHealth,
-		dst.Observability.DeleteAllNodeObservationFrps,
-		dst.Observability.DeleteAllNodeObservationFrpc,
 	} {
 		if _, err := fn(ctx); err != nil {
 			return err
@@ -334,7 +332,7 @@ func copyUserAccessLogs(ctx context.Context, src, dst *logstore.Store) error {
 	}
 }
 
-// copyObservability 复制 4 张可观测表，每张表按 id 升序分批复制，
+// copyObservability 复制 2 张可观测表，每张表按 id 升序分批复制，
 // 以每批最后一条 id 作为下一批游标（不使用 len 近似）。
 func copyObservability(ctx context.Context, src, dst *logstore.Store) error {
 	if err := copyObsTable(ctx, "metric_snapshots",
@@ -347,18 +345,6 @@ func copyObservability(ctx context.Context, src, dst *logstore.Store) error {
 		src.Observability.ListEdgeHealthForMigration,
 		dst.Observability.BatchInsertNodeEdgeHealth,
 		lastEdgeHealthID); err != nil {
-		return err
-	}
-	if err := copyObsTable(ctx, "obs_frps",
-		src.Observability.ListNodeObsFrpsForMigration,
-		dst.Observability.BatchInsertNodeObsFrps,
-		lastObsFrpsID); err != nil {
-		return err
-	}
-	if err := copyObsTable(ctx, "obs_frpc",
-		src.Observability.ListNodeObsFrpcForMigration,
-		dst.Observability.BatchInsertNodeObsFrpc,
-		lastObsFrpcID); err != nil {
 		return err
 	}
 	return nil
@@ -394,5 +380,3 @@ func lastMetricSnapshotID(rows []analyticsmodel.NodeMetricSnapshot) uint64 {
 	return rows[len(rows)-1].ID
 }
 func lastEdgeHealthID(rows []analyticsmodel.NodeEdgeHealth) uint64 { return rows[len(rows)-1].ID }
-func lastObsFrpsID(rows []analyticsmodel.NodeObsFrps) uint64       { return rows[len(rows)-1].ID }
-func lastObsFrpcID(rows []analyticsmodel.NodeObsFrpc) uint64       { return rows[len(rows)-1].ID }

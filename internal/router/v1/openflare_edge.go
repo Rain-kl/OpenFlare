@@ -5,8 +5,7 @@ package v1
 
 import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/flared"
-	"github.com/Rain-kl/Wavelet/internal/apps/openflare/relay"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tunnel"
 	"github.com/gin-gonic/gin"
 )
 
@@ -41,20 +40,30 @@ func registerOpenFlareAgentRoutes(apiV1Router *gin.RouterGroup) {
 
 func registerOpenFlareRelayRoutes(apiV1Router *gin.RouterGroup) {
 	relayRoute := apiV1Router.Group("/relay")
-	relayRoute.Use(relay.Auth())
 	{
-		relayRoute.POST("/heartbeat", relay.PostHeartbeat)
-		relayRoute.GET("/ws", relay.GetWebSocket)
+		discoveryRoute := relayRoute.Group("/")
+		discoveryRoute.Use(tunnel.RelayRegisterAuth())
+		{
+			discoveryRoute.POST("/register", tunnel.RelayRegisterHandler)
+		}
+
+		authorizedRoute := relayRoute.Group("/")
+		authorizedRoute.Use(tunnel.RelayAuth())
+		{
+			authorizedRoute.POST("/heartbeat", tunnel.RelayHeartbeatHandler)
+			authorizedRoute.GET("/config", tunnel.RelayConfigHandler)
+			authorizedRoute.GET("/ws", tunnel.RelayWebSocketHandler)
+		}
 	}
 }
 
 func registerOpenFlareTunnelRoutes(apiV1Router *gin.RouterGroup) {
 	tunnelRoute := apiV1Router.Group("/tunnel")
-	tunnelRoute.Use(flared.TunnelAuth())
+	tunnelRoute.Use(tunnel.TunnelAuth())
 	{
-		tunnelRoute.POST("/heartbeat", flared.PostHeartbeat)
-		tunnelRoute.GET("/config/active", flared.GetActiveConfig)
-		tunnelRoute.POST("/apply-log", flared.PostApplyLog)
-		tunnelRoute.GET("/ws", flared.GetWebSocket)
+		tunnelRoute.POST("/heartbeat", tunnel.TunnelHeartbeatHandler)
+		tunnelRoute.GET("/config", tunnel.TunnelConfigHandler)
+		tunnelRoute.POST("/attachments", tunnel.TunnelNegotiateAttachmentsHandler)
+		tunnelRoute.GET("/ws", tunnel.TunnelWebSocketHandler)
 	}
 }

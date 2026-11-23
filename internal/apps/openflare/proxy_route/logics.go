@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"gorm.io/gorm"
@@ -50,10 +51,10 @@ type Input struct {
 	BasicAuthPassword    string              `json:"basic_auth_password"`
 	SiteAuthTTLHours     *int                `json:"site_auth_ttl_hours"`
 	UpstreamType         string              `json:"upstream_type"`
-	TunnelNodeID         *uint               `json:"tunnel_node_id"`
 	TunnelID             *uint               `json:"tunnel_id"`
 	TunnelTargetAddr     string              `json:"tunnel_target_addr"`
 	TunnelTargetProtocol string              `json:"tunnel_target_protocol"`
+	TunnelOptionsJSON    string              `json:"tunnel_options_json"`
 	PagesProjectID       *uint               `json:"pages_project_id"`
 }
 
@@ -87,10 +88,10 @@ type View struct {
 	BasicAuthPassword    string              `json:"basic_auth_password"`
 	SiteAuthTTLHours     int                 `json:"site_auth_ttl_hours"`
 	UpstreamType         string              `json:"upstream_type"`
-	TunnelNodeID         *uint               `json:"tunnel_node_id"`
 	TunnelID             *uint               `json:"tunnel_id"`
 	TunnelTargetAddr     string              `json:"tunnel_target_addr"`
 	TunnelTargetProtocol string              `json:"tunnel_target_protocol"`
+	TunnelOptionsJSON    string              `json:"tunnel_options_json"`
 	PagesProjectID       *uint               `json:"pages_project_id"`
 	CreatedAt            time.Time           `json:"created_at"`
 	UpdatedAt            time.Time           `json:"updated_at"`
@@ -142,6 +143,7 @@ func CreateProxyRoute(ctx context.Context, input Input) (*View, error) {
 		}
 		return nil, err
 	}
+	notifyAffectedTunnels(ctx, 0, tunnelIDForRoute(route))
 	return buildProxyRouteView(ctx, route)
 }
 
@@ -152,6 +154,7 @@ func UpdateProxyRoute(ctx context.Context, id uint, input Input) (*View, error) 
 		return nil, err
 	}
 	previousPagesProjectID := pagesProjectIDForRoute(route)
+	previousTunnelID := tunnelIDForRoute(route)
 	route, err = buildProxyRoute(ctx, route, input)
 	if err != nil {
 		return nil, err
@@ -170,6 +173,7 @@ func UpdateProxyRoute(ctx context.Context, id uint, input Input) (*View, error) 
 		}
 		return nil, err
 	}
+	notifyAffectedTunnels(ctx, previousTunnelID, tunnelIDForRoute(route))
 	return buildProxyRouteView(ctx, route)
 }
 
@@ -242,10 +246,37 @@ func validateLockedPagesRouteProject(project *model.PagesProject) error {
 
 // DeleteProxyRoute 删除代理规则。
 func DeleteProxyRoute(ctx context.Context, id uint) error {
-	if _, err := repository.GetProxyRouteByID(ctx, id); err != nil {
+	route, err := repository.GetProxyRouteByID(ctx, id)
+	if err != nil {
 		return err
 	}
-	return repository.DeleteProxyRouteAndUnbind(ctx, id)
+	previousTunnelID := tunnelIDForRoute(route)
+	if err := repository.DeleteProxyRouteAndUnbind(ctx, id); err != nil {
+		return err
+	}
+	notifyAffectedTunnels(ctx, previousTunnelID, 0)
+	return nil
+}
+
+func tunnelIDForRoute(route *model.ProxyRoute) uint {
+	if route == nil || route.UpstreamType != proxyRouteUpstreamTypeTunnel || route.TunnelID == nil {
+		return 0
+	}
+	return *route.TunnelID
+}
+
+func notifyAffectedTunnels(ctx context.Context, prevID, nextID uint) {
+	for _, tid := range []uint{prevID, nextID} {
+		if tid == 0 {
+			continue
+		}
+		if err := repository.IncrementTunnelConfigRevision(ctx, tid); err == nil {
+			websocket.NotifyTunnelChanged(ctx, tid)
+		}
+	}
+	if prevID > 0 && nextID > 0 && prevID == nextID {
+		return
+	}
 }
 
 func buildProxyRoute(ctx context.Context, route *model.ProxyRoute, input Input) (*model.ProxyRoute, error) {
@@ -406,10 +437,10 @@ func proxyRouteViewWithDomains(route *model.ProxyRoute, domains []model.ZoneDoma
 		BasicAuthPassword:    route.BasicAuthPassword,
 		SiteAuthTTLHours:     route.SiteAuthTTLHours,
 		UpstreamType:         route.UpstreamType,
-		TunnelNodeID:         route.TunnelNodeID,
-		TunnelID:             route.TunnelNodeID,
+		TunnelID:             route.TunnelID,
 		TunnelTargetAddr:     route.TunnelTargetAddr,
 		TunnelTargetProtocol: route.TunnelTargetProtocol,
+		TunnelOptionsJSON:    route.TunnelOptionsJSON,
 		PagesProjectID:       route.PagesProjectID,
 		CreatedAt:            route.CreatedAt,
 		UpdatedAt:            route.UpdatedAt,

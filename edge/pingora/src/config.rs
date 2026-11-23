@@ -321,7 +321,7 @@ fn validate(config: &Config) -> Result<()> {
         }
         if let Some(deployment) = &route.pages {
             crate::pages::validate(deployment)?;
-        } else if !route.is_pages() {
+        } else if !route.is_pages() && !route.is_tunnel() {
             for upstream in route.upstreams() {
                 let url = url::Url::parse(&upstream).context("invalid upstream URL")?;
                 if !matches!(url.scheme(), "http" | "https") || url.host().is_none() {
@@ -332,7 +332,11 @@ fn validate(config: &Config) -> Result<()> {
         if route.domains.is_empty() {
             bail!("enabled route {} has no domains", route.display_name());
         }
-        if route.upstreams.is_empty() && route.origin_url.is_empty() {
+        if !route.is_pages()
+            && !route.is_tunnel()
+            && route.upstreams.is_empty()
+            && route.origin_url.is_empty()
+        {
             bail!("enabled route {} has no upstream", route.display_name());
         }
         if route.domain_cert_ids.len() != route.domains.len() {
@@ -456,6 +460,10 @@ impl Route {
 
     pub fn is_pages(&self) -> bool {
         self.upstream_type == "pages" && self.pages.is_some()
+    }
+
+    pub fn is_tunnel(&self) -> bool {
+        self.upstream_type == "tunnel" && self.tunnel_id.is_some()
     }
 }
 
@@ -832,5 +840,44 @@ mod tests {
         ring.clear();
         assert!(ring.is_empty());
         assert!(ring.get(10, &sha2).is_none());
+    }
+
+    #[test]
+    fn tunnel_route_validates_with_empty_origin_and_upstreams() {
+        let payload = serde_json::json!({
+            "schema_version": 1,
+            "contract_version": CONTRACT_VERSION,
+            "required_capabilities": [
+                BASE_CAPABILITY,
+                POLICY_CAPABILITY,
+                PROXY_CAPABILITY,
+                MEMORY_KEYS_CAPABILITY
+            ],
+            "snapshot": {
+                "routes": [{
+                    "id": 42,
+                    "site_name": "intranet-app",
+                    "domains": ["app.example.com"],
+                    "domain_cert_ids": [0],
+                    "origin_url": "",
+                    "upstreams": [],
+                    "enabled": true,
+                    "enable_https": false,
+                    "enable_http2": false,
+                    "redirect_http": false,
+                    "upstream_type": "tunnel",
+                    "tunnel_id": 7
+                }],
+                "openresty_config": {},
+                "waf": {"rule_groups": [], "bindings": []}
+            },
+            "assets": { "certificates": {} }
+        })
+        .to_string();
+        let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
+        let applied = decode("v1", "checksum", 1, &digest, &payload).unwrap();
+        let route = applied.route_for_host("app.example.com").unwrap();
+        assert!(route.is_tunnel());
+        assert_eq!(route.tunnel_id, Some(7));
     }
 }

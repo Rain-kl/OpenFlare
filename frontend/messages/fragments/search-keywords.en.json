@@ -4,7 +4,8 @@
       "keywords": {
         "home": "home|dashboard",
         "docs-how-to-use": "docs|how to|tutorial|help",
-        "console-nodes": "node|tunnel",
+        "console-nodes": "node|edge",
+        "console-tunnels": "tunnel|relay|openflared|rathole|pool",
         "console-proxy-routes": "route|proxy",
         "console-websites": "website|domain",
         "console-certificates": "certificate|ssl|tls|https",

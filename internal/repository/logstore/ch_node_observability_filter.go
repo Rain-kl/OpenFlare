@@ -44,14 +44,6 @@ func chAccessLogHourlyTableName() string {
 	return "of_access_log_hourly"
 }
 
-func chNodeObsFrpsTableName() string {
-	return "of_node_obs_frps"
-}
-
-func chNodeObsFrpcTableName() string {
-	return "of_node_obs_frpc"
-}
-
 func chNodeMetricCapacityHourlyTableName() string {
 	return "of_node_metric_capacity_hourly"
 }

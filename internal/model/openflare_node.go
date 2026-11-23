@@ -43,15 +43,7 @@ type OpenFlareNode struct {
 	CreatedAt                 time.Time  `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt                 time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 	NodeType                  string     `json:"node_type" gorm:"size:32;not null;default:'edge_node'"`
-	RelayBindPort             int        `json:"relay_bind_port" gorm:"not null;default:0"`
-	RelayVhostHTTPPort        int        `json:"relay_vhost_http_port" gorm:"not null;default:0"`
-	RelayAuthToken            string     `json:"-" gorm:"size:128;not null;default:''"`
-	RelayAgentAccessAddr      string     `json:"relay_agent_access_addr" gorm:"size:255;not null;default:''"`
-	RelayClientAccessAddr     string     `json:"relay_client_access_addr" gorm:"size:255;not null;default:''"`
-	RelayClientProxyURL       string     `json:"relay_client_proxy_url" gorm:"size:512;not null;default:''"`
 	CapabilitiesJSON          string     `json:"capabilities_json" gorm:"type:text;not null;default:'[]'"`
-	RelayStatus               string     `json:"relay_status" gorm:"size:16;not null;default:'unknown'"`
-	RelayWebServerEnabled     bool       `json:"relay_web_server_enabled" gorm:"not null;default:false"`
 	QuarantinedAt             *time.Time `json:"quarantined_at" gorm:"index:idx_of_nodes_quarantined_at"`
 	QuarantineReason          string     `json:"quarantine_reason" gorm:"size:255;not null;default:''"`
 }

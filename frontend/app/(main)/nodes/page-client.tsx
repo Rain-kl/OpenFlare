@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { Loader2, Plus, RefreshCw, Server } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -34,17 +33,10 @@ import type {
   NodeListQuery,
   NodeMutationPayload,
   NodeStatus,
-  NodeType,
 } from '@/lib/services/openflare';
 import { NodeService } from '@/lib/services/openflare';
 
 import { NodeEditorDialog } from './components/node-editor-dialog';
-import {
-  getFilterDescription,
-  getNodeFilter,
-  NodeTypeFilter,
-  type NodeFilter,
-} from './components/node-type-filter';
 import { NodesTable } from './components/nodes-table';
 import { NodeListControls } from './components/node-list-controls';
 import { getErrorMessage } from './components/node-utils';
@@ -52,14 +44,10 @@ import { getErrorMessage } from './components/node-utils';
 const nodesQueryKey = ['openflare', 'nodes'];
 
 export function NodesPageClient() {
-  const searchParams = useSearchParams();
-  const nodeFilter = getNodeFilter(
-    new URLSearchParams(searchParams.toString()),
-  );
-  return <NodesPage key={nodeFilter} nodeFilter={nodeFilter} />;
+  return <NodesPage />;
 }
 
-function NodesPage({ nodeFilter }: { nodeFilter: NodeFilter }) {
+function NodesPage() {
   const t = useTranslations('nodes');
   const tc = useTranslations('common');
   const queryClient = useQueryClient();
@@ -89,18 +77,12 @@ function NodesPage({ nodeFilter }: { nodeFilter: NodeFilter }) {
     return () => clearTimeout(timeout);
   }, [search, searchTooLong, debouncedSearch, resetNodeActions]);
 
-  const nodeTypes: Record<NodeFilter, NodeType | ''> = {
-    all: '',
-    edge: 'edge_node',
-    relay: 'tunnel_relay',
-    tunnel: 'tunnel_client',
-  };
   const query = {
     page,
     page_size: pageSize,
     search: debouncedSearch,
     status,
-    node_type: nodeTypes[nodeFilter],
+    node_type: '' as const,
   };
   const nodesQuery = useQuery({
     queryKey: [...nodesQueryKey, 'page', query],
@@ -213,9 +195,7 @@ function NodesPage({ nodeFilter }: { nodeFilter: NodeFilter }) {
               <CardTitle className='text-base font-semibold'>
                 {t('listTitle')}
               </CardTitle>
-              <CardDescription>
-                {getFilterDescription(nodeFilter, t)}
-              </CardDescription>
+              <CardDescription>{t('filter.descEdge')}</CardDescription>
             </div>
             <Button
               variant='outline'
@@ -234,7 +214,6 @@ function NodesPage({ nodeFilter }: { nodeFilter: NodeFilter }) {
           </div>
         </CardHeader>
         <CardContent className='flex flex-col gap-4'>
-          <NodeTypeFilter />
           <NodeListControls
             search={search}
             searchTooLong={searchTooLong}
@@ -279,9 +258,7 @@ function NodesPage({ nodeFilter }: { nodeFilter: NodeFilter }) {
             <EmptyStateWithBorder
               icon={Server}
               description={
-                debouncedSearch || status || nodeFilter !== 'all'
-                  ? t('emptyFilter')
-                  : t('emptyAll')
+                debouncedSearch || status ? t('emptyFilter') : t('emptyAll')
               }
             />
           ) : (

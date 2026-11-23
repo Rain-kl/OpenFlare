@@ -286,7 +286,7 @@ func newTestGormStoreWithModels(t *testing.T, models ...any) *gormLogStore {
 	return newGormStore(db)
 }
 
-// TestGormObservabilityInsertList 覆盖 4 张可观测表：flush 写入、查询、删除、
+// TestGormObservabilityInsertList 覆盖可观测表：flush 写入、查询、删除、
 // 迁移分页读取，以及写入入口的 hook 入队路径。
 func TestGormObservabilityInsertList(t *testing.T) {
 	ResetForTest()
@@ -297,24 +297,18 @@ func TestGormObservabilityInsertList(t *testing.T) {
 	s := newTestGormStoreWithModels(t,
 		&analyticsmodel.NodeMetricSnapshot{},
 		&analyticsmodel.NodeEdgeHealth{},
-		&analyticsmodel.NodeObsFrps{},
-		&analyticsmodel.NodeObsFrpc{},
 	)
 	ctx := context.Background()
 	now := time.Now()
 
-	// 写入入口：hook 入队（metric/edge/frps/frpc 四个 hook 均触发），不直接落库。
+	// 写入入口：hook 入队（metric/edge hook 均触发），不直接落库。
 	var (
 		hookedMetric *analyticsmodel.NodeMetricSnapshot
 		hookedEdge   *analyticsmodel.NodeEdgeHealth
-		hookedFrps   *analyticsmodel.NodeObsFrps
-		hookedFrpc   *analyticsmodel.NodeObsFrpc
 	)
 	SetObservabilityHooks(ObservabilityHooks{
 		QueueMetricSnapshot: func(row analyticsmodel.NodeMetricSnapshot) { hookedMetric = &row },
 		QueueEdgeHealth:     func(row analyticsmodel.NodeEdgeHealth) { hookedEdge = &row },
-		QueueNodeObsFrps:    func(row analyticsmodel.NodeObsFrps) { hookedFrps = &row },
-		QueueNodeObsFrpc:    func(row analyticsmodel.NodeObsFrpc) { hookedFrpc = &row },
 	})
 	metricRec := &model.OpenFlareMetricSnapshot{ID: 99, NodeID: "n1", CapturedAt: now, CPUUsagePercent: 12.5, MemoryUsedBytes: 1024}
 	if err := s.InsertMetricSnapshot(ctx, metricRec); err != nil {
@@ -330,21 +324,7 @@ func TestGormObservabilityInsertList(t *testing.T) {
 	if hookedEdge == nil || hookedEdge.ID != 98 || hookedEdge.Status != "healthy" || hookedEdge.Connections != 5 {
 		t.Fatalf("edge hook not fired with converted row: %+v", hookedEdge)
 	}
-	frpsRec := &model.OpenFlareNodeObservationFrps{ID: 97, NodeID: "n1", CapturedAt: now, FrpsConnections: 3, FrpsProxyCount: 2}
-	if err := s.InsertNodeObservationFrps(ctx, frpsRec); err != nil {
-		t.Fatalf("insert frps entry: %v", err)
-	}
-	if hookedFrps == nil || hookedFrps.ID != 97 || hookedFrps.FrpsConnections != 3 || hookedFrps.FrpsProxyCount != 2 {
-		t.Fatalf("frps hook not fired with converted row: %+v", hookedFrps)
-	}
-	frpcRec := &model.OpenFlareNodeObservationFrpc{ID: 96, NodeID: "n1", CapturedAt: now, TunnelStatus: "online", ConnectedRelaysCount: 7}
-	if err := s.InsertNodeObservationFrpc(ctx, frpcRec); err != nil {
-		t.Fatalf("insert frpc entry: %v", err)
-	}
-	if hookedFrpc == nil || hookedFrpc.ID != 96 || hookedFrpc.TunnelStatus != "online" || hookedFrpc.ConnectedRelaysCount != 7 {
-		t.Fatalf("frpc hook not fired with converted row: %+v", hookedFrpc)
-	}
-	// 四个入口均只入队、不落库。
+	// 两个入口均只入队、不落库。
 	if rows, err := s.ListMetricSnapshots(ctx, "n1", now.Add(-time.Hour), 10); err != nil {
 		t.Fatalf("list metrics after entry insert: %v", err)
 	} else if len(rows) != 0 {
@@ -354,16 +334,6 @@ func TestGormObservabilityInsertList(t *testing.T) {
 		t.Fatalf("list edge after entry insert: %v", err)
 	} else if len(rows) != 0 {
 		t.Fatalf("edge entry insert must not write rows, got %d", len(rows))
-	}
-	if rows, err := s.ListNodeObservationFrps(ctx, "n1", now.Add(-time.Hour), 10); err != nil {
-		t.Fatalf("list frps after entry insert: %v", err)
-	} else if len(rows) != 0 {
-		t.Fatalf("frps entry insert must not write rows, got %d", len(rows))
-	}
-	if rows, err := s.ListNodeObservationFrpc(ctx, "n1", now.Add(-time.Hour), 10); err != nil {
-		t.Fatalf("list frpc after entry insert: %v", err)
-	} else if len(rows) != 0 {
-		t.Fatalf("frpc entry insert must not write rows, got %d", len(rows))
 	}
 	SetObservabilityHooks(ObservabilityHooks{})
 
@@ -433,55 +403,6 @@ func TestGormObservabilityInsertList(t *testing.T) {
 	}
 	if _, err := s.DeleteAllEdgeHealth(ctx); err != nil {
 		t.Fatalf("delete all edge health: %v", err)
-	}
-
-	// frps：flush + 查询 + 迁移分页 + 删除。
-	if err := s.BatchInsertNodeObsFrps(ctx, []analyticsmodel.NodeObsFrps{
-		{ID: 1, NodeID: "n1", CapturedAt: now, FrpsConnections: 2, FrpsProxyCount: 3, FrpsProxies: `["a"]`},
-		{ID: 2, NodeID: "n1", CapturedAt: now.Add(time.Hour), FrpsConnections: 4},
-	}); err != nil {
-		t.Fatalf("flush frps: %v", err)
-	}
-	frpsRows, err := s.ListNodeObservationFrps(ctx, "n1", now.Add(-time.Hour), 10)
-	if err != nil {
-		t.Fatalf("list frps: %v", err)
-	}
-	if len(frpsRows) != 2 || frpsRows[0].FrpsConnections != 4 || frpsRows[1].FrpsProxies != `["a"]` {
-		t.Fatalf("frps list mismatch: %+v", frpsRows)
-	}
-	frpsMig, err := s.ListNodeObsFrpsForMigration(ctx, 0, 10)
-	if err != nil {
-		t.Fatalf("frps migration list: %v", err)
-	}
-	if len(frpsMig) != 2 {
-		t.Fatalf("frps migration want 2, got %d", len(frpsMig))
-	}
-	if _, err := s.DeleteAllNodeObservationFrps(ctx); err != nil {
-		t.Fatalf("delete all frps: %v", err)
-	}
-
-	// frpc：flush + 查询 + 迁移分页 + 删除。
-	if err := s.BatchInsertNodeObsFrpc(ctx, []analyticsmodel.NodeObsFrpc{
-		{ID: 1, NodeID: "n1", CapturedAt: now, TunnelStatus: "online", ConnectedRelaysCount: 5},
-	}); err != nil {
-		t.Fatalf("flush frpc: %v", err)
-	}
-	frpcRows, err := s.ListNodeObservationFrpc(ctx, "n1", now.Add(-time.Hour), 10)
-	if err != nil {
-		t.Fatalf("list frpc: %v", err)
-	}
-	if len(frpcRows) != 1 || frpcRows[0].TunnelStatus != "online" || frpcRows[0].ConnectedRelaysCount != 5 {
-		t.Fatalf("frpc list mismatch: %+v", frpcRows)
-	}
-	frpcMig, err := s.ListNodeObsFrpcForMigration(ctx, 0, 10)
-	if err != nil {
-		t.Fatalf("frpc migration list: %v", err)
-	}
-	if len(frpcMig) != 1 {
-		t.Fatalf("frpc migration want 1, got %d", len(frpcMig))
-	}
-	if _, err := s.DeleteAllNodeObservationFrpc(ctx); err != nil {
-		t.Fatalf("delete all frpc: %v", err)
 	}
 }
 
@@ -1090,8 +1011,6 @@ func TestGormWriteMethodsFreezeDuringMigration(t *testing.T) {
 		&analyticsmodel.NodeAccessLog{},
 		&analyticsmodel.NodeMetricSnapshot{},
 		&analyticsmodel.NodeEdgeHealth{},
-		&analyticsmodel.NodeObsFrps{},
-		&analyticsmodel.NodeObsFrpc{},
 		&analyticsmodel.UserAccessLog{},
 	)
 	ua := newUserAccessLogGormStore(s.db)
@@ -1117,32 +1036,16 @@ func TestGormWriteMethodsFreezeDuringMigration(t *testing.T) {
 		{"InsertEdgeHealth", func() error {
 			return s.InsertEdgeHealth(ctx, &model.OpenFlareEdgeHealth{NodeID: "n1", CapturedAt: now})
 		}},
-		{"InsertNodeObservationFrps", func() error {
-			return s.InsertNodeObservationFrps(ctx, &model.OpenFlareNodeObservationFrps{NodeID: "n1", CapturedAt: now})
-		}},
-		{"InsertNodeObservationFrpc", func() error {
-			return s.InsertNodeObservationFrpc(ctx, &model.OpenFlareNodeObservationFrpc{NodeID: "n1", CapturedAt: now})
-		}},
 		{"BatchInsertNodeMetricSnapshots", func() error {
 			return s.BatchInsertNodeMetricSnapshots(ctx, []analyticsmodel.NodeMetricSnapshot{{NodeID: "n1", CapturedAt: now}})
 		}},
 		{"BatchInsertNodeEdgeHealth", func() error {
 			return s.BatchInsertNodeEdgeHealth(ctx, []analyticsmodel.NodeEdgeHealth{{NodeID: "n1", CapturedAt: now}})
 		}},
-		{"BatchInsertNodeObsFrps", func() error {
-			return s.BatchInsertNodeObsFrps(ctx, []analyticsmodel.NodeObsFrps{{NodeID: "n1", CapturedAt: now}})
-		}},
-		{"BatchInsertNodeObsFrpc", func() error {
-			return s.BatchInsertNodeObsFrpc(ctx, []analyticsmodel.NodeObsFrpc{{NodeID: "n1", CapturedAt: now}})
-		}},
 		{"DeleteAllMetricSnapshots", func() error { _, err := s.DeleteAllMetricSnapshots(ctx); return err }},
 		{"DeleteMetricSnapshotsBefore", func() error { _, err := s.DeleteMetricSnapshotsBefore(ctx, now); return err }},
 		{"DeleteAllEdgeHealth", func() error { _, err := s.DeleteAllEdgeHealth(ctx); return err }},
 		{"DeleteEdgeHealthBefore", func() error { _, err := s.DeleteEdgeHealthBefore(ctx, now); return err }},
-		{"DeleteAllNodeObservationFrps", func() error { _, err := s.DeleteAllNodeObservationFrps(ctx); return err }},
-		{"DeleteNodeObservationFrpsBefore", func() error { _, err := s.DeleteNodeObservationFrpsBefore(ctx, now); return err }},
-		{"DeleteAllNodeObservationFrpc", func() error { _, err := s.DeleteAllNodeObservationFrpc(ctx); return err }},
-		{"DeleteNodeObservationFrpcBefore", func() error { _, err := s.DeleteNodeObservationFrpcBefore(ctx, now); return err }},
 		{"UserAccessLogBatchInsert", func() error { return ua.BatchInsert(ctx, []analyticsmodel.UserAccessLog{{UserID: 1, CreatedAt: now}}) }},
 	}
 	for _, tc := range cases {

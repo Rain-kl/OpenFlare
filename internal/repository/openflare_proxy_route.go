@@ -134,9 +134,10 @@ func proxyRouteUpdateMap(route *model.ProxyRoute) map[string]any {
 		"site_auth_ttl_hours":    route.SiteAuthTTLHours,
 		"site_auth_key":          route.SiteAuthKey,
 		"upstream_type":          route.UpstreamType,
-		"tunnel_node_id":         route.TunnelNodeID,
+		"tunnel_id":              route.TunnelID,
 		"tunnel_target_addr":     route.TunnelTargetAddr,
 		"tunnel_target_protocol": route.TunnelTargetProtocol,
+		"tunnel_options_json":    route.TunnelOptionsJSON,
 		"pages_project_id":       route.PagesProjectID,
 	}
 }
@@ -188,6 +189,32 @@ func ReplaceZoneDomainRouteBindingsTx(tx *gorm.DB, routeID uint, domainIDs []uin
 		return nil
 	}
 	return tx.Model(&model.ZoneDomain{}).Where("id IN ?", domainIDs).Update("proxy_route_id", routeID).Error
+}
+
+// ListEnabledProxyRoutesByTunnelID returns enabled tunnel routes bound to a tunnel.
+func ListEnabledProxyRoutesByTunnelID(ctx context.Context, tunnelID uint) ([]*model.ProxyRoute, error) {
+	var routes []*model.ProxyRoute
+	if err := db.DB(ctx).
+		Preload("ZoneDomains").
+		Where("upstream_type = ? AND tunnel_id = ? AND "+colEnabled+" = ?", "tunnel", tunnelID, true).
+		Order("id asc").
+		Find(&routes).Error; err != nil {
+		return nil, err
+	}
+	return routes, nil
+}
+
+// ListProxyRoutesByTunnelID returns all routes bound to a tunnel regardless of enabled status.
+func ListProxyRoutesByTunnelID(ctx context.Context, tunnelID uint) ([]*model.ProxyRoute, error) {
+	var routes []*model.ProxyRoute
+	if err := db.DB(ctx).
+		Preload("ZoneDomains").
+		Where("upstream_type = ? AND tunnel_id = ?", "tunnel", tunnelID).
+		Order("id asc").
+		Find(&routes).Error; err != nil {
+		return nil, err
+	}
+	return routes, nil
 }
 
 // DeleteProxyRouteAndUnbind clears domain bindings then deletes the proxy route in one transaction.

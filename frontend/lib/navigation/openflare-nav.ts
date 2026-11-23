@@ -4,6 +4,7 @@ import {
   Gauge,
   Globe,
   LayoutDashboard,
+  Network,
   Route,
   ShieldAlert,
   ScrollText,
@@ -86,6 +87,13 @@ export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
     url: '/nodes',
     icon: Server,
     childUrls: ['/nodes/detail'],
+  },
+  {
+    kind: 'item',
+    titleKey: 'tunnels',
+    url: '/tunnels',
+    icon: Network,
+    childUrls: ['/tunnels/detail', '/tunnels/relays/detail'],
   },
   {
     kind: 'item',

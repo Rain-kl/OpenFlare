@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
-	"strconv"
 	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -131,49 +129,6 @@ func dedupeSupportFiles(files []SupportFile) []SupportFile {
 		result = append(result, file)
 	}
 	return result
-}
-
-func relayAgentAddress(node *model.OpenFlareNode) string {
-	if node == nil {
-		return ""
-	}
-	port := node.RelayVhostHTTPPort
-	if port <= 0 {
-		port = 8080
-	}
-	addr := strings.TrimSpace(node.RelayAgentAccessAddr)
-	if addr == "" {
-		addr = strings.TrimSpace(node.RelayClientAccessAddr)
-	}
-	if addr == "" {
-		addr = strings.TrimSpace(node.IP)
-	}
-	if addr == "" {
-		return fmt.Sprintf("127.0.0.1:%d", port)
-	}
-	if _, _, err := net.SplitHostPort(addr); err == nil {
-		return addr
-	}
-	if strings.Contains(addr, ":") && strings.Count(addr, ":") > 1 {
-		return net.JoinHostPort(addr, strconv.Itoa(port))
-	}
-	return fmt.Sprintf("%s:%d", addr, port)
-}
-
-func resolveTunnelEdgeUpstreamURL(ctx context.Context) (string, error) {
-	nodes, err := repository.ListOpenFlareNodes(ctx)
-	if err != nil {
-		return "", err
-	}
-	for index := range nodes {
-		node := &nodes[index]
-		if node.NodeType == "tunnel_relay" {
-			if addr := relayAgentAddress(node); addr != "" {
-				return "http://" + addr, nil
-			}
-		}
-	}
-	return "http://127.0.0.1:8080", nil
 }
 
 func listWAFIPGroupsByIDs(ctx context.Context, ids []uint) ([]*model.OpenFlareWAFIPGroup, error) {

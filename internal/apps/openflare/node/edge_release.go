@@ -27,7 +27,7 @@ const (
 var githubRepositoryPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+$`)
 
 func isPingoraNode(node *model.OpenFlareNode) bool {
-	return node.NodeType != nodeTypeTunnelRelay && node.NodeType != nodeTypeTunnelClient && node.Engine == enginePingora
+	return node.Engine == enginePingora
 }
 
 func edgeReleaseVersion(tag string) string {

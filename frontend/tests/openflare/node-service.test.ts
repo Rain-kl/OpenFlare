@@ -24,7 +24,7 @@ it('keeps legacy arrays and requests bounded pages and individual details separa
     page: 2,
     page_size: 20,
     status: 'online',
-    node_type: 'tunnel_relay',
+    node_type: 'edge_node',
     search: 'edge',
   });
   expect(apiClient.get).toHaveBeenLastCalledWith(
@@ -34,7 +34,7 @@ it('keeps legacy arrays and requests bounded pages and individual details separa
         page: 2,
         page_size: 20,
         status: 'online',
-        node_type: 'tunnel_relay',
+        node_type: 'edge_node',
         search: 'edge',
       },
     }),

@@ -67,24 +67,6 @@ func InsertOpenFlareEdgeHealth(ctx context.Context, record *model.OpenFlareEdgeH
 	return s.Observability.InsertEdgeHealth(ctx, record)
 }
 
-// InsertOpenFlareNodeObservationFrps inserts an FRPS observation into ClickHouse.
-func InsertOpenFlareNodeObservationFrps(ctx context.Context, record *model.OpenFlareNodeObservationFrps) error {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return err
-	}
-	return s.Observability.InsertNodeObservationFrps(ctx, record)
-}
-
-// InsertOpenFlareNodeObservationFrpc inserts an FRPC observation into ClickHouse.
-func InsertOpenFlareNodeObservationFrpc(ctx context.Context, record *model.OpenFlareNodeObservationFrpc) error {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return err
-	}
-	return s.Observability.InsertNodeObservationFrpc(ctx, record)
-}
-
 // ListOpenFlareMetricSnapshotsSince returns metric snapshots since the given time.
 func ListOpenFlareMetricSnapshotsSince(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareMetricSnapshot, error) {
 	s, err := logstore.Active(ctx)
@@ -270,42 +252,6 @@ func DeleteAllOpenFlareEdgeHealth(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return s.Observability.DeleteAllEdgeHealth(ctx)
-}
-
-// DeleteOpenFlareNodeObservationFrpsBefore deletes FRPS observations captured before cutoff.
-func DeleteOpenFlareNodeObservationFrpsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return s.Observability.DeleteNodeObservationFrpsBefore(ctx, cutoff)
-}
-
-// DeleteAllOpenFlareNodeObservationFrps deletes all FRPS observations.
-func DeleteAllOpenFlareNodeObservationFrps(ctx context.Context) (int64, error) {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return s.Observability.DeleteAllNodeObservationFrps(ctx)
-}
-
-// DeleteOpenFlareNodeObservationFrpcBefore deletes FRPC observations captured before cutoff.
-func DeleteOpenFlareNodeObservationFrpcBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return s.Observability.DeleteNodeObservationFrpcBefore(ctx, cutoff)
-}
-
-// DeleteAllOpenFlareNodeObservationFrpc deletes all FRPC observations.
-func DeleteAllOpenFlareNodeObservationFrpc(ctx context.Context) (int64, error) {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return s.Observability.DeleteAllNodeObservationFrpc(ctx)
 }
 
 // DeleteOpenFlareHealthEventsByNodeID deletes all health events for a node.
@@ -575,22 +521,4 @@ func ListOpenFlareEdgeHealth(ctx context.Context, nodeID string, since time.Time
 		return nil, err
 	}
 	return s.Observability.ListEdgeHealth(ctx, nodeID, since, limit)
-}
-
-// ListOpenFlareNodeObservationFrpc returns frpc observations.
-func ListOpenFlareNodeObservationFrpc(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrpc, error) {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return s.Observability.ListNodeObservationFrpc(ctx, nodeID, since, limit)
-}
-
-// ListOpenFlareNodeObservationFrps returns frps observations.
-func ListOpenFlareNodeObservationFrps(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrps, error) {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return s.Observability.ListNodeObservationFrps(ctx, nodeID, since, limit)
 }

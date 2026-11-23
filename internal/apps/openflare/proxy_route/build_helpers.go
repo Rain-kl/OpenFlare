@@ -166,26 +166,33 @@ func applyProxyRouteHTTP2(route *model.ProxyRoute, input Input) {
 func applyProxyRouteUpstreamType(ctx context.Context, route *model.ProxyRoute, upstreamType string, input Input) error {
 	switch upstreamType {
 	case proxyRouteUpstreamTypeTunnel:
-		tunnelNodeID, err := normalizeTunnelNodeID(input.TunnelNodeID, input.TunnelID)
+		tunnelID, err := normalizeTunnelID(input.TunnelID)
 		if err != nil {
 			return err
 		}
-		if err := validateTunnelRouteInput(ctx, tunnelNodeID, input.TunnelTargetAddr, input.TunnelTargetProtocol); err != nil {
+		optionsJSON, err := normalizeTunnelOptionsJSON(input.TunnelOptionsJSON)
+		if err != nil {
 			return err
 		}
-		route.TunnelNodeID = tunnelNodeID
+		if err := validateTunnelRouteInput(ctx, tunnelID, input.TunnelTargetAddr, input.TunnelTargetProtocol); err != nil {
+			return err
+		}
+		route.TunnelID = tunnelID
 		route.TunnelTargetAddr = strings.TrimSpace(input.TunnelTargetAddr)
 		route.TunnelTargetProtocol = normalizeTunnelTargetProtocol(input.TunnelTargetProtocol)
+		route.TunnelOptionsJSON = optionsJSON
 		route.PagesProjectID = nil
 	case proxyRouteUpstreamTypePages:
-		route.TunnelNodeID = nil
+		route.TunnelID = nil
 		route.TunnelTargetAddr = ""
 		route.TunnelTargetProtocol = ""
+		route.TunnelOptionsJSON = "{}"
 		route.PagesProjectID = input.PagesProjectID
 	default:
-		route.TunnelNodeID = nil
+		route.TunnelID = nil
 		route.TunnelTargetAddr = ""
 		route.TunnelTargetProtocol = ""
+		route.TunnelOptionsJSON = "{}"
 		route.PagesProjectID = nil
 	}
 	return nil

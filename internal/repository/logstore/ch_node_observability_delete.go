@@ -62,19 +62,3 @@ func (s *clickhouseLogStore) DeleteAllEdgeHealth(ctx context.Context) (int64, er
 func (s *clickhouseLogStore) DeleteEdgeHealthBefore(ctx context.Context, _ time.Time) (int64, error) {
 	return s.chMaterializeObsTTL(ctx, chNodeEdgeHealthTableName(), chTableTTLDaysNodeObs)
 }
-
-func (s *clickhouseLogStore) DeleteAllNodeObservationFrps(ctx context.Context) (int64, error) {
-	return s.chTruncateTable(ctx, chNodeObsFrpsTableName())
-}
-
-func (s *clickhouseLogStore) DeleteNodeObservationFrpsBefore(ctx context.Context, _ time.Time) (int64, error) {
-	return s.chMaterializeObsTTL(ctx, chNodeObsFrpsTableName(), chTableTTLDaysNodeObs)
-}
-
-func (s *clickhouseLogStore) DeleteAllNodeObservationFrpc(ctx context.Context) (int64, error) {
-	return s.chTruncateTable(ctx, chNodeObsFrpcTableName())
-}
-
-func (s *clickhouseLogStore) DeleteNodeObservationFrpcBefore(ctx context.Context, _ time.Time) (int64, error) {
-	return s.chMaterializeObsTTL(ctx, chNodeObsFrpcTableName(), chTableTTLDaysNodeObs)
-}

@@ -118,32 +118,6 @@ ORDER BY %s`, chNodeEdgeHealthTableName(), clause, chNodeObservabilityCapturedAt
 	return fromAnalyticsNodeEdgeHealths(result), nil
 }
 
-func (s *clickhouseLogStore) ListNodeObservationFrps(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrps, error) {
-	return listCHNodeObservability(
-		ctx,
-		chNodeObsFrpsTableName(),
-		"id, node_id, captured_at, frps_connections, frps_proxy_count, frps_client_count, frps_proxies, created_at",
-		"list node frps observations",
-		analyticsmodel.NodeObservabilityFilter{NodeID: nodeID, Since: since, Limit: limit},
-		"",
-		scanNodeObsFrpsRows,
-		fromAnalyticsNodeObsFrps,
-	)
-}
-
-func (s *clickhouseLogStore) ListNodeObservationFrpc(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareNodeObservationFrpc, error) {
-	return listCHNodeObservability(
-		ctx,
-		chNodeObsFrpcTableName(),
-		"id, node_id, captured_at, tunnel_status, connected_relays_count, created_at",
-		"list node frpc observations",
-		analyticsmodel.NodeObservabilityFilter{NodeID: nodeID, Since: since, Limit: limit},
-		"",
-		scanNodeObsFrpcRows,
-		fromAnalyticsNodeObsFrpc,
-	)
-}
-
 //nolint:dupl // scan shapes differ by model fields; shared helper would obscure CH column mapping
 func scanNodeMetricSnapshotRows(rows driver.Rows) ([]analyticsmodel.NodeMetricSnapshot, error) {
 	var result []analyticsmodel.NodeMetricSnapshot
@@ -165,29 +139,6 @@ func scanNodeMetricSnapshotRows(rows driver.Rows) ([]analyticsmodel.NodeMetricSn
 			&item.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan node metric snapshot row: %w", err)
-		}
-		item.CapturedAt = item.CapturedAt.UTC()
-		item.CreatedAt = item.CreatedAt.UTC()
-		result = append(result, item)
-	}
-	return result, nil
-}
-
-func scanNodeObsFrpsRows(rows driver.Rows) ([]analyticsmodel.NodeObsFrps, error) {
-	var result []analyticsmodel.NodeObsFrps
-	for rows.Next() {
-		var item analyticsmodel.NodeObsFrps
-		if err := rows.Scan(
-			&item.ID,
-			&item.NodeID,
-			&item.CapturedAt,
-			&item.FrpsConnections,
-			&item.FrpsProxyCount,
-			&item.FrpsClientCount,
-			&item.FrpsProxies,
-			&item.CreatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan node frps observation row: %w", err)
 		}
 		item.CapturedAt = item.CapturedAt.UTC()
 		item.CreatedAt = item.CreatedAt.UTC()
@@ -448,27 +399,6 @@ func scanNodeMetricHourlyRows(rows driver.Rows) ([]analyticsmodel.NodeMetricHour
 		item.DiskReadBytes = diskRead
 		item.DiskWriteBytes = diskWrite
 		item.ReportedNodes = int(safeInt64Count(reportedNodes))
-		result = append(result, item)
-	}
-	return result, nil
-}
-
-func scanNodeObsFrpcRows(rows driver.Rows) ([]analyticsmodel.NodeObsFrpc, error) {
-	var result []analyticsmodel.NodeObsFrpc
-	for rows.Next() {
-		var item analyticsmodel.NodeObsFrpc
-		if err := rows.Scan(
-			&item.ID,
-			&item.NodeID,
-			&item.CapturedAt,
-			&item.TunnelStatus,
-			&item.ConnectedRelaysCount,
-			&item.CreatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan node frpc observation row: %w", err)
-		}
-		item.CapturedAt = item.CapturedAt.UTC()
-		item.CreatedAt = item.CreatedAt.UTC()
 		result = append(result, item)
 	}
 	return result, nil

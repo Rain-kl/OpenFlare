@@ -4,7 +4,8 @@
       "keywords": {
         "home": "home|主页|首页|dashboard|总览",
         "docs-how-to-use": "docs|文档|使用|how to|tutorial|教程|help",
-        "console-nodes": "node|节点|边缘节点|中继|内网穿透|tunnel|服务器",
+        "console-nodes": "node|节点|边缘节点|服务器",
+        "console-tunnels": "tunnel|内网穿透|中继|隧道|relay|openflared",
         "console-proxy-routes": "route|规则|路由|代理|反向代理|proxy",
         "console-websites": "website|domain|网站|域名|站点",
         "console-certificates": "certificate|ssl|tls|证书|https|加密",
