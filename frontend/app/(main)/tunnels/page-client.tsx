@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Network, Plus, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -40,12 +41,32 @@ import { TunnelEditorDialog } from './components/tunnel-editor-dialog';
 import { TunnelsTab } from './components/tunnels-tab';
 import { getErrorMessage } from './components/tunnel-utils';
 
+const VALID_TUNNEL_TABS = new Set(['tunnels', 'relays', 'pools', 'topology']);
+
 export function TunnelsPageClient() {
   const t = useTranslations('tunnels');
   const tc = useTranslations('common');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState('tunnels');
+  const tabParam = searchParams.get('tab');
+  const activeTab =
+    tabParam && VALID_TUNNEL_TABS.has(tabParam) ? tabParam : 'tunnels';
+
+  const handleTabChange = (nextTab: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextTab === 'tunnels') {
+      params.delete('tab');
+    } else {
+      params.set('tab', nextTab);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  };
   const [tunnelDialogOpen, setTunnelDialogOpen] = useState(false);
   const [editingTunnel, setEditingTunnel] = useState<TunnelView | null>(null);
   const [relayDialogOpen, setRelayDialogOpen] = useState(false);
@@ -294,7 +315,11 @@ export function TunnelsPageClient() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className='w-full'>
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className='w-full'
+      >
         <TabsList>
           <TabsTrigger value='tunnels'>{t('tabs.tunnels')}</TabsTrigger>
           <TabsTrigger value='relays'>{t('tabs.relays')}</TabsTrigger>
