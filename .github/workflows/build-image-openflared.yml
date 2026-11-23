@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Image version/tag to publish, for example tunnel-v0.1.0"
+        description: "Image version/tag (e.g. tunnel-v0.1.0); leave empty to publish as canary"
         required: false
         type: string
   push:
@@ -58,8 +58,10 @@ jobs:
             VERSION="$INPUT_VERSION"
           elif [[ -n "$POINTED_TAG" ]]; then
             VERSION="$POINTED_TAG"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            VERSION="canary"
           else
-            echo "workflow_dispatch requires an explicit version input when HEAD is not tagged" >&2
+            echo "unable to determine image version/tag" >&2
             exit 1
           fi
 
@@ -140,8 +142,10 @@ jobs:
             VERSION="$INPUT_VERSION"
           elif [[ -n "$POINTED_TAG" ]]; then
             VERSION="$POINTED_TAG"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            VERSION="canary"
           else
-            echo "workflow_dispatch requires an explicit version input when HEAD is not tagged" >&2
+            echo "unable to determine image version/tag" >&2
             exit 1
           fi
 
@@ -180,16 +184,24 @@ jobs:
             exit 1
           fi
 
-          if [[ "${VERSION}" =~ (alpha|beta|rc) ]]; then
-            FLOATING_TAG="beta"
+          if [[ "${VERSION}" == "canary" ]]; then
+            docker buildx imagetools create \
+              -t "${IMAGE}:canary" \
+              "${references[@]}"
           else
-            FLOATING_TAG="latest"
-          fi
+            if [[ "${VERSION}" == *canary* ]]; then
+              FLOATING_TAG="canary"
+            elif [[ "${VERSION}" =~ (alpha|beta|rc) ]]; then
+              FLOATING_TAG="beta"
+            else
+              FLOATING_TAG="latest"
+            fi
 
-          docker buildx imagetools create \
-            -t "${IMAGE}:${VERSION}" \
-            -t "${IMAGE}:${FLOATING_TAG}" \
-            "${references[@]}"
+            docker buildx imagetools create \
+              -t "${IMAGE}:${VERSION}" \
+              -t "${IMAGE}:${FLOATING_TAG}" \
+              "${references[@]}"
+          fi
         env:
           IMAGE: ${{ env.IMAGE }}
 
