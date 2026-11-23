@@ -62,6 +62,12 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
             version="$INPUT_VERSION"
           elif [[ "$GITHUB_REF" == refs/heads/canary ]]; then
+            if [[ -n "${BEFORE:-}" && "$BEFORE" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              if git diff --quiet "$BEFORE" "$source_sha" -- edge/; then
+                echo "No changes under edge/ between $BEFORE and $source_sha; skipping Edge canary build."
+                exit 0
+              fi
+            fi
             channel=canary
             version="$(git tag --points-at HEAD --list "edge-v*-canary.${GITHUB_RUN_NUMBER}")"
             if [[ -z "$version" ]]; then

@@ -727,6 +727,9 @@ def main(binary):
                 wait_for(lambda: server.registered_with_node_token)
 
                 if sys.platform == "linux" and os.geteuid() != 0:
+                    def running_argv0(pid: int) -> str:
+                        return Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0", 1)[0].decode()
+
                     systemd = {"NOTIFY_SOCKET": address, "INVOCATION_ID": "edge-update-fixture"}
                     staged = path / "edge-update-next"
                     active = path / "edge-update-active"
@@ -739,7 +742,7 @@ def main(binary):
                     edge = launch("--token-type", "node", env=systemd)
                     wait_for(lambda: active.exists() and json.loads(ready.read_text())["pid"] == edge.pid)
                     assert notify.recv(4096).startswith(b"READY=1\n")
-                    assert os.path.samefile(f"/proc/{edge.pid}/exe", active)
+                    assert os.path.samefile(running_argv0(edge.pid), active)
                     assert not trial.exists() and not staged.exists()
                     wait_for(lambda: any(h["edge_update_ready"] for h in server.heartbeats[before_trial:]))
                     assert server.heartbeats[before_trial]["edge_update_supported"]
@@ -755,7 +758,7 @@ def main(binary):
                     edge = launch("--token-type", "node", env=systemd)
                     wait_for(lambda: json.loads(ready.read_text())["pid"] == edge.pid)
                     assert notify.recv(4096).startswith(b"READY=1\n")
-                    assert os.path.samefile(f"/proc/{edge.pid}/exe", active)
+                    assert os.path.samefile(running_argv0(edge.pid), active)
                     wait_for(lambda: any("previous version was restored" in h.get("last_error", "")
                                          for h in server.heartbeats[before_rollback:]))
                     wait_for(lambda: request("edge.test", use_http2=True)[0] == 200)

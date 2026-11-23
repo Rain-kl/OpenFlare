@@ -26,17 +26,28 @@ jobs:
            startsWith(github.event.workflow_run.head_branch, 'edge-v'))))
     runs-on: ubuntu-24.04
     steps:
+      - name: Check build artifacts
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count="$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/artifacts" --jq '[.artifacts[] | select(.name == "edge-build-info")] | length')"
+          echo "has_build_info=$([[ "$count" -gt 0 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
+        if: steps.check.outputs.has_build_info == 'true'
         with:
           persist-credentials: false
           sparse-checkout: .github/actions/edge-build-info
 
       - uses: ./.github/actions/edge-build-info
+        if: steps.check.outputs.has_build_info == 'true'
         id: edge
         with:
           token: ${{ github.token }}
 
       - name: Checkout release source
+        if: steps.check.outputs.has_build_info == 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.edge.outputs.source_sha }}
@@ -52,6 +63,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Download Edge binaries
+        if: steps.check.outputs.has_build_info == 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: edge-binary-*
@@ -60,6 +72,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Package release archives
+        if: steps.check.outputs.has_build_info == 'true'
         shell: bash
         env:
           VERSION: ${{ steps.edge.outputs.version }}
@@ -81,6 +94,7 @@ jobs:
           done
 
       - name: Publish release
+        if: steps.check.outputs.has_build_info == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.edge.outputs.version }}
