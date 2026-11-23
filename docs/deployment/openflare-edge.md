@@ -131,18 +131,20 @@ OpenFlare Edge 二进制内置双进程架构：控制面监督进程与 Pingora
 日常更新可直接使用更新脚本，该脚本自动检测已有的安装路径与状态目录，仅替换可执行二进制并重启服务，保留原有的 systemd 配置、节点令牌、快照数据与 GeoIP 数据库：
 
 ```bash
-# 远程下载执行更新脚本
+# 更新到最新正式版
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash
 
-# 或在本地仓库执行
-sudo bash scripts/update-openflare-edge.sh
+# 切换到最近发布的预发布版本
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash -s -- canary
 ```
+
+在本地仓库可执行 `sudo bash scripts/update-openflare-edge.sh canary`。省略 `canary` 即可切回最新正式版。若要更新到指定版本，使用 `--version TAG`。
 
 更新过程特性：
 - 校验下载归档的 SHA-256 摘要与配置协议兼容性。
 - 原子替换 `/opt/openflare-edge/current` 二进制文件。
 - 自 `edge-v0.1.2` 起，Pingora 退出宽限期优化为 2 秒，平滑排空连接后重启。
-- 更新脚本通过 systemd 校验启动结果。若新版本加载配置或启动失败，脚本输出错误日志，服务维持先前正常版本状态。
+- 更新脚本通过 systemd 校验启动结果。启动失败时，脚本输出服务日志并保留新版本二进制文件。
 
 ### Docker 容器升级
 

@@ -233,6 +233,12 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash
 ```
 
+将已部署的 Edge 节点切换到最近发布的预发布版本：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash -s -- canary
+```
+
 ---
 
 ## 📚 官方文档

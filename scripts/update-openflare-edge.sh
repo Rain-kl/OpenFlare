@@ -2,6 +2,7 @@
 set -euo pipefail
 
 VERSION=""
+CHANNEL=stable
 REPO="Rain-kl/OpenFlare"
 INSTALL_DIR="/opt/openflare-edge"
 STATE_DIR="/var/lib/openflare-edge"
@@ -14,19 +15,37 @@ log() { printf '[openflare-edge] %s\n' "$*"; }
 die() { printf '[openflare-edge] ERROR: %s\n' "$*" >&2; exit 1; }
 is_release_tag() { [[ "$1" =~ ^edge-v[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]]; }
 
+canary_releases() {
+  # Read release fields at the top level of each object in GitHub's formatted response.
+  awk -F '"' '
+    /^  \{$/ { tag = draft = prerelease = published = "" }
+    /^    "tag_name": / { tag = $4 }
+    /^    "draft": false,?$/ { draft = "false" }
+    /^    "prerelease": true,?$/ { prerelease = "true" }
+    /^    "published_at": / { published = $4 }
+    /^  \},?$/ {
+      if (tag ~ /^edge-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/ &&
+          draft == "false" && prerelease == "true" && published != "") {
+        print published, tag
+      }
+    }
+  '
+}
+
 usage() {
   cat <<'EOF'
 OpenFlare Edge Updater
 
 Usage:
-  update-openflare-edge.sh [OPTIONS]
+  update-openflare-edge.sh [canary] [OPTIONS]
 
 Updates only the installed openflare-edge binary without modifying service
 configuration, tokens, snapshots, or GeoIP databases. No arguments are
 required for standard installations.
 
 Options:
-  --version TAG       Update to a specific release tag; default is latest
+  canary              Update to the most recently published Edge prerelease
+  --version TAG       Update to a specific release tag (default: latest stable)
   --repo OWNER/NAME   Release repository (default: Rain-kl/OpenFlare)
   --install-dir DIR   Override install directory (auto-detected from systemd)
   --state-dir DIR     Override state directory (auto-detected from systemd)
@@ -36,6 +55,7 @@ EOF
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    canary) CHANNEL=canary; shift ;;
     --version) VERSION="$2"; shift 2 ;;
     --repo) REPO="$2"; shift 2 ;;
     --install-dir) INSTALL_DIR="$2"; INSTALL_DIR_EXPLICIT=true; shift 2 ;;
@@ -44,6 +64,7 @@ while [[ $# -gt 0 ]]; do
     *) die "unknown option: $1" ;;
   esac
 done
+[[ "$CHANNEL" != canary || -z "$VERSION" ]] || die "canary and --version are mutually exclusive"
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
@@ -81,14 +102,24 @@ if [[ -f "$SERVICE_PATH" ]] && command -v systemctl >/dev/null 2>&1; then
 fi
 
 if [[ -z "$VERSION" ]]; then
-  log "resolving latest stable Edge release from ${REPO}"
+  log "resolving latest ${CHANNEL} Edge release from ${REPO}"
+  latest_canary=""
   for ((page = 1; ; page++)); do
     releases_json="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=100&page=${page}")"
     mapfile -t release_tags < <(printf '%s' "$releases_json" | sed -nE 's/^[[:space:]]*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p')
-    VERSION="$(printf '%s\n' "${release_tags[@]}" | grep -E '^edge-v[0-9]+(\.[0-9]+){2}$' | sort -Vr | sed -n '1p' || true)"
-    if [[ -n "$VERSION" || ${#release_tags[@]} -lt 100 ]]; then break; fi
+    if [[ "$CHANNEL" == canary ]]; then
+      candidate="$(printf '%s' "$releases_json" | canary_releases | LC_ALL=C sort -r | sed -n '1p')"
+      if [[ "$candidate" > "$latest_canary" ]]; then
+        latest_canary="$candidate"
+        VERSION="${candidate#* }"
+      fi
+    else
+      VERSION="$(printf '%s\n' "${release_tags[@]}" | grep -E '^edge-v[0-9]+(\.[0-9]+){2}$' | sort -Vr | sed -n '1p' || true)"
+      if [[ -n "$VERSION" ]]; then break; fi
+    fi
+    if [[ ${#release_tags[@]} -lt 100 ]]; then break; fi
   done
-  [[ -n "$VERSION" ]] || die "no stable Edge release found in ${REPO}"
+  [[ -n "$VERSION" ]] || die "no ${CHANNEL} Edge release found in ${REPO}"
 fi
 is_release_tag "$VERSION" || die "invalid Edge release version"
 RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/tags/${VERSION}")"

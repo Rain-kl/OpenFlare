@@ -232,6 +232,12 @@ Update an installed Edge node to the latest stable release:
 curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash
 ```
 
+Switch an installed Edge node to the most recently published prerelease:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/update-openflare-edge.sh | sudo bash -s -- canary
+```
+
 ---
 
 ## 📚 Documentation
