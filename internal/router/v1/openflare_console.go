@@ -147,6 +147,9 @@ func registerOpenFlareNodeRoutes(apiGroup *gin.RouterGroup) {
 		nodeRoute.POST("/:id/agent-update", node.RequestAgentUpdateHandler)
 		nodeRoute.POST("/:id/edge-restart", node.RequestEdgeRestartHandler)
 		nodeRoute.POST("/:id/force-sync", node.RequestForceSyncHandler)
+		nodeRoute.GET("/:id/certificate-deliveries", node.GetCertificateDeliveriesHandler)
+		nodeRoute.POST("/:id/quarantine", node.QuarantineNodeHandler)
+		nodeRoute.POST("/:id/unquarantine", node.UnquarantineNodeHandler)
 		nodeRoute.GET("/:id/observability", node.GetObservabilityHandler)
 		nodeRoute.POST("/:id/observability/cleanup", node.CleanupHealthEventsHandler)
 	}
@@ -205,6 +208,7 @@ func registerOpenFlareTLSRoutes(apiGroup *gin.RouterGroup) {
 		tlsCertificateRoute.POST("/:id/delete", tls.DeleteCertificateHandler)
 		tlsCertificateRoute.POST("/apply", tls.ApplyCertificateHandler)
 		tlsCertificateRoute.POST("/:id/renew", tls.RenewCertificateHandler)
+		tlsCertificateRoute.POST("/:id/rotate-revoke", tls.RotateCompromisedCertificateHandler)
 	}
 
 	acmeAccountRoute := apiGroup.Group("/acme-accounts")

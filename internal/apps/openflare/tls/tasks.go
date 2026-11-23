@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
-	"github.com/Rain-kl/Wavelet/internal/repository"
-
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls/acme"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 )
 
 const (
@@ -40,12 +42,21 @@ var SSLSingleRenewMeta = task.TaskMeta{
 			Placeholder: "Enter the certificate ID",
 			Description: "ID of the TLS certificate to renew",
 		},
+		{
+			Name:        "revoke_previous",
+			Label:       "Revoke Previous Certificate",
+			Type:        "boolean",
+			Required:    false,
+			Description: "Revoke the previously issued ACME certificate for key compromise after issuing a replacement",
+		},
 	},
 }
 
 // SSLSingleRenewPayload is the payload structure for SSLSingleRenewTask.
 type SSLSingleRenewPayload struct {
-	ID uint `json:"id"`
+	ID              uint   `json:"id"`
+	RevokePrevious  bool   `json:"revoke_previous,omitempty"`
+	PreviousCertPEM string `json:"previous_cert_pem,omitempty"`
 }
 
 // SSLSingleRenewHandler renews a specific TLS certificate.
@@ -89,10 +100,31 @@ func (h *SSLSingleRenewHandler) Execute(ctx context.Context, payload []byte) (*t
 		return nil, fmt.Errorf("certificate %s is not ACME-managed and cannot be renewed automatically", cert.PrimaryDomain)
 	}
 
-	task.AppendLog(ctx, "Preparing to issue or renew a certificate for domains [%s]", cert.PrimaryDomain)
-	if err := obtainTLSCertificate(ctx, cert); err != nil {
-		task.AppendLog(ctx, "Certificate issuance failed: %v", err)
-		return nil, err
+	oldCertPEM := strings.TrimSpace(req.PreviousCertPEM)
+	if oldCertPEM == "" {
+		oldCertPEM = strings.TrimSpace(cert.CertPEM)
+	}
+	alreadyReplaced := req.RevokePrevious &&
+		strings.TrimSpace(req.PreviousCertPEM) != "" &&
+		strings.TrimSpace(cert.CertPEM) != "" &&
+		edgeconfig.CertificatePEMDigest(cert.CertPEM) != edgeconfig.CertificatePEMDigest(oldCertPEM)
+	if !alreadyReplaced {
+		task.AppendLog(ctx, "Preparing to issue or renew a certificate for domains [%s]", cert.PrimaryDomain)
+		if err := obtainTLSCertificate(ctx, cert); err != nil {
+			task.AppendLog(ctx, "Certificate issuance failed: %v", err)
+			return nil, err
+		}
+	} else {
+		task.AppendLog(ctx, "Replacement certificate already issued; retrying previous certificate revocation")
+	}
+
+	if req.RevokePrevious && oldCertPEM != "" {
+		task.AppendLog(ctx, "Revoking previously issued ACME certificate (reason: keyCompromise)...")
+		if revokeErr := revokeTLSCertificate(ctx, cert, oldCertPEM, acme.CRLReasonKeyCompromise); revokeErr != nil {
+			task.AppendLog(ctx, "Failed to revoke previous certificate: %v", revokeErr)
+			return nil, fmt.Errorf("replacement certificate issued, but failed to revoke previous certificate: %w", revokeErr)
+		}
+		task.AppendLog(ctx, "Previous ACME certificate revoked successfully")
 	}
 
 	msg := fmt.Sprintf("Certificate %s renewed successfully", cert.PrimaryDomain)

@@ -61,18 +61,27 @@ func TestRefreshSiteSnapshotCreatesAlignedPingoraPayload(t *testing.T) {
 
 	require.Empty(t, pingoraVersion.SourceVersion)
 	require.NotEmpty(t, pingoraVersion.SnapshotJSON)
+	assert.NotContains(t, pingoraVersion.SupportFilesJSON, "PRIVATE KEY")
+	assert.NotContains(t, pingoraVersion.SupportFilesJSON, ".key")
+
 	payloadJSON, err := edgeconfig.Encode(pingoraVersion.SnapshotJSON, pingoraVersion.SupportFilesJSON)
 	require.NoError(t, err)
+	assert.NotContains(t, payloadJSON, "PRIVATE KEY")
+	assert.NotContains(t, payloadJSON, "key_pem")
+
 	var payload edgeconfig.Envelope
 	require.NoError(t, json.Unmarshal([]byte(payloadJSON), &payload))
+	assert.Equal(t, edgeconfig.ContractVersion, payload.ContractVersion)
 	assert.JSONEq(t, pingoraVersion.SnapshotJSON, string(payload.Snapshot))
 	var snapshot snapshotDocument
 	require.NoError(t, json.Unmarshal(payload.Snapshot, &snapshot))
 	require.Len(t, snapshot.Routes, 1)
-	assert.Equal(t, []string{"tls-sni-h2-v1", "policy-runtime-v1", "shared-snapshot-v1"}, payload.RequiredCapabilities)
+	assert.Equal(t, []string{"tls-sni-h2-v1", "policy-runtime-v1", "shared-snapshot-v1", "tls-memory-keys-v1"}, payload.RequiredCapabilities)
 	assert.Equal(t, "shield", snapshot.EdgeSettings.PoWPage.Template)
 	assert.Equal(t, "turnstile", snapshot.EdgeSettings.PoWPage.Widget)
-	assert.Contains(t, payload.Assets.Certificates, strconv.FormatUint(uint64(certificate.ID), 10))
+	certAsset, ok := payload.Assets.Certificates[strconv.FormatUint(uint64(certificate.ID), 10)]
+	require.True(t, ok)
+	assert.Equal(t, edgeconfig.CertificatePEMDigest(certPEM), certAsset.CertSHA256)
 
 	digest := sha256.Sum256([]byte(payloadJSON))
 	assert.Equal(t, hex.EncodeToString(digest[:]), pingoraVersion.PayloadChecksum)

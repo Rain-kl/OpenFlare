@@ -8,7 +8,7 @@ mod websocket;
 use config_sync::{Manifest, PERFORMANCE_KEY};
 use site_sync::{ActiveConfigMeta, SiteSync};
 
-use crate::config::{self, AppliedConfig};
+use crate::config::{self, AppliedConfig, CertificateKeyRing};
 use crate::pages::PagesSyncer;
 use crate::runtime::{
     performance::{LivePolicy, NodePolicy},
@@ -39,6 +39,7 @@ pub struct Runtime {
     token: String,
     state_dir: PathBuf,
     state: SnapshotStore,
+    keys: CertificateKeyRing,
     client: Client,
     access_logs: AccessLogSpool,
     listeners: Listeners,
@@ -176,6 +177,7 @@ impl Runtime {
             geo_ip: crate::geoip::GeoIpStore::open(state_dir.clone()),
             state_dir,
             state,
+            keys: CertificateKeyRing::new(),
             client,
             access_logs,
             listeners,
@@ -184,6 +186,11 @@ impl Runtime {
             ready: Arc::default(),
             heartbeat_received: Arc::default(),
         })
+    }
+
+    pub fn with_key_ring(mut self, keys: CertificateKeyRing) -> Self {
+        self.keys = keys;
+        self
     }
 
     pub fn performance(&self) -> LivePolicy {
@@ -203,7 +210,7 @@ impl Runtime {
             }
         };
         self.state.recover_latest(&self.state_dir);
-        self.node_ip.initialize().await;
+        tokio::join!(self.node_ip.initialize(), self.hydrate_persisted_keys());
         let node_ip_refresher = self.node_ip.clone();
         let control_loop = async {
             let mut retry = RetryDelay::default();
@@ -221,12 +228,22 @@ impl Runtime {
                 token: identity.agent_token,
                 ..self.clone()
             };
+            if let Some(current) = self.state.current() {
+                if let Err(error) = authenticated.fetch_missing_keys(&current).await {
+                    tracing::warn!(%error, "initial TLS private key hydration failed");
+                }
+            }
             let wake = websocket::Wake::default();
             let (plans, updates) = watch::channel(None);
             let (update_errors, errors) = watch::channel(None);
             tokio::join!(
                 authenticated.run_heartbeats(&identity.node_id, &wake, plans, errors),
-                websocket::run(&authenticated.base_url, &authenticated.token, &wake),
+                websocket::run(
+                    &authenticated.base_url,
+                    &authenticated.token,
+                    &wake,
+                    &authenticated.keys
+                ),
                 update::run(&self.state_dir, updates, update_errors),
             );
         };
@@ -535,6 +552,7 @@ impl Runtime {
             .json(&payload)
             .send()
             .await?;
+        self.clear_keys_if_revoked(&response);
         let decoded = decode_response(response).await?;
         if !acknowledged.is_empty() {
             let spool = self.access_logs.clone();
@@ -573,6 +591,153 @@ impl Runtime {
             .send()
             .await?;
         decode_response::<serde_json::Value>(response).await?;
+        Ok(())
+    }
+
+    fn clear_keys_if_revoked(&self, response: &reqwest::Response) -> bool {
+        let quarantined = response
+            .headers()
+            .get("X-OpenFlare-Quarantined")
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.trim().eq_ignore_ascii_case("true"));
+        let invalid_token = response.status() == reqwest::StatusCode::UNAUTHORIZED
+            && response
+                .headers()
+                .get("X-OpenFlare-Auth-Error")
+                .and_then(|value| value.to_str().ok())
+                .is_some_and(|value| value.trim().eq_ignore_ascii_case("invalid_token"));
+        if quarantined || invalid_token {
+            tracing::warn!(
+                status = %response.status(),
+                quarantined,
+                invalid_token,
+                "control plane revoked node credentials; wiping in-memory TLS keys"
+            );
+            self.keys.clear();
+            return true;
+        }
+        false
+    }
+
+    pub(super) async fn hydrate_persisted_keys(&self) {
+        let Some(current) = self.state.current() else {
+            return;
+        };
+        let token = match self.token_type {
+            TokenType::Node => {
+                let trimmed = self.token.trim();
+                if trimmed.is_empty() {
+                    return;
+                }
+                trimmed.to_owned()
+            }
+            TokenType::Discovery => match load_identity(&self.state_dir) {
+                Ok(Some(identity)) if !identity.agent_token.trim().is_empty() => {
+                    identity.agent_token
+                }
+                _ => return,
+            },
+        };
+        let preauth = Self {
+            token_type: TokenType::Node,
+            token,
+            ..self.clone()
+        };
+        match tokio::time::timeout(Duration::from_secs(3), preauth.fetch_missing_keys(&current))
+            .await
+        {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => {
+                tracing::warn!(%error, "startup TLS private key hydration failed");
+            }
+            Err(_) => {
+                tracing::warn!("startup TLS private key hydration timed out");
+            }
+        }
+    }
+
+    pub(super) async fn fetch_missing_keys(&self, config: &AppliedConfig) -> Result<()> {
+        const MAX_TLS_KEY_BATCH: usize = 1024;
+        const MAX_KEY_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
+
+        #[derive(Serialize)]
+        struct TLSKeyRequestItem {
+            certificate_id: u64,
+            cert_sha256: String,
+        }
+
+        #[derive(Deserialize)]
+        struct FetchTLSKeysData {
+            #[serde(default)]
+            keys: std::collections::HashMap<String, String>,
+        }
+
+        let missing = self.keys.missing_for(config);
+        if missing.is_empty() {
+            return Ok(());
+        }
+
+        for batch in missing.chunks(MAX_TLS_KEY_BATCH) {
+            let certificates: Vec<TLSKeyRequestItem> = batch
+                .iter()
+                .map(|(certificate_id, cert_sha256)| TLSKeyRequestItem {
+                    certificate_id: *certificate_id,
+                    cert_sha256: cert_sha256.clone(),
+                })
+                .collect();
+            let response = self
+                .client
+                .post(format!("{}/api/v1/agent/tls/keys", self.base_url))
+                .header("X-Agent-Token", &self.token)
+                .json(&json!({
+                    "release_sequence": config.release_sequence,
+                    "certificates": certificates,
+                }))
+                .send()
+                .await?;
+            self.clear_keys_if_revoked(&response);
+            let mut response = response.error_for_status()?;
+            if response
+                .content_length()
+                .is_some_and(|length| length > MAX_KEY_RESPONSE_BYTES as u64)
+            {
+                anyhow::bail!("TLS key response exceeds the size limit");
+            }
+            let mut body = zeroize::Zeroizing::new(Vec::new());
+            while let Some(chunk) = response.chunk().await? {
+                anyhow::ensure!(
+                    body.len().saturating_add(chunk.len()) <= MAX_KEY_RESPONSE_BYTES,
+                    "TLS key response exceeds the size limit"
+                );
+                body.extend_from_slice(&chunk);
+            }
+            let mut decoded: ApiResponse<FetchTLSKeysData> = serde_json::from_slice(&body)?;
+            drop(body);
+            if !decoded.error_msg.is_empty() {
+                anyhow::bail!("server returned error: {}", decoded.error_msg);
+            }
+            let mut data = decoded
+                .data
+                .take()
+                .ok_or_else(|| anyhow::anyhow!("server response has no TLS key data"))?;
+            for (cert_id, _) in batch {
+                let cert_key = cert_id.to_string();
+                let key_pem = data
+                    .keys
+                    .remove(&cert_key)
+                    .map(zeroize::Zeroizing::new)
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("controller response omitted key for certificate {cert_id}")
+                    })?;
+                let loaded_cert = config.certificate_by_id(*cert_id).ok_or_else(|| {
+                    anyhow::anyhow!("snapshot certificate {cert_id} disappeared during key install")
+                })?;
+                self.keys.install(*cert_id, loaded_cert, key_pem)?;
+            }
+            for (_, mut leftover) in data.keys.drain() {
+                zeroize::Zeroize::zeroize(&mut leftover);
+            }
+        }
         Ok(())
     }
 }
@@ -674,8 +839,8 @@ mod tests {
     fn decodes_null_pow_lists_as_empty() {
         let payload = r#"{
           "schema_version":1,
-          "contract_version":3,
-          "required_capabilities":["tls-sni-h2-v1","policy-runtime-v1","shared-snapshot-v1"],
+          "contract_version":4,
+          "required_capabilities":["tls-sni-h2-v1","policy-runtime-v1","shared-snapshot-v1","tls-memory-keys-v1"],
           "snapshot":{
           "routes":[{
             "id":1,

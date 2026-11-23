@@ -52,6 +52,22 @@ func GetTLSCertificateByIDTx(tx *gorm.DB, id uint) (*model.TLSCertificate, error
 	return &certificate, nil
 }
 
+// ListTLSCertificatesByIDs batch-loads certificates by primary key.
+func ListTLSCertificatesByIDs(ctx context.Context, ids []uint) ([]model.TLSCertificate, error) {
+	if len(ids) == 0 {
+		return []model.TLSCertificate{}, nil
+	}
+	conn := db.DB(ctx)
+	if conn == nil {
+		return nil, errors.New(errDatabaseNotInitialized)
+	}
+	var certificates []model.TLSCertificate
+	if err := conn.Where("id IN ?", ids).Find(&certificates).Error; err != nil {
+		return nil, err
+	}
+	return certificates, nil
+}
+
 // CreateTLSCertificateRecord 创建证书记录。
 func CreateTLSCertificateRecord(ctx context.Context, certificate *model.TLSCertificate) error {
 	conn := db.DB(ctx)

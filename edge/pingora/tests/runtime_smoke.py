@@ -95,33 +95,85 @@ class Controller(http.server.BaseHTTPRequestHandler):
             self.answer(body)
             return
         payload = json.loads(body)
+        if getattr(self.server, "offline", False) and self.path.startswith("/api/v1/agent/"):
+            self.data(None, 503)
+            return
         if self.path.endswith(("/register", "/heartbeat")):
             assert payload["version"] == self.server.binary_version
             assert self.headers["User-Agent"] == f"openflare-edge/{self.server.binary_version}"
         if self.path.endswith("/register"):
             assert payload["engine"] == "pingora"
-            assert payload["contract_version"] == 3
+            assert payload["contract_version"] == 4
             assert payload["config_sync_version"] == 1
             assert_valid_reported_ip(payload.get("ip"))
             if self.headers["X-Agent-Token"] == "discovery-credential":
                 assert payload["registration_key"]
             else:
+                if getattr(self.server, "quarantined", False):
+                    self.answer(
+                        json.dumps({"error_msg": "quarantined", "data": None}).encode(),
+                        403,
+                        headers=(("X-OpenFlare-Quarantined", "true"),),
+                    )
+                    return
                 assert self.headers["X-Agent-Token"] == "node-credential"
                 assert "registration_key" not in payload
                 self.server.registered_with_node_token = True
             self.data({"node_id": "fixture", "agent_token": "node-credential"})
         elif self.headers["X-Agent-Token"] != "node-credential":
-            self.data(None, 401)
+            self.answer(
+                json.dumps({"error_msg": "invalid agent token", "data": None}).encode(),
+                401,
+                headers=(("X-OpenFlare-Auth-Error", "invalid_token"),),
+            )
+        elif getattr(self.server, "quarantined", False):
+            self.answer(
+                json.dumps({"error_msg": "quarantined", "data": None}).encode(),
+                403,
+                headers=(("X-OpenFlare-Quarantined", "true"),),
+            )
         elif self.path.endswith("/heartbeat"):
             assert_valid_reported_ip(payload.get("ip"))
             self.server.heartbeats.append(payload)
             self.data({"config": {"version": 1, "resources": self.manifest(payload.get("latest_config_version"))},
                        "agent_settings": {"heartbeat_interval": self.server.heartbeat_interval}})
+        elif self.path.endswith("/tls/keys"):
+            keys = {}
+            for item in payload.get("certificates", []):
+                cert_id = str(item["certificate_id"])
+                stored = self.server.cert_keys.get(cert_id)
+                if stored is None:
+                    self.data(None, 403)
+                    return
+                expected_sha, key_pem = stored
+                if expected_sha != item.get("cert_sha256", "").lower():
+                    self.data(None, 409)
+                    return
+                keys[cert_id] = key_pem
+            seq = self.server.active["release_sequence"] if self.server.active else 0
+            self.answer(
+                json.dumps({"error_msg": "", "data": {"release_sequence": seq, "keys": keys}}).encode(),
+                200,
+                headers=(
+                    ("Cache-Control", "private, no-store, no-cache, must-revalidate"),
+                    ("Pragma", "no-cache"),
+                ),
+            )
         elif self.path.endswith("/apply-logs"):
             self.server.applies.append(payload)
             self.data({"id": len(self.server.applies)})
 
     def do_GET(self):
+        if getattr(self.server, "offline", False) and self.path.startswith("/api/v1/agent/"):
+            self.data(None, 503)
+            return
+        if getattr(self.server, "quarantined", False) and self.path.startswith("/api/v1/agent/"):
+            self.answer(
+                json.dumps({"error_msg": "quarantined", "data": None}).encode(),
+                403,
+                headers=(("X-OpenFlare-Quarantined", "true"),),
+            )
+            return
         if self.path.startswith("/api/v1/agent/config/pull?"):
             assert self.headers["X-Agent-Token"] == "node-credential"
             query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
@@ -261,13 +313,19 @@ def release(seq, origin, tls_origin, certificate, key, *, empty=False):
     if empty:
         shared["routes"] = []
         shared["waf"]["bindings"] = []
+    cert_sha256 = hashlib.sha256((certificate.strip() + "\n").encode()).hexdigest()
     payload = json.dumps({
         "schema_version": 1,
-        "contract_version": 3,
-        "required_capabilities": ["tls-sni-h2-v1", "policy-runtime-v1", "shared-snapshot-v1"],
+        "contract_version": 4,
+        "required_capabilities": [
+            "tls-sni-h2-v1",
+            "policy-runtime-v1",
+            "shared-snapshot-v1",
+            "tls-memory-keys-v1",
+        ],
         "snapshot": shared,
         "assets": {
-            "certificates": {"1": {"cert_pem": certificate, "key_pem": key}},
+            "certificates": {"1": {"cert_pem": certificate, "cert_sha256": cert_sha256}},
             "origin_error_html": "<h1>{{host}} {{status}}</h1>",
         },
     })
@@ -317,6 +375,9 @@ def main(binary):
     server.config_ws = None
     server.performance = None
     server.heartbeat_interval = 250
+    server.offline = False
+    server.quarantined = False
+    server.cert_keys = {}
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     control_url = f"http://127.0.0.1:{server.server_port}"
@@ -345,10 +406,20 @@ def main(binary):
         head, body = head_body.split("\n\n", 1)
         return int(status), version, head, body
 
-    def wake(force=False):
+    def send_ws_event(event):
         ws = wait_for(lambda: server.config_ws)
-        payload = json.dumps({"type": "config_changed", "payload": {"force": force}}).encode()
+        payload = json.dumps(event).encode()
         ws.sendall(struct.pack("!BB", 0x81, len(payload)) + payload)
+
+    def wake(force=False):
+        send_ws_event({"type": "config_changed", "payload": {"force": force}})
+
+    def tls_handshake_blocked():
+        try:
+            request("edge.test", use_http2=True)
+            return False
+        except subprocess.CalledProcessError:
+            return True
 
     def http_route():
         conn = http.client.HTTPConnection("127.0.0.1", http_port, timeout=1)
@@ -381,7 +452,10 @@ def main(binary):
         origin_authority = f"[{origin_ip}]" if origin_ip.version == 6 else str(origin_ip)
         tls_origin = f"https://{origin_authority}:{tls_origin_server.server_port}"
         server.pages = make_pages(1, b"first page")
-        server.active = release(1, origin, tls_origin, certificate.read_text(), key.read_text())
+        cert_pem = certificate.read_text()
+        cert_sha256 = hashlib.sha256((cert_pem.strip() + "\n").encode()).hexdigest()
+        server.cert_keys = {"1": (cert_sha256, key.read_text())}
+        server.active = release(1, origin, tls_origin, cert_pem, key.read_text())
         token = path / "bootstrap"
         token.write_text("discovery-credential")
         ready = path / "ready.json"
@@ -524,7 +598,7 @@ def main(binary):
                 assert json.loads(state_file.read_text())["settings"]["threads"] == 2
                 for bucket in ("first", "second"):
                     hostname = f"{bucket}.buckets.edge.test"
-                    status, _, _, body = request(hostname)
+                    status, _, _, body = wait_for(lambda h=hostname: request(h))
                     assert (status, body) == (200, f"{hostname} {hostname}"), (status, body)
                 status, _, _, body = request("fixed.edge.test")
                 assert (status, body) == (200, "fixed-origin.edge.test fixed-origin.edge.test"), (status, body)
@@ -574,6 +648,7 @@ def main(binary):
                 assert json.loads(state_file.read_text())["settings"]["threads_auto"] is True
                 wait_for(lambda: http_route()[0] == 301)
                 wait_for(lambda: not inactive_file.exists())
+                wait_for(lambda: request("edge.test", use_http2=True)[0] == 200)
                 assert request("cache.edge.test", "/disk-inactive")[0] == 200
                 assert origin_server.origins["/disk-inactive"] == 2
 
@@ -612,7 +687,7 @@ def main(binary):
                 wait_for(lambda: server.registered_with_node_token)
                 wait_for(lambda: failed_attempts() == 3)
                 assert server.heartbeats[resume_heartbeat]["latest_config_version"] == "pingora-fixture-2"
-                assert request("edge.test", use_http2=True)[0] == 200
+                assert wait_for(lambda: request("edge.test", use_http2=True)[0] == 200)
                 assert request("cache.edge.test", "/disk-restart")[0] == 200
                 assert origin_server.origins["/disk-restart"] == 1
                 assert_no_retries()
@@ -674,17 +749,28 @@ def main(binary):
                     assert os.path.samefile(f"/proc/{edge.pid}/exe", active)
                     wait_for(lambda: any("previous version was restored" in h.get("last_error", "")
                                          for h in server.heartbeats[before_rollback:]))
-                    assert request("edge.test", use_http2=True)[0] == 200
+                    wait_for(lambda: request("edge.test", use_http2=True)[0] == 200)
+
+                for snap_name in ("snapshot.json", "snapshot.previous.json"):
+                    snap_file = path / snap_name
+                    assert snap_file.exists(), f"missing {snap_name}"
+                    snap_text = snap_file.read_text()
+                    assert "PRIVATE KEY" not in snap_text
+                    assert "key_pem" not in snap_text
 
                 edge.kill()
                 edge.wait(timeout=5)
                 token.unlink()
                 ready.unlink()
-                server.shutdown()
+                server.offline = True
                 edge = launch()
                 wait_for(lambda: ready.exists())
                 assert http_route() == (301, "https://edge.test/test?query=1")
-                assert request("edge.test", use_http2=True)[0] == 200
+                assert tls_handshake_blocked()
+
+                server.offline = False
+                wait_for(lambda: request("edge.test", use_http2=True)[0] == 200)
+
                 if sys.platform == "linux":
                     previous = edge
                     replacement = launch("--upgrade")
@@ -694,12 +780,19 @@ def main(binary):
                         wait_for(lambda: json.loads(ready.read_text())["pid"] == replacement.pid)
                         edge = replacement
                         assert http_route() == (301, "https://edge.test/test?query=1")
-                        assert request("edge.test", use_http2=True)[0] == 200
+                        wait_for(lambda: request("edge.test", use_http2=True)[0] == 200)
                     finally:
                         for candidate in (previous, replacement):
                             if candidate is not edge and candidate.poll() is None:
                                 candidate.kill()
                                 candidate.wait(timeout=5)
+
+                wait_for(lambda: server.config_ws is not None)
+                server.quarantined = True
+                send_ws_event({"type": "quarantined", "payload": {"reason": "smoke-test"}})
+                wait_for(tls_handshake_blocked)
+                server.quarantined = False
+                server.shutdown()
 
             except Exception:
                 log.seek(0)

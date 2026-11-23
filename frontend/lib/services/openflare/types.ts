@@ -4,7 +4,7 @@ export type ReleaseChannel = 'stable' | 'preview';
 
 export type NodeType = 'edge_node' | 'tunnel_relay' | 'tunnel_client';
 
-export type NodeStatus = 'online' | 'offline' | 'pending';
+export type NodeStatus = 'online' | 'offline' | 'pending' | 'quarantined';
 
 export type OpenrestyStatus = 'healthy' | 'unhealthy' | 'unknown';
 
@@ -43,6 +43,8 @@ export interface NodeItem {
   openresty_status: OpenrestyStatus;
   openresty_message: string;
   status: NodeStatus;
+  quarantined_at?: string | null;
+  quarantine_reason?: string;
   current_version: string;
   last_seen_at: string;
   last_error: string;
@@ -55,6 +57,37 @@ export interface NodeItem {
   latest_apply_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface NodeCertificateDelivery {
+  certificate_id: number;
+  certificate_name: string;
+  primary_domain: string;
+  provider: string;
+  apply_status: string;
+  not_after?: string | null;
+  cert_sha256: string;
+  current_cert_sha256: string;
+  matches_current: boolean;
+  release_sequence: number;
+  delivery_count: number;
+  first_delivered_at: string;
+  last_delivered_at: string;
+}
+
+export interface NodeQuarantineInput {
+  reason: string;
+  rotate_acme_certs: boolean;
+}
+
+export interface NodeQuarantineResult {
+  node: NodeItem;
+  exposed_certificates: NodeCertificateDelivery[];
+  rotated_certificate_ids: number[];
+  rotation_errors: Record<number, string>;
+  manual_action_certificate_ids: number[];
+  dns_switched_groups: string[];
+  dns_unbacked_groups: string[];
 }
 
 export interface NodeListQuery {

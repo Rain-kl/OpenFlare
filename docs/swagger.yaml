@@ -1878,6 +1878,35 @@ definitions:
       discovery_token:
         type: string
     type: object
+  apps_openflare_node.CertificateDeliveryView:
+    properties:
+      apply_status:
+        type: string
+      cert_sha256:
+        type: string
+      certificate_id:
+        type: integer
+      certificate_name:
+        type: string
+      current_cert_sha256:
+        type: string
+      delivery_count:
+        type: integer
+      first_delivered_at:
+        type: string
+      last_delivered_at:
+        type: string
+      matches_current:
+        type: boolean
+      not_after:
+        type: string
+      primary_domain:
+        type: string
+      provider:
+        type: string
+      release_sequence:
+        type: integer
+    type: object
   apps_openflare_node.HealthEventCleanupResult:
     properties:
       deleted_count:
@@ -1952,6 +1981,42 @@ definitions:
       trends:
         $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeTrends'
     type: object
+  apps_openflare_node.QuarantineInput:
+    properties:
+      reason:
+        type: string
+      rotate_acme_certs:
+        type: boolean
+    type: object
+  apps_openflare_node.QuarantineResult:
+    properties:
+      dns_switched_groups:
+        items:
+          type: string
+        type: array
+      dns_unbacked_groups:
+        items:
+          type: string
+        type: array
+      exposed_certificates:
+        items:
+          $ref: '#/definitions/apps_openflare_node.CertificateDeliveryView'
+        type: array
+      manual_action_certificate_ids:
+        items:
+          type: integer
+        type: array
+      node:
+        $ref: '#/definitions/apps_openflare_node.View'
+      rotated_certificate_ids:
+        items:
+          type: integer
+        type: array
+      rotation_errors:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
   apps_openflare_node.View:
     properties:
       access_token:
@@ -1980,6 +2045,8 @@ definitions:
         type: string
       ip_manual_override:
         type: boolean
+      is_quarantined:
+        type: boolean
       last_error:
         type: string
       last_seen_at: {}
@@ -2006,6 +2073,10 @@ definitions:
       openresty_message:
         type: string
       openresty_status:
+        type: string
+      quarantine_reason:
+        type: string
+      quarantined_at:
         type: string
       relay_agent_access_addr:
         type: string
@@ -4391,6 +4462,24 @@ definitions:
       tag:
         type: string
     type: object
+  github_com_Rain-kl_Wavelet_internal_openflare_protocol.FetchTLSKeysRequest:
+    properties:
+      certificates:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TLSKeyRequestItem'
+        type: array
+      release_sequence:
+        type: integer
+    type: object
+  github_com_Rain-kl_Wavelet_internal_openflare_protocol.FetchTLSKeysResponse:
+    properties:
+      keys:
+        additionalProperties:
+          type: string
+        type: object
+      release_sequence:
+        type: integer
+    type: object
   github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredConnectedRelay:
     properties:
       proxy_count:
@@ -4776,6 +4865,13 @@ definitions:
       websocket_upgrade_enabled:
         type: boolean
     type: object
+  github_com_Rain-kl_Wavelet_internal_openflare_protocol.TLSKeyRequestItem:
+    properties:
+      cert_sha256:
+        type: string
+      certificate_id:
+        type: integer
+    type: object
   github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFAudit:
     properties:
       action:
@@ -5061,6 +5157,10 @@ definitions:
       openresty_message:
         type: string
       openresty_status:
+        type: string
+      quarantine_reason:
+        type: string
+      quarantined_at:
         type: string
       relay_agent_access_addr:
         type: string
@@ -8256,6 +8356,10 @@ paths:
           description: Token 无效
           schema:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: 节点已隔离
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
       security:
       - AgentTokenAuth: []
       summary: Agent 心跳上报
@@ -8292,6 +8396,10 @@ paths:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
         "401":
           description: Token 无效
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: 节点已隔离
           schema:
             $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
       security:
@@ -8368,6 +8476,59 @@ paths:
       security:
       - AgentTokenAuth: []
       summary: 下载 Pages 项目最新激活部署包
+      tags:
+      - openflare-agent
+  /api/v1/agent/tls/keys:
+    post:
+      consumes:
+      - application/json
+      description: 仅返回当前活跃配置发布范围内、且公钥摘要匹配的 TLS 私钥；响应禁止缓存，并强制写入节点证书下发审计台账。
+      parameters:
+      - description: 证书 ID 与公钥 SHA-256 请求列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FetchTLSKeysRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 私钥集合
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FetchTLSKeysResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Token 无效
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "403":
+          description: 节点已隔离或证书不在发布范围内
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无活跃配置
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "409":
+          description: 证书摘要已变更
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - AgentTokenAuth: []
+      summary: 拉取边缘节点内存态 TLS 私钥
       tags:
       - openflare-agent
   /api/v1/agent/ws:
@@ -8660,6 +8821,7 @@ paths:
         - pending
         - online
         - offline
+        - quarantined
         in: query
         name: status
         type: string
@@ -8871,6 +9033,7 @@ paths:
         - pending
         - online
         - offline
+        - quarantined
         in: query
         name: status
         type: string
@@ -12108,6 +12271,46 @@ paths:
       summary: 请求更新节点
       tags:
       - openflare-node
+  /api/v1/d/nodes/{id}/certificate-deliveries:
+    get:
+      description: 返回控制面向指定节点内存下发过的 TLS 证书密钥审计台账，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 下发审计记录
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/apps_openflare_node.CertificateDeliveryView'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取节点证书密钥下发记录
+      tags:
+      - openflare-node
   /api/v1/d/nodes/{id}/delete:
     post:
       description: 删除指定节点记录，需要管理员权限
@@ -12306,6 +12509,89 @@ paths:
       summary: 清理节点健康事件
       tags:
       - openflare-node
+  /api/v1/d/nodes/{id}/quarantine:
+    post:
+      consumes:
+      - application/json
+      description: 轮换并吊销节点接入令牌、断开 WebSocket、触发 DNS 备用节点切换，并按需重签且吊销受影响的 ACME 证书，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 隔离参数（可选）
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/apps_openflare_node.QuarantineInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 隔离结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_node.QuarantineResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 紧急隔离节点
+      tags:
+      - openflare-node
+  /api/v1/d/nodes/{id}/unquarantine:
+    post:
+      description: 清除节点隔离状态并生成全新的接入令牌以供重建节点使用，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 解除隔离后的节点
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_node.View'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 解除节点隔离并重置令牌
+      tags:
+      - openflare-node
   /api/v1/d/nodes/{id}/update:
     post:
       consumes:
@@ -12424,7 +12710,7 @@ paths:
         in: query
         name: search
         type: string
-      - description: pending、online 或 offline
+      - description: pending、online、offline 或 quarantined
         in: query
         name: status
         type: string
@@ -14137,6 +14423,48 @@ paths:
       security:
       - SessionCookie: []
       summary: 续期 ACME 证书
+      tags:
+      - openflare-tls
+  /api/v1/d/tls-certificates/{id}/rotate-revoke:
+    post:
+      description: 重新生成私钥申请新 ACME 证书，并在签发完成后以密钥泄露原因吊销旧证书，需要管理员权限
+      parameters:
+      - description: 证书 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 轮换中的证书
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TLSCertificate'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 轮换并吊销 ACME 证书
       tags:
       - openflare-tls
   /api/v1/d/tls-certificates/{id}/update:

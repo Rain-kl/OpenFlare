@@ -287,6 +287,15 @@ func ConvertCertificateToACME(ctx context.Context, id uint, input ApplyInput) (*
 
 // RenewCertificate 续期 ACME 证书。
 func RenewCertificate(ctx context.Context, id uint) (*model.TLSCertificate, error) {
+	return dispatchACMERenewal(ctx, id, false, "manual")
+}
+
+// RotateCompromisedCertificate 为疑似泄露的 ACME 证书签发新密钥并吊销旧证书。
+func RotateCompromisedCertificate(ctx context.Context, id uint) (*model.TLSCertificate, error) {
+	return dispatchACMERenewal(ctx, id, true, "quarantine_rotate")
+}
+
+func dispatchACMERenewal(ctx context.Context, id uint, revokePrevious bool, triggeredBy string) (*model.TLSCertificate, error) {
 	cert, err := repository.GetTLSCertificateByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -295,13 +304,19 @@ func RenewCertificate(ctx context.Context, id uint) (*model.TLSCertificate, erro
 		return nil, errors.New(errCertificateOnlyACMERenew)
 	}
 
-	payload, err := json.Marshal(SSLSingleRenewPayload{ID: id})
+	reqPayload := SSLSingleRenewPayload{
+		ID:             id,
+		RevokePrevious: revokePrevious,
+	}
+	if revokePrevious {
+		reqPayload.PreviousCertPEM = strings.TrimSpace(cert.CertPEM)
+	}
+	payload, err := json.Marshal(reqPayload)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = task.DispatchTask(ctx, TaskTypeSSLSingleRenew, payload, "manual")
-	if err != nil {
+	if _, err = task.DispatchTask(ctx, TaskTypeSSLSingleRenew, payload, triggeredBy); err != nil {
 		return nil, err
 	}
 

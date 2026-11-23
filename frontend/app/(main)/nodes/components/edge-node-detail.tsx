@@ -12,6 +12,8 @@ import {
   Package,
   RefreshCw,
   RotateCcw,
+  ShieldAlert,
+  ShieldCheck,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -35,6 +37,10 @@ import { NodeService } from '@/lib/services/openflare';
 
 import { AgentUpdateDialog } from './agent-update-dialog';
 import { InstallCommand } from './install-command';
+import {
+  NodeQuarantineDialog,
+  NodeSecuritySection,
+} from './node-security-section';
 import { NodeDetailShell } from './node-detail-shell';
 import {
   NodeErrorBanner,
@@ -67,6 +73,9 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [quarantineOpen, setQuarantineOpen] = useState(false);
+  const [unquarantineOpen, setUnquarantineOpen] = useState(false);
+  const isQuarantined = node.status === 'quarantined';
 
   const saveMutation = useMutation({
     mutationFn: (payload: Parameters<typeof NodeService.updateNode>[1]) =>
@@ -104,6 +113,16 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
     onSuccess: async (updated) => {
       toast.success(t('edge.toastUpgrade', { tag: updated.update_tag }));
       setUpgradeOpen(false);
+      await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
+    },
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
+  });
+
+  const unquarantineMutation = useMutation({
+    mutationFn: () => NodeService.unquarantine(node.id),
+    onSuccess: async () => {
+      toast.success(t('security.unquarantineSuccess'));
+      setUnquarantineOpen(false);
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
     onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
@@ -151,7 +170,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         variant='outline'
         size='sm'
         className='h-8'
-        disabled={forceSyncMutation.isPending}
+        disabled={forceSyncMutation.isPending || isQuarantined}
         onClick={() => forceSyncMutation.mutate()}
       >
         <RotateCcw className='size-3.5 mr-1.5' />
@@ -161,6 +180,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         variant='outline'
         size='sm'
         className='h-8'
+        disabled={isQuarantined}
         onClick={() => setUpgradeOpen(true)}
       >
         <Upload data-icon='inline-start' />
@@ -170,11 +190,33 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         variant='outline'
         size='sm'
         className='h-8'
-        disabled={restartMutation.isPending}
+        disabled={restartMutation.isPending || isQuarantined}
         onClick={() => restartMutation.mutate()}
       >
         {restartMutation.isPending ? t('dispatching') : t('edge.restartEdge')}
       </Button>
+      {isQuarantined ? (
+        <Button
+          variant='outline'
+          size='sm'
+          className='h-8'
+          disabled={unquarantineMutation.isPending}
+          onClick={() => setUnquarantineOpen(true)}
+        >
+          <ShieldCheck className='size-3.5 mr-1.5' />
+          {t('security.unquarantineAction')}
+        </Button>
+      ) : (
+        <Button
+          variant='outline'
+          size='sm'
+          className='h-8 text-destructive hover:text-destructive'
+          onClick={() => setQuarantineOpen(true)}
+        >
+          <ShieldAlert className='size-3.5 mr-1.5' />
+          {t('security.quarantineAction')}
+        </Button>
+      )}
       <Button
         variant='outline'
         size='sm'
@@ -271,7 +313,19 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
         </NodeSectionCard>
       </div>
 
-      <InstallCommand node={node} variant='edge' />
+      {node.status === 'quarantined' ? (
+        <div className='rounded-md border border-dashed p-6 text-sm text-muted-foreground'>
+          {t('security.quarantinedNoInstall')}
+        </div>
+      ) : (
+        <InstallCommand node={node} variant='edge' />
+      )}
+      <NodeSecuritySection
+        node={node}
+        onNodeUpdated={() =>
+          void queryClient.invalidateQueries({ queryKey: nodesQueryKey })
+        }
+      />
 
       <NodeSectionCard
         title={t('edge.runtimeMessages')}
@@ -370,6 +424,39 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
           }
         }}
       />
+
+      <NodeQuarantineDialog
+        node={node}
+        open={quarantineOpen}
+        onOpenChange={setQuarantineOpen}
+        onQuarantined={() =>
+          void queryClient.invalidateQueries({ queryKey: nodesQueryKey })
+        }
+      />
+
+      <AlertDialog open={unquarantineOpen} onOpenChange={setUnquarantineOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('security.unquarantineTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('security.unquarantineDesc', { name: node.name })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={unquarantineMutation.isPending}>
+              {tc('cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={unquarantineMutation.isPending}
+              onClick={() => unquarantineMutation.mutate()}
+            >
+              {t('security.unquarantineConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

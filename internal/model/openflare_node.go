@@ -52,11 +52,18 @@ type OpenFlareNode struct {
 	CapabilitiesJSON          string     `json:"capabilities_json" gorm:"type:text;not null;default:'[]'"`
 	RelayStatus               string     `json:"relay_status" gorm:"size:16;not null;default:'unknown'"`
 	RelayWebServerEnabled     bool       `json:"relay_web_server_enabled" gorm:"not null;default:false"`
+	QuarantinedAt             *time.Time `json:"quarantined_at" gorm:"index:idx_of_nodes_quarantined_at"`
+	QuarantineReason          string     `json:"quarantine_reason" gorm:"size:255;not null;default:''"`
 }
 
 // TableName returns the GORM table name.
 func (OpenFlareNode) TableName() string {
 	return "of_nodes"
+}
+
+// IsQuarantined reports whether the node has been emergency-quarantined.
+func (node *OpenFlareNode) IsQuarantined() bool {
+	return node != nil && node.QuarantinedAt != nil && !node.QuarantinedAt.IsZero()
 }
 
 // HasCapability reports whether the node advertised a runtime capability.

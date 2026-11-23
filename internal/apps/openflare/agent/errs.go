@@ -25,4 +25,6 @@ const (
 	errNodeEngineChanged             = "node engine differs from the reporting agent; register with the active agent"
 	errPingoraReleaseRequired        = "publish a Pingora configuration before migrating the node"
 	errPingoraContractUnsupported    = "unsupported Pingora configuration contract; upgrade the Edge binary"
+	errNodeQuarantined               = "node is quarantined and access has been revoked"
+	errTLSKeysRequestInvalid         = "invalid TLS key fetch request"
 )

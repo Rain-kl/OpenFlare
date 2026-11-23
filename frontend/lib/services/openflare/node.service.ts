@@ -1,5 +1,10 @@
 import { OpenFlareBaseService } from './base.service';
 import type {
+  NodeCertificateDelivery,
+  NodeQuarantineInput,
+  NodeQuarantineResult,
+} from './types';
+import type {
   NodeAgentReleaseInfo,
   NodeAgentUpdatePayload,
   NodeBootstrapToken,
@@ -89,5 +94,22 @@ export class NodeService extends OpenFlareBaseService {
     return this.post<{ node_id: string; deleted_count: number }>(
       `/${id}/observability/cleanup`,
     );
+  }
+
+  static async getCertificateDeliveries(
+    id: number,
+  ): Promise<NodeCertificateDelivery[]> {
+    return this.get<NodeCertificateDelivery[]>(`/${id}/certificate-deliveries`);
+  }
+
+  static async quarantine(
+    id: number,
+    payload: NodeQuarantineInput,
+  ): Promise<NodeQuarantineResult> {
+    return this.post<NodeQuarantineResult>(`/${id}/quarantine`, payload);
+  }
+
+  static async unquarantine(id: number): Promise<NodeItem> {
+    return this.post<NodeItem>(`/${id}/unquarantine`);
   }
 }

@@ -948,7 +948,8 @@
           "enum": [
             "pending",
             "online",
-            "offline"
+            "offline",
+            "quarantined"
           ],
           "type": "string"
         }
@@ -1104,7 +1105,8 @@
           "enum": [
             "pending",
             "online",
-            "offline"
+            "offline",
+            "quarantined"
           ],
           "type": "string"
         }

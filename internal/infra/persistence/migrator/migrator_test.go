@@ -20,6 +20,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/glebarez/sqlite"
+	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
 	"github.com/stretchr/testify/assert"
@@ -350,4 +351,74 @@ func TestMigrateClearsStaleSystemConfigCache(t *testing.T) {
 	if enabled {
 		t.Fatalf("GetBoolByKey(%s) = true, want false", model.ConfigKeyEmailLoginVerificationEnabled)
 	}
+}
+
+func TestNodeQuarantineAndCertDeliveryMigrations(t *testing.T) {
+	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
+	require.NoError(t, err)
+	sqlDB, err := sqliteDB.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
+	t.Cleanup(func() {
+		db.SetDB(nil)
+		_ = sqlDB.Close()
+	})
+
+	previousDBEnabled := config.Config.Database.Enabled
+	config.Config.Database.Enabled = false
+	db.SetDB(sqliteDB)
+	t.Cleanup(func() { config.Config.Database.Enabled = previousDBEnabled })
+
+	result := Migrate()
+	require.True(t, result.Applied)
+
+	assert.True(t, sqliteDB.Migrator().HasColumn(&model.OpenFlareNode{}, "quarantined_at"))
+	assert.True(t, sqliteDB.Migrator().HasColumn(&model.OpenFlareNode{}, "quarantine_reason"))
+	assert.True(t, sqliteDB.Migrator().HasIndex(&model.OpenFlareNode{}, "idx_of_nodes_quarantined_at"))
+	assert.True(t, sqliteDB.Migrator().HasTable(&model.OpenFlareNodeCertDelivery{}))
+	assert.True(t, sqliteDB.Migrator().HasIndex(&model.OpenFlareNodeCertDelivery{}, "idx_of_node_cert_deliveries_unique"))
+
+	scrubDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
+	require.NoError(t, err)
+	scrubSQLDB, err := scrubDB.DB()
+	require.NoError(t, err)
+	scrubSQLDB.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = scrubSQLDB.Close() })
+
+	gooseFS, err := fs.Sub(migrationFS, "goose/sqlite")
+	require.NoError(t, err)
+	provider, err := goose.NewProvider(goose.DialectSQLite3, scrubSQLDB, gooseFS)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	_, err = provider.UpTo(ctx, 202611230001)
+	require.NoError(t, err)
+
+	var beforeRevision int64
+	require.NoError(t, scrubDB.Raw("SELECT source_revision FROM of_edge_snapshot_state WHERE id = 1").Scan(&beforeRevision).Error)
+
+	dirty := model.ConfigVersion{
+		Version:          "legacy-v3",
+		SnapshotJSON:     `{"snapshot":{}}`,
+		SupportFilesJSON: `[{"path":"1.key","content":"-----BEGIN PRIVATE KEY-----\nsecret\n-----END PRIVATE KEY-----\n"}]`,
+		Checksum:         "legacy-sum",
+		PayloadChecksum:  "legacy-payload-sum",
+	}
+	require.NoError(t, scrubDB.Create(&dirty).Error)
+
+	_, err = provider.Up(ctx)
+	require.NoError(t, err)
+
+	var scrubbed model.ConfigVersion
+	require.NoError(t, scrubDB.Where("version = ?", dirty.Version).First(&scrubbed).Error)
+	assert.Equal(t, "[]", scrubbed.SupportFilesJSON)
+	assert.Empty(t, scrubbed.PayloadChecksum)
+
+	var afterRevision int64
+	require.NoError(t, scrubDB.Raw("SELECT source_revision FROM of_edge_snapshot_state WHERE id = 1").Scan(&afterRevision).Error)
+	assert.Equal(t, beforeRevision+1, afterRevision)
 }

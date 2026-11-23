@@ -16,6 +16,7 @@ const (
 	errRecordContentInvalid    = "invalid DNS record value; check the domain name or IP address"
 	errGroupTTLInvalid         = "TTL must be 1 (automatic) or an integer between 60 and 86400 seconds"
 	errNodeInvalid             = "select a valid edge node"
+	errNodeQuarantined         = "the selected edge node is quarantined"
 	errNodeIPv4Required        = "the active node requires a valid IPv4 address"
 	errGroupDisabled           = "target group is disabled"
 	errMemberExists            = "this domain already belongs to another target group"

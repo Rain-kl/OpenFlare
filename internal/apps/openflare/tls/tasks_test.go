@@ -9,9 +9,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Rain-kl/Wavelet/internal/repository"
-
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls/acme"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/openflare/edgeconfig"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -154,4 +155,105 @@ func TestSSLSingleRenewHandler_Execute(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, "ACME server timeout", err.Error())
 	})
+}
+
+func TestSSLSingleRenewHandler_ExecuteRevokePrevious(t *testing.T) {
+	cleanup := setupTLSTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	oldCertPEM, _ := generateTestCertificatePair(t, []string{"old.example.com"})
+	newCertPEM, _ := generateTestCertificatePair(t, []string{"new.example.com"})
+
+	cert := &model.TLSCertificate{
+		Name:          "Revoke Previous ACME",
+		Provider:      "acme",
+		PrimaryDomain: "old.example.com",
+		CertPEM:       oldCertPEM,
+		KeyPEM:        " ",
+		ApplyStatus:   "ready",
+	}
+	require.NoError(t, repository.CreateTLSCertificateRecord(ctx, cert))
+
+	var calls []string
+	var revokedPEM string
+	var revokedReason uint
+
+	restoreObtain := SetObtainCertificateFuncForTest(func(ctx context.Context, c *model.TLSCertificate) error {
+		calls = append(calls, "obtain")
+		c.CertPEM = newCertPEM
+		c.ApplyStatus = tlsApplyStatusReady
+		return repository.SaveTLSCertificate(ctx, c)
+	})
+	defer restoreObtain()
+
+	restoreRevoke := SetRevokeCertificateFuncForTest(func(_ context.Context, _ *model.TLSCertificate, targetPEM string, reason uint) error {
+		calls = append(calls, "revoke")
+		revokedPEM = targetPEM
+		revokedReason = reason
+		return nil
+	})
+	defer restoreRevoke()
+
+	payload, err := json.Marshal(SSLSingleRenewPayload{
+		ID:              cert.ID,
+		RevokePrevious:  true,
+		PreviousCertPEM: oldCertPEM,
+	})
+	require.NoError(t, err)
+
+	handler := &SSLSingleRenewHandler{}
+	res, err := handler.Execute(ctx, payload)
+	require.NoError(t, err)
+	assert.Contains(t, res.Message, "renewed successfully")
+	assert.Equal(t, []string{"obtain", "revoke"}, calls)
+	assert.Equal(t, edgeconfig.CertificatePEMDigest(oldCertPEM), edgeconfig.CertificatePEMDigest(revokedPEM))
+	assert.Equal(t, acme.CRLReasonKeyCompromise, revokedReason)
+}
+
+func TestSSLSingleRenewHandler_ExecuteRetrySkipsReissueWhenAlreadyReplaced(t *testing.T) {
+	cleanup := setupTLSTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	oldCertPEM, _ := generateTestCertificatePair(t, []string{"old-retry.example.com"})
+	newCertPEM, _ := generateTestCertificatePair(t, []string{"new-retry.example.com"})
+
+	cert := &model.TLSCertificate{
+		Name:          "Retry Revoke Only",
+		Provider:      "acme",
+		PrimaryDomain: "new-retry.example.com",
+		CertPEM:       newCertPEM,
+		KeyPEM:        " ",
+		ApplyStatus:   "ready",
+	}
+	require.NoError(t, repository.CreateTLSCertificateRecord(ctx, cert))
+
+	obtainCalled := false
+	restoreObtain := SetObtainCertificateFuncForTest(func(_ context.Context, _ *model.TLSCertificate) error {
+		obtainCalled = true
+		return errors.New("obtain should not run on retry")
+	})
+	defer restoreObtain()
+
+	var revokedPEM string
+	restoreRevoke := SetRevokeCertificateFuncForTest(func(_ context.Context, _ *model.TLSCertificate, targetPEM string, reason uint) error {
+		assert.Equal(t, acme.CRLReasonKeyCompromise, reason)
+		revokedPEM = targetPEM
+		return nil
+	})
+	defer restoreRevoke()
+
+	payload, err := json.Marshal(SSLSingleRenewPayload{
+		ID:              cert.ID,
+		RevokePrevious:  true,
+		PreviousCertPEM: oldCertPEM,
+	})
+	require.NoError(t, err)
+
+	handler := &SSLSingleRenewHandler{}
+	_, err = handler.Execute(ctx, payload)
+	require.NoError(t, err)
+	assert.False(t, obtainCalled)
+	assert.Equal(t, edgeconfig.CertificatePEMDigest(oldCertPEM), edgeconfig.CertificatePEMDigest(revokedPEM))
 }

@@ -1680,6 +1680,7 @@ dependencies = [
  "include_dir",
  "libc",
  "maxminddb",
+ "openssl",
  "pingap-cache",
  "pingora",
  "pingora-error",
@@ -1705,6 +1706,7 @@ dependencies = [
  "url",
  "xz2",
  "zentinel-modsec",
+ "zeroize",
  "zip",
 ]
 

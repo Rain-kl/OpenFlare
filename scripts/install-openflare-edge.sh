@@ -154,6 +154,7 @@ else
   chmod 600 "$INSTALL_TOKEN_FILE"
 fi
 chown -R openflare-edge:openflare-edge "$STATE_DIR" 2>/dev/null || true
+chmod 0750 "$STATE_DIR" 2>/dev/null || true
 
 BIN="$INSTALL_DIR/current"
 
@@ -222,6 +223,8 @@ LockPersonality=true
 MemoryDenyWriteExecute=true
 RestrictNamespaces=true
 SystemCallFilter=@system-service
+LimitCORE=0
+UMask=0077
 ReadWritePaths=$STATE_DIR
 ExecStart=$BIN $exec_args
 WorkingDirectory=$STATE_DIR

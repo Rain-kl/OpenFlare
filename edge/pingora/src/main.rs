@@ -89,12 +89,15 @@ fn main() -> Result<()> {
             http_listen,
             tls_listen,
         } => {
+            #[cfg(target_os = "linux")]
+            harden_process();
             std::fs::create_dir_all(&state_dir)?;
             control::update::launch(&state_dir);
             let shared = config::SnapshotStore::open(&state_dir);
             if upgrade && state_dir.join("snapshot.json").exists() && shared.current().is_none() {
                 anyhow::bail!("cannot upgrade without restoring an active configuration");
             }
+            let keys = config::CertificateKeyRing::new();
             let listeners = runtime::Listeners::new(&http_listen, tls_listen.as_deref())?;
             let spool = telemetry::AccessLogSpool::persistent(&state_dir);
             let control = control::Runtime::new(
@@ -105,11 +108,13 @@ fn main() -> Result<()> {
                 shared.clone(),
                 spool.clone(),
                 listeners.clone(),
-            )?;
+            )?
+            .with_key_ring(keys.clone());
             let (access_logs, log_writer) = telemetry::AccessLogBuffer::start(spool)?;
             let reload = proxy::run_server(
                 proxy::DataPlaneState {
                     shared,
+                    keys,
                     state_dir: state_dir.clone(),
                     listeners,
                     access_logs,
@@ -131,5 +136,25 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn harden_process() {
+    // SAFETY: prctl(PR_SET_DUMPABLE, 0) sets the process dumpable flag without pointers.
+    let rc = unsafe { libc::prctl(libc::PR_SET_DUMPABLE, 0, 0, 0, 0) };
+    if rc != 0 {
+        let err = std::io::Error::last_os_error();
+        tracing::warn!(%err, "failed to mark process non-dumpable");
+    }
+    let limit = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    // SAFETY: `limit` is a valid initialized struct passed by shared pointer to setrlimit.
+    let rlimit_rc = unsafe { libc::setrlimit(libc::RLIMIT_CORE, &limit) };
+    if rlimit_rc != 0 {
+        let err = std::io::Error::last_os_error();
+        tracing::warn!(%err, "failed to disable core dumps via RLIMIT_CORE");
     }
 }

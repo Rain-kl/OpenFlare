@@ -4564,6 +4564,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
+                    },
+                    "403": {
+                        "description": "节点已隔离",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
                     }
                 }
             }
@@ -4624,6 +4630,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "节点已隔离",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -4740,6 +4752,93 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "资源不在节点发布范围内",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/agent/tls/keys": {
+            "post": {
+                "security": [
+                    {
+                        "AgentTokenAuth": []
+                    }
+                ],
+                "description": "仅返回当前活跃配置发布范围内、且公钥摘要匹配的 TLS 私钥；响应禁止缓存，并强制写入节点证书下发审计台账。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-agent"
+                ],
+                "summary": "拉取边缘节点内存态 TLS 私钥",
+                "parameters": [
+                    {
+                        "description": "证书 ID 与公钥 SHA-256 请求列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FetchTLSKeysRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "私钥集合",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.FetchTLSKeysResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "节点已隔离或证书不在发布范围内",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无活跃配置",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "证书摘要已变更",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -5182,7 +5281,8 @@ const docTemplate = `{
                         "enum": [
                             "pending",
                             "online",
-                            "offline"
+                            "offline",
+                            "quarantined"
                         ],
                         "type": "string",
                         "description": "Filter by current health. Omit for all statuses.",
@@ -5303,7 +5403,8 @@ const docTemplate = `{
                         "enum": [
                             "pending",
                             "online",
-                            "offline"
+                            "offline",
+                            "quarantined"
                         ],
                         "type": "string",
                         "description": "Filter by heartbeat state; omit for all states",
@@ -10599,7 +10700,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "pending、online 或 offline",
+                        "description": "pending、online、offline 或 quarantined",
                         "name": "status",
                         "in": "query"
                     },
@@ -10844,6 +10945,73 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/apps_openflare_node.View"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或节点不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/nodes/{id}/certificate-deliveries": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回控制面向指定节点内存下发过的 TLS 证书密钥审计台账，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-node"
+                ],
+                "summary": "获取节点证书密钥下发记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "下发审计记录",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/apps_openflare_node.CertificateDeliveryView"
+                                            }
                                         }
                                     }
                                 }
@@ -11176,6 +11344,145 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/apps_openflare_node.HealthEventCleanupResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或节点不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/nodes/{id}/quarantine": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "轮换并吊销节点接入令牌、断开 WebSocket、触发 DNS 备用节点切换，并按需重签且吊销受影响的 ACME 证书，需要管理员权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-node"
+                ],
+                "summary": "紧急隔离节点",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "隔离参数（可选）",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_node.QuarantineInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "隔离结果",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_node.QuarantineResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或节点不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/nodes/{id}/unquarantine": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "清除节点隔离状态并生成全新的接入令牌以供重建节点使用，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-node"
+                ],
+                "summary": "解除节点隔离并重置令牌",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "解除隔离后的节点",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_node.View"
                                         }
                                     }
                                 }
@@ -14196,6 +14503,76 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "记录不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/tls-certificates/{id}/rotate-revoke": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "重新生成私钥申请新 ACME 证书，并在签发完成后以密钥泄露原因吊销旧证书，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tls"
+                ],
+                "summary": "轮换并吊销 ACME 证书",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "证书 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "轮换中的证书",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.TLSCertificate"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或不存在",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -21566,6 +21943,50 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_node.CertificateDeliveryView": {
+            "type": "object",
+            "properties": {
+                "apply_status": {
+                    "type": "string"
+                },
+                "cert_sha256": {
+                    "type": "string"
+                },
+                "certificate_id": {
+                    "type": "integer"
+                },
+                "certificate_name": {
+                    "type": "string"
+                },
+                "current_cert_sha256": {
+                    "type": "string"
+                },
+                "delivery_count": {
+                    "type": "integer"
+                },
+                "first_delivered_at": {
+                    "type": "string"
+                },
+                "last_delivered_at": {
+                    "type": "string"
+                },
+                "matches_current": {
+                    "type": "boolean"
+                },
+                "not_after": {
+                    "type": "string"
+                },
+                "primary_domain": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "release_sequence": {
+                    "type": "integer"
+                }
+            }
+        },
         "apps_openflare_node.HealthEventCleanupResult": {
             "type": "object",
             "properties": {
@@ -21679,6 +22100,61 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_node.QuarantineInput": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                },
+                "rotate_acme_certs": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apps_openflare_node.QuarantineResult": {
+            "type": "object",
+            "properties": {
+                "dns_switched_groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "dns_unbacked_groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "exposed_certificates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_node.CertificateDeliveryView"
+                    }
+                },
+                "manual_action_certificate_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "node": {
+                    "$ref": "#/definitions/apps_openflare_node.View"
+                },
+                "rotated_certificate_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "rotation_errors": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "apps_openflare_node.View": {
             "type": "object",
             "properties": {
@@ -21721,6 +22197,9 @@ const docTemplate = `{
                 "ip_manual_override": {
                     "type": "boolean"
                 },
+                "is_quarantined": {
+                    "type": "boolean"
+                },
                 "last_error": {
                     "type": "string"
                 },
@@ -21759,6 +22238,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "openresty_status": {
+                    "type": "string"
+                },
+                "quarantine_reason": {
+                    "type": "string"
+                },
+                "quarantined_at": {
                     "type": "string"
                 },
                 "relay_agent_access_addr": {
@@ -25360,6 +25845,34 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FetchTLSKeysRequest": {
+            "type": "object",
+            "properties": {
+                "certificates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.TLSKeyRequestItem"
+                    }
+                },
+                "release_sequence": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FetchTLSKeysResponse": {
+            "type": "object",
+            "properties": {
+                "keys": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "release_sequence": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_Rain-kl_Wavelet_internal_openflare_protocol.FlaredConnectedRelay": {
             "type": "object",
             "properties": {
@@ -25945,6 +26458,17 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.TLSKeyRequestItem": {
+            "type": "object",
+            "properties": {
+                "cert_sha256": {
+                    "type": "string"
+                },
+                "certificate_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_Rain-kl_Wavelet_internal_openflare_protocol.WAFAudit": {
             "type": "object",
             "properties": {
@@ -26377,6 +26901,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "openresty_status": {
+                    "type": "string"
+                },
+                "quarantine_reason": {
+                    "type": "string"
+                },
+                "quarantined_at": {
                     "type": "string"
                 },
                 "relay_agent_access_addr": {

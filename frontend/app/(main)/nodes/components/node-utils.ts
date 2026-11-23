@@ -63,6 +63,7 @@ export function getNodeStatusTone(status: NodeStatus): StatusTone {
 export function getNodeStatusLabel(status: NodeStatus, t: NodeMessageT) {
   if (status === 'online') return t('status.online');
   if (status === 'pending') return t('status.pending');
+  if (status === 'quarantined') return t('status.quarantined');
   return t('status.offline');
 }
 

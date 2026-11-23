@@ -46,4 +46,11 @@ tokio-tungstenite = { version = "0.29", features = ["rustls-tls-native-roots"] }
 httpdate = "1"
 bytes = "1"
 sysinfo = "0.37"
+zeroize = "1"
 zentinel-modsec = { git = "https://github.com/zentinelproxy/zentinel-modsec.git", rev = "f85a24022ca85eec0e1e502623f963e91eca07bc" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+openssl = "0.10"

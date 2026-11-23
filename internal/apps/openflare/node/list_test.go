@@ -143,11 +143,13 @@ func TestNodePageFiltersUseComputedStatus(t *testing.T) {
 	cutoff := now.Add(-time.Minute)
 	old := cutoff.Add(-time.Second)
 	zero := time.Time{}
+	quarantinedAt := now.Add(-time.Minute)
 	nodes := []model.OpenFlareNode{
 		{NodeID: "literal", Name: "EDGE 100%_!", NodeType: "edge_node", Status: "offline", LastSeenAt: &cutoff},
 		{NodeID: "old", Name: "old", NodeType: "tunnel_relay", Status: "online", LastSeenAt: &old},
 		{NodeID: "pending", Name: "pending", NodeType: "edge_node"},
 		{NodeID: "zero", Name: "zero", NodeType: "edge_node", LastSeenAt: &zero},
+		{NodeID: "quarantined", Name: "quarantined", NodeType: "edge_node", Status: "quarantined", LastSeenAt: &cutoff, QuarantinedAt: &quarantinedAt},
 	}
 	if err := conn.Create(&nodes).Error; err != nil {
 		t.Fatal(err)
@@ -162,7 +164,8 @@ func TestNodePageFiltersUseComputedStatus(t *testing.T) {
 		{query: model.OpenFlareNodeListQuery{Status: "online"}, want: 1},
 		{query: model.OpenFlareNodeListQuery{Status: "offline"}, want: 1},
 		{query: model.OpenFlareNodeListQuery{Status: "pending"}, want: 2},
-		{query: model.OpenFlareNodeListQuery{NodeType: "edge_node"}, want: 3},
+		{query: model.OpenFlareNodeListQuery{Status: "quarantined"}, want: 1},
+		{query: model.OpenFlareNodeListQuery{NodeType: "edge_node"}, want: 4},
 		{query: model.OpenFlareNodeListQuery{NodeType: "tunnel_relay"}, want: 1},
 		{query: model.OpenFlareNodeListQuery{Search: "100%_!"}, want: 1},
 		{query: model.OpenFlareNodeListQuery{Search: "edge"}, want: 1},

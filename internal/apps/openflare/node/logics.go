@@ -122,6 +122,9 @@ type View struct {
 	RelayClientProxyURL       string     `json:"relay_client_proxy_url"`
 	RelayStatus               string     `json:"relay_status"`
 	RelayWebServerEnabled     bool       `json:"relay_web_server_enabled"`
+	QuarantinedAt             *time.Time `json:"quarantined_at"`
+	QuarantineReason          string     `json:"quarantine_reason"`
+	IsQuarantined             bool       `json:"is_quarantined"`
 }
 
 // ObservabilityQuery filters node observability data.
@@ -333,6 +336,9 @@ func RequestAgentUpdate(ctx context.Context, id uint, input AgentUpdateInput) (*
 	if err != nil {
 		return nil, err
 	}
+	if node.IsQuarantined() {
+		return nil, errors.New(errNodeQuarantined)
+	}
 	channel := normalizeReleaseChannel(input.Channel)
 	tagName := strings.TrimSpace(input.TagName)
 	if isPingoraNode(node) {
@@ -389,6 +395,9 @@ func RequestEdgeRestart(ctx context.Context, id uint) (*View, error) {
 	if err != nil {
 		return nil, err
 	}
+	if node.IsQuarantined() {
+		return nil, errors.New(errNodeQuarantined)
+	}
 	node.RestartOpenrestyRequested = true
 	if err = repository.UpdateOpenFlareNodeFields(ctx, node, "restart_openresty_requested"); err != nil {
 		return nil, err
@@ -401,6 +410,9 @@ func RequestForceSync(ctx context.Context, id uint) (*View, error) {
 	node, err := repository.GetOpenFlareNodeByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if node.IsQuarantined() {
+		return nil, errors.New(errNodeQuarantined)
 	}
 	engine := node.Engine
 	if engine != enginePingora {

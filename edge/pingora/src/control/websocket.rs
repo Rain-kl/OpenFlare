@@ -31,10 +31,15 @@ impl Wake {
     }
 }
 
-pub(super) async fn run(base_url: &str, token: &str, wake: &Wake) {
+pub(super) async fn run(
+    base_url: &str,
+    token: &str,
+    wake: &Wake,
+    keys: &crate::config::CertificateKeyRing,
+) {
     let mut retry = super::RetryDelay::default();
     loop {
-        if let Err(error) = connect(base_url, token, wake, &mut retry).await {
+        if let Err(error) = connect(base_url, token, wake, keys, &mut retry).await {
             tracing::warn!(%error, "control WebSocket disconnected");
         }
         retry.wait().await;
@@ -58,6 +63,7 @@ async fn connect(
     base_url: &str,
     token: &str,
     wake: &Wake,
+    keys: &crate::config::CertificateKeyRing,
     retry: &mut super::RetryDelay,
 ) -> Result<()> {
     let mut url = url::Url::parse(&format!("{base_url}/api/v1/agent/ws"))?;
@@ -87,6 +93,11 @@ async fn connect(
                                     wake.requeue_force();
                                 }
                                 wake.notify.notify_one();
+                            }
+                            "quarantined" => {
+                                tracing::warn!("received node quarantine notification over websocket; wiping memory TLS keys");
+                                keys.clear();
+                                return Ok(());
                             }
                             "ping" => socket.send(Message::Text(r#"{"type":"pong"}"#.into())).await?,
                             _ => {}

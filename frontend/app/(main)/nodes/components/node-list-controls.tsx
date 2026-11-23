@@ -86,11 +86,13 @@ export function NodeListControls({
                 <SelectItem value='all'>
                   {t('pagination.allStatuses')}
                 </SelectItem>
-                {(['pending', 'online', 'offline'] as const).map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {t(`status.${value}`)}
-                  </SelectItem>
-                ))}
+                {(['pending', 'online', 'offline', 'quarantined'] as const).map(
+                  (value) => (
+                    <SelectItem key={value} value={value}>
+                      {t(`status.${value}`)}
+                    </SelectItem>
+                  ),
+                )}
               </SelectGroup>
             </SelectContent>
           </Select>

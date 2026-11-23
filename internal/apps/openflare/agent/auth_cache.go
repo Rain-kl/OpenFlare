@@ -145,6 +145,41 @@ func (c *accessTokenAuthCache) reset() {
 	c.negative = make(map[string]time.Time)
 }
 
+func (c *accessTokenAuthCache) invalidateToken(token string) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.positive, token)
+	delete(c.negative, token)
+}
+
+func (c *accessTokenAuthCache) invalidateNode(nodeID string) {
+	nodeID = strings.TrimSpace(nodeID)
+	if nodeID == "" {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for token, entry := range c.positive {
+		if entry.node != nil && entry.node.NodeID == nodeID {
+			delete(c.positive, token)
+		}
+	}
+}
+
+// InvalidateAccessTokenCache removes one token from the in-memory auth cache immediately.
+func InvalidateAccessTokenCache(token string) {
+	tokenCache.invalidateToken(token)
+}
+
+// InvalidateNodeAccessTokenCache removes all cached tokens belonging to a node ID.
+func InvalidateNodeAccessTokenCache(nodeID string) {
+	tokenCache.invalidateNode(nodeID)
+}
+
 // ResetAuthCacheForTest clears the in-memory access token cache for integration tests.
 func ResetAuthCacheForTest() {
 	tokenCache.reset()

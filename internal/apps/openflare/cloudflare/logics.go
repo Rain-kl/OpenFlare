@@ -387,6 +387,9 @@ func validEdgeNode(ctx context.Context, id uint, requireIPv4 bool) (*model.OpenF
 	if err != nil || node.NodeType != "edge_node" {
 		return nil, errors.New(errNodeInvalid)
 	}
+	if node.IsQuarantined() {
+		return nil, errors.New(errNodeQuarantined)
+	}
 	if requireIPv4 {
 		parsed := net.ParseIP(strings.TrimSpace(node.IP))
 		if parsed == nil || parsed.To4() == nil || parsed.IsUnspecified() {
@@ -451,10 +454,62 @@ func CheckNodeFailover(ctx context.Context) (int, error) {
 }
 
 func isNodeHealthyForFailover(node *model.OpenFlareNode, now time.Time) bool {
-	if node == nil || node.Status == "offline" || node.OpenrestyStatus == "unhealthy" || strings.TrimSpace(node.LastError) != "" {
+	if node == nil || node.IsQuarantined() || node.Status == "offline" || node.OpenrestyStatus == "unhealthy" || strings.TrimSpace(node.LastError) != "" {
 		return false
 	}
 	return node.LastSeenAt != nil && now.Sub(*node.LastSeenAt) <= 60*time.Second
+}
+
+// FailoverQuarantinedNode switches enabled pointing groups away from a quarantined node
+// to a healthy peer node when available, reporting groups with no healthy standby.
+func FailoverQuarantinedNode(ctx context.Context, nodeID uint) ([]string, []string, error) {
+	groups, err := repository.ListCFPointingGroups(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	now := time.Now()
+	switched := make([]string, 0)
+	unbacked := make([]string, 0)
+	var dispatchErrors []error
+
+	for i := range groups {
+		group := &groups[i]
+		if !group.Enabled || group.TargetMode == model.CFPointingTargetModeCustom || group.ActiveNodeID != nodeID {
+			continue
+		}
+		var fallbackID *uint
+		switch {
+		case group.ActiveNodeID == group.PrimaryNodeID && group.BackupNodeID != nil:
+			fallbackID = group.BackupNodeID
+		case group.BackupNodeID != nil && group.ActiveNodeID == *group.BackupNodeID:
+			fallbackID = &group.PrimaryNodeID
+		}
+		if fallbackID == nil || *fallbackID == nodeID {
+			unbacked = append(unbacked, group.Name)
+			continue
+		}
+		fallback, fallbackErr := repository.GetOpenFlareNodeByID(ctx, *fallbackID)
+		if fallbackErr != nil && !errors.Is(fallbackErr, gorm.ErrRecordNotFound) {
+			return switched, unbacked, fallbackErr
+		}
+		if fallbackErr != nil || !isNodeHealthyForFailover(fallback, now) {
+			unbacked = append(unbacked, group.Name)
+			continue
+		}
+		if err = repository.UpdateCFPointingGroupTarget(ctx, group.ID, map[string]any{"active_node_id": *fallbackID}); err != nil {
+			return switched, unbacked, err
+		}
+		if err = repository.MarkCFPointingGroupMembersPending(ctx, group.ID); err != nil {
+			return switched, unbacked, err
+		}
+		if _, err = DispatchGroupSync(ctx, group.ID, "cloudflare_node_quarantine"); err != nil {
+			logger.WarnF(ctx, "[Cloudflare] dispatch quarantine failover sync failed: group_id=%d error=%v", group.ID, err)
+			dispatchErrors = append(dispatchErrors, err)
+			continue
+		}
+		switched = append(switched, group.Name)
+	}
+	return switched, unbacked, errors.Join(dispatchErrors...)
 }
 
 func buildGroupItem(ctx context.Context, group *model.CFPointingGroup) (*GroupItem, error) {

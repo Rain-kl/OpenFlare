@@ -5,6 +5,8 @@
 package edgeconfig
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -13,10 +15,11 @@ import (
 
 const (
 	// ContractVersion is the Edge configuration contract supported by this controller.
-	ContractVersion           = 3
-	pingoraBaseCapability     = "tls-sni-h2-v1"
-	pingoraPolicyCapability   = "policy-runtime-v1"
-	pingoraSnapshotCapability = "shared-snapshot-v1"
+	ContractVersion             = 4
+	pingoraBaseCapability       = "tls-sni-h2-v1"
+	pingoraPolicyCapability     = "policy-runtime-v1"
+	pingoraSnapshotCapability   = "shared-snapshot-v1"
+	pingoraMemoryKeysCapability = "tls-memory-keys-v1"
 )
 
 // Envelope carries the exact shared business snapshot and its immutable assets.
@@ -37,14 +40,25 @@ type Assets struct {
 	ServiceWorkerOfflineHTML string                      `json:"service_worker_offline_html,omitempty"`
 }
 
-// CertificateAsset carries a published certificate chain and its private key.
+// CertificateAsset carries a published public certificate chain and its normalized SHA-256 digest.
+// Private keys are never embedded in configuration snapshots.
 type CertificateAsset struct {
-	CertPEM string `json:"cert_pem"`
-	KeyPEM  string `json:"key_pem"`
+	CertPEM    string `json:"cert_pem"`
+	CertSHA256 string `json:"cert_sha256"`
+}
+
+// CertificatePEMDigest returns the SHA-256 hex digest of a normalized certificate PEM chain.
+func CertificatePEMDigest(certPEM string) string {
+	trimmed := strings.TrimSpace(certPEM)
+	if trimmed == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(trimmed + "\n"))
+	return hex.EncodeToString(sum[:])
 }
 
 // Encode encodes an immutable published snapshot for a node.
-// All assets are read from the published release, including certificates that have since rotated.
+// Only public certificate chains are embedded; private keys are fetched separately in memory.
 func Encode(snapshotJSON, supportFilesJSON string) (string, error) {
 	var snapshot Document
 	if err := json.Unmarshal([]byte(snapshotJSON), &snapshot); err != nil {
@@ -60,7 +74,7 @@ func Encode(snapshotJSON, supportFilesJSON string) (string, error) {
 	}
 	data, err := json.Marshal(Envelope{
 		SchemaVersion: 1, ContractVersion: ContractVersion,
-		RequiredCapabilities: []string{pingoraBaseCapability, pingoraPolicyCapability, pingoraSnapshotCapability},
+		RequiredCapabilities: []string{pingoraBaseCapability, pingoraPolicyCapability, pingoraSnapshotCapability, pingoraMemoryKeysCapability},
 		Snapshot:             json.RawMessage(snapshotJSON), Assets: assets,
 	})
 	return string(data), err
@@ -97,15 +111,56 @@ func sharedEdgeAssets(snapshot Document, files []SupportFile) (Assets, error) {
 			if _, ok := assets.Certificates[id]; ok {
 				continue
 			}
-			cert := byPath[id+".crt"]
-			key := byPath[id+".key"]
-			if strings.TrimSpace(cert) == "" || strings.TrimSpace(key) == "" {
+			rawCert := strings.TrimSpace(byPath[id+".crt"])
+			if rawCert == "" {
 				return Assets{}, fmt.Errorf("missing published certificate asset %s", id)
 			}
-			assets.Certificates[id] = CertificateAsset{CertPEM: cert, KeyPEM: key}
+			cert := rawCert + "\n"
+			assets.Certificates[id] = CertificateAsset{
+				CertPEM:    cert,
+				CertSHA256: CertificatePEMDigest(cert),
+			}
 		}
 	}
 	return assets, nil
+}
+
+// ActiveCertificateDigests returns certificate IDs and public PEM SHA-256 digests
+// referenced by enabled HTTPS routes in a published release.
+func ActiveCertificateDigests(snapshotJSON, supportFilesJSON string) (map[uint]string, error) {
+	var snapshot Document
+	if err := json.Unmarshal([]byte(snapshotJSON), &snapshot); err != nil {
+		return nil, fmt.Errorf("decode shared edge snapshot: %w", err)
+	}
+	var files []SupportFile
+	if err := json.Unmarshal([]byte(supportFilesJSON), &files); err != nil {
+		return nil, fmt.Errorf("decode shared edge assets: %w", err)
+	}
+	byPath := make(map[string]string, len(files))
+	for _, file := range files {
+		byPath[file.Path] = file.Content
+	}
+	digests := make(map[uint]string)
+	for _, route := range snapshot.Routes {
+		if !route.Enabled || !route.EnableHTTPS {
+			continue
+		}
+		for _, certID := range route.DomainCertIDs {
+			if certID == 0 {
+				continue
+			}
+			if _, ok := digests[certID]; ok {
+				continue
+			}
+			id := strconv.FormatUint(uint64(certID), 10)
+			digest := CertificatePEMDigest(byPath[id+".crt"])
+			if digest == "" {
+				return nil, fmt.Errorf("missing published certificate asset %s", id)
+			}
+			digests[certID] = digest
+		}
+	}
+	return digests, nil
 }
 
 // ContainsPagesProject reports whether a published snapshot references a Pages project.

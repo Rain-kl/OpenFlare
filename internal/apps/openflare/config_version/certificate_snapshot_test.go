@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBuildCertificateSupportFilesDecryptsSealedPrivateKey(t *testing.T) {
+func TestBuildCertificateSupportFilesValidatesKeyAndOmitsPrivateKey(t *testing.T) {
 	cleanup := setupConfigVersionTestDB(t)
 	defer cleanup()
 	require.NoError(t, db.DB(context.Background()).AutoMigrate(&model.TLSCertificate{}))
@@ -47,17 +47,19 @@ func TestBuildCertificateSupportFilesDecryptsSealedPrivateKey(t *testing.T) {
 		{DomainCertIDs: []uint{certificate.ID}},
 	})
 	require.NoError(t, err)
-	require.Len(t, files, 2)
+	require.Len(t, files, 1)
+	assert.Equal(t, certificateCertFileName(certificate.ID), files[0].Path)
+	assert.Equal(t, normalizePEM(strings.TrimSpace(certPEM)), files[0].Content)
+	assert.NotContains(t, files[0].Content, "PRIVATE KEY")
+	assert.NotContains(t, files[0].Content, "enc:v1:")
 
-	var keyContent string
-	for _, file := range files {
-		if file.Path == certificateKeyFileName(certificate.ID) {
-			keyContent = file.Content
-		}
-		assert.NotContains(t, file.Content, "enc:v1:")
-	}
-	assert.Contains(t, keyContent, "BEGIN")
-	assert.Equal(t, normalizePEM(strings.TrimSpace(keyPEM)), keyContent)
+	_, wrongKeyPEM := generateTestCertKeyPairForSnapshotForDomain(t, "other.example.com")
+	require.NoError(t, db.DB(ctx).Model(&model.TLSCertificate{}).Where("id = ?", certificate.ID).Update("key_pem", wrongKeyPEM).Error)
+	_, err = buildCertificateSupportFiles(ctx, []snapshotRoute{
+		{DomainCertIDs: []uint{certificate.ID}},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "key pair mismatch")
 }
 
 func TestBuildSnapshotReadsZoneDomainCertificates(t *testing.T) {

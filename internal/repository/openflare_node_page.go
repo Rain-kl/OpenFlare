@@ -43,12 +43,17 @@ func filterOpenFlareNodes(query *gorm.DB, filters model.OpenFlareNodeListQuery) 
 	}
 	cutoff := filters.Now.Add(-time.Minute)
 	switch filters.Status {
+	case "quarantined":
+		query = query.Where("quarantined_at IS NOT NULL AND quarantined_at <> ?", time.Time{})
 	case "pending":
-		query = query.Where("(last_seen_at IS NULL OR last_seen_at = ?)", time.Time{})
+		query = query.Where("(quarantined_at IS NULL OR quarantined_at = ?)", time.Time{}).
+			Where("(last_seen_at IS NULL OR last_seen_at = ?)", time.Time{})
 	case "online":
-		query = query.Where("last_seen_at >= ? AND last_seen_at <> ?", cutoff, time.Time{})
+		query = query.Where("(quarantined_at IS NULL OR quarantined_at = ?)", time.Time{}).
+			Where("last_seen_at >= ? AND last_seen_at <> ?", cutoff, time.Time{})
 	case "offline":
-		query = query.Where("last_seen_at < ? AND last_seen_at <> ?", cutoff, time.Time{})
+		query = query.Where("(quarantined_at IS NULL OR quarantined_at = ?)", time.Time{}).
+			Where("last_seen_at < ? AND last_seen_at <> ?", cutoff, time.Time{})
 	}
 	return query
 }

@@ -114,6 +114,7 @@ impl RequestLogContext {
 
 pub struct DataPlaneState {
     pub shared: SnapshotStore,
+    pub keys: crate::config::CertificateKeyRing,
     pub state_dir: PathBuf,
     pub listeners: crate::runtime::Listeners,
     pub access_logs: AccessLogBuffer,

@@ -5,6 +5,7 @@ package tls
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -24,7 +25,10 @@ const (
 	tlsApplyStatusReady    = "ready"
 )
 
-var obtainTLSCertificate = obtainCertificate
+var (
+	obtainTLSCertificate = obtainCertificate
+	revokeTLSCertificate = revokeCertificate
+)
 
 // SetObtainCertificateFuncForTest swaps the async obtain implementation for tests.
 func SetObtainCertificateFuncForTest(fn func(context.Context, *model.TLSCertificate) error) func() {
@@ -32,6 +36,15 @@ func SetObtainCertificateFuncForTest(fn func(context.Context, *model.TLSCertific
 	obtainTLSCertificate = fn
 	return func() {
 		obtainTLSCertificate = previous
+	}
+}
+
+// SetRevokeCertificateFuncForTest swaps the ACME revocation implementation for tests.
+func SetRevokeCertificateFuncForTest(fn func(context.Context, *model.TLSCertificate, string, uint) error) func() {
+	previous := revokeTLSCertificate
+	revokeTLSCertificate = fn
+	return func() {
+		revokeTLSCertificate = previous
 	}
 }
 
@@ -98,6 +111,24 @@ func obtainCertificate(ctx context.Context, cert *model.TLSCertificate) error {
 	}
 	task.AppendLog(ctx, "[Renewal] Certificate data saved")
 	return nil
+}
+
+func revokeCertificate(ctx context.Context, cert *model.TLSCertificate, oldCertPEM string, reason uint) error {
+	if strings.TrimSpace(oldCertPEM) == "" {
+		return nil
+	}
+	acmeAccount, err := resolveAcmeAccount(ctx, cert)
+	if err != nil {
+		return fmt.Errorf("failed to resolve ACME account: %w", err)
+	}
+	acmePrivateKey, err := credential.Open(acmeAccount.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt ACME account key: %w", err)
+	}
+	if strings.TrimSpace(acmePrivateKey) == "" || strings.TrimSpace(acmeAccount.URL) == "" {
+		return errors.New("ACME account credentials are incomplete for certificate revocation")
+	}
+	return acme.RevokeSSL(acmeAccount.Email, acmePrivateKey, acmeAccount.URL, oldCertPEM, reason)
 }
 
 func updateCertError(ctx context.Context, cert *model.TLSCertificate, message string) error {

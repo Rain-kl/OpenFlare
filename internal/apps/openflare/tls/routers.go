@@ -326,6 +326,31 @@ func RenewCertificateHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(certificate))
 }
 
+// RotateCompromisedCertificateHandler 轮换并吊销疑似泄露的 ACME 证书。
+// @Summary 轮换并吊销 ACME 证书
+// @Description 重新生成私钥申请新 ACME 证书，并在签发完成后以密钥泄露原因吊销旧证书，需要管理员权限
+// @Tags openflare-tls
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "证书 ID"
+// @Success 200 {object} response.Any{data=model.TLSCertificate} "轮换中的证书"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/tls-certificates/{id}/rotate-revoke [post]
+func RotateCompromisedCertificateHandler(c *gin.Context) {
+	id, ok := httpx.IDParam(c)
+	if !ok {
+		return
+	}
+	certificate, err := RotateCompromisedCertificate(c.Request.Context(), id)
+	if handleLogicError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(certificate))
+}
+
 // GetDNSAccounts 列出 DNS 账号。
 // @Summary 列出 DNS 账号
 // @Description 返回全部 DNS 提供商账号，需要管理员权限

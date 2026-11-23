@@ -61,6 +61,10 @@ export class TlsCertificateService extends OpenFlareBaseService {
     return this.post<TlsCertificateItem>(`/${id}/renew`);
   }
 
+  static async rotateRevoke(id: number): Promise<TlsCertificateItem> {
+    return this.post<TlsCertificateItem>(`/${id}/rotate-revoke`);
+  }
+
   static async updateAcme(
     id: number,
     payload: TlsCertificateApplyPayload,

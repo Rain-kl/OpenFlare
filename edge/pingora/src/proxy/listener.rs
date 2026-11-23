@@ -1,5 +1,9 @@
 use super::{DataPlaneState, ProxyService};
-use crate::{config::SnapshotStore, control::Runtime, runtime::performance::seconds};
+use crate::{
+    config::{CertificateKeyRing, SnapshotStore},
+    control::Runtime,
+    runtime::performance::seconds,
+};
 use async_trait::async_trait;
 use pingora::{
     apps::HttpServerOptions,
@@ -22,6 +26,7 @@ use std::sync::{
 
 struct DynamicCertificateCallback {
     state: SnapshotStore,
+    keys: CertificateKeyRing,
 }
 
 #[async_trait]
@@ -39,19 +44,28 @@ impl TlsAccept for DynamicCertificateCallback {
             tracing::warn!(sni, "TLS handshake arrived before configuration was ready");
             return;
         };
-        let Some(certificate) = config.certificate_for_host(&sni) else {
+        let Some((cert_id, certificate)) = config.certificate_for_host(&sni) else {
             tracing::warn!(sni, "no TLS certificate matches SNI");
+            return;
+        };
+        let Some(private_key) = self.keys.get(cert_id, &certificate.cert_sha256) else {
+            tracing::warn!(
+                sni,
+                cert_id,
+                "TLS private key is not hydrated in memory; refusing handshake"
+            );
             return;
         };
         if let Err(error) = ext::ssl_use_certificate(ssl, &certificate.cert) {
             tracing::error!(sni, error = %error, "failed to install TLS certificate");
+            return;
         }
         for intermediate in &certificate.chain {
             if let Err(error) = ext::ssl_add_chain_cert(ssl, intermediate) {
                 tracing::error!(sni, %error, "failed to install TLS intermediate");
             }
         }
-        if let Err(error) = ext::ssl_use_private_key(ssl, &certificate.key) {
+        if let Err(error) = ext::ssl_use_private_key(ssl, &private_key) {
             tracing::error!(sni, error = %error, "failed to install TLS private key");
         }
     }
@@ -60,6 +74,7 @@ impl TlsAccept for DynamicCertificateCallback {
 pub fn run_server(state: DataPlaneState, control: Runtime, upgrade: bool) -> anyhow::Result<bool> {
     let DataPlaneState {
         shared,
+        keys,
         state_dir,
         listeners,
         access_logs,
@@ -151,6 +166,7 @@ pub fn run_server(state: DataPlaneState, control: Runtime, upgrade: bool) -> any
     if let Some(listen) = listeners.tls {
         let mut settings = TlsSettings::with_callbacks(Box::new(DynamicCertificateCallback {
             state: shared.clone(),
+            keys,
         }))?;
         let alpn_config = shared.clone();
         settings.set_alpn_select_callback(move |ssl, offered| {

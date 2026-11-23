@@ -333,7 +333,7 @@ func bindOptionalJSON(body io.Reader, target any) error {
 // @Param page query int false "页码（默认 1）"
 // @Param page_size query int false "每页数量（默认 20，最大 100）"
 // @Param search query string false "名称、节点标识或 IP 的字面子串（最多 256 字节）"
-// @Param status query string false "pending、online 或 offline"
+// @Param status query string false "pending、online、offline 或 quarantined"
 // @Param node_type query string false "edge_node、tunnel_relay 或 tunnel_client"
 // @Success 200 {object} response.Any{data=node.ListResult} "节点分页"
 // @Failure 400 {object} response.Any "参数错误"
@@ -387,6 +387,87 @@ func GetNodeHandler(c *gin.Context) {
 	if err != nil {
 		logger.ErrorF(c.Request.Context(), "Failed to get node: %v", err)
 		response.AbortInternal(c, errListNodesFailed)
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(view))
+}
+
+// GetCertificateDeliveriesHandler lists TLS private-key deliveries audited for a node.
+// @Summary 获取节点证书密钥下发记录
+// @Description 返回控制面向指定节点内存下发过的 TLS 证书密钥审计台账，需要管理员权限
+// @Tags openflare-node
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "节点 ID"
+// @Success 200 {object} response.Any{data=[]node.CertificateDeliveryView} "下发审计记录"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或节点不存在"
+// @Router /api/v1/d/nodes/{id}/certificate-deliveries [get]
+func GetCertificateDeliveriesHandler(c *gin.Context) {
+	id, ok := httpx.IDParam(c)
+	if !ok {
+		return
+	}
+	views, err := ListNodeCertificateDeliveries(c.Request.Context(), id)
+	if handleLogicError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(views))
+}
+
+// QuarantineNodeHandler isolates a compromised or suspect edge node.
+// @Summary 紧急隔离节点
+// @Description 轮换并吊销节点接入令牌、断开 WebSocket、触发 DNS 备用节点切换，并按需重签且吊销受影响的 ACME 证书，需要管理员权限
+// @Tags openflare-node
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "节点 ID"
+// @Param body body node.QuarantineInput false "隔离参数（可选）"
+// @Success 200 {object} response.Any{data=node.QuarantineResult} "隔离结果"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或节点不存在"
+// @Router /api/v1/d/nodes/{id}/quarantine [post]
+func QuarantineNodeHandler(c *gin.Context) {
+	id, ok := httpx.IDParam(c)
+	if !ok {
+		return
+	}
+	var input QuarantineInput
+	if c.Request.ContentLength > 0 {
+		if err := bindOptionalJSON(c.Request.Body, &input); err != nil {
+			response.AbortBadRequest(c, "invalid parameters")
+			return
+		}
+	}
+	result, err := QuarantineNode(c.Request.Context(), id, input)
+	if handleLogicError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(result))
+}
+
+// UnquarantineNodeHandler clears node quarantine and issues a fresh access token.
+// @Summary 解除节点隔离并重置令牌
+// @Description 清除节点隔离状态并生成全新的接入令牌以供重建节点使用，需要管理员权限
+// @Tags openflare-node
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "节点 ID"
+// @Success 200 {object} response.Any{data=node.View} "解除隔离后的节点"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或节点不存在"
+// @Router /api/v1/d/nodes/{id}/unquarantine [post]
+func UnquarantineNodeHandler(c *gin.Context) {
+	id, ok := httpx.IDParam(c)
+	if !ok {
+		return
+	}
+	view, err := UnquarantineNode(c.Request.Context(), id)
+	if handleLogicError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, response.OK(view))

@@ -5,6 +5,7 @@ package config_version
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,7 +25,7 @@ import (
 )
 
 const (
-	supportFilesPerCertificate  = 2
+	supportFilesPerCertificate  = 1
 	wafIPGroupChecksumHexLength = 64
 )
 
@@ -574,9 +575,12 @@ func buildCertificateSupportFiles(ctx context.Context, routes []snapshotRoute) (
 		if strings.TrimSpace(keyPEM) == "" {
 			return nil, fmt.Errorf("certificate %d has no private key", certificate.ID)
 		}
+		certPEM := normalizePEM(certificate.CertPEM)
+		if _, err := tls.X509KeyPair([]byte(certPEM), []byte(normalizePEM(keyPEM))); err != nil {
+			return nil, fmt.Errorf("certificate %d key pair mismatch: %w", certificate.ID, err)
+		}
 		files = append(files,
-			SupportFile{Path: certificateCertFileName(certificate.ID), Content: normalizePEM(certificate.CertPEM)},
-			SupportFile{Path: certificateKeyFileName(certificate.ID), Content: normalizePEM(keyPEM)},
+			SupportFile{Path: certificateCertFileName(certificate.ID), Content: certPEM},
 		)
 	}
 	return dedupeSupportFiles(files), nil

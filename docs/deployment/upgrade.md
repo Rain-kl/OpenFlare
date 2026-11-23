@@ -24,6 +24,14 @@ OpenFlare 自 v4.0.0 起采用基于 Pingora 的边缘网关（OpenFlare Edge）
 
 ---
 
+## 升级至配置契约 v4（TLS 私钥内存态托管）
+
+本次安全升级将 Pingora Edge 配置契约由 v3 升级为 v4（新增必选能力标识 `tls-memory-keys-v1`）：
+
+1. **必须同步升级 `openflare-edge`**：控制面已将 TLS 私钥（`key_pem` 与 `*.key`）完全移出配置快照与 `sites.v1`，v3 及更早版本的 `openflare-edge` 不支持从 `POST /api/v1/agent/tls/keys` 按需拉取私钥，升级前请确保控制端与所有边缘节点均升级到匹配版本。
+2. **历史快照自动脱敏**：控制面升级迁移 `202611230002_scrub_config_version_private_keys.sql` 会自动清空 `of_config_versions.support_files_json` 中历史残留的 `PRIVATE KEY` 内容，并推进配置版本重编（`of_edge_snapshot_state.source_revision`）。
+3. **离线冷重启行为变更**：由于边缘磁盘不再落盘私钥，冷重启时 HTTP 站点可直接基于本地 `snapshot.json` 启动，HTTPS 站点会在控制面恢复可达后由内存密钥环自动补齐，无需人工干预或重启服务。
+
 ## Server 控制面升级
 
 ### 1. 数据库备份

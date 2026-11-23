@@ -9,16 +9,120 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 
-pub const CONTRACT_VERSION: i64 = 3;
+pub const CONTRACT_VERSION: i64 = 4;
 const PROXY_CAPABILITY: &str = "shared-snapshot-v1";
 const BASE_CAPABILITY: &str = "tls-sni-h2-v1";
 const POLICY_CAPABILITY: &str = "policy-runtime-v1";
+const MEMORY_KEYS_CAPABILITY: &str = "tls-memory-keys-v1";
 
 #[derive(Debug, Clone)]
 pub struct LoadedCertificate {
     pub cert: X509,
-    pub key: PKey<Private>,
     pub chain: Vec<X509>,
+    pub cert_sha256: String,
+}
+
+/// Computes the lowercase hex SHA-256 digest of a normalized certificate PEM.
+pub fn certificate_pem_digest(cert_pem: &str) -> String {
+    let trimmed = cert_pem.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    let normalized = format!("{trimmed}\n");
+    format!("{:x}", Sha256::digest(normalized.as_bytes()))
+}
+
+#[derive(Clone)]
+struct LoadedPrivateKey {
+    cert_sha256: String,
+    key: PKey<Private>,
+}
+
+/// Thread-safe in-memory store holding TLS private keys hydrated from the control plane.
+#[derive(Clone, Default)]
+pub struct CertificateKeyRing {
+    inner: std::sync::Arc<std::sync::RwLock<HashMap<u64, LoadedPrivateKey>>>,
+}
+
+impl CertificateKeyRing {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn get(&self, cert_id: u64, expected_sha256: &str) -> Option<PKey<Private>> {
+        let guard = self.inner.read().ok()?;
+        let entry = guard.get(&cert_id)?;
+        if !entry.cert_sha256.eq_ignore_ascii_case(expected_sha256) {
+            return None;
+        }
+        Some(entry.key.clone())
+    }
+
+    pub fn missing_for(&self, config: &AppliedConfig) -> Vec<(u64, String)> {
+        let Ok(guard) = self.inner.read() else {
+            return config.certificate_digests();
+        };
+        let mut missing = Vec::new();
+        for (cert_id, expected_sha256) in config.certificate_digests() {
+            let matched = guard
+                .get(&cert_id)
+                .is_some_and(|entry| entry.cert_sha256.eq_ignore_ascii_case(&expected_sha256));
+            if !matched {
+                missing.push((cert_id, expected_sha256));
+            }
+        }
+        missing
+    }
+
+    pub fn install(
+        &self,
+        cert_id: u64,
+        cert: &LoadedCertificate,
+        key_pem: zeroize::Zeroizing<String>,
+    ) -> Result<()> {
+        let key = PKey::private_key_from_pem(key_pem.as_bytes())
+            .with_context(|| format!("failed to decode private key {cert_id}"))?;
+        if !cert.cert.public_key()?.public_eq(&key) {
+            bail!("certificate {cert_id} does not match its private key");
+        }
+        let mut guard = self
+            .inner
+            .write()
+            .map_err(|_| anyhow::anyhow!("certificate key ring lock poisoned"))?;
+        guard.insert(
+            cert_id,
+            LoadedPrivateKey {
+                cert_sha256: cert.cert_sha256.clone(),
+                key,
+            },
+        );
+        Ok(())
+    }
+
+    pub fn retain_for(&self, config: &AppliedConfig) {
+        let expected: HashMap<u64, String> = config.certificate_digests().into_iter().collect();
+        if let Ok(mut guard) = self.inner.write() {
+            guard.retain(|cert_id, entry| {
+                expected
+                    .get(cert_id)
+                    .is_some_and(|sha| entry.cert_sha256.eq_ignore_ascii_case(sha))
+            });
+        }
+    }
+
+    pub fn clear(&self) {
+        if let Ok(mut guard) = self.inner.write() {
+            guard.clear();
+        }
+    }
+
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.inner
+            .read()
+            .map(|guard| guard.is_empty())
+            .unwrap_or(true)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -74,13 +178,28 @@ impl AppliedConfig {
             .is_some_and(|route| route.enable_https && route.enable_http2)
     }
 
-    pub fn certificate_for_host(&self, host: &str) -> Option<&LoadedCertificate> {
+    pub fn certificate_for_host(&self, host: &str) -> Option<(u64, &LoadedCertificate)> {
         let route = self.route_for_host(host)?;
         if !route.enable_https {
             return None;
         }
         let cert_id = route.certificate_id_for_host(host)?;
+        let cert = self.certificates.get(&cert_id)?;
+        Some((cert_id, cert))
+    }
+
+    pub fn certificate_by_id(&self, cert_id: u64) -> Option<&LoadedCertificate> {
         self.certificates.get(&cert_id)
+    }
+
+    pub fn certificate_digests(&self) -> Vec<(u64, String)> {
+        let mut digests: Vec<(u64, String)> = self
+            .certificates
+            .iter()
+            .map(|(id, cert)| (*id, cert.cert_sha256.clone()))
+            .collect();
+        digests.sort_by_key(|(id, _)| *id);
+        digests
     }
 
     pub fn route_for_host(&self, host: &str) -> Option<&Route> {
@@ -148,31 +267,24 @@ fn validate(config: &Config) -> Result<()> {
     for capability in &config.required_capabilities {
         if !matches!(
             capability.as_str(),
-            BASE_CAPABILITY | POLICY_CAPABILITY | PROXY_CAPABILITY
+            BASE_CAPABILITY | POLICY_CAPABILITY | PROXY_CAPABILITY | MEMORY_KEYS_CAPABILITY
         ) {
             bail!("unsupported required capability {capability}");
         }
     }
-    if !config
-        .required_capabilities
-        .iter()
-        .any(|capability| capability == BASE_CAPABILITY)
-    {
-        bail!("configuration does not declare required capability {BASE_CAPABILITY}");
-    }
-    if !config
-        .required_capabilities
-        .iter()
-        .any(|capability| capability == POLICY_CAPABILITY)
-    {
-        bail!("configuration does not declare required capability {POLICY_CAPABILITY}");
-    }
-    if !config
-        .required_capabilities
-        .iter()
-        .any(|capability| capability == PROXY_CAPABILITY)
-    {
-        bail!("configuration does not declare required capability {PROXY_CAPABILITY}");
+    for required in [
+        BASE_CAPABILITY,
+        POLICY_CAPABILITY,
+        PROXY_CAPABILITY,
+        MEMORY_KEYS_CAPABILITY,
+    ] {
+        if !config
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == required)
+        {
+            bail!("configuration does not declare required capability {required}");
+        }
     }
     for route in &config.routes {
         if !route.enabled {
@@ -252,17 +364,19 @@ fn load_certificates(config: &Config) -> Result<HashMap<u64, LoadedCertificate>>
         let cert = chain
             .next()
             .with_context(|| format!("certificate {id} has no leaf"))?;
-        let key = PKey::private_key_from_pem(asset.key_pem.as_bytes())
-            .with_context(|| format!("failed to decode private key {id}"))?;
-        if !cert.public_key()?.public_eq(&key) {
-            bail!("certificate {id} does not match its private key");
+        let expected_sha256 = certificate_pem_digest(&asset.cert_pem);
+        let provided_sha256 = asset.cert_sha256.trim().to_ascii_lowercase();
+        if expected_sha256.is_empty() || provided_sha256 != expected_sha256 {
+            bail!(
+                "certificate {id} digest mismatch: expected {expected_sha256}, got {provided_sha256}"
+            );
         }
         certificates.insert(
             parsed_id,
             LoadedCertificate {
                 cert,
-                key,
                 chain: chain.collect(),
+                cert_sha256: expected_sha256,
             },
         );
     }
@@ -421,6 +535,12 @@ pub fn persist_private_json<T: Serialize>(path: &Path, value: &T) -> Result<()> 
         .context("state file requires a parent directory")?;
     std::fs::create_dir_all(parent)?;
     let mut file = tempfile::NamedTempFile::new_in(parent)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        file.as_file()
+            .set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    }
     serde_json::to_writer(file.as_file_mut(), value)?;
     file.flush()?;
     file.as_file().sync_all()?;
@@ -481,7 +601,12 @@ mod tests {
     fn payload(cert: u64) -> String {
         serde_json::json!({
             "schema_version": 1, "contract_version": CONTRACT_VERSION,
-            "required_capabilities": [BASE_CAPABILITY, POLICY_CAPABILITY, PROXY_CAPABILITY],
+            "required_capabilities": [
+                BASE_CAPABILITY,
+                POLICY_CAPABILITY,
+                PROXY_CAPABILITY,
+                MEMORY_KEYS_CAPABILITY
+            ],
             "snapshot": {
                 "routes": [{
                     "id": 1, "site_name": "example", "domains": ["example.com"], "domain_cert_ids": [cert],
@@ -575,5 +700,132 @@ mod tests {
         let payload = payload(10);
         let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
         assert!(decode("v1", "checksum", 1, &digest, &payload).is_err());
+    }
+
+    fn test_cert_and_key() -> (String, String) {
+        use openssl::asn1::Asn1Time;
+        use openssl::bn::{BigNum, MsbOption};
+        use openssl::ec::{EcGroup, EcKey};
+        use openssl::hash::MessageDigest;
+        use openssl::nid::Nid;
+        use openssl::x509::{X509NameBuilder, X509};
+
+        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
+        let ec_key = EcKey::generate(&group).unwrap();
+        let pkey = PKey::from_ec_key(ec_key).unwrap();
+        let mut name = X509NameBuilder::new().unwrap();
+        name.append_entry_by_text("CN", "example.com").unwrap();
+        let name = name.build();
+        let mut serial = BigNum::new().unwrap();
+        serial.rand(64, MsbOption::MAYBE_ZERO, false).unwrap();
+        let serial = serial.to_asn1_integer().unwrap();
+        let mut builder = X509::builder().unwrap();
+        builder.set_version(2).unwrap();
+        builder.set_serial_number(&serial).unwrap();
+        builder.set_subject_name(&name).unwrap();
+        builder.set_issuer_name(&name).unwrap();
+        builder.set_pubkey(&pkey).unwrap();
+        let not_before = Asn1Time::days_from_now(0).unwrap();
+        let not_after = Asn1Time::days_from_now(30).unwrap();
+        builder.set_not_before(&not_before).unwrap();
+        builder.set_not_after(&not_after).unwrap();
+        builder.sign(&pkey, MessageDigest::sha256()).unwrap();
+        let cert_pem = String::from_utf8(builder.build().to_pem().unwrap()).unwrap();
+        let key_pem = String::from_utf8(pkey.private_key_to_pem_pkcs8().unwrap()).unwrap();
+        (cert_pem, key_pem)
+    }
+
+    fn payload_with_cert(cert_id: u64, cert_pem: &str, cert_sha256: &str) -> String {
+        serde_json::json!({
+            "schema_version": 1,
+            "contract_version": CONTRACT_VERSION,
+            "required_capabilities": [
+                BASE_CAPABILITY,
+                POLICY_CAPABILITY,
+                PROXY_CAPABILITY,
+                MEMORY_KEYS_CAPABILITY
+            ],
+            "snapshot": {
+                "routes": [{
+                    "id": 1,
+                    "site_name": "example",
+                    "domains": ["example.com"],
+                    "domain_cert_ids": [cert_id],
+                    "origin_url": "http://127.0.0.1:9080",
+                    "enabled": true,
+                    "enable_https": true,
+                    "enable_http2": true,
+                    "redirect_http": false
+                }],
+                "openresty_config": {},
+                "waf": {"rule_groups": [], "bindings": []}
+            },
+            "assets": {
+                "certificates": {
+                    cert_id.to_string(): {
+                        "cert_pem": cert_pem,
+                        "cert_sha256": cert_sha256
+                    }
+                }
+            }
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn snapshot_persists_zero_private_keys_and_key_ring_enforces_digest() {
+        let (cert1, key1) = test_cert_and_key();
+        let sha1 = certificate_pem_digest(&cert1);
+        let payload1 = payload_with_cert(10, &cert1, &sha1);
+        let digest1 = format!("{:x}", Sha256::digest(payload1.as_bytes()));
+        let first = decode("v1", "c1", 1, &digest1, &payload1).unwrap();
+
+        let state_dir = tempfile::tempdir().unwrap();
+        let store = SnapshotStore::default();
+        store.commit(state_dir.path(), first.clone()).unwrap();
+        let persisted = std::fs::read_to_string(state_dir.path().join("snapshot.json")).unwrap();
+        assert!(!persisted.contains("PRIVATE KEY"));
+        assert!(!persisted.contains("key_pem"));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(state_dir.path().join("snapshot.json"))
+                .unwrap()
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o077, 0);
+        }
+
+        let (cert2, key2) = test_cert_and_key();
+        let sha2 = certificate_pem_digest(&cert2);
+        let payload2 = payload_with_cert(10, &cert2, &sha2);
+        let digest2 = format!("{:x}", Sha256::digest(payload2.as_bytes()));
+        let second = decode("v2", "c2", 2, &digest2, &payload2).unwrap();
+
+        let ring = CertificateKeyRing::new();
+        assert_eq!(ring.missing_for(&first), vec![(10, sha1.clone())]);
+
+        let loaded1 = first.certificate_by_id(10).unwrap();
+        assert!(ring
+            .install(10, loaded1, zeroize::Zeroizing::new(key2.clone()))
+            .is_err());
+        ring.install(10, loaded1, zeroize::Zeroizing::new(key1))
+            .unwrap();
+        assert!(ring.get(10, &sha1).is_some());
+        assert!(ring.missing_for(&first).is_empty());
+
+        // Digest rotation invalidates stale lookups and retains nothing old after retain_for.
+        assert!(ring.get(10, &sha2).is_none());
+        assert_eq!(ring.missing_for(&second), vec![(10, sha2.clone())]);
+        ring.retain_for(&second);
+        assert!(ring.is_empty());
+
+        let loaded2 = second.certificate_by_id(10).unwrap();
+        ring.install(10, loaded2, zeroize::Zeroizing::new(key2))
+            .unwrap();
+        assert!(ring.get(10, &sha2).is_some());
+        ring.clear();
+        assert!(ring.is_empty());
+        assert!(ring.get(10, &sha2).is_none());
     }
 }

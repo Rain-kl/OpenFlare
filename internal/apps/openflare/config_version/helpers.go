@@ -118,10 +118,6 @@ func certificateCertFileName(id uint) string {
 	return fmt.Sprintf("%d.crt", id)
 }
 
-func certificateKeyFileName(id uint) string {
-	return fmt.Sprintf("%d.key", id)
-}
-
 func dedupeSupportFiles(files []SupportFile) []SupportFile {
 	if len(files) == 0 {
 		return nil

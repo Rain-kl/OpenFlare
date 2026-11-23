@@ -15,11 +15,13 @@ import (
 	admin_push "github.com/Rain-kl/Wavelet/internal/apps/admin/push"
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push/custom_events"
 	admin_status "github.com/Rain-kl/Wavelet/internal/apps/admin/status"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/config_version"
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/logwriter"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
+	"github.com/Rain-kl/Wavelet/internal/listener"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/platform/lifecycle"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -41,10 +43,11 @@ type CacheRegistry struct {
 }
 
 var (
-	registerTasksOnce            sync.Once
-	registerPushDomainEventsOnce sync.Once
-	registerTaskListenersOnce    sync.Once
-	initRuntimeOnce              sync.Once
+	registerTasksOnce               sync.Once
+	registerPushDomainEventsOnce    sync.Once
+	registerSecurityDomainEventOnce sync.Once
+	registerTaskListenersOnce       sync.Once
+	initRuntimeOnce                 sync.Once
 
 	cacheRegistries   = make(map[string]CacheRegistry)
 	cacheRegistriesMu sync.RWMutex
@@ -100,6 +103,16 @@ func RegisterPushDomainEvents() {
 	})
 }
 
+// RegisterSecurityDomainEvents wires agent security cache invalidation handlers.
+func RegisterSecurityDomainEvents() {
+	registerSecurityDomainEventOnce.Do(func() {
+		listener.OnNodeTokenRevoked(func(_ context.Context, event listener.NodeTokenRevoked) {
+			agent.InvalidateAccessTokenCache(event.OldToken)
+			agent.InvalidateNodeAccessTokenCache(event.NodeID)
+		})
+	})
+}
+
 // RegisterTaskListeners wires operational listeners to task framework hooks.
 func RegisterTaskListeners() {
 	registerTaskListenersOnce.Do(func() {
@@ -111,6 +124,7 @@ func RegisterTaskListeners() {
 func RegisterAPI() {
 	RegisterTasks()
 	RegisterPushDomainEvents()
+	RegisterSecurityDomainEvents()
 }
 
 // RegisterWorker wires integrations required by the task worker process.
@@ -128,6 +142,7 @@ func RegisterScheduler() {
 func RegisterAll() {
 	RegisterTasks()
 	RegisterPushDomainEvents()
+	RegisterSecurityDomainEvents()
 	RegisterTaskListeners()
 }
 

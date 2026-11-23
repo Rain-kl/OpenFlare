@@ -5,10 +5,10 @@ package config_version
 
 import (
 	"crypto/sha256"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"strconv"
 
@@ -71,11 +71,11 @@ func validateSnapshotCertificates(routes []edgeconfig.Route, files []SupportFile
 			cert := certificates[id]
 			if cert == nil {
 				name := strconv.FormatUint(uint64(id), 10)
-				pair, err := tls.X509KeyPair([]byte(byPath[name+".crt"]), []byte(byPath[name+".key"]))
+				parsed, err := parseLeafCertificatePEM(byPath[name+".crt"])
 				if err != nil {
 					return fmt.Errorf("invalid certificate %d for site %s: %w", id, route.SiteName, err)
 				}
-				cert = pair.Leaf
+				cert = parsed
 				certificates[id] = cert
 			}
 			if err := cert.VerifyHostname(route.Domains[index]); err != nil {
@@ -84,4 +84,20 @@ func validateSnapshotCertificates(routes []edgeconfig.Route, files []SupportFile
 		}
 	}
 	return nil
+}
+
+func parseLeafCertificatePEM(certPEM string) (*x509.Certificate, error) {
+	rest := []byte(certPEM)
+	for len(rest) > 0 {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		return x509.ParseCertificate(block.Bytes)
+	}
+	return nil, fmt.Errorf("missing CERTIFICATE PEM block")
 }

@@ -265,7 +265,8 @@ pub struct Assets {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CertificateAsset {
     pub cert_pem: String,
-    pub key_pem: String,
+    #[serde(default)]
+    pub cert_sha256: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

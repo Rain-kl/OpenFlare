@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 package automation
 
 import (
@@ -254,7 +257,7 @@ func connectionInfo(ctx context.Context, actor identity, _ map[string]string) (a
 // @Param page query integer false "Page number, starting at 1" minimum(1) default(1)
 // @Param page_size query integer false "Number of records per page" minimum(1) maximum(100) default(20)
 // @Param search query string false "Literal substring of the node name, registration identifier or IP address, at most 256 bytes" maxlength(256)
-// @Param status query string false "Filter by current health. Omit for all statuses." Enums(pending,online,offline)
+// @Param status query string false "Filter by current health. Omit for all statuses." Enums(pending,online,offline,quarantined)
 // @Param node_type query string false "Filter by node type. Omit for all types." Enums(edge_node,tunnel_relay,tunnel_client)
 // @Success 200 {object} OperationResponse{data=NodePage}
 // @Failure 400 {object} OperationResponse

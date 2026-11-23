@@ -64,7 +64,7 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 		return query, errBadListQuery
 	}
 	switch query.Status {
-	case "", nodeStatusPending, nodeStatusOnline, nodeStatusOffline:
+	case "", nodeStatusPending, nodeStatusOnline, nodeStatusOffline, nodeStatusQuarantined:
 	default:
 		return query, errBadListQuery
 	}

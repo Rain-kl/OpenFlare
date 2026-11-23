@@ -36,6 +36,9 @@ func RegisterWithAccessToken(ctx context.Context, authNode *model.OpenFlareNode,
 	if err != nil {
 		return nil, err
 	}
+	if record.IsQuarantined() {
+		return nil, errors.New(errNodeQuarantined)
+	}
 	if payload.Engine == enginePingora && record.NodeType != nodeTypeEdge {
 		return nil, errors.New(errNodeEngineChanged)
 	}
@@ -161,6 +164,9 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 	authNode, err := LoadHeartbeatNode(ctx, authNode)
 	if err != nil {
 		return nil, err
+	}
+	if authNode.IsQuarantined() {
+		return nil, errors.New(errNodeQuarantined)
 	}
 	if payload.Engine != normalizeEngine(authNode.Engine) {
 		return nil, errors.New(errNodeEngineChanged)

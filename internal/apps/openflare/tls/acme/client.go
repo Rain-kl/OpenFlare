@@ -15,6 +15,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-acme/lego/v4/acme"
@@ -26,7 +27,11 @@ import (
 	"github.com/go-acme/lego/v4/registration"
 )
 
-const dnsChallengePrecheckDelay = 20 * time.Second
+const (
+	dnsChallengePrecheckDelay = 20 * time.Second
+	// CRLReasonKeyCompromise is the RFC 5280 revocation reason code for key compromise.
+	CRLReasonKeyCompromise = acme.CRLReasonKeyCompromise
+)
 
 // User implements lego's registration.User interface for ACME account management.
 type User struct {
@@ -265,4 +270,17 @@ func ObtainSSL(
 	}
 
 	return newAccountURL, newPrivateKeyPEM, result, nil
+}
+
+// RevokeSSL revokes an issued ACME certificate with the specified RFC 5280 CRL reason.
+func RevokeSSL(acmeEmail, acmePrivateKeyPEM, acmeURL, certPEM string, reason uint) error {
+	trimmed := strings.TrimSpace(certPEM)
+	if trimmed == "" {
+		return errors.New("certificate PEM is empty")
+	}
+	client, _, _, _, err := GetOrCreateLegoClient(acmeEmail, acmePrivateKeyPEM, acmeURL, "")
+	if err != nil {
+		return fmt.Errorf("failed to create ACME client: %w", err)
+	}
+	return client.Certificate.RevokeWithReason([]byte(trimmed), &reason)
 }

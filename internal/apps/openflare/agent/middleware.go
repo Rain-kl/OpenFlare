@@ -12,8 +12,12 @@ import (
 )
 
 const (
-	agentTokenHeader    = "X-Agent-Token" //nolint:gosec // HTTP header name, not a credential value
-	agentNodeContextKey = "agent_node"
+	agentTokenHeader           = "X-Agent-Token" //nolint:gosec // HTTP header name, not a credential value
+	agentNodeContextKey        = "agent_node"
+	agentQuarantinedHeader     = "X-OpenFlare-Quarantined"
+	agentQuarantinedHeaderTrue = "true"
+	agentAuthErrorHeader       = "X-OpenFlare-Auth-Error"
+	agentAuthErrorInvalidToken = "invalid_token"
 )
 
 // Auth validates X-Agent-Token against of_nodes.access_token.
@@ -22,11 +26,17 @@ func Auth() gin.HandlerFunc {
 		token := strings.TrimSpace(c.GetHeader(agentTokenHeader))
 		node, err := AuthenticateAccessToken(c.Request.Context(), token)
 		if err != nil {
+			c.Header(agentAuthErrorHeader, agentAuthErrorInvalidToken)
 			response.AbortUnauthorized(c, errInvalidAgentToken)
 			return
 		}
 		if node.Engine != enginePingora || node.NodeType != nodeTypeEdge {
 			response.AbortForbidden(c, errPingoraNodeRequired)
+			return
+		}
+		if node.IsQuarantined() {
+			c.Header(agentQuarantinedHeader, agentQuarantinedHeaderTrue)
+			response.AbortForbidden(c, errNodeQuarantined)
 			return
 		}
 		c.Set(agentNodeContextKey, node)

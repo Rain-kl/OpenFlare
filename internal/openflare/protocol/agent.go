@@ -37,6 +37,7 @@ const (
 	WSMessageTypeActiveConfig    = "active_config"
 	WSMessageTypeForceSyncConfig = "force_sync_config"
 	WSMessageTypeWAFIPGroups     = "waf_ip_groups"
+	WSMessageTypeQuarantined     = "quarantined"
 	WSMessageTypePing            = "ping"
 	WSMessageTypePong            = "pong"
 )
@@ -266,4 +267,22 @@ type ConfigResource struct {
 	InlineJSON string `json:"inline_json,omitempty"`
 	Revision   string `json:"revision,omitempty"`
 	Metadata   any    `json:"metadata,omitempty"`
+}
+
+// TLSKeyRequestItem identifies one public certificate chain whose private key the node needs in memory.
+type TLSKeyRequestItem struct {
+	CertificateID uint   `json:"certificate_id"`
+	CertSHA256    string `json:"cert_sha256"`
+}
+
+// FetchTLSKeysRequest asks the controller for memory-only private keys matching an active release.
+type FetchTLSKeysRequest struct {
+	ReleaseSequence int64               `json:"release_sequence"`
+	Certificates    []TLSKeyRequestItem `json:"certificates"`
+}
+
+// FetchTLSKeysResponse returns private keys indexed by decimal certificate ID for in-memory loading only.
+type FetchTLSKeysResponse struct {
+	ReleaseSequence int64             `json:"release_sequence"`
+	Keys            map[string]string `json:"keys"`
 }

@@ -153,6 +153,11 @@ impl SiteSync {
                     tracing::warn!(%error, "active Pages packages could not be refreshed");
                 }
             }
+            if let Some(active) = current.as_deref() {
+                if let Err(error) = runtime.fetch_missing_keys(active).await {
+                    tracing::warn!(%error, "active TLS private keys could not be hydrated");
+                }
+            }
             return false;
         }
 
@@ -214,6 +219,11 @@ impl Runtime {
         )?;
         candidate.merge_ip_groups(ip_groups);
         self.prepare_pages(&mut candidate).await?;
-        self.state.commit(&self.state_dir, candidate)
+        self.fetch_missing_keys(&candidate).await?;
+        self.state.commit(&self.state_dir, candidate)?;
+        if let Some(active) = self.state.current() {
+            self.keys.retain_for(&active);
+        }
+        Ok(())
     }
 }

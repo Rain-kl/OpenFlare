@@ -24,4 +24,5 @@ const (
 	errEdgeUpdateUnsupported     = "this Edge installation does not support managed updates"
 	errEdgeUpdateUnavailable     = "no newer Edge release is available in the selected channel"
 	errEdgeReleaseLookup         = "could not check Edge releases"
+	errNodeQuarantined           = "node is quarantined"
 )
