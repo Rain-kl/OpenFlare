@@ -32,17 +32,28 @@ jobs:
       docker: ${{ steps.edge.outputs.docker }}
       image: ${{ steps.registry.outputs.image }}
     steps:
+      - name: Check build artifacts
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count="$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/artifacts" --jq '[.artifacts[] | select(.name == "edge-build-info")] | length')"
+          echo "has_build_info=$([[ "$count" -gt 0 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
+        if: steps.check.outputs.has_build_info == 'true'
         with:
           persist-credentials: false
           sparse-checkout: .github/actions/edge-build-info
 
       - uses: ./.github/actions/edge-build-info
+        if: steps.check.outputs.has_build_info == 'true'
         id: edge
         with:
           token: ${{ github.token }}
 
       - name: Resolve image name
+        if: steps.check.outputs.has_build_info == 'true'
         id: registry
         run: printf 'image=ghcr.io/%s/openflare-edge\n' "${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
 
