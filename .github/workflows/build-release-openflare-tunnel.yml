@@ -2,6 +2,7 @@ name: Build Release (OpenFlare Tunnel)
 
 on:
   push:
+    branches: [canary]
     tags: ["tunnel-v*"]
   workflow_dispatch:
     inputs:
@@ -12,7 +13,7 @@ on:
 
 concurrency:
   group: tunnel-release-${{ github.ref }}-${{ inputs.version || 'push' }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
 
 permissions:
   contents: write
@@ -26,6 +27,7 @@ jobs:
     name: Resolve Tunnel release metadata
     runs-on: ubuntu-24.04
     outputs:
+      build: ${{ steps.meta.outputs.build }}
       version: ${{ steps.meta.outputs.version }}
       clean_version: ${{ steps.meta.outputs.clean_version }}
       source_sha: ${{ steps.meta.outputs.source_sha }}
@@ -42,10 +44,32 @@ jobs:
         shell: bash
         env:
           INPUT_VERSION: ${{ inputs.version }}
+          BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
           input_version="${INPUT_VERSION//[[:space:]]/}"
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          stable_pattern='^tunnel-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/canary ]]; then
+            source_sha="$(git rev-parse HEAD)"
+            if [[ -n "${BEFORE:-}" && "$BEFORE" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              if git diff --quiet "$BEFORE" "$source_sha" -- tunnel/; then
+                echo "No changes under tunnel/ between $BEFORE and $source_sha; skipping Tunnel canary build."
+                echo "build=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            version="$(git tag --points-at HEAD --list "tunnel-v*-canary.${GITHUB_RUN_NUMBER}")"
+            if [[ -z "$version" ]]; then
+              stable="$(git tag --merged HEAD --sort=-version:refname --list 'tunnel-v*' |
+                awk -v pattern="$stable_pattern" '$0 ~ pattern && !found++')"
+              if [[ "$stable" =~ $stable_pattern ]]; then
+                base="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))"
+              else
+                base="$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' "$CARGO_MANIFEST")"
+              fi
+              version="tunnel-v${base}-canary.${GITHUB_RUN_NUMBER}"
+            fi
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
             version="$GITHUB_REF_NAME"
             source_sha="$(git rev-parse HEAD)"
           elif [[ -n "$input_version" ]]; then
@@ -68,6 +92,7 @@ jobs:
           fi
 
           {
+            echo "build=true"
             echo "version=$version"
             echo "clean_version=$clean_version"
             echo "source_sha=$source_sha"
@@ -77,6 +102,7 @@ jobs:
   build:
     name: Build Tunnel (${{ matrix.arch }})
     needs: prepare
+    if: needs.prepare.outputs.build == 'true'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -158,6 +184,7 @@ jobs:
   publish:
     name: Publish Tunnel Release
     needs: [prepare, build]
+    if: needs.prepare.outputs.build == 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: Download packaged archives
