@@ -57,7 +57,11 @@ runs:
           prerelease=false
         fi
         if [[ "$BUILD_EVENT" == workflow_dispatch ]]; then
-          [[ -z "$channel" ]]
+          if [[ "$prerelease" == true && "$channel" == canary ]]; then
+            [[ "$version" == *"-canary.${BUILD_NUMBER}" ]]
+          else
+            [[ -z "$channel" ]]
+          fi
         elif [[ "$BUILD_REF" == canary ]]; then
           [[ "$source_sha" == "$BUILD_SHA" && "$channel" == canary && "$version" == *"-canary.${BUILD_NUMBER}" ]]
         else

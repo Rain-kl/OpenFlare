@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Existing Edge release tag, for example edge-v0.1.6"
-        required: true
+        description: "Existing Edge release tag (e.g. edge-v0.1.6); leave empty for canary prerelease"
+        required: false
         type: string
 
 concurrency:
@@ -59,8 +59,22 @@ jobs:
 
           stable_pattern='^edge-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
           channel=
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
-            version="$INPUT_VERSION"
+          input_version="${INPUT_VERSION//[[:space:]]/}"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -z "$input_version" ]]; then
+            channel=canary
+            version="$(git tag --points-at HEAD --list "edge-v*-canary.${GITHUB_RUN_NUMBER}")"
+            if [[ -z "$version" ]]; then
+              stable="$(git tag --merged HEAD --sort=-version:refname --list 'edge-v*' |
+                awk -v pattern="$stable_pattern" '$0 ~ pattern && !found++')"
+              if [[ "$stable" =~ $stable_pattern ]]; then
+                base="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))"
+              else
+                base="$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' "$CARGO_MANIFEST")"
+              fi
+              version="edge-v${base}-canary.${GITHUB_RUN_NUMBER}"
+            fi
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            version="$input_version"
           elif [[ "$GITHUB_REF" == refs/heads/canary ]]; then
             if [[ -n "${BEFORE:-}" && "$BEFORE" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
               if git diff --quiet "$BEFORE" "$source_sha" -- edge/; then
@@ -88,7 +102,7 @@ jobs:
             echo "invalid Edge version: $version" >&2
             exit 1
           }
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -n "$input_version" ]]; then
             source_sha="$(git rev-parse --verify "refs/tags/${version}^{commit}")"
           elif [[ "$version" =~ $stable_pattern ]]; then
             channel=latest
