@@ -144,8 +144,8 @@ type Tunnel struct {
 	PreferredTransport     string     `json:"preferred_transport" gorm:"size:16;not null;default:'auto'"`
 	FallbackTransportsJSON string     `json:"fallback_transports_json" gorm:"type:text;not null;default:'[\"noise\",\"websocket\",\"tcp\"]'"`
 	ClientProxyURL         string     `json:"client_proxy_url" gorm:"size:512;not null;default:''"`
-	AllowedTargetCIDRsJSON string     `json:"allowed_target_cidrs_json" gorm:"type:text;not null;default:'[]'"`
-	BlockedTargetCIDRsJSON string     `json:"blocked_target_cidrs_json" gorm:"type:text;not null;default:'[\"169.254.169.254/32\"]'"`
+	AllowedTargetCIDRsJSON string     `json:"allowed_target_cidrs_json" gorm:"column:allowed_target_cidrs_json;type:text;not null;default:'[]'"`
+	BlockedTargetCIDRsJSON string     `json:"blocked_target_cidrs_json" gorm:"column:blocked_target_cidrs_json;type:text;not null;default:'[\"169.254.169.254/32\"]'"`
 	MaxConnectors          int        `json:"max_connectors" gorm:"not null;default:0"`
 	Enabled                bool       `json:"enabled" gorm:"not null;default:true"`
 	ConfigRevision         int64      `json:"config_revision" gorm:"not null;default:1"`
