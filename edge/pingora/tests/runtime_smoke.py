@@ -742,7 +742,7 @@ def main(binary):
                     edge = launch("--token-type", "node", env=systemd)
                     wait_for(lambda: active.exists() and json.loads(ready.read_text())["pid"] == edge.pid)
                     assert notify.recv(4096).startswith(b"READY=1\n")
-                    assert os.path.samefile(running_argv0(edge.pid), active)
+                    assert os.path.abspath(running_argv0(edge.pid)) == os.path.abspath(trial)
                     assert not trial.exists() and not staged.exists()
                     wait_for(lambda: any(h["edge_update_ready"] for h in server.heartbeats[before_trial:]))
                     assert server.heartbeats[before_trial]["edge_update_supported"]
