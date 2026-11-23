@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { Copy, Eye, EyeOff } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -43,7 +42,6 @@ export function DeployCommandDialog({
 }) {
   const t = useTranslations('tunnels');
   const tc = useTranslations('common');
-  const [showSecret, setShowSecret] = useState(false);
 
   const resolvedServerUrl =
     serverUrl || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -80,38 +78,20 @@ export function DeployCommandDialog({
               <p className='text-xs font-medium text-muted-foreground'>
                 {t('deploy.bootstrapToken')}
               </p>
-              <div className='flex items-center gap-1'>
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='sm'
-                  className='h-7 px-2 text-xs'
-                  onClick={() => setShowSecret((prev) => !prev)}
-                >
-                  {showSecret ? (
-                    <EyeOff className='size-3.5 mr-1' />
-                  ) : (
-                    <Eye className='size-3.5 mr-1' />
-                  )}
-                  {showSecret ? t('deploy.hide') : t('deploy.reveal')}
-                </Button>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  className='h-7 px-2 text-xs'
-                  onClick={() =>
-                    void handleCopy(effectiveToken, t('deploy.bootstrapToken'))
-                  }
-                >
-                  <Copy className='size-3.5 mr-1' />
-                  {t('deploy.copy')}
-                </Button>
-              </div>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                className='h-7 px-2 text-xs'
+                onClick={() =>
+                  void handleCopy(effectiveToken, t('deploy.bootstrapToken'))
+                }
+              >
+                <Copy className='size-3.5 mr-1' />
+                {t('deploy.copy')}
+              </Button>
             </div>
-            <pre
-              className={`overflow-x-auto text-xs font-mono break-all whitespace-pre-wrap transition-[filter] ${showSecret ? '' : 'blur-sm select-none'}`}
-            >
+            <pre className='overflow-x-auto text-xs font-mono break-all whitespace-pre-wrap'>
               {effectiveToken}
             </pre>
           </div>
@@ -132,9 +112,7 @@ export function DeployCommandDialog({
                 {t('deploy.copy')}
               </Button>
             </div>
-            <pre
-              className={`overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all transition-[filter] ${showSecret ? '' : 'blur-sm select-none'}`}
-            >
+            <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all'>
               {deployCommand}
             </pre>
           </div>
@@ -155,9 +133,7 @@ export function DeployCommandDialog({
                 {t('deploy.copy')}
               </Button>
             </div>
-            <pre
-              className={`overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all transition-[filter] ${showSecret ? '' : 'blur-sm select-none'}`}
-            >
+            <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all'>
               {scriptCmd}
             </pre>
           </div>
@@ -178,9 +154,7 @@ export function DeployCommandDialog({
                 {t('deploy.copy')}
               </Button>
             </div>
-            <pre
-              className={`overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all transition-[filter] ${showSecret ? '' : 'blur-sm select-none'}`}
-            >
+            <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all'>
               {dockerCmd}
             </pre>
           </div>
