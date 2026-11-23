@@ -1,19 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import {
-  Copy,
-  Eye,
-  EyeOff,
-  Pencil,
-  RefreshCw,
-  Server,
-  Terminal,
-  Trash2,
-} from 'lucide-react';
+import { Pencil, Server, Terminal, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { toast } from 'sonner';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { Button } from '@/components/ui/button';
@@ -32,10 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type {
-  TunnelRelayBootstrapView,
-  TunnelRelayView,
-} from '@/lib/services/openflare';
+import type { TunnelRelayView } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
 import { TunnelStatusBadge } from './tunnel-status-badge';
@@ -43,96 +29,21 @@ import { getTunnelStatusTone } from './tunnel-utils';
 
 export function RelaysTab({
   relays,
-  bootstrap,
-  rotatingBootstrap,
-  onRotateBootstrap,
   onDeploy,
   onToggleDrain,
   onEdit,
   onDelete,
 }: {
   relays: TunnelRelayView[];
-  bootstrap?: TunnelRelayBootstrapView;
-  rotatingBootstrap: boolean;
-  onRotateBootstrap: () => void;
   onDeploy: (relay: TunnelRelayView) => void;
   onToggleDrain: (relay: TunnelRelayView) => void;
   onEdit: (relay: TunnelRelayView) => void;
   onDelete: (relay: TunnelRelayView) => void;
 }) {
   const t = useTranslations('tunnels');
-  const [showBootstrap, setShowBootstrap] = useState(false);
-
-  const handleCopy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(t('deploy.copied', { target: t('relays.discoveryTitle') }));
-    } catch {
-      toast.error(t('deploy.copyFailed'));
-    }
-  };
 
   return (
     <div className='space-y-6'>
-      {bootstrap ? (
-        <Card className='border-dashed shadow-none'>
-          <CardHeader className='pb-3'>
-            <div className='flex flex-wrap items-center justify-between gap-2'>
-              <div>
-                <CardTitle className='text-base font-semibold'>
-                  {t('relays.discoveryTitle')}
-                </CardTitle>
-                <CardDescription>{t('relays.discoveryDesc')}</CardDescription>
-              </div>
-              <div className='flex items-center gap-2'>
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='sm'
-                  className='h-7 text-xs'
-                  onClick={() => setShowBootstrap((v) => !v)}
-                >
-                  {showBootstrap ? (
-                    <EyeOff className='size-3.5 mr-1' />
-                  ) : (
-                    <Eye className='size-3.5 mr-1' />
-                  )}
-                  {showBootstrap ? t('deploy.hide') : t('deploy.reveal')}
-                </Button>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  className='h-7 text-xs'
-                  onClick={() => void handleCopy(bootstrap.deploy_command)}
-                >
-                  <Copy className='size-3.5 mr-1' />
-                  {t('deploy.copy')}
-                </Button>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  className='h-7 text-xs'
-                  disabled={rotatingBootstrap}
-                  onClick={onRotateBootstrap}
-                >
-                  <RefreshCw className='size-3.5 mr-1' />
-                  {t('relays.rotateDiscovery')}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <pre
-              className={`overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all transition-[filter] ${showBootstrap ? '' : 'blur-sm select-none'}`}
-            >
-              {bootstrap.deploy_command}
-            </pre>
-          </CardContent>
-        </Card>
-      ) : null}
-
       <Card className='border-dashed shadow-none'>
         <CardHeader className='pb-3'>
           <CardTitle className='text-base font-semibold'>

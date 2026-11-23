@@ -323,9 +323,6 @@ export function TunnelsPageClient() {
         <TabsContent value='relays' className='mt-4'>
           <RelaysTab
             relays={relays}
-            bootstrap={bootstrapQuery.data}
-            rotatingBootstrap={rotateBootstrapMutation.isPending}
-            onRotateBootstrap={() => rotateBootstrapMutation.mutate()}
             onDeploy={(item) => void openRelayDeploy(item)}
             onToggleDrain={(item) => toggleDrainMutation.mutate(item)}
             onEdit={(item) => {
@@ -378,6 +375,9 @@ export function TunnelsPageClient() {
         open={relayDialogOpen}
         relay={editingRelay}
         pools={pools}
+        bootstrap={bootstrapQuery.data}
+        rotatingBootstrap={rotateBootstrapMutation.isPending}
+        onRotateBootstrap={() => rotateBootstrapMutation.mutate()}
         submitting={saveRelayMutation.isPending}
         onClose={() => {
           setRelayDialogOpen(false);

@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Copy, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
@@ -25,8 +27,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type {
   TunnelPoolView,
+  TunnelRelayBootstrapView,
   TunnelRelayInput,
   TunnelRelayView,
 } from '@/lib/services/openflare';
@@ -58,6 +62,9 @@ export function RelayEditorDialog({
   open,
   relay,
   pools,
+  bootstrap,
+  rotatingBootstrap = false,
+  onRotateBootstrap,
   submitting,
   onClose,
   onSubmit,
@@ -65,12 +72,28 @@ export function RelayEditorDialog({
   open: boolean;
   relay: TunnelRelayView | null;
   pools: TunnelPoolView[];
+  bootstrap?: TunnelRelayBootstrapView;
+  rotatingBootstrap?: boolean;
+  onRotateBootstrap?: () => void;
   submitting: boolean;
   onClose: () => void;
   onSubmit: (payload: TunnelRelayInput) => Promise<void>;
 }) {
   const t = useTranslations('tunnels');
   const tc = useTranslations('common');
+  const [createMode, setCreateMode] = useState<'discovery' | 'manual'>(
+    'discovery'
+  );
+  const [showBootstrap, setShowBootstrap] = useState(false);
+
+  const handleCopy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(t('deploy.copied', { target: t('relays.discoveryTitle') }));
+    } catch {
+      toast.error(t('deploy.copyFailed'));
+    }
+  };
   const form = useForm<RelayFormValues>({
     resolver: zodResolver(buildSchema(t)),
     defaultValues: {
@@ -93,6 +116,8 @@ export function RelayEditorDialog({
 
   useEffect(() => {
     if (!open) return;
+    setCreateMode('discovery');
+    setShowBootstrap(false);
     if (relay) {
       form.reset({
         name: relay.name,
@@ -150,20 +175,11 @@ export function RelayEditorDialog({
     });
   });
 
-  return (
-    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className='sm:max-w-xl max-h-[90vh] overflow-y-auto'>
-        <DialogHeader>
-          <DialogTitle>
-            {relay ? t('relays.editTitle') : t('relays.createTitle')}
-          </DialogTitle>
-          <DialogDescription>{t('relays.editorDesc')}</DialogDescription>
-        </DialogHeader>
-
-        <form
-          onSubmit={(event) => void handleSubmit(event)}
-          className='space-y-4'
-        >
+  const manualForm = (
+    <form
+      onSubmit={(event) => void handleSubmit(event)}
+      className='space-y-4'
+    >
           <div className='grid gap-3 sm:grid-cols-2'>
             <div className='space-y-2'>
               <Label htmlFor='relay-name'>{t('relays.name')}</Label>
@@ -313,6 +329,110 @@ export function RelayEditorDialog({
             </Button>
           </DialogFooter>
         </form>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className='sm:max-w-xl max-h-[90vh] overflow-y-auto'>
+        <DialogHeader>
+          <DialogTitle>
+            {relay ? t('relays.editTitle') : t('relays.createTitle')}
+          </DialogTitle>
+          <DialogDescription>{t('relays.editorDesc')}</DialogDescription>
+        </DialogHeader>
+
+        {relay ? (
+          manualForm
+        ) : (
+          <Tabs
+            value={createMode}
+            onValueChange={(value) =>
+              setCreateMode(value === 'manual' ? 'manual' : 'discovery')
+            }
+            className='space-y-4'
+          >
+            <TabsList className='grid w-full grid-cols-2'>
+              <TabsTrigger value='discovery'>
+                {t('relays.discoveryTab')}
+              </TabsTrigger>
+              <TabsTrigger value='manual'>{t('relays.manualTab')}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value='discovery' className='space-y-4'>
+              {bootstrap ? (
+                <div className='space-y-3 rounded-lg border border-dashed p-4'>
+                  <div className='flex flex-wrap items-start justify-between gap-2'>
+                    <div className='space-y-1'>
+                      <p className='text-sm font-medium'>
+                        {t('relays.discoveryTitle')}
+                      </p>
+                      <p className='text-xs text-muted-foreground'>
+                        {t('relays.discoveryDesc')}
+                      </p>
+                    </div>
+                    <div className='flex items-center gap-2'>
+                      <Button
+                        type='button'
+                        variant='ghost'
+                        size='sm'
+                        className='h-7 text-xs'
+                        onClick={() => setShowBootstrap((v) => !v)}
+                      >
+                        {showBootstrap ? (
+                          <EyeOff className='size-3.5 mr-1' />
+                        ) : (
+                          <Eye className='size-3.5 mr-1' />
+                        )}
+                        {showBootstrap ? t('deploy.hide') : t('deploy.reveal')}
+                      </Button>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        className='h-7 text-xs'
+                        onClick={() =>
+                          void handleCopy(bootstrap.deploy_command)
+                        }
+                      >
+                        <Copy className='size-3.5 mr-1' />
+                        {t('deploy.copy')}
+                      </Button>
+                      {onRotateBootstrap ? (
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='sm'
+                          className='h-7 text-xs'
+                          disabled={rotatingBootstrap}
+                          onClick={onRotateBootstrap}
+                        >
+                          <RefreshCw className='size-3.5 mr-1' />
+                          {t('relays.rotateDiscovery')}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <pre
+                    className={`overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all transition-[filter] ${showBootstrap ? '' : 'blur-sm select-none'}`}
+                  >
+                    {bootstrap.deploy_command}
+                  </pre>
+                </div>
+              ) : (
+                <div className='rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground'>
+                  {t('relays.discoveryEmpty')}
+                </div>
+              )}
+              <DialogFooter>
+                <Button type='button' variant='outline' onClick={onClose}>
+                  {tc('cancel')}
+                </Button>
+              </DialogFooter>
+            </TabsContent>
+
+            <TabsContent value='manual'>{manualForm}</TabsContent>
+          </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   );
