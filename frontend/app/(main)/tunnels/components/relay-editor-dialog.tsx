@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Copy, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Copy, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -35,7 +35,11 @@ import type {
   TunnelRelayView,
 } from '@/lib/services/openflare';
 
-import { splitCommaOrLineList } from './tunnel-utils';
+import {
+  buildRelayDockerCommand,
+  buildRelayInstallScriptCommand,
+  splitCommaOrLineList,
+} from './tunnel-utils';
 
 function buildSchema(t: (key: string) => string) {
   return z.object({
@@ -81,15 +85,14 @@ export function RelayEditorDialog({
 }) {
   const t = useTranslations('tunnels');
   const tc = useTranslations('common');
-  const [createMode, setCreateMode] = useState<'discovery' | 'manual'>(
-    'discovery'
+  const [createMode, setCreateMode] = useState<'manual' | 'discovery'>(
+    'manual'
   );
-  const [showBootstrap, setShowBootstrap] = useState(false);
 
-  const handleCopy = async (text: string) => {
+  const handleCopy = async (text: string, label: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(t('deploy.copied', { target: t('relays.discoveryTitle') }));
+      toast.success(t('deploy.copied', { target: label }));
     } catch {
       toast.error(t('deploy.copyFailed'));
     }
@@ -116,8 +119,7 @@ export function RelayEditorDialog({
 
   useEffect(() => {
     if (!open) return;
-    setCreateMode('discovery');
-    setShowBootstrap(false);
+    setCreateMode('manual');
     if (relay) {
       form.reset({
         name: relay.name,
@@ -331,9 +333,21 @@ export function RelayEditorDialog({
         </form>
   );
 
+  const resolvedServerUrl =
+    bootstrap?.server_url ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
+  const effectiveToken =
+    bootstrap?.bootstrap_token || bootstrap?.discovery_token || '';
+  const scriptCmd = effectiveToken
+    ? buildRelayInstallScriptCommand(resolvedServerUrl, effectiveToken)
+    : '';
+  const dockerCmd = effectiveToken
+    ? buildRelayDockerCommand(resolvedServerUrl, effectiveToken)
+    : '';
+
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className='sm:max-w-xl max-h-[90vh] overflow-y-auto'>
+      <DialogContent className='sm:max-w-2xl max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>
             {relay ? t('relays.editTitle') : t('relays.createTitle')}
@@ -347,20 +361,22 @@ export function RelayEditorDialog({
           <Tabs
             value={createMode}
             onValueChange={(value) =>
-              setCreateMode(value === 'manual' ? 'manual' : 'discovery')
+              setCreateMode(value === 'discovery' ? 'discovery' : 'manual')
             }
             className='space-y-4'
           >
             <TabsList className='grid w-full grid-cols-2'>
+              <TabsTrigger value='manual'>{t('relays.manualTab')}</TabsTrigger>
               <TabsTrigger value='discovery'>
                 {t('relays.discoveryTab')}
               </TabsTrigger>
-              <TabsTrigger value='manual'>{t('relays.manualTab')}</TabsTrigger>
             </TabsList>
+
+            <TabsContent value='manual'>{manualForm}</TabsContent>
 
             <TabsContent value='discovery' className='space-y-4'>
               {bootstrap ? (
-                <div className='space-y-3 rounded-lg border border-dashed p-4'>
+                <div className='space-y-4'>
                   <div className='flex flex-wrap items-start justify-between gap-2'>
                     <div className='space-y-1'>
                       <p className='text-sm font-medium'>
@@ -370,53 +386,118 @@ export function RelayEditorDialog({
                         {t('relays.discoveryDesc')}
                       </p>
                     </div>
-                    <div className='flex items-center gap-2'>
-                      <Button
-                        type='button'
-                        variant='ghost'
-                        size='sm'
-                        className='h-7 text-xs'
-                        onClick={() => setShowBootstrap((v) => !v)}
-                      >
-                        {showBootstrap ? (
-                          <EyeOff className='size-3.5 mr-1' />
-                        ) : (
-                          <Eye className='size-3.5 mr-1' />
-                        )}
-                        {showBootstrap ? t('deploy.hide') : t('deploy.reveal')}
-                      </Button>
+                    {onRotateBootstrap ? (
                       <Button
                         type='button'
                         variant='outline'
                         size='sm'
                         className='h-7 text-xs'
+                        disabled={rotatingBootstrap}
+                        onClick={onRotateBootstrap}
+                      >
+                        <RefreshCw className='size-3.5 mr-1' />
+                        {t('relays.rotateDiscovery')}
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  <div className='rounded-lg border border-dashed p-3 space-y-2'>
+                    <div className='flex items-center justify-between gap-2'>
+                      <p className='text-xs font-medium text-muted-foreground'>
+                        {t('deploy.bootstrapToken')}
+                      </p>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        className='h-7 px-2 text-xs'
                         onClick={() =>
-                          void handleCopy(bootstrap.deploy_command)
+                          void handleCopy(
+                            effectiveToken,
+                            t('deploy.bootstrapToken')
+                          )
                         }
                       >
                         <Copy className='size-3.5 mr-1' />
                         {t('deploy.copy')}
                       </Button>
-                      {onRotateBootstrap ? (
-                        <Button
-                          type='button'
-                          variant='outline'
-                          size='sm'
-                          className='h-7 text-xs'
-                          disabled={rotatingBootstrap}
-                          onClick={onRotateBootstrap}
-                        >
-                          <RefreshCw className='size-3.5 mr-1' />
-                          {t('relays.rotateDiscovery')}
-                        </Button>
-                      ) : null}
                     </div>
+                    <pre className='overflow-x-auto text-xs font-mono break-all whitespace-pre-wrap'>
+                      {effectiveToken}
+                    </pre>
                   </div>
-                  <pre
-                    className={`overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all transition-[filter] ${showBootstrap ? '' : 'blur-sm select-none'}`}
-                  >
-                    {bootstrap.deploy_command}
-                  </pre>
+
+                  <div className='space-y-1.5'>
+                    <div className='flex items-center justify-between'>
+                      <p className='text-xs font-medium'>
+                        {t('deploy.scriptCommand')}
+                      </p>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        className='h-7 px-2 text-xs'
+                        onClick={() =>
+                          void handleCopy(scriptCmd, t('deploy.scriptCommand'))
+                        }
+                      >
+                        <Copy className='size-3.5 mr-1' />
+                        {t('deploy.copy')}
+                      </Button>
+                    </div>
+                    <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all'>
+                      {scriptCmd}
+                    </pre>
+                  </div>
+
+                  <div className='space-y-1.5'>
+                    <div className='flex items-center justify-between'>
+                      <p className='text-xs font-medium'>
+                        {t('deploy.dockerCommand')}
+                      </p>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        className='h-7 px-2 text-xs'
+                        onClick={() =>
+                          void handleCopy(dockerCmd, t('deploy.dockerCommand'))
+                        }
+                      >
+                        <Copy className='size-3.5 mr-1' />
+                        {t('deploy.copy')}
+                      </Button>
+                    </div>
+                    <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all'>
+                      {dockerCmd}
+                    </pre>
+                  </div>
+
+                  <div className='space-y-1.5'>
+                    <div className='flex items-center justify-between'>
+                      <p className='text-xs font-medium'>
+                        {t('deploy.cliCommand')}
+                      </p>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        className='h-7 px-2 text-xs'
+                        onClick={() =>
+                          void handleCopy(
+                            bootstrap.deploy_command,
+                            t('deploy.cliCommand')
+                          )
+                        }
+                      >
+                        <Copy className='size-3.5 mr-1' />
+                        {t('deploy.copy')}
+                      </Button>
+                    </div>
+                    <pre className='overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs font-mono whitespace-pre-wrap break-all'>
+                      {bootstrap.deploy_command}
+                    </pre>
+                  </div>
                 </div>
               ) : (
                 <div className='rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground'>
@@ -425,12 +506,10 @@ export function RelayEditorDialog({
               )}
               <DialogFooter>
                 <Button type='button' variant='outline' onClick={onClose}>
-                  {tc('cancel')}
+                  {tc('close')}
                 </Button>
               </DialogFooter>
             </TabsContent>
-
-            <TabsContent value='manual'>{manualForm}</TabsContent>
           </Tabs>
         )}
       </DialogContent>
