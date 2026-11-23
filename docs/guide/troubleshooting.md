@@ -1,8 +1,8 @@
 # 故障排查
 
-你会学到：如何按症状排查 OpenFlare Server、数据库、登录、Pingora Edge 和配置同步问题。
+你会学到：如何按症状排查 OpenFlare Server、数据库、登录、OpenFlare Edge 和配置同步问题。
 
-排查时先确认问题发生在哪一层：浏览器、Server、数据库、Pingora Edge、源站或 DNS。节点收到 WebSocket 通知后会重新获取配置清单，也会通过周期心跳重新同步。
+排查时先确认问题发生在哪一层：浏览器、Server、数据库、OpenFlare Edge、源站或 DNS。节点收到 WebSocket 通知后会重新获取配置清单，也会通过周期心跳重新同步。
 
 ## 快速定位
 
@@ -13,7 +13,7 @@
 | 数据无法保存 | 数据库连接、SQLite 文件权限、PostgreSQL 健康状态 |
 | Agent 离线 | Agent 日志、Token、Server 地址、网络连通性 |
 | 保存后节点未更新 | 节点心跳、应用记录、控制端快照编译日志 |
-| Pingora 配置应用失败 | 应用记录、Edge 日志、证书、源站地址、端口占用 |
+| OpenFlare Edge 配置应用失败 | 应用记录、Edge 日志、证书、源站地址、端口占用 |
 | 访问分析无数据 | 节点心跳、Edge 访问日志队列和控制端日志 |
 | 静态资源总不命中缓存 | 全局/站点缓存开关、策略扩展名、配置是否已发布、访问日志 `cache_status`、源站 Set-Cookie / Cache-Control |
 
@@ -127,7 +127,7 @@ systemctl restart openflare-agent
 3. 控制端无法编译时，查看控制端日志中的 `refresh live edge snapshot`，修正配置后保存。
 4. 节点环境修复后，可在节点详情执行「强制同步」。节点重启也会清除失败标记并重试最新修订。
 
-## Pingora 配置应用失败
+## OpenFlare Edge 配置应用失败
 
 使用 `systemctl status openflare-edge` 查看服务状态，并通过 `journalctl -u openflare-edge` 查看节点拉取、校验、应用和监听日志。节点的 `ready.json` 包含实际加载的站点版本和内容摘要。
 

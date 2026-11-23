@@ -1,7 +1,7 @@
 {
   "performancePolicies": {
     "title": "Performance policies",
-    "description": "Tune Pingora for different node sizes. Connected nodes begin syncing as soon as a policy changes.",
+    "description": "Tune OpenFlare Edge for different node sizes. Connected nodes begin syncing as soon as a policy changes.",
     "create": "Create policy",
     "edit": "Edit policy",
     "delete": "Delete policy",
@@ -36,7 +36,7 @@
     "assignDescription": "Selected nodes will use this policy. Clearing an assignment switches the node to the default policy.",
     "search": "Search node name or ID",
     "selectAll": "Select filtered nodes",
-    "noNodes": "No matching Pingora nodes.",
+    "noNodes": "No matching edge nodes.",
     "applyCount": "Save assignments ({count})",
     "range": "Enter a value from {min} to {max}.",
     "groups": {

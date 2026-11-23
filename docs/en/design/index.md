@@ -8,9 +8,9 @@ OpenFlare is a modern distributed reverse proxy and edge security gateway platfo
 
 ## Project Positioning
 
-OpenFlare suits teams that need to centrally manage multiple Pingora proxy nodes, build self-hosted high-availability edge networks, or establish a hardened protective gateway in front of origin servers, with the following positioning:
+OpenFlare suits teams that need to centrally manage multiple OpenFlare Edge proxy nodes, build self-hosted high-availability edge networks, or establish a hardened protective gateway in front of origin servers, with the following positioning:
 * **Control/Landing Separation**: The Server control plane never SSHs into proxy nodes; edge nodes actively pull versions and apply them via heartbeats and WebSockets.
-* **Zero-Reload Dynamic Configuration Sync**: Built on the Rust Pingora edge gateway, updates take effect via in-memory snapshot atomic swapping and incremental configuration synchronization, eliminating connection jitter caused by traditional gateway reload operations.
+* **Zero-Reload Dynamic Configuration Sync**: Built on the Rust OpenFlare Edge gateway, updates take effect via in-memory snapshot atomic swapping and incremental configuration synchronization, eliminating connection jitter caused by traditional gateway reload operations.
 * **Integrated Edge Security Gateway**: Combines reverse proxying, automated TLS certificate renewal, WAF protection, Turnstile-like client PoW anti-CC defense, intranet penetration (Tunnel), and Pages static website hosting in a unified control plane.
 * **Dual Deployment Architecture**: Operates either as a standalone private edge CDN or as a hardened Origin Shield behind Cloudflare, shielding origin IP addresses while retaining full private audit logs.
 
@@ -24,13 +24,13 @@ OpenFlare suits teams that need to centrally manage multiple Pingora proxy nodes
 | --- | --- | --- |
 | **Reverse proxy config management** | Website rules (Proxy Route) as the aggregation boundary, supporting multi-domain and multi-upstream load balancing | [Create a Reverse Proxy Config](../guide/proxy-config.md) |
 | **Origin error page** | Globally configurable: matching origin/gateway status codes return OpenFlare default or custom HTML with the HTTP status kept | [Origin Error Page Design](./origin-error-page.md) |
-| **Edge cache** | Pingora in-memory caching: default static extensions + origin-header/Set-Cookie gates + default Edge TTL (benchmarked against the CF default model) | [Edge Cache Strategy Design](./edge-cache-design.md) |
+| **Edge cache** | OpenFlare Edge in-memory caching: default static extensions + origin-header/Set-Cookie gates + default Edge TTL (benchmarked against the CF default model) | [Edge Cache Strategy Design](./edge-cache-design.md) |
 | **Zone & domain management** | Registrable root domains as the management entry, aggregating explicit domains, domain certificates, and reverse proxy routes | [Zone & Domain Resource Design](./zone-design.md) |
 | **Cloudflare DNS pointing** | Per ZoneDomain, idempotently point a single Cloudflare A record at an edge node IPv4; connection config, groups, member orange-cloud, and async sync; no auto-failover in phase 1 | [Cloudflare DNS Pointing Design](./cloudflare-pointing.md) |
-| **Edge config sync** | Automatic sync on save; nodes apply snapshots atomically while retaining the last healthy snapshot | [Pingora Edge Node Design](./pingora-edge-design.md) |
+| **Edge config sync** | Automatic sync on save; nodes apply snapshots atomically while retaining the last healthy snapshot | [OpenFlare Edge node Design](./pingora-edge-design.md) |
 | **WAF protection** | Visual DAG rule orchestration, manual/auto/subscription IP groups, GeoIP matching, and PoW CC protection | [WAF Design](./waf-design.md) / [WAF Orchestration Rule Design](./waf-orchestration-design.md) / [WAF Usage Guide](../guide/waf-usage.md) |
 | **Intranet penetration** | Reverse-penetrate and expose intranet web services via Relay nodes and the OpenFlared client | [Tunnel Design](./tunnel-design.md) / [Tunnel Usage Guide](../guide/tunnel-usage.md) |
-| **Pages static hosting** | Upload or sync pre-built artifacts from Remote URLs or public GitHub Releases; GitHub latest can be periodically checked and optionally auto-published. Immutable deployments are pulled by edge nodes and served locally by Pingora, supporting rollback, API proxying, and SPA Fallback | [Pages Static Hosting Design](./pages-design.md) / [Pages Usage Guide](../guide/pages-usage.md) |
+| **Pages static hosting** | Upload or sync pre-built artifacts from Remote URLs or public GitHub Releases; GitHub latest can be periodically checked and optionally auto-published. Immutable deployments are pulled by edge nodes and served locally by OpenFlare Edge, supporting rollback, API proxying, and SPA Fallback | [Pages Static Hosting Design](./pages-design.md) / [Pages Usage Guide](../guide/pages-usage.md) |
 | **TLS certificate auto-renewal** | Explicitly bind certificates to Zone domains; issue/renew via ACME against Let's Encrypt | [Zone & Domain Resource Design](./zone-design.md) |
 | **Multi-node monitoring & observability** | Access logs as the single truth for business traffic; edge nodes report only details and host readings, Server aggregates uniformly; reconciled with Zone and dashboard | [Observability Transport Model](./observability-transport-model.md) / [Edge Observability & Business Traffic Stats](./observability-design.md) / [Reporting Protocol & Tables](./observability-data-model.md) / [System Architecture](./architecture.md) |
 | **Log storage** | Access logs and observability time series use the switchable log primary DB (follows the business primary DB or ClickHouse); still writable/queryable with ClickHouse off | [Log Store Decoupling](./logstore.md) |
@@ -50,7 +50,7 @@ When developing and contributing code, **you must strictly follow** these busine
 ### 2. WAF Security Boundaries
 * **Allowlist priority**: The allowlist has absolute matching power. Only when an allowlist rule is not hit do global and custom blocklist filters trigger in order.
 * **GeoIP weak dependency**: Geographic access resolution fully depends on the node-local MaxMind database. When GeoIP is abnormal or fails to resolve, the system must automatically ignore geographic rules — **never** compromise IP-group filtering or reverse-proxy main chain availability.
-* **Runtime data decoupling**: Pingora executes rules via in-memory snapshots without communicating with the Server DB. IP group members update independently from site snapshots through checksum-based differential pulls for zero-reload smooth activation.
+* **Runtime data decoupling**: OpenFlare Edge executes rules via in-memory snapshots without communicating with the Server DB. IP group members update independently from site snapshots through checksum-based differential pulls for zero-reload smooth activation.
 
 ### 3. Intranet Penetration Boundaries
 * **HTTP traffic only**: Tunnel components support only HTTP/HTTPS protocols (leveraging frp virtual host routing to reuse single ports across multiple domains); standalone TCP/UDP port allocation is not supported.
@@ -78,7 +78,7 @@ When contributing code, strictly follow this physical layering and directory div
 | Path | Responsibility |
 | --- | --- |
 | `cmd/server`, `cmd/relay`, `cmd/flared` | CLI entrypoints for Server, Relay, and OpenFlared (Server in `cmd/server/main.go` + `cmd/server/cli/`) |
-| `edge/pingora/` | Rust Pingora edge gateway (`openflare-edge`) source and build directory |
+| `edge/pingora/` | Rust OpenFlare Edge gateway (`openflare-edge`) source and build directory |
 | `internal/` | Control-plane and edge runtime implementations |
 | `frontend/` | Next.js admin console; build artifacts embedded into the Go Server |
 | `pkg/` | Generic cross-cutting libraries (GeoIP, cache, mail, push, utilities, etc.) |
@@ -118,9 +118,9 @@ When contributing code, strictly follow this physical layering and directory div
 | `/api/v1/tunnel/*` | Tunnel client protocol | `X-Tunnel-Token` |
 | `/api/v1/admin/*` | Wavelet platform admin APIs | Admin Session |
 
-### 2. Pingora Edge Node
+### 2. OpenFlare Edge node
 
-The node runtime is located at `edge/pingora/`. The control plane distributes sites, WAF IP groups, and performance policies via configuration manifests. Nodes validate and apply updates to their local data plane. See [Pingora Edge Node Design](./pingora-edge-design.md).
+The node runtime is located at `edge/pingora/`. The control plane distributes sites, WAF IP groups, and performance policies via configuration manifests. Nodes validate and apply updates to their local data plane. See [OpenFlare Edge node Design](./pingora-edge-design.md).
 
 ### 3. Frontend Layering (`frontend/`)
 
@@ -176,6 +176,6 @@ Based on the Wavelet Next.js scaffold, OpenFlare business UI is organized route-
 * Product scope or system boundary changes: update this doc ([Product Boundaries](./index.md)).
 * Log storage, log-table judgment, or switch-protocol changes: update [Log Store Decoupling](./logstore.md).
 * System structure or component division changes: update [System Architecture](./architecture.md).
-* Configuration synchronization and node recovery logic are documented in [Pingora Edge Node Design](./pingora-edge-design.md).
+* Configuration synchronization and node recovery logic are documented in [OpenFlare Edge node Design](./pingora-edge-design.md).
 * Deployment method changes: update [Deployment Guide](../deployment/deployment.md) and the README.
 * Config item changes: update [Configuration Reference](../reference/configuration.md).

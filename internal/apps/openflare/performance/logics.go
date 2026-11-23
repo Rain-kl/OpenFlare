@@ -22,7 +22,7 @@ const (
 	errInvalidParams   = "Invalid performance policy parameters"
 	errPolicyNotFound  = "Performance policy not found"
 	errPolicyOperation = "Could not complete the performance policy operation"
-	errInvalidNodes    = "All selected nodes must be Pingora edge nodes"
+	errInvalidNodes    = "All selected nodes must be OpenFlare Edge nodes"
 	errDefaultPolicy   = "The default policy is inherited automatically"
 )
 

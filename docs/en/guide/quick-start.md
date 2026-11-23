@@ -7,7 +7,7 @@ OpenFlare's minimal runtime consists of:
 | Component | Responsibility |
 | --- | --- |
 | Server | admin UI, admin API, Agent API, config rendering, version release, and state storage |
-| Pingora Edge | Runs on edge hosts, synchronizes configuration, and proxies requests to origin servers |
+| OpenFlare Edge | Runs on edge hosts, synchronizes configuration, and proxies requests to origin servers |
 
 ## Environment Requirements
 
@@ -141,7 +141,7 @@ Prepare one of these credentials in the admin panel, then continue.
 
 ---
 
-## 3. Install Pingora Edge
+## 3. Install OpenFlare Edge
 
 Run the installer on a Linux edge host. Use the discovery token for a new node, or copy the command with a node-specific token from the node details.
 

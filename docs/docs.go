@@ -4581,7 +4581,7 @@ const docTemplate = `{
                         "AgentTokenAuth": []
                     }
                 ],
-                "description": "使用节点 access token 重新注册，或使用全局 discovery token 发现新节点；请求头需携带 X-Agent-Token。支持当前配置契约的 Pingora Edge 使用原节点 Token 注册时，可接替已登记的 OpenResty 节点。",
+                "description": "使用节点 access token 重新注册，或使用全局 discovery token 发现新节点；请求头需携带 X-Agent-Token。支持当前配置契约的 OpenFlare Edge 使用原节点 Token 注册时，可接替已登记的 OpenResty 节点。",
                 "consumes": [
                     "application/json"
                 ],
@@ -5737,7 +5737,7 @@ const docTemplate = `{
                 "tags": [
                     "automation"
                 ],
-                "summary": "List Pingora performance policies and parameter definitions",
+                "summary": "List OpenFlare Edge performance policies and parameter definitions",
                 "operationId": "openflare_performance_list",
                 "responses": {
                     "200": {
@@ -5797,7 +5797,7 @@ const docTemplate = `{
                         "AutomationBearer": []
                     }
                 ],
-                "description": "Update exactly one parameter of an existing policy and preserve all others. Use openflare_performance_list to identify the policy, affected nodes, and valid values. Editing the default policy affects every unassigned Pingora edge node. The result confirms controller storage, not node application.",
+                "description": "Update exactly one parameter of an existing policy and preserve all others. Use openflare_performance_list to identify the policy, affected nodes, and valid values. Editing the default policy affects every unassigned OpenFlare Edge node. The result confirms controller storage, not node application.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5807,7 +5807,7 @@ const docTemplate = `{
                 "tags": [
                     "automation"
                 ],
-                "summary": "Change one Pingora performance policy parameter",
+                "summary": "Change one OpenFlare Edge performance policy parameter",
                 "operationId": "openflare_performance_set",
                 "parameters": [
                     {
@@ -10900,7 +10900,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "为指定节点登记更新请求，Pingora 节点的请求固定到目标版本，需要管理员权限",
+                "description": "为指定节点登记更新请求，边缘节点的请求固定到目标版本，需要管理员权限",
                 "consumes": [
                     "application/json"
                 ],
@@ -11113,7 +11113,7 @@ const docTemplate = `{
                 "tags": [
                     "openflare-node"
                 ],
-                "summary": "请求重启 Pingora",
+                "summary": "请求重启 OpenFlare Edge",
                 "parameters": [
                     {
                         "type": "integer",
@@ -21061,7 +21061,7 @@ const docTemplate = `{
                 "tags": [
                     "Performance Policies"
                 ],
-                "summary": "List Pingora performance policies",
+                "summary": "List OpenFlare Edge performance policies",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -21105,7 +21105,7 @@ const docTemplate = `{
                 "tags": [
                     "Performance Policies"
                 ],
-                "summary": "Create a Pingora performance policy",
+                "summary": "Create an OpenFlare Edge performance policy",
                 "parameters": [
                     {
                         "description": "Policy name and parameters",
@@ -21168,7 +21168,7 @@ const docTemplate = `{
                 "tags": [
                     "Performance Policies"
                 ],
-                "summary": "Assign a Pingora performance policy to a set of nodes",
+                "summary": "Assign an OpenFlare Edge performance policy to a set of nodes",
                 "parameters": [
                     {
                         "type": "integer",
@@ -21178,7 +21178,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Selected Pingora node IDs",
+                        "description": "Selected OpenFlare Edge node IDs",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -21232,7 +21232,7 @@ const docTemplate = `{
                 "tags": [
                     "Performance Policies"
                 ],
-                "summary": "Delete a Pingora performance policy",
+                "summary": "Delete an OpenFlare Edge performance policy",
                 "parameters": [
                     {
                         "type": "integer",
@@ -21287,7 +21287,7 @@ const docTemplate = `{
                 "tags": [
                     "Performance Policies"
                 ],
-                "summary": "Update a Pingora performance policy",
+                "summary": "Update an OpenFlare Edge performance policy",
                 "parameters": [
                     {
                         "type": "integer",

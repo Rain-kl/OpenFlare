@@ -1,6 +1,6 @@
 # Commands & Scripts
 
-You will learn: command-line flags, build targets, and quality gate commands for OpenFlare Server, Pingora Edge, Relay, OpenFlared, the admin frontend, Swagger, and the documentation site.
+You will learn: command-line flags, build targets, and quality gate commands for OpenFlare Server, OpenFlare Edge, Relay, OpenFlared, the admin frontend, Swagger, and the documentation site.
 
 > All commands run at the **repository root** unless noted otherwise.
 
@@ -53,9 +53,9 @@ GOCACHE=/tmp/openflare-go-cache go test ./...
 
 ---
 
-## Edge Gateway (Pingora Edge)
+## Edge Gateway (OpenFlare Edge)
 
-Pingora Edge is implemented in Rust on top of Cloudflare Pingora. The binary is named `openflare-edge`.
+OpenFlare Edge is implemented in Rust on top of Cloudflare OpenFlare Edge. The binary is named `openflare-edge`.
 
 ### 1. Subcommands and Flags
 
@@ -103,7 +103,7 @@ openflare-edge attack-rule-catalog
 ### 2. Build and Test Targets
 
 ```bash
-# Compile Pingora Edge release binary
+# Compile OpenFlare Edge release binary
 make build-edge
 # Output located at: edge/pingora/target/release/openflare-edge
 

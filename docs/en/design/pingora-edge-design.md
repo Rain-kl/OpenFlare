@@ -1,6 +1,6 @@
-# Pingora Edge Node Design
+# OpenFlare Edge node Design
 
-OpenFlare Edge uses Pingora to deliver HTTP, HTTPS, WAF, PoW, site authentication, rate limiting, and caching. The control plane automatically compiles site snapshots upon saving configuration, and edge nodes retrieve sites, WAF IP groups, and performance policies through a unified synchronization protocol.
+OpenFlare Edge uses OpenFlare Edge to deliver HTTP, HTTPS, WAF, PoW, site authentication, rate limiting, and caching. The control plane automatically compiles site snapshots upon saving configuration, and edge nodes retrieve sites, WAF IP groups, and performance policies through a unified synchronization protocol.
 
 ## Configuration Synchronization
 
@@ -26,11 +26,11 @@ Subsequent heartbeats skip pulling and applying the same failed revision. New re
 
 ## Performance Policies
 
-Each Pingora node can be explicitly bound to a performance policy; remaining nodes inherit the built-in default policy. Automatic configuration tunes worker threads and idle upstream connection pool capacity based on available CPU cores and memory limits at node startup. Change notifications are published once database transactions for saving or batch assignments commit. Nodes persist received configurations; upstream connection pool settings and select cache parameters are applied via in-memory replacement. Upstream parameter updates isolate connections in the previous connection pool. Changes affecting listeners, worker threads, and runtime initialization trigger automatic reloads by the node.
+Each edge node can be explicitly bound to a performance policy; remaining nodes inherit the built-in default policy. Automatic configuration tunes worker threads and idle upstream connection pool capacity based on available CPU cores and memory limits at node startup. Change notifications are published once database transactions for saving or batch assignments commit. Nodes persist received configurations; upstream connection pool settings and select cache parameters are applied via in-memory replacement. Upstream parameter updates isolate connections in the previous connection pool. Changes affecting listeners, worker threads, and runtime initialization trigger automatic reloads by the node.
 
 ## HTTP Response Caching
 
-The edge proxy integrates TinyUFO in-memory storage and optional disk storage via [pingap-cache](https://github.com/vicanso/pingap/tree/a2c7975b1573afc8480efae58167bd0a362ed53c/pingap-cache). Disk mode reuses the TinyUFO hot layer and evicts/cleans files based on access timestamps. Cache keys are generated from the site snapshot digest, per-object valid cache limit, protocol, host, and full request URI; storage logs record only hash digests. Whether a request checks the cache, whether a response is shareable, and upstream request collapsing are determined by OpenFlare site rules and the Pingora cache pipeline.
+The edge proxy integrates TinyUFO in-memory storage and optional disk storage via [pingap-cache](https://github.com/vicanso/pingap/tree/a2c7975b1573afc8480efae58167bd0a362ed53c/pingap-cache). Disk mode reuses the TinyUFO hot layer and evicts/cleans files based on access timestamps. Cache keys are generated from the site snapshot digest, per-object valid cache limit, protocol, host, and full request URI; storage logs record only hash digests. Whether a request checks the cache, whether a response is shareable, and upstream request collapsing are determined by OpenFlare site rules and the OpenFlare Edge cache pipeline.
 
 Disk capacity and I/O limits belong to node startup configuration and are synchronized downstream via performance policies. See [Edge Cache Strategy Design](./edge-cache-design.md).
 

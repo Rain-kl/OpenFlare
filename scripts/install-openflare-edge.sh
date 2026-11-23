@@ -198,7 +198,7 @@ if [[ "$CREATE_SERVICE" == true ]]; then
   exec_args="${RUN_ARGS[*]}"
   cat > "${SERVICE_PATH}.tmp" <<SERVICE_EOF
 [Unit]
-Description=OpenFlare Edge (Pingora)
+Description=OpenFlare Edge
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=60

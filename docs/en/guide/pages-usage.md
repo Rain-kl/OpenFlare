@@ -18,7 +18,7 @@ GitHub Release asset ─ Server resolves ─────────────
                                                                         Agent pulls per-project latest
                                                                                                    |
                                                                                                    v
-                                                                        Pingora Edge local static serving
+                                                                        OpenFlare Edge local static serving
 ```
 
 External URLs, GitHub metadata, and auto-checks are handled only by the Server. The Agent only pulls the currently active deployment package from the control plane; it does not receive external source credentials, nor does it run `git clone`, dependency installation, or build commands.
@@ -85,7 +85,7 @@ The Agent also verifies SHA-256, real response byte limits, and post-extraction 
 
 ### 1. SPA Fallback
 
-When using front-end routing like React Router or Vue Router, enable **「SPA Fallback」** and set the entry path (usually `/index.html`). When a visitor accesses a physical path that doesn't exist, Pingora Edge falls back to the entry file for the front-end router to handle.
+When using front-end routing like React Router or Vue Router, enable **「SPA Fallback」** and set the entry path (usually `/index.html`). When a visitor accesses a physical path that doesn't exist, OpenFlare Edge falls back to the entry file for the front-end router to handle.
 
 ### 2. API Reverse Proxy
 

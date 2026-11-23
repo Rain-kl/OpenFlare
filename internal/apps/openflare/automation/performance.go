@@ -58,7 +58,7 @@ type SetPerformanceBody struct {
 }
 
 // @ID openflare_performance_list
-// @Summary List Pingora performance policies and parameter definitions
+// @Summary List OpenFlare Edge performance policies and parameter definitions
 // @Description Read policy IDs, effective values, affected nodes, and parameter types, defaults, ranges or choices. Nodes without an explicit policy inherit the policy marked is_default.
 // @Tags automation
 // @Produce json
@@ -97,8 +97,8 @@ func listPerformance(ctx context.Context, _ identity, _ map[string]string) (any,
 }
 
 // @ID openflare_performance_set
-// @Summary Change one Pingora performance policy parameter
-// @Description Update exactly one parameter of an existing policy and preserve all others. Use openflare_performance_list to identify the policy, affected nodes, and valid values. Editing the default policy affects every unassigned Pingora edge node. The result confirms controller storage, not node application.
+// @Summary Change one OpenFlare Edge performance policy parameter
+// @Description Update exactly one parameter of an existing policy and preserve all others. Use openflare_performance_list to identify the policy, affected nodes, and valid values. Editing the default policy affects every unassigned OpenFlare Edge node. The result confirms controller storage, not node application.
 // @Tags automation
 // @Accept json
 // @Produce json

@@ -10,7 +10,7 @@
 
 1. **进程内嵌与零外部二进制依赖**：`openflare-relay` 与 `openflared` 直接通过库形式链接 `rathole`，通过内存管理配置与运行时生命周期，消除第三方可执行文件路径依赖及子进程孤儿残留风险。
 2. **中继池与可用区容灾（Closest-K）**：引入 `Pool → Relay → Tunnel → Connector → Attachment` 多对多调度模型，支持按 `zone_tag` 故障域分散接入多台健康中继，结合 RTT 探测与迟滞切换（Make-Before-Break）实现跨中继高可用。
-3. **L7 与 L4 双协议穿透**：同时支持 Pingora Edge 协同的 L7 HTTP/WebSocket 反向代理，以及通过中继节点直接暴露的 L4 TCP/UDP 端口转发。
+3. **L7 与 L4 双协议穿透**：同时支持 OpenFlare Edge 协同的 L7 HTTP/WebSocket 反向代理，以及通过中继节点直接暴露的 L4 TCP/UDP 端口转发。
 4. **独立发布线与双槽位自更新**：隧道组件采用 `tunnel-v*` 独立版本标签与二进制双槽位（`next → trial → active`）自更新通道，与 Server 主版本解耦演进。
 
 ---
@@ -37,7 +37,7 @@
 
 ```mermaid
 graph LR
-    Client[访客浏览器 / TCP 客户端] -->|HTTPS / L7| Edge[Pingora Edge<br/>tunnel-routing.v1]
+    Client[访客浏览器 / TCP 客户端] -->|HTTPS / L7| Edge[OpenFlare Edge<br/>tunnel-routing.v1]
     Edge -->|HTTP/WS<br/>X-OpenFlare-Gateway-Auth| Gateway[Relay Gateway :8443]
     L4Client[公网 TCP/UDP 访问] -->|L4 服务端口| RatholeSrv[openflare-relay 内嵌 rathole server]
     Gateway -->|本机动态端口路由<br/>故障自动切换 Connector| RatholeSrv
@@ -66,12 +66,12 @@ graph LR
 
 ### 3. L7 边缘协同（`tunnel-routing.v1`）与 L4 安全直连
 
-- **Pingora Edge 动态路由**：控制面向边缘节点额外发布 `tunnel-routing.v1` 清单（包含各隧道的健康中继 Gateway 端点列表、同可用区优先策略与网关密钥）。当站点的反向代理上游设置为某个 `tunnel_id` 时，Pingora Edge 将请求直接调度至就近或同机中继 Gateway（附带 `X-OpenFlare-Gateway-Auth`、目标内网地址及 `insecure_skip_verify` 选项）。
+- **OpenFlare Edge 动态路由**：控制面向边缘节点额外发布 `tunnel-routing.v1` 清单（包含各隧道的健康中继 Gateway 端点列表、同可用区优先策略与网关密钥）。当站点的反向代理上游设置为某个 `tunnel_id` 时，OpenFlare Edge 将请求直接调度至就近或同机中继 Gateway（附带 `X-OpenFlare-Gateway-Auth`、目标内网地址及 `insecure_skip_verify` 选项）。
 - **Relay Gateway 故障转移**：Relay Gateway 在校验边缘请求鉴权头后，按活跃连接器列表顺序转发至内嵌 rathole 实例，在单个 Connector 异常断开时自动故障转移至同隧道的其余健康副本。
 - **L4 服务确定性凭据派生**：针对 TCP/UDP 转发服务，控制面基于 `tunnel_id`、`service_id` 与内部密钥确定性派生服务标识与 rathole `token`，同时校验同一中继下 `listen_port` 与 `gateway_port` / `transport_port` / `ws_port` 无端口冲突。
 - **CIDR SSRF 防护**：`openflared` 在发起内网 L7/L4 建连前，强制对解析后的目标 IP（含 IPv4 映射的 IPv6 地址如 `::ffff:169.254.169.254`）核验 `allowed_cidrs` 与 `blocked_cidrs`（默认禁止 `169.254.169.254/32` 云元数据地址）。禁止或未命中的目标将被立即拦截（L7 返回 `403 Forbidden`，L4 拒绝转发）。
 
 ### 4. 紧急隔离、密钥轮换与双槽位自更新
 
-- **一键紧急隔离（Quarantine）**：在控制台对指定 Relay 或 Tunnel 执行隔离后，控制面立即吊销其接入令牌、失效会话缓存并通过 WebSocket 下发强制下线指令，Pingora Edge 在下一配置版本同步中自动剔除相关中继，解除隔离时同步签发全新令牌并生成新部署命令。
+- **一键紧急隔离（Quarantine）**：在控制台对指定 Relay 或 Tunnel 执行隔离后，控制面立即吊销其接入令牌、失效会话缓存并通过 WebSocket 下发强制下线指令，OpenFlare Edge 在下一配置版本同步中自动剔除相关中继，解除隔离时同步签发全新令牌并生成新部署命令。
 - **双槽位二进制热更新**：在受 systemd 托管（携带 `NOTIFY_SOCKET` 与 `INVOCATION_ID`）的 Linux 非 root 运行环境下，`openflare-relay` 与 `openflared` 支持从 GitHub Release（`tunnel-v*`）拉取发布包并核验 `SHA256SUMS` 与 `--version` 输出，经 `next → trial → active` 双槽位切换完成原子替换与服务自愈。

@@ -1,6 +1,6 @@
 # 部署 Relay（内网穿透中继节点）
 
-`openflare-relay` 是基于 Rust 与内嵌 `rathole` 引擎构建的高性能公网中继节点程序。它负责终结内网 `openflared` 连接器的 Noise / WebSocket / TCP 加密隧道连接，运行 Relay Gateway（默认端口 `8443`）供 Pingora Edge 转发 L7 流量，并直接监听已分配的 L4 TCP/UDP 服务端口。
+`openflare-relay` 是基于 Rust 与内嵌 `rathole` 引擎构建的高性能公网中继节点程序。它负责终结内网 `openflared` 连接器的 Noise / WebSocket / TCP 加密隧道连接，运行 Relay Gateway（默认端口 `8443`）供 OpenFlare Edge 转发 L7 流量，并直接监听已分配的 L4 TCP/UDP 服务端口。
 
 ---
 
@@ -13,10 +13,10 @@
 2. **网络端口规划**：
    - `7443/tcp`：默认 `rathole` Noise / TCP 加密隧道监听端口（须对需要接入的 `openflared` 公网出向放行）。
    - `7444/tcp`：默认 `rathole` WebSocket 穿透回退端口（用于在受限网络环境下承载 WebSocket 隧道）。
-   - `8443/tcp`：Relay Gateway 内部转发端口（须向同机或跨机关联的 Pingora Edge 节点放行；若中继同时直接承接 L4 服务，还须按需放行对应的 L4 TCP/UDP 服务端口）。
+   - `8443/tcp`：Relay Gateway 内部转发端口（须向同机或跨机关联的 OpenFlare Edge 节点放行；若中继同时直接承接 L4 服务，还须按需放行对应的 L4 TCP/UDP 服务端口）。
 3. **可用区与 Edge 共置规划（推荐）**：
    - 建议为每个中继设置清晰的 `zone_tag`（可用区标签），便于客户端在多中继高可用调度时自动分散故障域。
-   - 若 Relay 与某台 Pingora Edge 部署在同一台主机，可在控制台配置其 `colocated_edge_node_id`，以优先路由本地网关回环流量。
+   - 若 Relay 与某台 OpenFlare Edge 部署在同一台主机，可在控制台配置其 `colocated_edge_node_id`，以优先路由本地网关回环流量。
 
 ---
 
@@ -37,7 +37,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 
 - `--server-url URL`：使用原始 Token 时显式指定控制面地址（使用 `oftok1_` 引导令牌时可省略）。
 - `--public-addr HOST_OR_IP`：显式声明中继对外通告的公网地址/域名。
-- `--gateway-addr HOST_OR_IP`：显式声明供 Pingora Edge 访问网关的内部/内网地址。
+- `--gateway-addr HOST_OR_IP`：显式声明供 OpenFlare Edge 访问网关的内部/内网地址。
 - `--zone-tag TAG`：指定所属故障域标签（如 `hk-az1`）。
 - `--colocated-edge-node-id ID`：关联同机部署的 Edge 节点 ID。
 - `--transport-port 7443` / `--ws-port 7444` / `--gateway-port 8443`：自定义中继监听端口。
@@ -96,7 +96,7 @@ docker run -d --name openflare-relay --restart unless-stopped \
 | `--state-dir` | `OPENFLARE_RELAY_STATE_DIR` | 身份凭据、Noise 密钥与热更新槽位持久化目录 | `/var/lib/openflare-relay` |
 | `--name` | `OPENFLARE_RELAY_NAME` | 注册时显示的中继名称 | 系统主机名 |
 | `--public-addr` | `OPENFLARE_RELAY_PUBLIC_ADDR` | 通告给内网连接器的公网连接地址 | 自动探测 |
-| `--gateway-addr` | `OPENFLARE_RELAY_GATEWAY_ADDR` | 通告给 Pingora Edge 的网关连接地址 | 回落 `public_addr` |
+| `--gateway-addr` | `OPENFLARE_RELAY_GATEWAY_ADDR` | 通告给 OpenFlare Edge 的网关连接地址 | 回落 `public_addr` |
 | `--zone-tag` | `OPENFLARE_RELAY_ZONE_TAG` | 故障域标签 | 空 |
 | `--colocated-edge-node-id` | `OPENFLARE_RELAY_COLOCATED_EDGE_NODE_ID` | 同机共置的 Edge 节点 ID | 空 |
 | `--transport-port` | `OPENFLARE_RELAY_TRANSPORT_PORT` | Noise/TCP 隧道监听端口 | `7443` |

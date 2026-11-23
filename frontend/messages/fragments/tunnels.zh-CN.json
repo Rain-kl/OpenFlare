@@ -171,7 +171,7 @@
       "back": "返回内网穿透",
       "rotateToken": "轮换令牌",
       "tokenRotated": "访问令牌已轮换",
-      "updateBinary": "下发更新",
+      "updateBinary": "更新",
       "updateRequested": "已登记组件更新，将在下次心跳生效",
       "quarantine": "紧急隔离",
       "unquarantine": "解除隔离",

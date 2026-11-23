@@ -1,10 +1,10 @@
-# Pingora 性能实测
+# OpenFlare Edge 性能实测
 
 2026 年 11 月 20 日，US-A 直连运行 OpenFlare Edge `0.1.8` 的 JP-B 和 US-C 隔离实例，测量内存日志配置下的 WAF 开销和线程扩展表现。
 
 ## 测试环境与性能策略
 
-| 代号 | 角色 | CPU | 实际 Pingora 工作线程 | 实际空闲回源连接池（每工作线程） |
+| 代号 | 角色 | CPU | 实际 OpenFlare Edge 工作线程 | 实际空闲回源连接池（每工作线程） |
 | --- | --- | --- | ---: | ---: |
 | US-A | 压测客户端 | 1 vCPU | — | — |
 | JP-B | Edge 节点 | 3 vCPU，ARM64 | 3 | 192 |

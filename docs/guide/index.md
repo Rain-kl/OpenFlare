@@ -1,6 +1,6 @@
 # 指南概览
 
-OpenFlare 是基于 Pingora 边缘架构的分布式反向代理与边缘安全网关。平台提供多节点集群编排、配置快照热同步、边缘 WAF、PoW 防 CC 人机验证、内网穿透（Tunnels）与 Pages 静态托管能力，支持独立运行或与上层 CDN 协同防御。
+OpenFlare 是基于 OpenFlare Edge 边缘架构的分布式反向代理与边缘安全网关。平台提供多节点集群编排、配置快照热同步、边缘 WAF、PoW 防 CC 人机验证、内网穿透（Tunnels）与 Pages 静态托管能力，支持独立运行或与上层 CDN 协同防御。
 
 指南文档按使用流程划分为五个模块，帮助使用者完成从系统初始化、日常流量调度到安全防御与故障定位的全流程操作。
 
@@ -18,7 +18,7 @@ OpenFlare 是基于 Pingora 边缘架构的分布式反向代理与边缘安全�
 配置核心反向代理路由、TLS 加密与边缘缓存策略：
 - [新建反代配置](./proxy-config.md)：配置上游源站、域名路由绑定、通配符域名匹配、IP HTTPS 回源与访问认证。
 - [TLS 证书与自动续期](./certificates.md)：手动导入已有证书或通过 ACME 协议与 Cloudflare DNS API 实现通配符证书自动申请与续签。
-- [Pingora 性能策略](./performance-policies.md)：配置节点工作线程数、回源连接池、HTTP/2 并发流、TinyUFO 内存缓存与磁盘缓存。
+- [OpenFlare Edge 性能策略](./performance-policies.md)：配置节点工作线程数、回源连接池、HTTP/2 并发流、TinyUFO 内存缓存与磁盘缓存。
 - [Zone 域名迁移](./zone-domain-migration.md)：了解从旧版域名模型到 Zone 根域模型的自动迁移机制、备份要求与升级验收步骤。
 
 ### 边缘安全防护 (Edge Security)
@@ -36,7 +36,7 @@ OpenFlare 是基于 Pingora 边缘架构的分布式反向代理与边缘安全�
 
 ### 运维支持 (Operations)
 日常运维、故障定位与开源依赖参考：
-- [故障排查](./troubleshooting.md)：按症状排查控制面启动、数据库连接、Agent 注册、Pingora 配置应用与缓存命中异常。
+- [故障排查](./troubleshooting.md)：按症状排查控制面启动、数据库连接、Agent 注册、OpenFlare Edge 配置应用与缓存命中异常。
 - [开源致谢](./credits.md)：查看系统核心开源项目、衍生代码来源、第三方组件与许可证声明。
 
 ---
@@ -48,7 +48,7 @@ OpenFlare 是基于 Pingora 边缘架构的分布式反向代理与边缘安全�
 | 启动控制端并接入首个节点 | [快速开始](./quick-start.md) |
 | 发布基础 HTTP 代理测试规则 | [创建第一条反向代理规则](./first-site.md) |
 | 为域名配置 HTTPS 证书与源站反代 | [新建反代配置](./proxy-config.md) 与 [TLS 证书与自动续期](./certificates.md) |
-| 调整边缘节点线程、连接池与缓存容量 | [Pingora 性能策略](./performance-policies.md) |
+| 调整边缘节点线程、连接池与缓存容量 | [OpenFlare Edge 性能策略](./performance-policies.md) |
 | 开启 WAF 拦截规则与防 CC 人机验证 | [WAF 安全防护使用](./waf-usage.md) 与 [PoW 防护](./pow-usage.md) |
 | 托管单页前端应用并配置 API 转发 | [Pages 静态托管使用](./pages-usage.md) |
 | 将内网服务器服务映射到公网 | [内网穿透与隧道使用](./tunnel-usage.md) |

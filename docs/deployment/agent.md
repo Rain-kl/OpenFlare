@@ -1,6 +1,6 @@
 # 边缘节点快速接入
 
-本节提供 Pingora Edge 边缘节点的快速接入指南。关于 Edge 发行包体系、Linux systemd 低权限加固规范、双进程监督模型及平滑更新机制，请参考 [OpenFlare Edge 部署指南](./openflare-edge.md)。
+本节提供 OpenFlare Edge 边缘节点的快速接入指南。关于 Edge 发行包体系、Linux systemd 低权限加固规范、双进程监督模型及平滑更新机制，请参考 [OpenFlare Edge 部署指南](./openflare-edge.md)。
 
 ## 接入前准备
 
@@ -85,7 +85,7 @@ sudo journalctl -u openflare-edge -f
 
 控制台验证：
 1. 登录 OpenFlare 管理后台，进入「节点管理」。
-2. 确认该边缘节点状态显示为在线，且已成功上报已加载的配置版本与 Pingora 运行时状态。
+2. 确认该边缘节点状态显示为在线，且已成功上报已加载的配置版本与 OpenFlare Edge 运行时状态。
 3. 进入 [性能策略](../guide/performance-policies.md) 页面，根据服务器硬件配置为该节点绑定针对性的性能策略。
 
 卸载节点服务请运行 `scripts/uninstall-openflare-edge.sh`。详细升级与维护步骤参见 [升级与维护指南](./upgrade.md)。

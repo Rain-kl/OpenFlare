@@ -14,7 +14,7 @@ Before using intranet penetration, get familiar with these components:
 
 | Component | Description | Corresponding Entity |
 | --- | --- | --- |
-| **Relay node** | a traffic relay service deployed at the public edge; listens for the intranet client's long connections and bridges gateway (Pingora Edge) and intranet traffic | `tunnel_relay` node guarded by `openflare-relay` |
+| **Relay node** | a traffic relay service deployed at the public edge; listens for the intranet client's long connections and bridges gateway (OpenFlare Edge) and intranet traffic | `tunnel_relay` node guarded by `openflare-relay` |
 | **Tunnel** | a logical penetration client instance with a globally unique ID and an auth token, identifying one concrete intranet environment | `tunnel_client` node created in「Node Management」, assigned a dedicated Tunnel Token |
 | **Tunnel client** | a lightweight controller running in the intranet; auto-manages the underlying frpc tunnel child processes based on Server-dispatched config | `openflared` container or standalone binary deployed in the intranet |
 | **Tunnel upstream** | a special reverse proxy type in route rules. With this type, the gateway forwards public traffic to the local relay's Vhost port, eventually reaching the intranet origin | reverse proxy type configured in the「Rule Management」detail page, origin mode「Intranet Tunnel」with a bound Tunnel node |
@@ -118,7 +118,7 @@ Now configure public reverse proxying and domain access for your intranet servic
 
 ### Step 5: Verify Public Access
 
-After you save the route, Pingora Edge syncs automatically and forwards matching requests to the relay virtual host port. Open the bound domain to verify the origin responds through the tunnel.
+After you save the route, OpenFlare Edge syncs automatically and forwards matching requests to the relay virtual host port. Open the bound domain to verify the origin responds through the tunnel.
 
 ---
 

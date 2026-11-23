@@ -47,7 +47,7 @@ openflare site create --help
 | 查询 IP 组 | 使用 `ip-group list` 查看条目数和同步状态，使用 `ip-group get` 读取指定组的 IP、CIDR 和已同步条目。 |
 | 查看当前网站和近期访问 | 使用 `site overview`（MCP 工具 `openflare_site_overview`），一次返回站点清单、请求量排行、实例总流量和常见状态码。可用 `--hours 168` 查看近 7 天。 |
 | 排查流量与节点 | 使用 `logs list` 按主机、节点、状态码和时间查询；`metrics traffic` 查询流量趋势，只需总量和状态码时设置 `--with-trends=false`。使用 `node health` 一次检查一页节点的在线状态、运行健康、活跃告警和站点快照同步状态；使用 `node metrics` 查看资源指标。 |
-| 调整性能策略参数 | 先用 `performance list` 查看现有策略、受影响节点和参数范围，再使用 `performance set` 修改一个参数。修改默认策略影响未显式分配策略的 Pingora 节点。 |
+| 调整性能策略参数 | 先用 `performance list` 查看现有策略、受影响节点和参数范围，再使用 `performance set` 修改一个参数。修改默认策略影响未显式分配策略的 边缘节点。 |
 
 MCP 工具使用相同的对象和动作，例如 `openflare_site_set_upstreams` 对应 `openflare site set-upstreams`。建站和绑定不会修改公网 DNS 或签发证书。控制端保存后由现有配置同步链路分发；通过 `node get` 比较 `current_version` 与 `desired_site_version`，核对节点是否已应用控制端当前的站点快照。
 

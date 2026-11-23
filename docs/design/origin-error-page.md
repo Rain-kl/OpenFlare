@@ -1,8 +1,8 @@
 # 源站错误页设计
 
-源站或网关返回指定错误状态码时，OpenFlare 使用全局可配置页面替代透传响应。配置进入不可变配置快照，边缘 Pingora 网关在保持真实 HTTP 状态码的前提下渲染错误页面并在正文中展示该状态码。
+源站或网关返回指定错误状态码时，OpenFlare 使用全局可配置页面替代透传响应。配置进入不可变配置快照，边缘 OpenFlare Edge 网关在保持真实 HTTP 状态码的前提下渲染错误页面并在正文中展示该状态码。
 
-本设计是 [系统架构](./architecture.md) 中反代流量路径的产品化补充；配置同步模型见 [Pingora 边缘节点设计](./pingora-edge-design.md)。
+本设计是 [系统架构](./architecture.md) 中反代流量路径的产品化补充；配置同步模型见 [边缘节点设计](./pingora-edge-design.md)。
 
 ---
 
@@ -120,7 +120,7 @@ OriginErrorPageGetOnly     bool
 
 ### 4.1 边缘网关处理机制
 
-Pingora 边缘网关在响应处理阶段拦截错误：
+OpenFlare Edge 边缘网关在响应处理阶段拦截错误：
 
 1. 当响应状态码命中配置集合且未被关闭时，触发错误页处理逻辑。
 2. 若开启 `get_only` 且当前请求方法不为 `GET`，则跳过替换，透传原始响应。
@@ -163,11 +163,11 @@ Pingora 边缘网关在响应处理阶段拦截错误：
 保存配置并自动同步
     → 快照编译写入 sites.v1
     → 边缘节点拉取并原子替换
-    → Pingora 内存热生效
+    → OpenFlare Edge 内存热生效
 
 访客请求反代域名
     → 源站或网关产生匹配状态码
-    → Pingora 响应拦截阶段
+    → OpenFlare Edge 响应拦截阶段
     → 替换占位符，HTTP status 保持原码，返回 HTML
 ```
 

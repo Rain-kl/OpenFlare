@@ -1,6 +1,6 @@
 # Edge node quick access
 
-Enrolling Pingora Edge nodes requires a node token or a discovery token. For packaging specifications, systemd low-privilege security directives, the dual-process supervisor model, and atomic updates, see [OpenFlare Edge deployment](./openflare-edge.md).
+Enrolling OpenFlare Edge nodes requires a node token or a discovery token. For packaging specifications, systemd low-privilege security directives, the dual-process supervisor model, and atomic updates, see [OpenFlare Edge deployment](./openflare-edge.md).
 
 ## Prerequisites
 
@@ -85,7 +85,7 @@ sudo journalctl -u openflare-edge -f
 
 Admin console verification:
 1. Open the OpenFlare admin console and navigate to Node Management.
-2. Confirm the edge node is listed as online, reporting its active configuration version and Pingora runtime state.
+2. Confirm the edge node is listed as online, reporting its active configuration version and OpenFlare Edge runtime state.
 3. Open [Performance policies](../guide/performance-policies.md) to allocate a profile matching the host hardware.
 
 To remove the service, execute `scripts/uninstall-openflare-edge.sh`. For updates, see the [Upgrade & maintenance guide](./upgrade.md).

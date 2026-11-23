@@ -1,6 +1,6 @@
-# Pingora 边缘节点开发说明
+# 边缘节点开发说明
 
-Pingora 节点在 `edge/pingora/` 中构建并连接主控。
+边缘节点在 `edge/pingora/` 中构建并连接主控。
 
 ## 包结构
 
@@ -10,14 +10,14 @@ Pingora 节点在 `edge/pingora/` 中构建并连接主控。
 | `protocol/` | 解码统一快照契约并转换运行参数 |
 | `control/` | 注册、身份、心跳、WebSocket 通知、配置和资源同步 |
 | `config.rs` | 候选校验、快照恢复、持久化和内存发布 |
-| `proxy/` | Pingora 监听、TLS、请求阶段、回源、缓存与响应处理 |
+| `proxy/` | OpenFlare Edge 监听、TLS、请求阶段、回源、缓存与响应处理 |
 | `policy/` | 认证、PoW、WAF、限流和 Service Worker |
 | `pages/`、`geoip.rs`、`telemetry/` | 内容部署与静态服务、GeoIP 数据和节点上报 |
 | `internal/openflare/edgeconfig/` | 在主控使用公共快照和已发布资源生成 Edge 传输载荷 |
 
 ## 配置接口
 
-心跳返回版本化资源清单。WebSocket 的 `config_changed` 事件触发即时心跳。小配置直接出现在清单中，大配置按 SHA-256 从固定接口拉取。资源提供者和同步约定见 [Pingora 边缘节点设计](./pingora-edge-design.md#配置同步)。
+心跳返回版本化资源清单。WebSocket 的 `config_changed` 事件触发即时心跳。小配置直接出现在清单中，大配置按 SHA-256 从固定接口拉取。资源提供者和同步约定见 [边缘节点设计](./pingora-edge-design.md#配置同步)。
 
 ## 构建和验证
 

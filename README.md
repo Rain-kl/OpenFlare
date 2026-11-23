@@ -7,7 +7,7 @@
   </picture>
 </h1>
 
-**Next-Gen Distributed Reverse Proxy & Edge Security Gateway for Pingora**
+**Next-Gen Distributed Reverse Proxy & Edge Security Gateway for OpenFlare Edge**
 
 **[English](./README.md) | [简体中文](./README.zh-CN.md)**
 
@@ -31,7 +31,7 @@
 
 **OpenFlare** is a modern, open-source **distributed reverse proxy and edge security gateway platform** designed for multi-server infrastructures and edge clusters.
 
-Rather than a simple single-host admin panel, OpenFlare provides Pingora edge nodes with **centralized cluster orchestration, dynamic zero-reload sync, edge WAF protection, and secure in-network tunneling**:
+Rather than a simple single-host admin panel, OpenFlare provides OpenFlare Edge nodes with **centralized cluster orchestration, dynamic zero-reload sync, edge WAF protection, and secure in-network tunneling**:
 
 * ⚡ **Zero-Reload Dynamic Orchestration**: Centralized control plane manages any number of edge nodes. Synchronize rule diffs in milliseconds with zero Nginx reload disruptions.
 * 🛡️ **Built-in Edge Security & Anti-CC (Turnstile Alternative)**: A WAF rule engine, MaxMind GeoIP regional ACLs, and **client-side cryptographic Proof of Work (PoW) challenges** help mitigate abusive traffic at the edge.
@@ -81,9 +81,9 @@ flowchart TD
         CF["Cloudflare CDN (Optional Edge Layer)"]
     end
 
-    subgraph EdgePlane ["Edge Data Plane (Pingora Nodes)"]
-        Edge1["Edge Node A (Pingora)"]
-        Edge2["Edge Node B (Pingora)"]
+    subgraph EdgePlane ["Edge Data Plane (Edge Nodes)"]
+        Edge1["Edge Node A (OpenFlare Edge)"]
+        Edge2["Edge Node B (OpenFlare Edge)"]
     end
 
     subgraph ControlPlane ["Control Plane"]
@@ -116,7 +116,7 @@ flowchart TD
 
 ---
 
-## Pingora Performance Benchmarks
+## OpenFlare Edge Performance Benchmarks
 
 **November 20, 2026 · OpenFlare Edge `0.1.8` · Load generator: US-A**
 

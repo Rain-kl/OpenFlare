@@ -1,12 +1,12 @@
 # Architecture & Deployment Notes
 
-OpenFlare uses a decoupled architecture separating the control plane from the data plane. Production environments should use PostgreSQL as the primary database for the Server, with `APP_SESSION_SECRET` configured via configuration files or environment variables. Redis is required to drive the Asynq background task system; for high-volume access logs and metrics, ClickHouse can be integrated (see [Log Store Decoupling](../design/logstore.md)). The edge gateway (OpenFlare Edge) is built on Pingora, running a resilient dual-process architecture.
+OpenFlare uses a decoupled architecture separating the control plane from the data plane. Production environments should use PostgreSQL as the primary database for the Server, with `APP_SESSION_SECRET` configured via configuration files or environment variables. Redis is required to drive the Asynq background task system; for high-volume access logs and metrics, ClickHouse can be integrated (see [Log Store Decoupling](../design/logstore.md)). The edge gateway (OpenFlare Edge) is built on OpenFlare Edge, running a resilient dual-process architecture.
 
 ## Network Topology and Traffic Paths
 
 ### 1. Standard Reverse Proxy Traffic Path
 
-Control plane and data plane traffic are isolated: user client requests flow directly to the Pingora edge gateway, while the Server only distributes configuration snapshots and collects telemetry.
+Control plane and data plane traffic are isolated: user client requests flow directly to the OpenFlare Edge gateway, while the Server only distributes configuration snapshots and collects telemetry.
 
 ```text
 [Control Plane Flow]
@@ -20,7 +20,7 @@ OpenFlare Edge (Data plane gateway)
 User Client / Browser
        |
        v Inbound request (TCP 80 / 443)
-OpenFlare Edge (Pingora: TLS termination, WAF filtering, caching, Pages hosting)
+OpenFlare Edge (OpenFlare Edge: TLS termination, WAF filtering, caching, Pages hosting)
        |
        v Reverse proxy origin fetch (HTTP / HTTPS)
 Origin Service
@@ -42,7 +42,7 @@ Relay Node (frps supervisor)    OpenFlared (Intranet client)
 User Client / Browser
     |
     v Public access (TCP 80 / 443)
-OpenFlare Edge (Pingora: Host routing, WAF evaluation, TLS termination)
+OpenFlare Edge (OpenFlare Edge: Host routing, WAF evaluation, TLS termination)
     |
     v Local loopback forward (127.0.0.1:{vhostHTTPPort})
 OpenFlare Relay (frps daemon, listens on public relay port :7000)
@@ -60,7 +60,7 @@ Internal Service (192.168.x.x)
 | Component | Entry Level | Production Recommended | Notes |
 | --- | --- | --- | --- |
 | **Server Control Plane** | 1 core CPU / 2 GB RAM / 20 GB disk | 2 cores CPU / 4 GB RAM / 50 GB+ disk | Scale disk capacity based on log retention policies and metric volume |
-| **Edge Gateway** | 1 core CPU / 512 MB RAM / 2 GB disk | 2 cores CPU / 2 GB RAM / 10 GB+ disk | Scale by Pingora concurrent proxy connections, TLS handshakes, and WAF rules |
+| **Edge Gateway** | 1 core CPU / 512 MB RAM / 2 GB disk | 2 cores CPU / 2 GB RAM / 10 GB+ disk | Scale by OpenFlare Edge concurrent proxy connections, TLS handshakes, and WAF rules |
 | **Relay Node** | 1 core CPU / 1 GB RAM / 5 GB disk | 2 cores CPU / 2 GB RAM / 20 GB disk | frps throughput is bounded by network bandwidth and TCP socket limits |
 | **OpenFlared Client** | 1 core CPU / 256 MB RAM / 1 GB disk | 1 core CPU / 512 MB RAM / 5 GB disk | Runs on private host; minimal CPU/RAM overhead, depends on local network capacity |
 

@@ -115,7 +115,7 @@ func Normalize(input map[string]json.RawMessage) (Settings, error) {
 		settings[parameter.Key] = value
 	}
 	for key := range unrecognized {
-		return nil, fmt.Errorf("unknown Pingora parameter %q", key)
+		return nil, fmt.Errorf("unknown OpenFlare Edge parameter %q", key)
 	}
 	if settings["runtime_enable_alt_timer"] == true && settings["work_stealing"] == false {
 		return nil, fmt.Errorf("runtime_enable_alt_timer requires work_stealing")

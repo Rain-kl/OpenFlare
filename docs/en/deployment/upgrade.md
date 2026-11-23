@@ -6,11 +6,11 @@ Before performing software upgrades or maintenance operations, back up your prim
 
 ## Upgrading from v3.6.x to v4.0.0
 
-OpenFlare v4.0.0 replaces the legacy OpenResty architecture with the Pingora-based OpenFlare Edge gateway. Record each node's dedicated token before upgrading. Legacy OpenResty performance settings must be reconfigured in the admin console under "Performance policies".
+OpenFlare v4.0.0 replaces the legacy OpenResty architecture with the OpenFlare Edge-based OpenFlare Edge gateway. Record each node's dedicated token before upgrading. Legacy OpenResty performance settings must be reconfigured in the admin console under "Performance policies".
 
 ### Migration steps
 
-1. Upgrade control plane server: Upgrade the Server to v4.0.0+. Ensure database migrations complete automatically and that the Server generates a valid Pingora site configuration snapshot.
+1. Upgrade control plane server: Upgrade the Server to v4.0.0+. Ensure database migrations complete automatically and that the Server generates a valid OpenFlare Edge site configuration snapshot.
 2. Migrate edge nodes progressively:
    - Stop and disable legacy Agent and OpenResty services to release TCP ports `80` and `443`:
      ```bash
@@ -66,7 +66,7 @@ go run ./cmd/server all
 
 ---
 
-## Pingora edge node updates
+## OpenFlare Edge node updates
 
 ### Option 1: Remote console update
 

@@ -19,7 +19,7 @@ const (
 )
 
 // ErrInvalidPerformancePolicyNodes indicates that at least one target is not a Pingora edge node.
-var ErrInvalidPerformancePolicyNodes = errors.New("all selected nodes must be Pingora edge nodes")
+var ErrInvalidPerformancePolicyNodes = errors.New("all selected nodes must be OpenFlare Edge nodes")
 
 // ErrInheritedPerformancePolicy protects the system policy from deletion and explicit assignment.
 var ErrInheritedPerformancePolicy = errors.New("the default performance policy is inherited automatically")

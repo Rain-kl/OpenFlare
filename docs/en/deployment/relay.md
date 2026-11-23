@@ -1,6 +1,6 @@
 # Deploy Relay (Tunnel relay)
 
-TunnelRelay nodes serve as public relay endpoints for the OpenFlare intranet penetration infrastructure. Running the `openflare-relay` supervisor and the `frps` (Fast Reverse Proxy Server) daemon, the relay maintains public tunnel connections, receives proxied traffic from Pingora edge gateways, and dispatches it across encrypted tunnels to OpenFlared clients inside private networks.
+TunnelRelay nodes serve as public relay endpoints for the OpenFlare intranet penetration infrastructure. Running the `openflare-relay` supervisor and the `frps` (Fast Reverse Proxy Server) daemon, the relay maintains public tunnel connections, receives proxied traffic from OpenFlare Edge gateways, and dispatches it across encrypted tunnels to OpenFlared clients inside private networks.
 
 ---
 
@@ -11,7 +11,7 @@ Before deploying a TunnelRelay node, confirm:
 1. Node registration: Create a node of type `tunnel_relay` in the OpenFlare admin console under Node Management, and retrieve its dedicated `agent_token` (or use the global `discovery_token`).
 2. Network ports:
    - `7000` (TCP): frpc client connection port (`bindPort`), accessible from public client hosts.
-   - `8080` (TCP): HTTP virtual host port (`vhostHTTPPort`), used by Pingora edge gateways to forward traffic to frps (typically local loopback or private subnet).
+   - `8080` (TCP): HTTP virtual host port (`vhostHTTPPort`), used by OpenFlare Edge gateways to forward traffic to frps (typically local loopback or private subnet).
    - `17500` (TCP, optional): Embedded frps Web UI management port (if enabled in system settings).
 3. Software dependency (bare-metal host deployment only): An executable `frps` binary available in the system path or explicitly specified via configuration.
 

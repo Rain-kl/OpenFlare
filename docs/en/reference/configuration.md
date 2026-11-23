@@ -245,7 +245,7 @@ These items are stored in the relational database's `w_system_configs` table. Al
 
 ### 6. Edge Security and Rate Limiting Options
 
-OpenFlare edge proxies operate exclusively on the Pingora architecture. Obsolete OpenResty / Nginx configuration directives (such as `worker_processes`, `worker_connections`, `worker_rlimit_nofile`, and `keepalive_timeout`) have been removed. Edge runtime parameters, upstream connection pools, HTTP/2, TLS listeners, and proxy caching policies are managed via the console under "Performance Policies" and distributed to edge nodes (see [Pingora Performance Policies](../guide/performance-policies.md)).
+OpenFlare edge proxies operate exclusively on the OpenFlare Edge architecture. Obsolete OpenResty / Nginx configuration directives (such as `worker_processes`, `worker_connections`, `worker_rlimit_nofile`, and `keepalive_timeout`) have been removed. Edge runtime parameters, upstream connection pools, HTTP/2, TLS listeners, and proxy caching policies are managed via the console under "Performance Policies" and distributed to edge nodes (see [OpenFlare Edge Performance Policies](../guide/performance-policies.md)).
 
 The system retains generalized edge security and traffic limit settings (`edge_*`), configurable under "System Management → System Configuration → Business Configuration":
 
@@ -257,7 +257,7 @@ The system retains generalized edge security and traffic limit settings (`edge_*
 | `edge_default_limit_rate` | `string` | default bandwidth limit per request when unconfigured (e.g. `512k`); empty disables | empty |
 | `edge_default_limit_req_per_ip` | `string` | default per-IP request frequency limit when unconfigured (e.g. `10r/s`, `100r/m`); empty disables | empty |
 
-In the admin panel, edit `edge_trusted_proxy_cidrs` under "System Management → System Configuration → Business Configuration". The default value contains Cloudflare's official 22 IPv4 and IPv6 CIDRs. To trust additional reverse proxy hops, append their CIDRs to the array (e.g. `10.2.0.227/32`). Explicit `[]` disables trusted proxy header handling. Pingora extracts `CF-Connecting-IP` only from trusted origins, applying the recovered client address to access logs, WAF rules, and upstream `X-Real-IP`.
+In the admin panel, edit `edge_trusted_proxy_cidrs` under "System Management → System Configuration → Business Configuration". The default value contains Cloudflare's official 22 IPv4 and IPv6 CIDRs. To trust additional reverse proxy hops, append their CIDRs to the array (e.g. `10.2.0.227/32`). Explicit `[]` disables trusted proxy header handling. OpenFlare Edge extracts `CF-Connecting-IP` only from trusted origins, applying the recovered client address to access logs, WAF rules, and upstream `X-Real-IP`.
 
 ### 7. Origin Error Page
 
@@ -295,7 +295,7 @@ Runtime configuration for log storage decoupling. The active log database is man
 
 ---
 
-## Pingora Edge Startup Arguments
+## OpenFlare Edge Startup Arguments
 
 `openflare-edge run` connects to the control plane using `--server-url`, `--token-type discovery|node`, `--token-file`, and `--state-dir`. Listening sockets are specified via `--http-listen` and optionally `--tls-listen`. Installer-managed services default to ports 80 and 443 with state stored in `/var/lib/openflare-edge`. Pass `--upgrade` when upgrading active configurations.
 

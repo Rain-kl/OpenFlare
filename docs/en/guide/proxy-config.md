@@ -81,7 +81,7 @@ To share a single routing rule across subdomains like `bucket.s3.example.com`:
 1. Under the `example.com` Zone, add `*.s3.example.com` and bind the route, avoiding individual bucket domain registration.
 2. For HTTPS traffic, bind a certificate whose SAN includes `*.s3.example.com`. A certificate for `*.example.com` does not cover second-level wildcards; similarly, `*.s3.example.com` does not cover `s3.example.com` or deeper subdomains like `a.bucket.s3.example.com`.
 3. In Cloudflare groups, select this wildcard domain: Node mode writes A records matching node IPv4 addresses, while Custom mode allows A, AAAA, or CNAME records. Verify DNS propagation and node configuration application independently.
-4. After saving routes, Pingora synchronizes wildcard matching rules. Concrete domains take precedence over wildcards, and overlapping wildcards resolve by longest suffix match.
+4. After saving routes, OpenFlare Edge synchronizes wildcard matching rules. Concrete domains take precedence over wildcards, and overlapping wildcards resolve by longest suffix match.
 5. Verify access using a concrete hostname, such as `https://bucket.s3.example.com`. Zone statistics aggregate requests under the actual requested host. Uptime Kuma requires at least one concrete domain bound to the route; otherwise, monitoring task creation is skipped.
 
 Malformed entries such as `foo*.example.com`, `a.*.example.com`, or multiple `*` wildcards are rejected.
@@ -112,7 +112,7 @@ Inspect failure reasons under **Apply Records** in node details. Correct the con
 
 ## Edge Caching (Optional)
 
-Enable caching and configure matching rules under the site's **Cache** tab. Cache capacities and object limits on edge nodes are configured in [Pingora Performance Policies](./performance-policies.md).
+Enable caching and configure matching rules under the site's **Cache** tab. Cache capacities and object limits on edge nodes are configured in [OpenFlare Edge Performance Policies](./performance-policies.md).
 
 ### Recommended Settings
 

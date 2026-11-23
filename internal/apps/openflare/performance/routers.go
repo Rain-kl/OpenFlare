@@ -16,8 +16,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// ListHandler lists Pingora policies, parameter defaults, and eligible nodes.
-// @Summary List Pingora performance policies
+// ListHandler lists OpenFlare Edge policies, parameter defaults, and eligible nodes.
+// @Summary List OpenFlare Edge performance policies
 // @Description The default policy is inherited by nodes without an explicit assignment.
 // @Tags Performance Policies
 // @Success 200 {object} response.Any{data=PolicyList}
@@ -35,7 +35,7 @@ func ListHandler(c *gin.Context) {
 }
 
 // CreateHandler creates a named performance policy.
-// @Summary Create a Pingora performance policy
+// @Summary Create an OpenFlare Edge performance policy
 // @Tags Performance Policies
 // @Param request body policyRequest true "Policy name and parameters"
 // @Success 200 {object} response.Any{data=PolicyView}
@@ -49,7 +49,7 @@ func CreateHandler(c *gin.Context) {
 }
 
 // UpdateHandler updates the performance policy used by assigned nodes.
-// @Summary Update a Pingora performance policy
+// @Summary Update an OpenFlare Edge performance policy
 // @Tags Performance Policies
 // @Param id path int true "Policy ID"
 // @Param request body policyRequest true "Policy name and parameters"
@@ -66,10 +66,10 @@ func UpdateHandler(c *gin.Context) {
 }
 
 // AssignHandler replaces the nodes that use the selected policy.
-// @Summary Assign a Pingora performance policy to a set of nodes
+// @Summary Assign an OpenFlare Edge performance policy to a set of nodes
 // @Tags Performance Policies
 // @Param id path int true "Policy ID"
-// @Param request body assignmentRequest true "Selected Pingora node IDs"
+// @Param request body assignmentRequest true "Selected OpenFlare Edge node IDs"
 // @Success 200 {object} response.Any
 // @Failure 400 {object} response.Any
 // @Failure 401 {object} response.Any
@@ -95,7 +95,7 @@ func AssignHandler(c *gin.Context) {
 }
 
 // DeleteHandler deletes a policy and clears its assignments.
-// @Summary Delete a Pingora performance policy
+// @Summary Delete an OpenFlare Edge performance policy
 // @Tags Performance Policies
 // @Param id path int true "Policy ID"
 // @Success 200 {object} response.Any

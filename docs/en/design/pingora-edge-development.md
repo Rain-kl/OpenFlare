@@ -1,6 +1,6 @@
-# Pingora Edge Node Development Notes
+# OpenFlare Edge node Development Notes
 
-Pingora edge nodes are built under `edge/pingora/` and communicate with the control plane.
+OpenFlare Edge nodes are built under `edge/pingora/` and communicate with the control plane.
 
 ## Package Structure
 
@@ -10,14 +10,14 @@ Pingora edge nodes are built under `edge/pingora/` and communicate with the cont
 | `protocol/` | Decodes unified snapshot contracts and converts runtime parameters |
 | `control/` | Registration, identity, heartbeat, WebSocket notifications, configuration and resource synchronization |
 | `config.rs` | Candidate validation, snapshot recovery, persistence, and in-memory publishing |
-| `proxy/` | Pingora listeners, TLS, request phases, upstream proxying, caching, and response handling |
+| `proxy/` | OpenFlare Edge listeners, TLS, request phases, upstream proxying, caching, and response handling |
 | `policy/` | Authentication, PoW, WAF, rate limiting, and Service Worker integration |
 | `pages/`, `geoip.rs`, `telemetry/` | Pages artifact deployment and static serving, GeoIP data, and node metrics reporting |
 | `internal/openflare/edgeconfig/` | Generates Edge transmission payloads on the control plane using shared snapshots and published resources |
 
 ## Configuration Interfaces
 
-Heartbeats return a versioned resource manifest. The WebSocket `config_changed` event triggers immediate heartbeats. Small configurations are inlined directly into the manifest, while large configurations are pulled by SHA-256 digest from dedicated endpoints. See [Pingora Edge Node Design](./pingora-edge-design.md#configuration-synchronization) for resource providers and synchronization contracts.
+Heartbeats return a versioned resource manifest. The WebSocket `config_changed` event triggers immediate heartbeats. Small configurations are inlined directly into the manifest, while large configurations are pulled by SHA-256 digest from dedicated endpoints. See [OpenFlare Edge node Design](./pingora-edge-design.md#configuration-synchronization) for resource providers and synchronization contracts.
 
 ## Build and Verification
 

@@ -25,7 +25,7 @@ const copy = {
     title: '让边缘网络',
     accent: '清晰可控',
     description:
-      '用一个控制面管理 Pingora Edge 集群，同步站点配置，并在网络边缘执行 WAF、PoW 防护与安全隧道。',
+      '用一个控制面管理 OpenFlare Edge 集群，同步站点配置，并在网络边缘执行 WAF、PoW 防护与安全隧道。',
     start: '从快速开始入门',
     explore: '了解系统架构',
     status: '边缘网络拓扑示意',
@@ -100,7 +100,7 @@ const copy = {
     title: 'Make your edge',
     accent: 'clear and controlled',
     description:
-      'Manage Pingora Edge nodes from one control plane. Publish site configs, enforce WAF and proof-of-work challenges, and connect private services through secure tunnels.',
+      'Manage OpenFlare Edge nodes from one control plane. Publish site configs, enforce WAF and proof-of-work challenges, and connect private services through secure tunnels.',
     start: 'Start with the quick guide',
     explore: 'Explore the architecture',
     status: 'Edge network topology',
@@ -246,7 +246,7 @@ export function LandingPage({ locale }: LandingPageProps) {
           </div>
           <div className="mt-12 flex flex-wrap gap-x-8 gap-y-4 border-t border-dashed border-fd-border pt-6">
             {[
-              ['PINGORA', text.statNodes],
+              ['EDGE NODE', text.statNodes],
               ['WAF', text.statSync],
               ['SELF-HOST', text.statHosting],
             ].map(([value, label]) => (
@@ -311,7 +311,7 @@ export function LandingPage({ locale }: LandingPageProps) {
 
             <div className="mt-4 grid grid-cols-3 divide-x divide-dashed divide-fd-border text-center">
               {[
-                ['PINGORA', text.statNodes],
+                ['EDGE NODE', text.statNodes],
                 ['WAF', text.statSync],
                 ['SELF-HOST', text.statHosting],
               ].map(([value, label]) => (

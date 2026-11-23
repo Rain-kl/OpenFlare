@@ -178,7 +178,7 @@ zip 7z gz tar
 
 | 区域 | 路径 |
 | --- | --- |
-| 边缘缓存运行时 | `edge/pingora/src/proxy/cache.rs`（Pingora 缓存键、TTL、判定与 TinyUFO 存储） |
+| 边缘缓存运行时 | `edge/pingora/src/proxy/cache.rs`（OpenFlare Edge 缓存键、TTL、判定与 TinyUFO 存储） |
 | 性能策略与存储配置 | `internal/openflare/performance/`、`edge/pingora/src/runtime/performance.rs` |
 | 路由快照编译 | `internal/openflare/edgeconfig/`、`internal/apps/openflare/config_version/snapshot.go` |
 | 校验 | `internal/apps/openflare/proxy_route/helpers.go` |

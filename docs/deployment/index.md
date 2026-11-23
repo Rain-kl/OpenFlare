@@ -7,7 +7,7 @@ OpenFlare 采用控制面与数据面解耦的分离架构。本节提供系统�
 | 组件 | 角色定位 | 核心职责 | 监听端口 / 网络依赖 | 部署参考 |
 | --- | --- | --- | --- | --- |
 | OpenFlare Server | 控制面 (Control Plane) | 管理后台 UI、管理 API、Agent 通信、站点配置生成与下发、指标聚合 | 默认监听 `:3000`；依赖 Redis；数据库支持 SQLite / PostgreSQL；可选 ClickHouse | [Server 部署](./server.md) |
-| OpenFlare Edge | 数据面 (Data Plane) | 基于 Pingora 构建的边缘网关，处理 TLS/HTTPS 终结、WAF 规则过滤、缓存加速、Pages 托管与反向代理 | 默认监听 `:80` 与 `:443`；出网访问 Server HTTPS 端口 | [Edge 部署](./openflare-edge.md) |
+| OpenFlare Edge | 数据面 (Data Plane) | 基于 OpenFlare Edge 构建的边缘网关，处理 TLS/HTTPS 终结、WAF 规则过滤、缓存加速、Pages 托管与反向代理 | 默认监听 `:80` 与 `:443`；出网访问 Server HTTPS 端口 | [Edge 部署](./openflare-edge.md) |
 | Relay (TunnelRelay) | 隧道中继 (Relay Node) | 管理 `frps` 守护进程，提供内网穿透公网接入端点，转发来自 Edge 的流量 | 默认监听 `:7000` (frpc 连接) 与 `:8080` (HTTP Vhost) | [Relay 部署](./relay.md) |
 | OpenFlared | 隧道客户端 (Tunnel Client) | 管理 `frpc` 守护进程，部署于内网服务器，与公网 Relay 建立加密隧道 | 仅需出网访问 Server 端口与 Relay 的 `:7000` 端口 | [OpenFlared 部署](./openflared.md) |
 
@@ -26,7 +26,7 @@ flowchart TD
     ServerDB -->|"生产集群 / 标准业务"| ServerProd["Server (PostgreSQL + Redis)"]
     ServerDB -->|"海量日志 / 性能追踪"| ServerCluster["Server + ClickHouse + Jaeger"]
     
-    ServerLite --> DeployEdge["2. 部署 Pingora Edge 节点"]
+    ServerLite --> DeployEdge["2. 部署 OpenFlare Edge 节点"]
     ServerProd --> DeployEdge
     ServerCluster --> DeployEdge
     
@@ -51,11 +51,11 @@ flowchart TD
 ### 组件部署
 - [Server 控制面部署](./server.md)：包含 SQLite 单机版、PostgreSQL 生产推荐版、ClickHouse / Jaeger 完整观测版及源码部署方式。
 - [边缘节点快速接入](./agent.md)：边缘节点令牌类型、快速安装参数与运行状态检查。
-- [OpenFlare Edge 部署指南](./openflare-edge.md)：Pingora Edge 节点发布包规范、Linux systemd 低权限加固、Docker 部署、双进程监督模型与平滑升级机制。
+- [OpenFlare Edge 部署指南](./openflare-edge.md)：OpenFlare Edge 节点发布包规范、Linux systemd 低权限加固、Docker 部署、双进程监督模型与平滑升级机制。
 
 ### 隧道基础设施
 - [Relay 隧道中继部署](./relay.md)：TunnelRelay 节点配置规范、frps 进程管理与端口映射要求。
 - [OpenFlared 客户端部署](./openflared.md)：内网客户端配置参数、frpc 子进程托管与自动版本同步机制。
 
 ### 运维维护
-- [升级与维护指南](./upgrade.md)：OpenResty 至 Pingora 迁移流程、Server 镜像与源码升级、边缘节点自动更新及容灾恢复。
+- [升级与维护指南](./upgrade.md)：OpenResty 至 OpenFlare Edge 迁移流程、Server 镜像与源码升级、边缘节点自动更新及容灾恢复。

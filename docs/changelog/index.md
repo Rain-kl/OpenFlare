@@ -13,7 +13,7 @@ sidebar: false
 > [!IMPORTANT]
 >
 >3.5.1 版本解耦了日志存储，ClickHouse 变为可选项，如果想切换数据库, 点击 「任务管理」 -> 「切换日志数据库」任务，按提示迁移数据并切换主库。
->4.0.0 > 边缘代理切换至 Pingora，OpenResty 运行时及其全局性能设置已移除。现有节点可使用原节点专属令牌迁移，保留节点 ID 和业务绑定。参见[升级指南](../deployment/upgrade.md)。
+>4.0.0 > 边缘代理切换至 OpenFlare Edge，OpenResty 运行时及其全局性能设置已移除。现有节点可使用原节点专属令牌迁移，保留节点 ID 和业务绑定。参见[升级指南](../deployment/upgrade.md)。
 
 ## [Unreleased]
 
@@ -26,7 +26,7 @@ sidebar: false
 - **原生 Rust 内嵌 Rathole 高可用内网穿透架构**：
   - 新增中继池（`w_tunnel_relay_pools`）、中继节点（`w_tunnel_relays`）、逻辑隧道（`w_tunnels`）、多连接器副本（`w_tunnel_connectors`）、附着拓扑（`w_tunnel_attachments`）及 L4 转发服务（`w_tunnel_services`）完整控制面与 `/tunnels` 管理控制台。
   - 推出纯原生 Rust 组件 `openflare-relay` 与 `openflared`（位于 `tunnel/` 工作区，采用独立 `tunnel-v*` 发布渠道与双槽位热更新）：内嵌 `rathole` 引擎，支持 `oftok1_` 引导令牌一键注册、Noise / WebSocket / TCP 多协议自动回退、跨 `zone_tag` 故障域 Closest-K 探测与 Make-Before-Break 迟滞重平衡。
-  - **Pingora Edge `tunnel-routing.v1` 协同与 L4/L7 双协议转发**：Pingora 边缘节点直接将绑定隧道上游的 L7 请求调度至同机或就近健康中继网关，并支持内网 HTTPS `insecure_skip_verify` 开关；`openflared` 在 L7 HTTP/WS 与 L4 TCP/UDP 回源链路前强制校验允许/禁止 CIDR 清单以阻断 SSRF（默认拦截 `169.254.169.254/32`）。
+  - **OpenFlare Edge `tunnel-routing.v1` 协同与 L4/L7 双协议转发**：边缘节点直接将绑定隧道上游的 L7 请求调度至同机或就近健康中继网关，并支持内网 HTTPS `insecure_skip_verify` 开关；`openflared` 在 L7 HTTP/WS 与 L4 TCP/UDP 回源链路前强制校验允许/禁止 CIDR 清单以阻断 SSRF（默认拦截 `169.254.169.254/32`）。
   - **中继排水与一键紧急隔离**：支持为中继开启平滑排水（Draining），并为 Relay 与 Tunnel 提供令牌轮换及一键隔离/解除隔离管控。
 
 ## [v4.0.3] - 2026-11-23
@@ -82,7 +82,7 @@ sidebar: false
 ## [v4.0.0] - 2026-11-20
 
 > [!IMPORTANT]
-> 边缘代理切换至 Pingora，OpenResty 运行时及其全局性能设置已移除。现有节点可使用原节点专属令牌迁移，保留节点 ID 和业务绑定。参见[升级指南](../deployment/upgrade.md)。
+> 边缘代理切换至 OpenFlare Edge，OpenResty 运行时及其全局性能设置已移除。现有节点可使用原节点专属令牌迁移，保留节点 ID 和业务绑定。参见[升级指南](../deployment/upgrade.md)。
 
 ### ✨ 新功能
 

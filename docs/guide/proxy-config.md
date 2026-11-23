@@ -81,7 +81,7 @@
 1. 在 `example.com` Zone 下添加 `*.s3.example.com` 并绑定路由；不需要逐个登记 bucket 域名。
 2. 使用 HTTPS 时绑定 SAN 包含 `*.s3.example.com` 的证书。`*.example.com` 证书不能替代它；`*.s3.example.com` 证书也不覆盖 `s3.example.com` 或 `a.bucket.s3.example.com`。
 3. 在 Cloudflare 分组中选择该通配符域名：节点模式跟随节点 IPv4 写 A 记录；自定义模式可写 A、AAAA 或 CNAME。分别验证 DNS 记录和节点配置应用状态。
-4. 保存路由后，Pingora 同步通配符匹配规则。具体域名优先于通配符，重叠通配符以更长的后缀优先。TLS 仍受证书覆盖范围限制。
+4. 保存路由后，OpenFlare Edge 同步通配符匹配规则。具体域名优先于通配符，重叠通配符以更长的后缀优先。TLS 仍受证书覆盖范围限制。
 5. 使用具体主机名访问验证，例如 `https://bucket.s3.example.com`，不要直接打开带 `*` 的地址。Zone 统计会聚合命中的实际 Host；Uptime Kuma 则需要至少绑定一个具体域名，否则跳过该路由的监控创建/更新并记录原因。
 
 不允许 `foo*.example.com`、`a.*.example.com` 或多个 `*`；带协议、路径、端口、域名内部空白及非法 DNS 标签的输入也会被拒绝。
@@ -112,7 +112,7 @@
 
 ## 边缘缓存（可选）
 
-在站点详情的「缓存」页启用缓存并设置匹配规则。节点的缓存容量和对象上限在 [Pingora 性能策略](./performance-policies.md) 中配置。
+在站点详情的「缓存」页启用缓存并设置匹配规则。节点的缓存容量和对象上限在 [OpenFlare Edge 性能策略](./performance-policies.md) 中配置。
 
 ### 推荐设置
 

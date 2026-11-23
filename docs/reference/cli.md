@@ -1,6 +1,6 @@
 # 命令与脚本
 
-你会学到：OpenFlare Server、Pingora Edge、Relay、OpenFlared、管理端前端、Swagger 与文档站的命令行参数、构建编译指令与质量检查命令。
+你会学到：OpenFlare Server、OpenFlare Edge、Relay、OpenFlared、管理端前端、Swagger 与文档站的命令行参数、构建编译指令与质量检查命令。
 
 > 所有命令均在**代码仓库根目录**执行，除非另有说明。
 
@@ -53,9 +53,9 @@ GOCACHE=/tmp/openflare-go-cache go test ./...
 
 ---
 
-## 边缘网关 (Pingora Edge)
+## 边缘网关 (OpenFlare Edge)
 
-Pingora Edge 基于 Rust 与 Cloudflare Pingora 框架实现，二进制名称为 `openflare-edge`。
+OpenFlare Edge 基于 Rust 与 Cloudflare OpenFlare Edge 框架实现，二进制名称为 `openflare-edge`。
 
 ### 1. 子命令与启动参数
 
@@ -103,7 +103,7 @@ openflare-edge attack-rule-catalog
 ### 2. 构建与测试指令
 
 ```bash
-# 编译 Pingora Edge Release 生产二进制
+# 编译 OpenFlare Edge Release 生产二进制
 make build-edge
 # 产物位于：edge/pingora/target/release/openflare-edge
 

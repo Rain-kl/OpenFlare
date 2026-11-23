@@ -1,6 +1,6 @@
 # Guide Overview
 
-OpenFlare is a distributed reverse proxy and edge security gateway based on Pingora edge architecture. It provides multi-node cluster orchestration, snapshot-based configuration hot-synchronization, edge WAF, proof-of-work (PoW) challenge defense, intranet tunnels, and Pages static hosting. It can operate as a standalone gateway or as an origin shield behind upstream CDNs.
+OpenFlare is a distributed reverse proxy and edge security gateway based on OpenFlare Edge architecture. It provides multi-node cluster orchestration, snapshot-based configuration hot-synchronization, edge WAF, proof-of-work (PoW) challenge defense, intranet tunnels, and Pages static hosting. It can operate as a standalone gateway or as an origin shield behind upstream CDNs.
 
 Documentation in this section is organized into five operational areas, guiding users from initial deployment through daily traffic management, security hardening, and troubleshooting.
 
@@ -18,7 +18,7 @@ For users deploying OpenFlare or connecting edge nodes for the first time:
 Configure reverse proxy routing, TLS encryption, and edge caching:
 - [Create a Reverse Proxy Config](./proxy-config.md): configure upstream origins, domain route bindings, wildcard routing, IP HTTPS upstreams, and access authentication.
 - [TLS Certificates & Auto-Renewal](./certificates.md): import existing certificates or automate wildcard issuance and renewal using ACME and Cloudflare DNS API.
-- [Pingora Performance Policies](./performance-policies.md): configure worker thread counts, upstream connection pools, HTTP/2 concurrency, TinyUFO memory cache, and disk cache limits.
+- [OpenFlare Edge Performance Policies](./performance-policies.md): configure worker thread counts, upstream connection pools, HTTP/2 concurrency, TinyUFO memory cache, and disk cache limits.
 - [Zone Domain Migration](./zone-domain-migration.md): understand automatic migration to the Zone root domain model, backup procedures, and post-upgrade acceptance checks.
 
 ### Edge Security
@@ -36,7 +36,7 @@ Extend gateway capabilities with static hosting, intranet tunnels, and monitorin
 
 ### Operations
 Maintenance, diagnostic procedures, and open-source references:
-- [Troubleshooting](./troubleshooting.md): resolve issues with controller startup, database connections, Agent registration, Pingora configuration application, and edge cache misses.
+- [Troubleshooting](./troubleshooting.md): resolve issues with controller startup, database connections, Agent registration, OpenFlare Edge configuration application, and edge cache misses.
 - [Open Source Acknowledgments](./credits.md): review core open-source projects, derived code provenance, third-party components, and license notices.
 
 ---
@@ -48,7 +48,7 @@ Maintenance, diagnostic procedures, and open-source references:
 | Start controller and connect first node | [Quick Start](./quick-start.md) |
 | Test basic HTTP proxy routing | [Create Your First Reverse Proxy Rule](./first-site.md) |
 | Configure HTTPS certificates and origin routing | [Create a Reverse Proxy Config](./proxy-config.md) and [TLS Certificates & Auto-Renewal](./certificates.md) |
-| Tune worker threads, connection pools, and cache sizes | [Pingora Performance Policies](./performance-policies.md) |
+| Tune worker threads, connection pools, and cache sizes | [OpenFlare Edge Performance Policies](./performance-policies.md) |
 | Enable WAF blocking and anti-CC challenge rules | [WAF Security Protection](./waf-usage.md) and [Proof-of-Work (PoW) Protection](./pow-usage.md) |
 | Host single-page applications with API proxying | [Pages Static Hosting Usage](./pages-usage.md) |
 | Expose intranet services to the public internet | [Tunnel & Intranet Penetration](./tunnel-usage.md) |

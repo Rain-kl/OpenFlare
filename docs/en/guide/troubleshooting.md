@@ -1,8 +1,8 @@
 # Troubleshooting
 
-You will learn: how to troubleshoot OpenFlare Server, database, login, Pingora Edge, and configuration synchronization issues by symptom.
+You will learn: how to troubleshoot OpenFlare Server, database, login, OpenFlare Edge, and configuration synchronization issues by symptom.
 
-First determine which layer the issue occurs in: browser, Server, database, Pingora Edge, origin server, or DNS. Nodes fetch new configuration manifests upon receiving WebSocket notifications and re-synchronize periodically through node heartbeats.
+First determine which layer the issue occurs in: browser, Server, database, OpenFlare Edge, origin server, or DNS. Nodes fetch new configuration manifests upon receiving WebSocket notifications and re-synchronize periodically through node heartbeats.
 
 ## Quick Identification
 
@@ -13,7 +13,7 @@ First determine which layer the issue occurs in: browser, Server, database, Ping
 | Data cannot be saved | Database connection, SQLite file permissions, PostgreSQL health |
 | Agent offline | Agent logs, Token, Server address, network connectivity |
 | Node not updated after saving | Node heartbeat, apply records, controller snapshot compilation logs |
-| Pingora config apply failure | Apply records, Edge logs, certificates, origin addresses, port conflicts |
+| OpenFlare Edge config apply failure | Apply records, Edge logs, certificates, origin addresses, port conflicts |
 | Access analytics empty | Node heartbeat, Edge access log queue, and controller logs |
 | Static assets never hit cache | Global/site cache toggle, policy file extensions, configuration apply status, access log `cache_status`, origin Set-Cookie / Cache-Control |
 
@@ -127,7 +127,7 @@ systemctl restart openflare-agent
 3. If the controller failed snapshot compilation, search for `refresh live edge snapshot` in Server logs, correct configuration errors, and save again.
 4. After resolving node environment issues, click **Force Sync** in the node details. Restarting the node also clears failure flags and retries the latest revision.
 
-## Pingora Config Apply Failure
+## OpenFlare Edge Config Apply Failure
 
 Run `systemctl status openflare-edge` to inspect service status, and run `journalctl -u openflare-edge` to inspect pull, validation, apply, and listener logs. The node's `ready.json` contains the active site version and content digest.
 

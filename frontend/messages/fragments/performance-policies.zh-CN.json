@@ -1,7 +1,7 @@
 {
   "performancePolicies": {
     "title": "性能策略",
-    "description": "按节点规格配置 Pingora。已连接的节点在策略保存后开始同步。",
+    "description": "按节点规格配置边缘节点。已连接的节点在策略保存后开始同步。",
     "create": "新建策略",
     "edit": "编辑策略",
     "delete": "删除策略",
@@ -36,7 +36,7 @@
     "assignDescription": "选中节点将使用此策略。取消当前分配后，节点将改用默认策略。",
     "search": "搜索节点名称或 ID",
     "selectAll": "选择筛选结果",
-    "noNodes": "没有匹配的 Pingora 节点。",
+    "noNodes": "没有匹配的边缘节点。",
     "applyCount": "保存分配（{count}）",
     "range": "允许范围为 {min} 至 {max}。",
     "groups": {

@@ -1,8 +1,8 @@
 # Origin Error Page Design
 
-When an origin server or the gateway returns configured error status codes, OpenFlare substitutes the pass-through response with a globally configurable error page. The configuration is stored within immutable configuration snapshots, and the edge Pingora gateway renders the error page in memory while strictly preserving the authentic HTTP status code.
+When an origin server or the gateway returns configured error status codes, OpenFlare substitutes the pass-through response with a globally configurable error page. The configuration is stored within immutable configuration snapshots, and the edge OpenFlare Edge gateway renders the error page in memory while strictly preserving the authentic HTTP status code.
 
-This design complements the reverse proxy traffic path in [System Architecture](./architecture.md); for the configuration synchronization model, see [Pingora Edge Node Design](./pingora-edge-design.md).
+This design complements the reverse proxy traffic path in [System Architecture](./architecture.md); for the configuration synchronization model, see [OpenFlare Edge node Design](./pingora-edge-design.md).
 
 ---
 
@@ -120,7 +120,7 @@ The snapshot compiler loads values from system options. Edge nodes consume snaps
 
 ### 4.1 Edge Gateway Processing Mechanism
 
-Pingora edge nodes intercept errors during the response handling phase:
+OpenFlare Edge nodes intercept errors during the response handling phase:
 
 1. When a response status code matches the configured set and the feature is active, error page evaluation triggers.
 2. If `get_only` is enabled and the request method is not `GET`, replacement is bypassed and the raw response passes through.
@@ -163,11 +163,11 @@ Admin /responses (Error Page Tab)
 Save and Auto-Sync
     → Snapshot compiled into sites.v1
     → Edge nodes pull and atomically swap
-    → Pingora applies changes in memory
+    → OpenFlare Edge applies changes in memory
 
 Client requests reverse proxy domain
     → Origin or gateway produces matching error code
-    → Pingora response interception phase
+    → OpenFlare Edge response interception phase
     → Replace placeholders, retain original HTTP status, return HTML
 ```
 

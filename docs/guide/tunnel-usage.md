@@ -14,7 +14,7 @@
 | **中继节点（Relay）** | 运行 `openflare-relay` 的公网服务器，负责终结加密隧道并提供 Relay Gateway 与 L4 端口监听 | `w_tunnel_relays`；支持 `zone_tag` 故障域标记、排水（`draining`）、同机 Edge 共置绑定与一键紧急隔离 |
 | **穿透隧道（Tunnel）** | 逻辑穿透实例，归属于指定中继池，可由多个 `openflared` 连接器副本联合承载 | `w_tunnels`；配置独享允许/禁止目标 CIDR、支持令牌轮换与紧急隔离 |
 | **连接器（Connector）** | 内网部署的 `openflared` 运行副本，多副本可同时在线构成双活冗余，并通过 Make-Before-Break 自动挑选池内最优中继 | `w_tunnel_connectors` 与 `w_tunnel_attachments`；自动持久化 `connector_id` 并上报版本、出口 IP 与每条附着链路 RTT |
-| **转发服务与 L7 上游** | 分为在隧道详情页配置的 **L4 服务（TCP/UDP）**，以及在 **「反向代理」** 绑定 `tunnel_id` 的 **L7 网站上游** | L4 写入 `w_tunnel_services`；L7 由 Pingora Edge 读取 `tunnel-routing.v1` 经 Relay Gateway 调度入隧道 |
+| **转发服务与 L7 上游** | 分为在隧道详情页配置的 **L4 服务（TCP/UDP）**，以及在 **「反向代理」** 绑定 `tunnel_id` 的 **L7 网站上游** | L4 写入 `w_tunnel_services`；L7 由 OpenFlare Edge 读取 `tunnel-routing.v1` 经 Relay Gateway 调度入隧道 |
 
 ---
 
@@ -43,12 +43,12 @@
 
 ### 第四步 A：暴露 L7 Web / WebSocket 服务（推荐）
 
-L7 服务直接享受 Pingora Edge 的公网 TLS 自动证书、WAF 安全规则与 PoW 防护：
+L7 服务直接享受 OpenFlare Edge 的公网 TLS 自动证书、WAF 安全规则与 PoW 防护：
 1. 进入 **「反向代理 → 新建规则」**（或编辑现有站点规则）。
 2. 在反向代理设置中，将 **上游类型** 选择为 **「内网穿透（Tunnel）」**。
 3. 选择上述在线的 **隧道**，填写内网可访问的 **目标源站地址**（例如 `http://127.0.0.1:8080` 或 `https://192.168.1.20:8443`）。
 4. 若内网源站使用自签名 HTTPS 证书，可开启 **跳过内网 HTTPS 证书校验（`insecure_skip_verify`）**。
-5. 保存路由后，Pingora Edge 通过 `tunnel-routing.v1` 自动更新网关路由，即可通过公网域名访问内网站点。
+5. 保存路由后，OpenFlare Edge 通过 `tunnel-routing.v1` 自动更新网关路由，即可通过公网域名访问内网站点。
 
 ### 第四步 B：暴露 L4 TCP / UDP 服务
 

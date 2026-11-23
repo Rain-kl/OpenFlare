@@ -1,4 +1,4 @@
-# Pingora Performance Policies
+# OpenFlare Edge Performance Policies
 
 In the admin console, navigate to "Performance Policies" to create and manage policies for edge nodes with different hardware specifications or roles. New policies are pre-filled with sensible defaults, and the form provides parameter descriptions, units, and allowed value ranges.
 
@@ -46,4 +46,4 @@ Disk cache and in-memory tiers are powered by [pingap-cache](https://github.com/
 
 ## Access Log Ingestion
 
-Pingora queues access logs (including WAF audit records) in an in-memory ring buffer, flushed by a background thread every 256 entries or 100 milliseconds to `access-logs.jsonl` in the node state directory. Client requests never block on disk I/O. Node heartbeats read up to 1,024 records per interval, pruning acknowledged records after the control plane confirms ingestion.
+OpenFlare Edge queues access logs (including WAF audit records) in an in-memory ring buffer, flushed by a background thread every 256 entries or 100 milliseconds to `access-logs.jsonl` in the node state directory. Client requests never block on disk I/O. Node heartbeats read up to 1,024 records per interval, pruning acknowledged records after the control plane confirms ingestion.

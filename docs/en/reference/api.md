@@ -61,7 +61,7 @@ Intended for web dashboard operations and interactive user interfaces.
 
 ### 3. Edge Node Protocol Credentials
 
-Pingora Edge nodes, Relay nodes, and OpenFlared tunnel clients authenticate with the control plane using dedicated credentials:
+OpenFlare Edge nodes, Relay nodes, and OpenFlared tunnel clients authenticate with the control plane using dedicated credentials:
 
 - **Discovery Token**: A global token used for initial node registration, governed by the system setting `agent_discovery_token`.
 - **Node Agent Token**: A node-specific credential issued by the control plane upon registration, used for heartbeat reporting and configuration pull.
@@ -174,7 +174,7 @@ OpenFlare control plane endpoints are organized into clean functional groups:
 | Zones | `/api/v1/d/zones` | Zone management, DNS records, and Cloudflare DNS sync |
 | Origins | `/api/v1/d/origins` | Upstream origin server pools and health check probe settings |
 | Proxy Routes | `/api/v1/d/proxy-routes` | Reverse proxy routing rules and load-balancing policies |
-| Edge Nodes | `/api/v1/d/nodes` | Pingora Edge node inventory, health metrics, and restart triggers |
+| Edge Nodes | `/api/v1/d/nodes` | OpenFlare Edge node inventory, health metrics, and restart triggers |
 | Performance Policies | `/api/v1/d/performance/policies` | Edge runtime, upstream pools, HTTP/2, and caching templates |
 | WAF Protection | `/api/v1/d/waf` | WAF rulesets, attack detection modes (CRS), and IP group policies |
 | PoW Captcha | `/api/v1/d/pow` | Proof-of-Work challenge configurations and protection triggers |

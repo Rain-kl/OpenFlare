@@ -139,7 +139,7 @@
       "connectors": "Connectors",
       "activeLeases": "Active Leases",
       "attachmentsTitle": "Live Connector-to-Relay Leases",
-      "attachmentsDesc": "Relay-verified attachment leases actively eligible for Pingora edge routing.",
+      "attachmentsDesc": "Relay-verified attachment leases actively eligible for OpenFlare Edge routing.",
       "emptyAttachments": "No active tunnel attachments currently reported.",
       "connector": "Connector",
       "relay": "Relay PoP",

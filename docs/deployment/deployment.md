@@ -1,12 +1,12 @@
 # 部署架构与说明
 
-OpenFlare 采用控制面与数据面解耦的分离架构。生产环境建议使用 PostgreSQL 作为 Server 主数据库，并通过配置文件或环境变量设置 `APP_SESSION_SECRET`。系统依赖 Redis 驱动 Asynq 异步任务引擎；针对海量访问日志与时序指标，可接入 ClickHouse 分析存储（判定与切换见 [日志存储解耦](../design/logstore.md)）。边缘网关（OpenFlare Edge）基于 Pingora 构建，提供单机双进程的高可用代理能力。
+OpenFlare 采用控制面与数据面解耦的分离架构。生产环境建议使用 PostgreSQL 作为 Server 主数据库，并通过配置文件或环境变量设置 `APP_SESSION_SECRET`。系统依赖 Redis 驱动 Asynq 异步任务引擎；针对海量访问日志与时序指标，可接入 ClickHouse 分析存储（判定与切换见 [日志存储解耦](../design/logstore.md)）。边缘网关（OpenFlare Edge）基于 OpenFlare Edge 构建，提供单机双进程的高可用代理能力。
 
 ## 网络拓扑与流量路径
 
 ### 1. 标准反向代理流量路径
 
-控制面与数据面流量物理隔离：用户客户端访问直接到达 Pingora 边缘网关，控制端仅负责规则下发与状态同步。
+控制面与数据面流量物理隔离：用户客户端访问直接到达 OpenFlare Edge 边缘网关，控制端仅负责规则下发与状态同步。
 
 ```text
 [控制流 Control Plane]
@@ -20,7 +20,7 @@ OpenFlare Edge (数据面网关)
 客户端浏览器 (Client / Browser)
        |
        v 请求到达 (TCP 80 / 443)
-OpenFlare Edge (Pingora: TLS 终结、WAF 规则过滤、本地缓存、Pages 托管)
+OpenFlare Edge (OpenFlare Edge: TLS 终结、WAF 规则过滤、本地缓存、Pages 托管)
        |
        v 反向代理回源 (HTTP / HTTPS)
 源站服务器 (Origin Service)
@@ -42,7 +42,7 @@ Relay 节点 (frps 管理器)        OpenFlared (内网客户端)
 客户端浏览器 (Client / Browser)
     |
     v 公网访问 (TCP 80 / 443)
-OpenFlare Edge (Pingora: 域名路由、WAF 拦截、HTTPS 证书卸载)
+OpenFlare Edge (OpenFlare Edge: 域名路由、WAF 拦截、HTTPS 证书卸载)
     |
     v 本地回环转发 (127.0.0.1:{vhostHTTPPort})
 OpenFlare Relay (frps 守护进程，监听公网中继端口 :7000)
@@ -60,7 +60,7 @@ OpenFlared 客户端 (frpc 守护进程，部署于内网机器)
 | 组件 | 入门推荐 | 生产环境推荐 | 说明 |
 | --- | --- | --- | --- |
 | **Server 控制面** | 1 核 CPU / 2 GB 内存 / 20 GB 磁盘 | 2 核 CPU / 4 GB 内存 / 50 GB+ 磁盘 | 磁盘容量根据访问日志留存策略与指标数据量扩容 |
-| **Edge 边缘网关** | 1 核 CPU / 512 MB 内存 / 2 GB 磁盘 | 2 核 CPU / 2 GB 内存 / 10 GB+ 磁盘 | 根据 Pingora 并发代理连接量、TLS 握手压力与 WAF 吞吐扩容 |
+| **Edge 边缘网关** | 1 核 CPU / 512 MB 内存 / 2 GB 磁盘 | 2 核 CPU / 2 GB 内存 / 10 GB+ 磁盘 | 根据 OpenFlare Edge 并发代理连接量、TLS 握手压力与 WAF 吞吐扩容 |
 | **Relay 中继节点** | 1 核 CPU / 1 GB 内存 / 5 GB 磁盘 | 2 核 CPU / 2 GB 内存 / 20 GB 磁盘 | frps 传输中继吞吐受网络带宽与并发 TCP 连接上限影响 |
 | **OpenFlared 客户端** | 1 核 CPU / 256 MB 内存 / 1 GB 磁盘 | 1 核 CPU / 512 MB 内存 / 5 GB 磁盘 | 运行于内网环境，资源占用低，主要依赖内网主机网络吞吐 |
 

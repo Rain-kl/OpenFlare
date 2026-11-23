@@ -61,7 +61,7 @@ Accept: application/json
 
 ### 3. 边缘节点专用协议凭证 (Node Protocols)
 
-Pingora Edge 节点、Relay 中继节点与 OpenFlared 隧道客户端通过独立凭证与控制面建立 WebSocket 及 HTTP 通信：
+OpenFlare Edge 节点、Relay 中继节点与 OpenFlared 隧道客户端通过独立凭证与控制面建立 WebSocket 及 HTTP 通信：
 
 - **Discovery Token**：新节点首次接入时的自动注册凭证，由系统配置 `agent_discovery_token` 控制。
 - **Node Agent Token**：节点完成注册后由控制面颁发的专属凭证，用于心跳上报与配置快照拉取。
@@ -174,7 +174,7 @@ OpenFlare 控制面路由按功能模块进行清晰分层：
 | 域名区 (Zones) | `/api/v1/d/zones` | 域名区增删改查、DNS 记录配置、Cloudflare 接入同步 |
 | 源站集群 (Origins) | `/api/v1/d/origins` | 业务真实源站服务器与健康检查探针配置 |
 | 反向代理路由 | `/api/v1/d/proxy-routes` | 站点路由规则、回源负载均衡分发策略 |
-| 边缘节点 | `/api/v1/d/nodes` | Pingora Edge 节点列表、状态监控、重启指令下发 |
+| 边缘节点 | `/api/v1/d/nodes` | OpenFlare Edge 节点列表、状态监控、重启指令下发 |
 | 性能策略 | `/api/v1/d/performance/policies` | 边缘节点运行时、回源连接池、HTTP/2 及缓存策略模板 |
 | WAF 防护 | `/api/v1/d/waf` | WAF 规则组配置、攻击检测模式（CRS）、IP 黑白名单组 |
 | 人机验证 (PoW) | `/api/v1/d/pow` | 本地算力防爆破难题下发策略与保护开关 |

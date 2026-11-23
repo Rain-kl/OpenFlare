@@ -57,7 +57,7 @@ Allowlist changes synchronize through the site snapshot. Upgrade the relevant Ed
 
 ## Binding and Scope
 
-Enabled global rules execute first; custom rules attached to routes execute strictly in ordered sequence. Saving rule order synchronizes the configuration to Pingora edge nodes with the next site snapshot.
+Enabled global rules execute first; custom rules attached to routes execute strictly in ordered sequence. Saving rule order synchronizes the configuration to OpenFlare Edge nodes with the next site snapshot.
 
 In the WAF rule set list under **Security → WAF**, click the site count under **Scope** to view attached websites. You can filter by name or domain, navigate to route WAF settings, or select multiple sites and click **Unbind** to remove rule set associations in bulk.
 

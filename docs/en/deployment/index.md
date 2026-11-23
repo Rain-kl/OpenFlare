@@ -7,7 +7,7 @@ OpenFlare separates control plane responsibilities from data plane execution. Th
 | Component | Role | Responsibilities | Ports / Network requirements | Deployment guide |
 | --- | --- | --- | --- | --- |
 | OpenFlare Server | Control plane | Admin console UI, Admin APIs, Agent APIs, configuration generation and distribution, metrics aggregation | Listens on `:3000` by default; requires Redis; supports SQLite or PostgreSQL; optional ClickHouse | [Server deployment](./server.md) |
-| OpenFlare Edge | Data plane | Pingora-based edge gateway handling TLS/HTTPS termination, WAF rule enforcement, caching, Pages hosting, and reverse proxy forwarding | Listens on `:80` and `:443` by default; outbound access to Server HTTPS port | [Edge deployment](./openflare-edge.md) |
+| OpenFlare Edge | Data plane | OpenFlare Edge-based edge gateway handling TLS/HTTPS termination, WAF rule enforcement, caching, Pages hosting, and reverse proxy forwarding | Listens on `:80` and `:443` by default; outbound access to Server HTTPS port | [Edge deployment](./openflare-edge.md) |
 | Relay (TunnelRelay) | Tunnel relay | Supervises the `frps` daemon, providing a public entry point for intranet penetration and forwarding traffic received from Edge | Listens on `:7000` (frpc connections) and `:8080` (HTTP Vhost) | [Relay deployment](./relay.md) |
 | OpenFlared | Tunnel client | Supervises `frpc` daemons on private intranet servers, maintaining an encrypted tunnel with the public Relay | Outbound access only to Server port and Relay `:7000` | [OpenFlared deployment](./openflared.md) |
 
@@ -26,7 +26,7 @@ flowchart TD
     ServerDB -->|"Production / Standard Workloads"| ServerProd["Server (PostgreSQL + Redis)"]
     ServerDB -->|"High Volume / Telemetry Tracing"| ServerCluster["Server + ClickHouse + Jaeger"]
     
-    ServerLite --> DeployEdge["2. Deploy Pingora Edge Nodes"]
+    ServerLite --> DeployEdge["2. Deploy OpenFlare Edge nodes"]
     ServerProd --> DeployEdge
     ServerCluster --> DeployEdge
     
@@ -58,4 +58,4 @@ flowchart TD
 - [OpenFlared client deployment](./openflared.md): Intranet client configuration, frpc child process management, and automated version synchronization.
 
 ### Maintenance
-- [Upgrade & maintenance](./upgrade.md): Migrating from OpenResty to Pingora Edge, container and source upgrades, automatic edge updates, and recovery steps.
+- [Upgrade & maintenance](./upgrade.md): Migrating from OpenResty to OpenFlare Edge, container and source upgrades, automatic edge updates, and recovery steps.

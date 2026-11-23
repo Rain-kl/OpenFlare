@@ -8,9 +8,9 @@ OpenFlare 是一套新一代分布式反向代理与边缘安全网关平台，�
 
 ## 项目定位
 
-OpenFlare 适合需要统一管理多台 Pingora 代理节点、构建自建高可用边缘网络，或为源站搭建坚固防护网关的团队，具备以下定位：
+OpenFlare 适合需要统一管理多台 OpenFlare Edge 代理节点、构建自建高可用边缘网络，或为源站搭建坚固防护网关的团队，具备以下定位：
 * **控制与落地分离**：Server 控制面不直接 SSH 到代理节点，而是通过 Agent 主动拉取版本并应用。
-* **Zero-Reload 动态配置同步**：基于 Rust Pingora 边缘网关运行，通过内存快照原子替换与增量配置同步生效，避免传统网关进程重载（reload）导致的连接抖动。
+* **Zero-Reload 动态配置同步**：基于 Rust OpenFlare Edge 边缘网关运行，通过内存快照原子替换与增量配置同步生效，避免传统网关进程重载（reload）导致的连接抖动。
 * **一体化边缘安全网关**：在同一个控制面内集成反向代理、TLS 证书自动续期、WAF 防护拦截、Turnstile-like 客户端 PoW 防 CC 盾、高可用内网穿透（Tunnel）以及 Pages 静态网站托管。
 * **双重部署生态适应性**：既支持作为独立私有边缘 CDN 运行，亦可作为 Cloudflare 背后坚固的源站防护网关（Origin Shield），防止源站真实 IP 泄露并沉淀全量私有审计日志。
 
@@ -24,13 +24,13 @@ OpenFlare 适合需要统一管理多台 Pingora 代理节点、构建自建高�
 | --- | --- | --- |
 | **反向代理配置管理** | 以网站规则（Proxy Route）为聚合边界，支持多域名与多上游负载均衡 | [新建反代配置](../guide/proxy-config.md) |
 | **源站错误页** | 全局可配置：源站/网关匹配状态码时返回 OpenFlare 默认或自定义 HTML，HTTP 状态码保持原值 | [源站错误页设计](./origin-error-page.md) |
-| **边缘缓存** | Pingora 节点内存缓存；默认 static 扩展名 + 源站头/Set-Cookie 闸门 + 默认 Edge TTL | [边缘缓存策略设计](./edge-cache-design.md) |
+| **边缘缓存** | 边缘节点内存缓存；默认 static 扩展名 + 源站头/Set-Cookie 闸门 + 默认 Edge TTL | [边缘缓存策略设计](./edge-cache-design.md) |
 | **Zone 与域名管理** | 以可注册根域为管理入口，聚合明确域名、域名证书与反向代理路由 | [Zone 与域名资源设计](./zone-design.md) |
 | **Cloudflare DNS 指向** | 以 ZoneDomain 为粒度，将单条 Cloudflare A 记录幂等指向边缘节点 IPv4 | [Cloudflare DNS 指向设计](./cloudflare-pointing.md) |
-| **边缘配置同步** | 保存后自动同步，节点原子应用并保留最后一份健康快照 | [Pingora 边缘节点设计](./pingora-edge-design.md) |
+| **边缘配置同步** | 保存后自动同步，节点原子应用并保留最后一份健康快照 | [边缘节点设计](./pingora-edge-design.md) |
 | **WAF 安全防护** | 支持可视化 DAG 编排规则、手动/自动/订阅型 IP 组、GeoIP 匹配与 PoW CC 防护 | [WAF 设计](./waf-design.md) / [WAF 可编排规则设计](./waf-orchestration-design.md) / [WAF 使用指南](../guide/waf-usage.md) |
 | **内网穿透** | 基于原生 Rust 中继（`openflare-relay`）与连接器（`openflared`），支持跨可用区多中继高可用调度与 L4/L7 双协议内网穿透 | [内网穿透设计](./tunnel-design.md) / [穿透使用指南](../guide/tunnel-usage.md) |
-| **Pages 静态托管** | 支持上传或从 Remote URL、公开 GitHub Release 同步预构建产物，由 Pingora 本地服务并支持回滚、API 反向代理与 SPA Fallback | [Pages 静态托管设计](./pages-design.md) / [Pages 使用指南](../guide/pages-usage.md) |
+| **Pages 静态托管** | 支持上传或从 Remote URL、公开 GitHub Release 同步预构建产物，由 OpenFlare Edge 本地服务并支持回滚、API 反向代理与 SPA Fallback | [Pages 静态托管设计](./pages-design.md) / [Pages 使用指南](../guide/pages-usage.md) |
 | **TLS 证书自动续期** | 将证书显式绑定到 Zone 域名，并通过 ACME 协议向 Let's Encrypt 申请/续期证书 | [Zone 与域名资源设计](./zone-design.md) |
 | **多节点监控与观测** | 访问日志为业务流量唯一真相；Agent 只上报明细与主机读数，Server 统一聚合 | [观测数据传输模型](./observability-transport-model.md) / [边缘可观测与业务流量统计](./observability-design.md) / [上报协议与表结构](./observability-data-model.md) / [系统架构](./architecture.md) |
 | **日志存储** | 访问日志与可观测时序走可切换日志主库（随业务主库或 ClickHouse）；关闭 ClickHouse 后仍可写可查 | [日志存储解耦](./logstore.md) |
@@ -50,10 +50,10 @@ OpenFlare 适合需要统一管理多台 Pingora 代理节点、构建自建高�
 ### 2. WAF 安全边界
 * **白名单优先原则**：白名单拥有绝对匹配权。若未命中白名单规则，才依次触发全局和自定义黑名单过滤。
 * **GeoIP 弱依赖性**：地域准入解析完全依赖节点本地 MaxMind 库。当 GeoIP 异常或解析失败时，系统必须自动忽略地域规则，不能破坏 IP 组过滤和反向代理主链路的可用性。
-* **运行时数据解耦**：Pingora 通过内存快照执行规则，不与 Server 数据库通信。IP 组成员可独立于站点快照更新，通过 Checksum 差分拉取实现平滑生效。
+* **运行时数据解耦**：OpenFlare Edge 通过内存快照执行规则，不与 Server 数据库通信。IP 组成员可独立于站点快照更新，通过 Checksum 差分拉取实现平滑生效。
 
 ### 3. 内网穿透边界
-* **L4 与 L7 双协议支持**：L7 HTTP/WebSocket 服务通过 `/proxy-routes` 绑定 `tunnel_id` 经由 Pingora Edge 与 Relay Gateway 自动调度；L4 TCP/UDP 端口转发通过隧道服务（`w_tunnel_services`）在所选 Relay 上监听公开端口并由内嵌 `rathole` 通道转发。
+* **L4 与 L7 双协议支持**：L7 HTTP/WebSocket 服务通过 `/proxy-routes` 绑定 `tunnel_id` 经由 OpenFlare Edge 与 Relay Gateway 自动调度；L4 TCP/UDP 端口转发通过隧道服务（`w_tunnel_services`）在所选 Relay 上监听公开端口并由内嵌 `rathole` 通道转发。
 * **穿透与边缘节点域完全解耦**：内网穿透资源（中继池、中继节点、隧道、连接器、L4 服务）归属独立的 `/tunnels` 控制域，不再混入 Edge 节点列表；中继与连接器通过 `oftok1_` 引导令牌、`X-Relay-Token` 与 `X-Tunnel-Token` 独立鉴权，采用独立 `tunnel-v*` 版本线发布与自更新。
 * **回源安全防线**：所有经 `openflared` 发往内网的 L7 与 L4 连接必须先通过目标 IP 解析后的允许/禁止 CIDR 规则校验（默认封锁 `169.254.169.254/32`）。
 
@@ -76,7 +76,7 @@ OpenFlare 采用单 monorepo（Go 模块 `github.com/Rain-kl/Wavelet`，Rust Edg
 | 路径 | 职责 |
 | --- | --- |
 | `cmd/server/` | 控制面 Server 启动入口（`main.go` + Cobra 子命令 `cli/`） |
-| `edge/pingora/` | Rust Pingora 边缘网关（`openflare-edge`）源码与构建目录 |
+| `edge/pingora/` | Rust OpenFlare Edge 边缘网关（`openflare-edge`）源码与构建目录 |
 | `tunnel/` | Rust 原生内网穿透工作区（`common/`、`relay/`、`flared/`） |
 | `internal/` | 控制面域实现、持久化仓库与跨端共享协议 |
 | `frontend/` | Next.js 管理端，构建产物嵌入 Go Server |
@@ -116,9 +116,9 @@ OpenFlare 采用单 monorepo（Go 模块 `github.com/Rain-kl/Wavelet`，Rust Edg
 | `/api/v1/tunnel/*` | OpenFlared 连接器协议 | `X-Tunnel-Token` |
 | `/api/v1/admin/*` | Wavelet 平台管理 API | 管理员 Session |
 
-### 2. Pingora 边缘节点（`edge/pingora/`）
+### 2. 边缘节点（`edge/pingora/`）
 
-节点运行时位于 `edge/pingora/`。控制端通过配置清单分发站点（`sites.v1`）、隧道网关路由（`tunnel-routing.v1`）、WAF IP 组和性能策略，节点校验后更新本地数据面。详见 [Pingora 边缘节点设计](./pingora-edge-design.md)。
+节点运行时位于 `edge/pingora/`。控制端通过配置清单分发站点（`sites.v1`）、隧道网关路由（`tunnel-routing.v1`）、WAF IP 组和性能策略，节点校验后更新本地数据面。详见 [边缘节点设计](./pingora-edge-design.md)。
 
 ### 3. Native Rust 内网穿透工作区（`tunnel/`）
 
@@ -139,6 +139,6 @@ OpenFlare 采用单 monorepo（Go 模块 `github.com/Rain-kl/Wavelet`，Rust Edg
 * 产品范围或系统边界变化：更新本文档（[产品边界](./index.md)）。
 * 日志存储、日志表判定或切换协议变化：更新 [日志存储解耦](./logstore.md)。
 * 系统结构、组件分工变化：更新 [系统架构](./architecture.md)。
-* 配置同步和节点恢复逻辑记录于 [Pingora 边缘节点设计](./pingora-edge-design.md)。
+* 配置同步和节点恢复逻辑记录于 [边缘节点设计](./pingora-edge-design.md)。
 * 部署方式变化：更新 [部署说明](../deployment/deployment.md) 与组件部署文档。
 * 配置项变化：更新 [配置项参考](../reference/configuration.md)。

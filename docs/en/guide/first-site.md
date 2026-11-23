@@ -1,6 +1,6 @@
 # Create Your First Reverse Proxy Rule
 
-Create a basic HTTP site and verify that Pingora Edge applied its configuration.
+Create a basic HTTP site and verify that OpenFlare Edge applied its configuration.
 
 After you save a rule, the controller automatically notifies online edge nodes to sync.
 

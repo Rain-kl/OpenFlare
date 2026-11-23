@@ -1,6 +1,6 @@
 # OpenFlare Edge 部署
 
-OpenFlare Edge 是 OpenFlare 自 v4.0.0 起采用的基于 Pingora 构建的边缘网关。节点启动后连接控制面（OpenFlare Server），执行节点注册、心跳上报、配置同步、Pages 资源拉取与流量代理。原 OpenResty 架构节点请参考[升级与维护指南](./upgrade.md)执行迁移。
+OpenFlare Edge 是 OpenFlare 自 v4.0.0 起采用的基于 OpenFlare Edge 构建的边缘网关。节点启动后连接控制面（OpenFlare Server），执行节点注册、心跳上报、配置同步、Pages 资源拉取与流量代理。原 OpenResty 架构节点请参考[升级与维护指南](./upgrade.md)执行迁移。
 
 ## 发布包与版本管理
 
@@ -112,10 +112,10 @@ Linux 安装脚本自动创建专用系统用户 `openflare-edge`，并以该用
 
 ## 进程模型与容灾机制
 
-OpenFlare Edge 二进制内置双进程架构：控制面监督进程与 Pingora 数据面工作进程。
+OpenFlare Edge 二进制内置双进程架构：控制面监督进程与 OpenFlare Edge 数据面工作进程。
 
 1. 控制面监督进程：负责维护长连接/心跳、拉取站点配置快照、同步 Pages 静态资源、上报运行指标，并监督数据面生命周期。
-2. Pingora 数据面工作进程：负责监听端口、处理 TLS 握手、执行 WAF 规则匹配、缓存加速及反向代理转发。
+2. OpenFlare Edge 数据面工作进程：负责监听端口、处理 TLS 握手、执行 WAF 规则匹配、缓存加速及反向代理转发。
 
 容灾与恢复机制：
 - 进程级监控：控制面每秒检查数据面存活状态。数据面异常退出时，控制面立即重新拉起新的数据面进程；控制面进程异常退出时，由 systemd 自动重启（配置 `Restart=always`，间隔 5 秒）并重新接管数据面。
@@ -143,7 +143,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/upda
 更新过程特性：
 - 校验下载归档的 SHA-256 摘要与配置协议兼容性。
 - 原子替换 `/opt/openflare-edge/current` 二进制文件。
-- 自 `edge-v0.1.2` 起，Pingora 退出宽限期优化为 2 秒，平滑排空连接后重启。
+- 自 `edge-v0.1.2` 起，OpenFlare Edge 退出宽限期优化为 2 秒，平滑排空连接后重启。
 - 更新脚本通过 systemd 校验启动结果。启动失败时，脚本输出服务日志并保留新版本二进制文件。
 
 ### Docker 容器升级

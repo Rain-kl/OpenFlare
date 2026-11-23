@@ -6,11 +6,11 @@
 
 ## 从 v3.6.x 升级至 v4.0.0
 
-OpenFlare 自 v4.0.0 起采用基于 Pingora 的边缘网关（OpenFlare Edge）全面替代原 OpenResty 架构。升级前请记录原节点的专属令牌，自定义的 OpenResty 性能参数需在控制台「性能策略」中重新配置。
+OpenFlare 自 v4.0.0 起采用基于 OpenFlare Edge 的边缘网关（OpenFlare Edge）全面替代原 OpenResty 架构。升级前请记录原节点的专属令牌，自定义的 OpenResty 性能参数需在控制台「性能策略」中重新配置。
 
 ### 迁移步骤
 
-1. 升级控制面 Server：升级 Server 至 v4.0.0+，确认数据库迁移自动执行完毕，且控制端已成功生成 Pingora 站点配置快照。
+1. 升级控制面 Server：升级 Server 至 v4.0.0+，确认数据库迁移自动执行完毕，且控制端已成功生成 OpenFlare Edge 站点配置快照。
 2. 逐台迁移边缘节点：
    - 停止旧版本 Agent 及 OpenResty 服务，释放 TCP `80` 与 `443` 端口：
      ```bash
@@ -26,7 +26,7 @@ OpenFlare 自 v4.0.0 起采用基于 Pingora 的边缘网关（OpenFlare Edge）
 
 ## 升级至配置契约 v4（TLS 私钥内存态托管）
 
-本次安全升级将 Pingora Edge 配置契约由 v3 升级为 v4（新增必选能力标识 `tls-memory-keys-v1`）：
+本次安全升级将 OpenFlare Edge 配置契约由 v3 升级为 v4（新增必选能力标识 `tls-memory-keys-v1`）：
 
 1. **必须同步升级 `openflare-edge`**：控制面已将 TLS 私钥（`key_pem` 与 `*.key`）完全移出配置快照与 `sites.v1`，v3 及更早版本的 `openflare-edge` 不支持从 `POST /api/v1/agent/tls/keys` 按需拉取私钥，升级前请确保控制端与所有边缘节点均升级到匹配版本。
 2. **历史快照自动脱敏**：控制面升级迁移 `202611230002_scrub_config_version_private_keys.sql` 会自动清空 `of_config_versions.support_files_json` 中历史残留的 `PRIVATE KEY` 内容，并推进配置版本重编（`of_edge_snapshot_state.source_revision`）。
@@ -74,7 +74,7 @@ go run ./cmd/server all
 
 ---
 
-## Pingora 边缘节点更新
+## 边缘节点更新
 
 ### 方式 1：控制台远程更新
 

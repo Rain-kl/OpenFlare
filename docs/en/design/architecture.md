@@ -1,6 +1,6 @@
 # System Architecture
 
-OpenFlare consists of the Server control plane, the Pingora Edge data plane, tunnel components (Relay and OpenFlared), and the management console frontend. For edge synchronization, validation, and runtime application workflows, see [Pingora Edge Node Design](./pingora-edge-design.md).
+OpenFlare consists of the Server control plane, the OpenFlare Edge data plane, tunnel components (Relay and OpenFlared), and the management console frontend. For edge synchronization, validation, and runtime application workflows, see [OpenFlare Edge node Design](./pingora-edge-design.md).
 
 ---
 
@@ -14,7 +14,7 @@ Browser
   |
   | HTTPS/HTTP request
   v
-Pingora Edge (WAF, TLS, Rate Limit, optional Origin Error Page)
+OpenFlare Edge (WAF, TLS, Rate Limit, optional Origin Error Page)
   |
   | reverse proxy
   v
@@ -30,7 +30,7 @@ Browser
   |
   | HTTPS/HTTP request
   v
-Pingora Edge (Agent host, TLS/WAF)
+OpenFlare Edge (Agent host, TLS/WAF)
   |
   | reverse proxy to http://localhost:vhost_port (Host header preserved)
   v
@@ -52,7 +52,7 @@ Browser
   |
   | HTTPS/HTTP request
   v
-Pingora Edge (Agent, TLS/WAF)
+OpenFlare Edge (Agent, TLS/WAF)
   |
   +---> [Static Serving] reads deployed files ---> Agent local Pages deployment directory
   |
@@ -65,8 +65,8 @@ Pingora Edge (Agent, TLS/WAF)
 
 | Component | Responsibility | Detailed Design Reference |
 | --- | --- | --- |
-| **Server** | Admin UI/API, control-plane state persistence, configuration compilation and auto-sync, Pages deployment asset storage, Cloudflare A-record pointing, access log ingestion and traffic aggregation, Uptime Kuma monitoring sync, and login captcha protection | [Pingora Edge Node Design](./pingora-edge-design.md) / [Cloudflare DNS Pointing Design](./cloudflare-pointing.md) / [Edge Observability & Business Traffic Stats](./observability-design.md) / [Uptime Kuma Sync Design](./kuma-design.md) / [Login Captcha Design](./login-captcha.md) |
-| **Pingora Edge** | Ingests live traffic, evaluates WAF rules, PoW defense, Basic Auth, static file and reverse proxy serving, and optional origin error pages | [WAF Design](./waf-design.md) / [Pages Design](./pages-design.md) / [Origin Error Page Design](./origin-error-page.md) |
+| **Server** | Admin UI/API, control-plane state persistence, configuration compilation and auto-sync, Pages deployment asset storage, Cloudflare A-record pointing, access log ingestion and traffic aggregation, Uptime Kuma monitoring sync, and login captcha protection | [OpenFlare Edge node Design](./pingora-edge-design.md) / [Cloudflare DNS Pointing Design](./cloudflare-pointing.md) / [Edge Observability & Business Traffic Stats](./observability-design.md) / [Uptime Kuma Sync Design](./kuma-design.md) / [Login Captcha Design](./login-captcha.md) |
+| **OpenFlare Edge** | Ingests live traffic, evaluates WAF rules, PoW defense, Basic Auth, static file and reverse proxy serving, and optional origin error pages | [WAF Design](./waf-design.md) / [Pages Design](./pages-design.md) / [Origin Error Page Design](./origin-error-page.md) |
 | **Relay** | Deployed on edge nodes, manages `frps` daemon lifecycle, and receives dynamically dispatched tunnel relay configuration via heartbeats | [Tunnel Design](./tunnel-design.md) |
 | **OpenFlared** | Deployed in private networks, manages `frpc` process groups, maintains reverse tunnels across multiple Relays, and reports connectivity | [Tunnel Design](./tunnel-design.md) |
 
@@ -83,9 +83,9 @@ The Go backend at the repository root (module `github.com/Rain-kl/Wavelet`) serv
 * Provides the optional Cloudflare DNS pointing control plane: maintains group desired states with ZoneDomains as members, idempotently syncing a single A record to the active node IPv4 via Asynq; node IP changes are queued best-effort; phase 1 does not execute automatic failover.
 * Integrates backend Uptime Kuma monitoring synchronization, automatically maintaining HTTP probe tasks for active sites.
 * Startup entry: `cmd/server/main.go` + `cmd/server/cli/` (`api` / `worker` / `scheduler` / `all`); OpenFlare business logic resides in `internal/apps/openflare/`, Server-side edge protocol handling in `internal/apps/openflare/{agent,relay,flared}/`, and edge runtimes in `edge/pingora/` and `internal/edge/{common,relay,flared}/`.
-* *See: [Pingora Edge Node Design](./pingora-edge-design.md) and [Uptime Kuma Sync Design](./kuma-design.md)*
+* *See: [OpenFlare Edge node Design](./pingora-edge-design.md) and [Uptime Kuma Sync Design](./kuma-design.md)*
 
-### 2. Pingora Edge (Data Plane)
+### 2. OpenFlare Edge (Data Plane)
 `openflare-edge` manages listeners, snapshots, and Pages assets, executing HTTP proxying, HTTP/2, TLS, WAF, PoW, site authentication, and caching within a single unified runtime. Nodes receive update notifications via WebSockets and synchronize site snapshots, IP groups, and performance policies through heartbeat manifests.
 
 ### 3. Relay and OpenFlared (Tunnel Components)
@@ -111,16 +111,16 @@ Admin saves config -> auto-compiles and updates site snapshot by digest
   verify and atomically swap in memory    smooth reload or spawn frpc
   report apply state (Success / Error)    report tunnel connection state and metrics
 ```
-* *For fine-grained synchronization timing and the rollback model, see [Pingora Edge Node Design](./pingora-edge-design.md).*
+* *For fine-grained synchronization timing and the rollback model, see [OpenFlare Edge node Design](./pingora-edge-design.md).*
 
 ### 2. Static Hosting and API Proxy Flow
-* Static assets are extracted to `projects/{project_id}/current` on the edge node (pulled per project latest, keeping only the latest package); Pingora serves static files directly from local storage.
-* When API proxying is enabled, Pingora rewrites and forwards (`reverse proxy`) API requests to backend dynamic endpoints according to the site's configured `api_proxy_path` (e.g. `/api`).
+* Static assets are extracted to `projects/{project_id}/current` on the edge node (pulled per project latest, keeping only the latest package); OpenFlare Edge serves static files directly from local storage.
+* When API proxying is enabled, OpenFlare Edge rewrites and forwards (`reverse proxy`) API requests to backend dynamic endpoints according to the site's configured `api_proxy_path` (e.g. `/api`).
 * Administrator operations and internal scanners generate restricted artifact candidates, reusing the unified inspection, `upload.Ingest`, and deployment pipeline. Manual uploads create unactivated candidates; persistent source syncs create-or-load and atomically activate. Future repository build executors will emit artifacts into the same pipeline; edge nodes remain consumers of active deployments.
 * *See [Pages Static Hosting Design](./pages-design.md).*
 
 ### 3. WAF Security Filtering Flow
-* The WAF engine evaluates requests during the Pingora request phase.
+* The WAF engine evaluates requests during the OpenFlare Edge request phase.
 * WAF rules are orchestrated as visual DAGs on the control plane and compiled into runtime graphs upon publishing; edge nodes load and execute them via in-memory objects.
 * Global rules precede route-bound rules, which execute in explicit order. When an evaluation reaches "pass", processing proceeds to the next rule; reaching "block" immediately returns the node-configured blocking response.
 * IP group membership updates dynamically: the control plane notifies nodes to verify checksums, and nodes update only modified IP groups.
@@ -128,7 +128,7 @@ Admin saves config -> auto-compiles and updates site snapshot by digest
 
 ### 4. Edge Observability and Business Traffic Statistics Flow
 ```text
-Pingora access logs (business ground truth)
+OpenFlare Edge access logs (business ground truth)
         |
         | nodes report log entries via heartbeats
         v
@@ -139,7 +139,7 @@ Server ingests via logstore (current log primary: PostgreSQL / SQLite / ClickHou
         +---> node_id filter ------> Node business traffic volume
 
 Host /proc network and CPU metrics --> Agent snapshot readings --> Host resource trends (isolated from business traffic)
-Pingora health and connection counts --> Edge health (instantaneous readings, not 24h business totals)
+OpenFlare Edge health and connection counts --> Edge health (instantaneous readings, not 24h business totals)
 ```
 * **Principle**: The edge node reports facts only; the Server interprets facts; access logs are the single truth for business traffic. `openresty_tx` and "Data Provided" must not run on dual tracks.
 * *See: [Observability Transport Model](./observability-transport-model.md) and [Edge Observability & Business Traffic Stats](./observability-design.md).*
@@ -188,5 +188,5 @@ Core system entities include:
 | Intranet penetration based on frp | Reuses proven tunnel protocols to avoid custom protocol risks; vhost routing naturally matches reverse proxy routes |
 | Decoupled runtime configuration and control DB | WAF rules compile upon publishing and load atomically with site snapshots; dynamic IP groups refresh independently via checksum-driven in-memory snapshots |
 | Access logs as the single truth for business traffic | Edge nodes forbid business pre-aggregation; dashboard and Zone share Server-side aggregation, avoiding dual tracks between openresty_tx and bytes_sent |
-| Layered separation of business traffic / edge health / host resources | Data Provided != host network egress != Pingora connection counts; UI and APIs maintain distinct naming and presentation |
+| Layered separation of business traffic / edge health / host resources | Data Provided != host network egress != OpenFlare Edge connection counts; UI and APIs maintain distinct naming and presentation |
 | Pages artifact and repository build separation | Existing sources import pre-built packages; future checkout/build pipelines run in isolated Server executors and reuse the artifact pipeline; edge nodes do not execute third-party builds |

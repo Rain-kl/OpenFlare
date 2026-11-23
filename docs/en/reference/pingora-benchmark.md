@@ -1,10 +1,10 @@
-# Pingora Performance Benchmarks
+# OpenFlare Edge Performance Benchmarks
 
 On November 20, 2026, US-A connected directly to isolated OpenFlare Edge `0.1.8` instances on JP-B and US-C to measure WAF overhead and worker scaling with in-memory access logs.
 
 ## Test Environment and Performance Policy
 
-| Label | Role | CPU | Effective Pingora worker threads | Effective idle upstream connection pool (per worker) |
+| Label | Role | CPU | Effective OpenFlare Edge worker threads | Effective idle upstream connection pool (per worker) |
 | --- | --- | --- | ---: | ---: |
 | US-A | Load generator | 1 vCPU | — | — |
 | JP-B | Edge node | 3 vCPUs, ARM64 | 3 | 192 |

@@ -183,7 +183,7 @@ func GetAgentReleaseHandler(c *gin.Context) {
 
 // RequestAgentUpdateHandler requests agent self-update on a node.
 // @Summary 请求更新节点
-// @Description 为指定节点登记更新请求，Pingora 节点的请求固定到目标版本，需要管理员权限
+// @Description 为指定节点登记更新请求，边缘节点的请求固定到目标版本，需要管理员权限
 // @Tags openflare-node
 // @Accept json
 // @Produce json
@@ -215,7 +215,7 @@ func RequestAgentUpdateHandler(c *gin.Context) {
 }
 
 // RequestEdgeRestartHandler requests openresty restart on a node.
-// @Summary 请求重启 Pingora
+// @Summary 请求重启 OpenFlare Edge
 // @Description 向指定节点下发 OpenResty 重启指令，需要管理员权限
 // @Tags openflare-node
 // @Produce json

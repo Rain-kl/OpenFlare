@@ -1,6 +1,6 @@
 # Deploy OpenFlare Edge
 
-OpenFlare Edge is the Pingora-based edge gateway introduced in OpenFlare v4.0.0. Upon startup, the edge node connects to the OpenFlare Server control plane to perform node registration, heartbeat reporting, configuration synchronization, Pages asset distribution, and traffic proxying. For legacy OpenResty nodes, refer to the [Upgrade & maintenance guide](./upgrade.md) for migration steps.
+OpenFlare Edge is the OpenFlare Edge-based edge gateway introduced in OpenFlare v4.0.0. Upon startup, the edge node connects to the OpenFlare Server control plane to perform node registration, heartbeat reporting, configuration synchronization, Pages asset distribution, and traffic proxying. For legacy OpenResty nodes, refer to the [Upgrade & maintenance guide](./upgrade.md) for migration steps.
 
 ## Releases and version management
 
@@ -112,10 +112,10 @@ The state directory `/var/lib/openflare-edge` is the only writable path granted 
 
 ## Process architecture and fault tolerance
 
-The `openflare-edge` binary implements a dual-process architecture comprising a control plane supervisor and a Pingora data plane worker:
+The `openflare-edge` binary implements a dual-process architecture comprising a control plane supervisor and a OpenFlare Edge data plane worker:
 
 1. Control plane supervisor: Manages long-lived connections, heartbeats, configuration snapshot downloads, Pages static asset synchronization, metric telemetry, and worker process lifecycle supervision.
-2. Pingora data plane worker: Handles listener ports, TLS handshakes, WAF rule evaluations, cache lookups, and reverse proxy forwarding to origin servers.
+2. OpenFlare Edge data plane worker: Handles listener ports, TLS handshakes, WAF rule evaluations, cache lookups, and reverse proxy forwarding to origin servers.
 
 Fault tolerance mechanisms:
 - Process-level supervision: The supervisor checks data plane worker liveness every second. If the worker exits unexpectedly, the supervisor immediately spawns a new worker. If the supervisor process crashes, systemd restarts it (`Restart=always`, 5-second interval) to re-attach supervision.
@@ -139,7 +139,7 @@ sudo bash scripts/update-openflare-edge.sh
 Upgrade characteristics:
 - Validates the downloaded archive's SHA-256 checksum and protocol compatibility.
 - Atomically replaces the `/opt/openflare-edge/current` binary.
-- Starting with `edge-v0.1.2`, Pingora graceful drain timeout is tuned to 2 seconds for clean connection draining before restart.
+- Starting with `edge-v0.1.2`, OpenFlare Edge graceful drain timeout is tuned to 2 seconds for clean connection draining before restart.
 - Validates startup success via systemd. If the new binary fails validation or fails to start, the script logs an error while preserving the previous operational state.
 
 ### Docker container upgrade

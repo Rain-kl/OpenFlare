@@ -245,7 +245,7 @@ Server、Agent、调度器、任务框架及存储维护等运行时日志的固
 
 ### 6. 边缘网关安全与限流参数 (Edge Security & Rate Limits)
 
-OpenFlare 边缘网关已全面采用 Pingora 架构，原 OpenResty / Nginx 底层配置参数（如 `worker_processes`, `worker_connections`, `worker_rlimit_nofile`, `keepalive_timeout` 等）已彻底废弃并从系统配置中移除。边缘运行参数、回源连接池、HTTP/2、TLS 监听及反向代理缓存等策略已移至控制台「性能策略」模块进行可视化管理并向边缘节点统一下发（详见 [Pingora 性能策略](../guide/performance-policies.md)）。
+OpenFlare 边缘网关已全面采用 OpenFlare Edge 架构，原 OpenResty / Nginx 底层配置参数（如 `worker_processes`, `worker_connections`, `worker_rlimit_nofile`, `keepalive_timeout` 等）已彻底废弃并从系统配置中移除。边缘运行参数、回源连接池、HTTP/2、TLS 监听及反向代理缓存等策略已移至控制台「性能策略」模块进行可视化管理并向边缘节点统一下发（详见 [OpenFlare Edge 性能策略](../guide/performance-policies.md)）。
 
 系统运行时保留通用的边缘网关安全防护与限流参数（`edge_*`），管理员可在后台「系统管理 → 系统配置 → 业务配置」中调整：
 
@@ -257,7 +257,7 @@ OpenFlare 边缘网关已全面采用 Pingora 架构，原 OpenResty / Nginx 底
 | `edge_default_limit_rate` | `string` | 站点未单独配置时的默认单请求带宽限制（如 `512k`）；空表示默认关闭 | 空 |
 | `edge_default_limit_req_per_ip` | `string` | 站点未单独配置时的默认单 IP 请求频率限制（如 `10r/s`、`100r/m`）；空表示默认关闭 | 空 |
 
-在管理端「系统管理 → 系统配置 → 业务配置」中编辑 `edge_trusted_proxy_cidrs`。默认值为 Cloudflare 官方完整 22 个 IPv4/IPv6 网段，可从 [Cloudflare IPv4 网段](https://www.cloudflare.com/ips-v4) 和 [IPv6 网段](https://www.cloudflare.com/ips-v6) 核对并按官方更新维护。若要信任额外内网代理，应将其 CIDR 追加到现有数组；例如 `10.2.0.227` 只有在确认它是可信代理、且它发送的 `CF-Connecting-IP` 真实可靠后，才追加 `10.2.0.227/32`。该地址不属于默认信任范围。显式设置为 `[]` 会关闭由此配置生成的转发头信任；已有显式空值不会在升级时自动改为默认。保存后自动同步到边缘节点。Pingora 对来自可信网段的请求读取 `CF-Connecting-IP`，访问日志、WAF 和上游 `X-Real-IP` 使用恢复后的客户端地址。缺少该配置值时使用 Cloudflare 默认网段，非法 JSON 按空列表处理。
+在管理端「系统管理 → 系统配置 → 业务配置」中编辑 `edge_trusted_proxy_cidrs`。默认值为 Cloudflare 官方完整 22 个 IPv4/IPv6 网段，可从 [Cloudflare IPv4 网段](https://www.cloudflare.com/ips-v4) 和 [IPv6 网段](https://www.cloudflare.com/ips-v6) 核对并按官方更新维护。若要信任额外内网代理，应将其 CIDR 追加到现有数组；例如 `10.2.0.227` 只有在确认它是可信代理、且它发送的 `CF-Connecting-IP` 真实可靠后，才追加 `10.2.0.227/32`。该地址不属于默认信任范围。显式设置为 `[]` 会关闭由此配置生成的转发头信任；已有显式空值不会在升级时自动改为默认。保存后自动同步到边缘节点。OpenFlare Edge 对来自可信网段的请求读取 `CF-Connecting-IP`，访问日志、WAF 和上游 `X-Real-IP` 使用恢复后的客户端地址。缺少该配置值时使用 Cloudflare 默认网段，非法 JSON 按空列表处理。
 
 ### 7. 源站错误页 (Origin Error Page)
 
@@ -295,7 +295,7 @@ OpenFlare 边缘网关已全面采用 Pingora 架构，原 OpenResty / Nginx 底
 
 ---
 
-## Pingora Edge 启动参数
+## OpenFlare Edge 启动参数
 
 `openflare-edge run` 使用 `--server-url`、`--token-type discovery|node`、`--token-file` 和 `--state-dir` 连接控制端。监听地址由 `--http-listen` 和可选的 `--tls-listen` 设置。由安装脚本管理的服务默认监听 80 和 443，状态目录为 `/var/lib/openflare-edge`。升级现有节点配置时附加 `--upgrade`。
 

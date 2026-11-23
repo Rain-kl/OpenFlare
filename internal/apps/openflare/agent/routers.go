@@ -20,7 +20,7 @@ import (
 
 // RegisterHandler registers or discovers an agent node.
 // @Summary 注册或发现 Agent 节点
-// @Description 使用节点 access token 重新注册，或使用全局 discovery token 发现新节点；请求头需携带 X-Agent-Token。支持当前配置契约的 Pingora Edge 使用原节点 Token 注册时，可接替已登记的 OpenResty 节点。
+// @Description 使用节点 access token 重新注册，或使用全局 discovery token 发现新节点；请求头需携带 X-Agent-Token。支持当前配置契约的 OpenFlare Edge 使用原节点 Token 注册时，可接替已登记的 OpenResty 节点。
 // @Tags openflare-agent
 // @Accept json
 // @Produce json
