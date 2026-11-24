@@ -756,6 +756,8 @@ def main(binary):
                 assert "waf.ip-group.v1/33" in server.pulls
                 assert server.pulls.count("sites.v1") == 1
                 policy = json.loads(Path(__file__).with_name("performance_policy.json").read_text())
+                policy["verify_cert"] = True
+                policy["verify_hostname"] = True
                 policy["threads"] = 2
                 policy["cache_disk_capacity_mib"] = 64
                 policy["cache_disk_inactive_seconds"] = 120

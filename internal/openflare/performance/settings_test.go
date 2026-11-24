@@ -15,7 +15,8 @@ func TestPolicyDefaultsAndValidation(t *testing.T) {
 	require.Len(t, defaults, len(Parameters))
 	require.Equal(t, 1, defaults["threads"])
 	require.Equal(t, 128, defaults["upstream_keepalive_pool_size"])
-	require.Equal(t, true, defaults["verify_cert"])
+	require.Equal(t, false, defaults["verify_cert"])
+	require.Equal(t, false, defaults["verify_hostname"])
 	require.Equal(t, 0, defaults["cache_disk_capacity_mib"])
 	require.Equal(t, 172800, defaults["cache_disk_inactive_seconds"])
 	require.Equal(t, 32, defaults["cache_disk_reading_max"])
@@ -32,11 +33,22 @@ func TestPolicyDefaultsAndValidation(t *testing.T) {
 	require.Equal(t, 256, disk["cache_disk_capacity_mib"])
 	require.Equal(t, 32, disk["cache_max_object_mib"])
 
+	strictTLS, err := Decode(`{"verify_cert":true,"verify_hostname":true}`)
+	require.NoError(t, err)
+	require.Equal(t, true, strictTLS["verify_cert"])
+	require.Equal(t, true, strictTLS["verify_hostname"])
+
+	certDisabled, err := Decode(`{"verify_cert":false}`)
+	require.NoError(t, err)
+	require.Equal(t, false, certDisabled["verify_cert"])
+	require.Equal(t, false, certDisabled["verify_hostname"])
+
 	for _, body := range []string{
 		`{"threads":0}`,
 		`{"threads":null}`,
 		`{"threads_auto":"true"}`,
-		`{"verify_cert":false}`,
+		`{"verify_hostname":true}`,
+		`{"verify_cert":false,"verify_hostname":true}`,
 		`{"max_frame_size":16777216}`,
 		`{"upstream_alpn":"h3"}`,
 		`{"cache_capacity_mib":16,"cache_max_object_mib":17}`,

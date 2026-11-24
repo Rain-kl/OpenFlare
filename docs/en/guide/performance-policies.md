@@ -22,7 +22,7 @@ Auto mode reserves an estimated budget of 768 MiB per worker thread, keeping at 
 
 Upon saving a policy, the control plane immediately notifies connected nodes. Origin timeouts, TLS validation, upstream HTTP/2, and specific cache parameters take effect dynamically for new requests. When startup parameters change (thread counts, pool capacity, downstream HTTP/2 limits, listeners, or total cache capacity), the node drains active connections and restarts workers gracefully. Offline nodes receive current assignments upon reconnection.
 
-New policies enforce certificate and hostname verification for HTTPS origins by default. When configuring caching, corresponding rules must also be enabled under site details; the node cache toggle controls whether these rules take effect on the node.
+New policies disable certificate and hostname verification for HTTPS origins by default; enable them in the Upstream group if strict origin TLS verification is required. When configuring caching, corresponding rules must also be enabled under site details; the node cache toggle controls whether these rules take effect on the node.
 
 ---
 
