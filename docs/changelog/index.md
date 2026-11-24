@@ -29,6 +29,10 @@ sidebar: false
   - **OpenFlare Edge `tunnel-routing.v1` 协同与 L4/L7 双协议转发**：边缘节点直接将绑定隧道上游的 L7 请求调度至同机或就近健康中继网关，并支持内网 HTTPS `insecure_skip_verify` 开关；`openflared` 在 L7 HTTP/WS 与 L4 TCP/UDP 回源链路前强制校验允许/禁止 CIDR 清单以阻断 SSRF（默认拦截 `169.254.169.254/32`）。
   - **中继排水与一键紧急隔离**：支持为中继开启平滑排水（Draining），并为 Relay 与 Tunnel 提供令牌轮换及一键隔离/解除隔离管控。
 
+### 🛠 修复
+
+- 修复 OpenFlare Edge 在 HTTPS 回源协议启用 HTTP/2（`h2h1` / `h2`）时导致 WebSocket 升级失败的问题：WebSocket 握手请求回源时强制协商 `HTTP/1.1` 并隔离连接池，同时在升级完成后豁免回源与下游读取超时及 64 MiB 请求体累计上限，避免长连接空闲断开或大数据量传输被中断。
+
 ## [v4.0.3] - 2026-11-23
 
 ### ✨ 新功能

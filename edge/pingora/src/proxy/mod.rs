@@ -171,11 +171,14 @@ impl ProxyHttp for ProxyService {
 
     async fn request_body_filter(
         &self,
-        _: &mut Session,
+        session: &mut Session,
         body: &mut Option<bytes::Bytes>,
         _: bool,
         ctx: &mut Self::CTX,
     ) -> Result<()> {
+        if session.was_upgraded() {
+            return Ok(());
+        }
         ctx.request_bytes = ctx
             .request_bytes
             .saturating_add(body.as_ref().map_or(0, |chunk| chunk.len() as u64));

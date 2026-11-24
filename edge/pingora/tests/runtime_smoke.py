@@ -251,6 +251,166 @@ class TLSOriginServer(http.server.ThreadingHTTPServer):
         super().__init__(address, TLSOrigin)
 
 
+def start_ws_tls_origin(cert_path, key_path):
+    """Serve WebSocket over self-signed TLS advertising h2 and http/1.1 ALPN."""
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(16)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(cert_path, key_path)
+    ctx.set_alpn_protocols(["h2", "http/1.1"])
+    state = {"alpn": [], "stop": False}
+
+    def recv_exact(conn, size):
+        buf = bytearray()
+        while len(buf) < size:
+            chunk = conn.recv(size - len(buf))
+            if not chunk:
+                raise EOFError("unexpected EOF reading WebSocket frame")
+            buf.extend(chunk)
+        return bytes(buf)
+
+    def read_frame(conn):
+        b0, b1 = recv_exact(conn, 2)
+        length = b1 & 0x7F
+        if length == 126:
+            length = struct.unpack("!H", recv_exact(conn, 2))[0]
+        elif length == 127:
+            length = struct.unpack("!Q", recv_exact(conn, 8))[0]
+        mask = recv_exact(conn, 4) if (b1 & 0x80) else None
+        payload = recv_exact(conn, length)
+        if mask:
+            payload = bytes(byte ^ mask[i % 4] for i, byte in enumerate(payload))
+        return b0 & 0x0F, payload
+
+    def send_frame(conn, payload):
+        header = (
+            struct.pack("!BB", 0x81, len(payload))
+            if len(payload) < 126
+            else struct.pack("!BBH", 0x81, 126, len(payload))
+        )
+        conn.sendall(header + payload)
+
+    def handle(raw_conn):
+        conn = None
+        try:
+            conn = ctx.wrap_socket(raw_conn, server_side=True)
+            negotiated = conn.selected_alpn_protocol()
+            state["alpn"].append(negotiated)
+            if negotiated == "h2":
+                conn.close()
+                return
+            head = b""
+            while b"\r\n\r\n" not in head:
+                chunk = conn.recv(4096)
+                if not chunk:
+                    return
+                head += chunk
+            lines = head.split(b"\r\n\r\n", 1)[0].decode("latin1").split("\r\n")
+            headers = {
+                k.strip().lower(): v.strip()
+                for line in lines[1:]
+                if ":" in line
+                for k, v in [line.split(":", 1)]
+            }
+            ws_key = headers.get("sec-websocket-key")
+            if headers.get("upgrade", "").lower() != "websocket" or not ws_key:
+                conn.sendall(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n")
+                return
+            accept = base64.b64encode(
+                hashlib.sha1(
+                    (ws_key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()
+                ).digest()
+            ).decode()
+            conn.sendall(
+                (
+                    "HTTP/1.1 101 Switching Protocols\r\n"
+                    "Upgrade: websocket\r\n"
+                    "Connection: Upgrade\r\n"
+                    f"Sec-WebSocket-Accept: {accept}\r\n\r\n"
+                ).encode()
+            )
+            conn.settimeout(5)
+            while True:
+                opcode, payload = read_frame(conn)
+                if opcode == 8:
+                    conn.sendall(struct.pack("!BB", 0x88, 0))
+                    break
+                if payload == b"slow":
+                    time.sleep(1.3)
+                    send_frame(conn, b"slow-ok")
+                else:
+                    send_frame(conn, b"echo:" + payload)
+        except (EOFError, OSError):
+            pass
+        finally:
+            try:
+                (conn or raw_conn).close()
+            except OSError:
+                pass
+
+    def serve():
+        while not state["stop"]:
+            try:
+                conn, _ = listener.accept()
+                threading.Thread(target=handle, args=(conn,), daemon=True).start()
+            except OSError:
+                break
+
+    threading.Thread(target=serve, daemon=True).start()
+    return listener, state
+
+
+def assert_ws_echo(tls_port, host):
+    def recv_exact(conn, size):
+        buf = bytearray()
+        while len(buf) < size:
+            chunk = conn.recv(size - len(buf))
+            if not chunk:
+                raise EOFError("unexpected EOF reading WebSocket response frame")
+            buf.extend(chunk)
+        return bytes(buf)
+
+    def send_masked(conn, payload):
+        mask = b"\x12\x34\x56\x78"
+        masked = bytes(byte ^ mask[i % 4] for i, byte in enumerate(payload))
+        conn.sendall(struct.pack("!BB", 0x81, 0x80 | len(payload)) + mask + masked)
+
+    def read_unmasked(conn):
+        b0, b1 = recv_exact(conn, 2)
+        assert (b1 & 0x80) == 0, b1
+        length = b1 & 0x7F
+        if length == 126:
+            length = struct.unpack("!H", recv_exact(conn, 2))[0]
+        return b0 & 0x0F, recv_exact(conn, length)
+
+    client_ctx = ssl.create_default_context()
+    client_ctx.check_hostname = False
+    client_ctx.verify_mode = ssl.CERT_NONE
+    raw = socket.create_connection(("127.0.0.1", tls_port), timeout=5)
+    with client_ctx.wrap_socket(raw, server_hostname=host) as conn:
+        conn.sendall(
+            (
+                f"GET /ws HTTP/1.1\r\nHost: {host}\r\n"
+                "Upgrade: websocket\r\nConnection: Upgrade\r\n"
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+                "Sec-WebSocket-Version: 13\r\n\r\n"
+            ).encode()
+        )
+        response = b""
+        while b"\r\n\r\n" not in response:
+            chunk = conn.recv(4096)
+            assert chunk, response
+            response += chunk
+        status_line = response.split(b"\r\n", 1)[0]
+        assert b"101 Switching Protocols" in status_line, response
+        send_masked(conn, b"ping")
+        assert read_unmasked(conn) == (1, b"echo:ping")
+        send_masked(conn, b"slow")
+        assert read_unmasked(conn) == (1, b"slow-ok")
+        conn.sendall(struct.pack("!BB", 0x88, 0x80) + b"\x12\x34\x56\x78")
+
+
 def attack_flow(group_id, level):
     return {"id": group_id, "name": f"fixture-{level}", "enabled": True, "is_global": False,
             "graph": {"entry": "inspect", "nodes": {
@@ -265,9 +425,8 @@ def attack_flow(group_id, level):
             }}}
 
 
-def release(seq, origin, tls_origin, certificate, key, *, empty=False):
-    shared = {
-        "routes": [
+def release(seq, origin, tls_origin, certificate, key, *, empty=False, ws_origin=None):
+    routes = [
             route(origin, 1, "edge.test", origin_host="origin.test"),
             route(origin, 2, "h1.edge.test", enable_http2=False),
             route(origin, 3, "login.edge.test", basic_auth_username="alice",
@@ -289,7 +448,11 @@ def release(seq, origin, tls_origin, certificate, key, *, empty=False):
             route(tls_origin, 11, "fixed.edge.test", origin_host="fixed-origin.edge.test"),
             route(f"https://localhost:{urllib.parse.urlsplit(tls_origin).port}",
                   12, "named.edge.test"),
-        ],
+    ]
+    if ws_origin is not None:
+        routes.append(route(ws_origin, 13, "ws.edge.test"))
+    shared = {
+        "routes": routes,
         "edge_config": {
             "origin_error_page_enabled": True,
             "origin_error_page_status_codes": ["503"],
@@ -456,11 +619,18 @@ def main(binary):
         origin_ip = ipaddress.ip_address(tls_origin_server.server_address[0])
         origin_authority = f"[{origin_ip}]" if origin_ip.version == 6 else str(origin_ip)
         tls_origin = f"https://{origin_authority}:{tls_origin_server.server_port}"
+        ws_cert, ws_key = path / "ws-origin.pem", path / "ws-origin-key.pem"
+        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+                        "-subj", "/CN=selfsigned-ws.invalid", "-days", "1",
+                        "-out", str(ws_cert), "-keyout", str(ws_key)],
+                       check=True, capture_output=True)
+        ws_origin_socket, ws_origin_state = start_ws_tls_origin(ws_cert, ws_key)
+        ws_origin = f"https://127.0.0.1:{ws_origin_socket.getsockname()[1]}"
         server.pages = make_pages(1, b"first page")
         cert_pem = certificate.read_text()
         cert_sha256 = hashlib.sha256((cert_pem.strip() + "\n").encode()).hexdigest()
         server.cert_keys = {"1": (cert_sha256, key.read_text())}
-        server.active = release(1, origin, tls_origin, cert_pem, key.read_text())
+        server.active = release(1, origin, tls_origin, cert_pem, key.read_text(), ws_origin=ws_origin)
         token = path / "bootstrap"
         token.write_text("discovery-credential")
         ready = path / "ready.json"
@@ -639,6 +809,24 @@ def main(binary):
                 assert request("edge.test", "/slow-origin")[0] != 200
                 assert (path / "edge.log").read_text().count("starting Pingora workers") == 2
                 assert "performance.v1" not in server.pulls
+
+                # Self-signed HTTPS + h2h1 WebSocket must force H1 ALPN and survive idle read_timeout.
+                server.performance = {
+                    **policy,
+                    "read_timeout": 1,
+                    "verify_cert": False,
+                    "verify_hostname": False,
+                    "upstream_alpn": "h2h1",
+                }
+                wake()
+                wait_for(lambda: json.loads(state_file.read_text())["settings"]["upstream_alpn"] == "h2h1", seconds=3)
+                assert (path / "edge.log").read_text().count("starting Pingora workers") == 2
+                assert_ws_echo(tls_port, "ws.edge.test")
+                assert ws_origin_state["alpn"][-1] == "http/1.1", ws_origin_state["alpn"]
+
+                server.performance = {**policy, "read_timeout": 1}
+                wake()
+                wait_for(lambda: json.loads(state_file.read_text())["settings"]["upstream_alpn"] == "h1", seconds=3)
 
                 server.performance = {**server.performance, "threads_auto": True,
                                       "upstream_keepalive_pool_size": 65536}
@@ -820,6 +1008,8 @@ def main(binary):
                 origin_server.server_close()
                 tls_origin_server.shutdown()
                 tls_origin_server.server_close()
+                ws_origin_state["stop"] = True
+                ws_origin_socket.close()
     print("Edge runtime smoke passed")
 
 

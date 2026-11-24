@@ -23,6 +23,10 @@ impl ProxyService {
         if let Some(cookie) = &ctx.pow_cookie {
             response.append_header("set-cookie", cookie.as_str())?;
         }
+        if response.status == http::StatusCode::SWITCHING_PROTOCOLS {
+            session.as_downstream_mut().set_read_timeout(None);
+            return Ok(());
+        }
         if route.site_auth_ttl_hours != 0 {
             response.insert_header("cache-control", "private, no-store")?;
         }
