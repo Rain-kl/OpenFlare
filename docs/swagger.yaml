@@ -1052,6 +1052,35 @@ definitions:
       zone_id:
         type: string
     type: object
+  apps_openflare_automation.ExecRunBody:
+    properties:
+      clients:
+        description: Target node registration identifiers (node_id values from openflare_node_list).
+        items:
+          type: string
+        type: array
+      command:
+        description: Shell command to execute on the selected edge nodes.
+        maxLength: 32768
+        minLength: 1
+        type: string
+      timeout_seconds:
+        description: Per-node execution timeout in seconds (1 to 600; defaults to
+          60).
+        maximum: 600
+        minimum: 1
+        type: integer
+    required:
+    - clients
+    - command
+    type: object
+  apps_openflare_automation.ExecTaskList:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskView'
+        type: array
+    type: object
   apps_openflare_automation.IPGroupDetails:
     properties:
       entries:
@@ -1140,6 +1169,8 @@ definitions:
         type: array
       node:
         $ref: '#/definitions/apps_openflare_automation.NodeSummary'
+      profile:
+        $ref: '#/definitions/model.OpenFlareNodeSystemProfile'
       trends:
         $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeTrends'
     type: object
@@ -1155,6 +1186,21 @@ definitions:
         type: array
       total:
         type: integer
+    type: object
+  apps_openflare_automation.NodePingMetrics:
+    properties:
+      hours:
+        type: integer
+      node:
+        $ref: '#/definitions/apps_openflare_automation.NodeSummary'
+      records:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_ping.PingRecordView'
+        type: array
+      tasks:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_ping.PingTaskStatsView'
+        type: array
     type: object
   apps_openflare_automation.NodeSummary:
     properties:
@@ -1258,6 +1304,104 @@ definitions:
         type: string
       value:
         type: string
+    type: object
+  apps_openflare_automation.PingTaskBody:
+    properties:
+      clients:
+        description: Target node registration identifiers (node_id values from openflare_node_list).
+        items:
+          type: string
+        type: array
+      default_on:
+        description: Whether newly added or registered nodes are automatically bound
+          to this task.
+        type: boolean
+      interval:
+        description: Probe interval in seconds (10 to 86400; defaults to 60).
+        maximum: 86400
+        minimum: 10
+        type: integer
+      name:
+        description: Display name of the latency probe task.
+        maxLength: 255
+        minLength: 1
+        type: string
+      target:
+        description: Probe target address (IP or host for icmp, host:port for tcp,
+          or full http/https URL for http).
+        maxLength: 255
+        minLength: 1
+        type: string
+      type:
+        description: 'Probe protocol: icmp, tcp, or http.'
+        enum:
+        - icmp
+        - tcp
+        - http
+        type: string
+    required:
+    - name
+    - target
+    - type
+    type: object
+  apps_openflare_automation.PingTaskDeleted:
+    properties:
+      deleted:
+        type: integer
+      state:
+        type: string
+      task_id:
+        type: string
+    type: object
+  apps_openflare_automation.PingTaskList:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/apps_openflare_automation.PingTaskSummary'
+        type: array
+    type: object
+  apps_openflare_automation.PingTaskReorderBody:
+    properties:
+      task_ids:
+        description: Ordered list of decimal ping task IDs from highest priority (weight
+          0) to lowest.
+        items:
+          type: string
+        type: array
+    required:
+    - task_ids
+    type: object
+  apps_openflare_automation.PingTaskSaved:
+    properties:
+      state:
+        type: string
+      task:
+        $ref: '#/definitions/apps_openflare_automation.PingTaskSummary'
+    type: object
+  apps_openflare_automation.PingTaskSummary:
+    properties:
+      clients:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      default_on:
+        type: boolean
+      interval:
+        type: integer
+      name:
+        type: string
+      target:
+        type: string
+      task_id:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      weight:
+        type: integer
     type: object
   apps_openflare_automation.SetPerformanceBody:
     properties:
@@ -1838,6 +1982,80 @@ definitions:
           items: {}
           type: array
         type: array
+    type: object
+  apps_openflare_exec.RunInput:
+    properties:
+      clients:
+        items:
+          type: string
+        type: array
+      command:
+        type: string
+      timeout_seconds:
+        type: integer
+    type: object
+  apps_openflare_exec.RunResponse:
+    properties:
+      clients:
+        items:
+          type: string
+        type: array
+      command:
+        type: string
+      created_at:
+        type: string
+      offline_clients:
+        items:
+          type: string
+        type: array
+      online_clients:
+        items:
+          type: string
+        type: array
+      results:
+        items:
+          $ref: '#/definitions/apps_openflare_exec.TaskResultView'
+        type: array
+      task_id:
+        type: string
+    type: object
+  apps_openflare_exec.TaskResultView:
+    properties:
+      client:
+        type: string
+      created_at:
+        type: string
+      exit_code:
+        type: integer
+      finished_at:
+        type: string
+      id:
+        type: integer
+      node_name:
+        type: string
+      result:
+        type: string
+      task_id:
+        type: string
+    type: object
+  apps_openflare_exec.TaskView:
+    properties:
+      clients:
+        items:
+          type: string
+        type: array
+      command:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/apps_openflare_exec.TaskResultView'
+        type: array
+      task_id:
+        type: string
     type: object
   apps_openflare_node.AgentReleaseInfo:
     properties:
@@ -2792,6 +3010,116 @@ definitions:
         type: object
     required:
     - name
+    type: object
+  apps_openflare_ping.BatchUpdateTasksInput:
+    properties:
+      tasks:
+        items:
+          $ref: '#/definitions/apps_openflare_ping.TaskUpdateInput'
+        type: array
+    type: object
+  apps_openflare_ping.DeleteTasksInput:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  apps_openflare_ping.DeleteTasksResult:
+    properties:
+      deleted:
+        type: integer
+    type: object
+  apps_openflare_ping.NodePingRecordsView:
+    properties:
+      hours:
+        type: integer
+      node_id:
+        type: string
+      records:
+        items:
+          $ref: '#/definitions/apps_openflare_ping.PingRecordView'
+        type: array
+      tasks:
+        items:
+          $ref: '#/definitions/apps_openflare_ping.PingTaskStatsView'
+        type: array
+    type: object
+  apps_openflare_ping.PingRecordView:
+    properties:
+      recorded_at:
+        type: string
+      task_id:
+        type: integer
+      value:
+        type: integer
+    type: object
+  apps_openflare_ping.PingTaskStatsView:
+    properties:
+      avg:
+        type: number
+      id:
+        type: integer
+      interval:
+        type: integer
+      latest:
+        type: integer
+      loss:
+        type: number
+      max:
+        type: integer
+      min:
+        type: integer
+      name:
+        type: string
+      p50:
+        type: integer
+      p99:
+        type: integer
+      p99_p50_ratio:
+        type: number
+      target:
+        type: string
+      total:
+        type: integer
+      type:
+        type: string
+    type: object
+  apps_openflare_ping.TaskInput:
+    properties:
+      clients:
+        items:
+          type: string
+        type: array
+      default_on:
+        type: boolean
+      interval:
+        type: integer
+      name:
+        type: string
+      target:
+        type: string
+      type:
+        type: string
+    type: object
+  apps_openflare_ping.TaskUpdateInput:
+    properties:
+      clients:
+        items:
+          type: string
+        type: array
+      default_on:
+        type: boolean
+      id:
+        type: integer
+      interval:
+        type: integer
+      name:
+        type: string
+      target:
+        type: string
+      type:
+        type: string
     type: object
   apps_openflare_pow.Policy:
     properties:
@@ -4321,6 +4649,69 @@ definitions:
       website:
         type: string
     type: object
+  github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.RunResponse:
+    properties:
+      clients:
+        items:
+          type: string
+        type: array
+      command:
+        type: string
+      created_at:
+        type: string
+      offline_clients:
+        items:
+          type: string
+        type: array
+      online_clients:
+        items:
+          type: string
+        type: array
+      results:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskResultView'
+        type: array
+      task_id:
+        type: string
+    type: object
+  github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskResultView:
+    properties:
+      client:
+        type: string
+      created_at:
+        type: string
+      exit_code:
+        type: integer
+      finished_at:
+        type: string
+      id:
+        type: integer
+      node_name:
+        type: string
+      result:
+        type: string
+      task_id:
+        type: string
+    type: object
+  github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskView:
+    properties:
+      clients:
+        items:
+          type: string
+        type: array
+      command:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskResultView'
+        type: array
+      task_id:
+        type: string
+    type: object
   github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.AccessLogList:
     properties:
       has_more:
@@ -4482,19 +4873,49 @@ definitions:
         type: integer
       disk_write_bytes:
         type: integer
+      gpu_usage_percent:
+        type: number
       id:
         type: integer
+      load1:
+        type: number
+      load5:
+        type: number
+      load15:
+        type: number
       memory_total_bytes:
         type: integer
       memory_used_bytes:
+        type: integer
+      net_in:
+        type: integer
+      net_out:
+        type: integer
+      net_total_down:
+        type: integer
+      net_total_up:
         type: integer
       node_id:
         type: string
       openresty_connections:
         type: integer
+      process_count:
+        type: integer
       storage_total_bytes:
         type: integer
       storage_used_bytes:
+        type: integer
+      swap_total_bytes:
+        type: integer
+      swap_used_bytes:
+        type: integer
+      tcp_connections:
+        type: integer
+      temp:
+        type: number
+      udp_connections:
+        type: integer
+      uptime_seconds:
         type: integer
     type: object
   github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeTrends:
@@ -4563,6 +4984,46 @@ definitions:
       window_ended_at:
         type: string
       window_started_at:
+        type: string
+    type: object
+  github_com_Rain-kl_Wavelet_internal_apps_openflare_ping.PingRecordView:
+    properties:
+      recorded_at:
+        type: string
+      task_id:
+        type: integer
+      value:
+        type: integer
+    type: object
+  github_com_Rain-kl_Wavelet_internal_apps_openflare_ping.PingTaskStatsView:
+    properties:
+      avg:
+        type: number
+      id:
+        type: integer
+      interval:
+        type: integer
+      latest:
+        type: integer
+      loss:
+        type: number
+      max:
+        type: integer
+      min:
+        type: integer
+      name:
+        type: string
+      p50:
+        type: integer
+      p99:
+        type: integer
+      p99_p50_ratio:
+        type: number
+      target:
+        type: string
+      total:
+        type: integer
+      type:
         type: string
     type: object
   github_com_Rain-kl_Wavelet_internal_apps_openflare_proxy_route.CustomHeaderInput:
@@ -4998,13 +5459,43 @@ definitions:
         type: integer
       disk_write_bytes:
         type: integer
+      gpu_usage_percent:
+        type: number
+      load1:
+        type: number
+      load5:
+        type: number
+      load15:
+        type: number
       memory_total_bytes:
         type: integer
       memory_used_bytes:
         type: integer
+      net_in:
+        type: integer
+      net_out:
+        type: integer
+      net_total_down:
+        type: integer
+      net_total_up:
+        type: integer
+      process_count:
+        type: integer
       storage_total_bytes:
         type: integer
       storage_used_bytes:
+        type: integer
+      swap_total_bytes:
+        type: integer
+      swap_used_bytes:
+        type: integer
+      tcp_connections:
+        type: integer
+      temp:
+        type: number
+      udp_connections:
+        type: integer
+      uptime_seconds:
         type: integer
     type: object
   github_com_Rain-kl_Wavelet_internal_openflare_protocol.NodePayload:
@@ -5068,7 +5559,15 @@ definitions:
         type: integer
       cpu_model:
         type: string
+      cpu_physical_cores:
+        type: integer
+      gpu_name:
+        type: string
       hostname:
+        type: string
+      ipv4:
+        type: string
+      ipv6:
         type: string
       kernel_version:
         type: string
@@ -5076,7 +5575,11 @@ definitions:
         type: string
       os_version:
         type: string
+      probe_version:
+        type: string
       reported_at_unix:
+        type: integer
+      swap_total_bytes:
         type: integer
       total_disk_bytes:
         type: integer
@@ -5084,6 +5587,8 @@ definitions:
         type: integer
       uptime_seconds:
         type: integer
+      virtualization:
+        type: string
     type: object
   github_com_Rain-kl_Wavelet_internal_openflare_protocol.PagesProjectLatestHashResponse:
     properties:
@@ -5098,6 +5603,17 @@ definitions:
       project_id:
         type: integer
       total_size:
+        type: integer
+    type: object
+  github_com_Rain-kl_Wavelet_internal_openflare_protocol.PingResultPayload:
+    properties:
+      finished_at:
+        type: string
+      ping_type:
+        type: string
+      task_id:
+        type: integer
+      value:
         type: integer
     type: object
   github_com_Rain-kl_Wavelet_internal_openflare_protocol.RegisterNodeRequest:
@@ -5369,6 +5885,17 @@ definitions:
       rtt_ms:
         type: integer
       service_name:
+        type: string
+    type: object
+  github_com_Rain-kl_Wavelet_internal_openflare_protocol.RemoteExecResultPayload:
+    properties:
+      exit_code:
+        type: integer
+      finished_at:
+        type: string
+      result:
+        type: string
+      task_id:
         type: string
     type: object
   github_com_Rain-kl_Wavelet_internal_openflare_protocol.TLSKeyRequestItem:
@@ -5969,12 +6496,20 @@ definitions:
         type: integer
       cpu_model:
         type: string
+      cpu_physical_cores:
+        type: integer
       created_at:
+        type: string
+      gpu_name:
         type: string
       hostname:
         type: string
       id:
         type: integer
+      ipv4:
+        type: string
+      ipv6:
+        type: string
       kernel_version:
         type: string
       node_id:
@@ -5983,8 +6518,12 @@ definitions:
         type: string
       os_version:
         type: string
+      probe_version:
+        type: string
       reported_at:
         type: string
+      swap_total_bytes:
+        type: integer
       total_disk_bytes:
         type: integer
       total_memory_bytes:
@@ -5993,6 +6532,8 @@ definitions:
         type: string
       uptime_seconds:
         type: integer
+      virtualization:
+        type: string
     type: object
   model.OpenFlareOption:
     properties:
@@ -6000,6 +6541,31 @@ definitions:
         type: string
       value:
         type: string
+    type: object
+  model.OpenFlarePingTask:
+    properties:
+      clients:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      default_on:
+        type: boolean
+      id:
+        type: integer
+      interval:
+        type: integer
+      name:
+        type: string
+      target:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      weight:
+        type: integer
     type: object
   model.OpenFlareWAFWhitelistEntry:
     properties:
@@ -9105,6 +9671,42 @@ paths:
       summary: 拉取边缘配置资源
       tags:
       - openflare-agent
+  /api/v1/agent/exec/result:
+    post:
+      consumes:
+      - application/json
+      description: Agent 上报远程 Shell 命令的执行输出与退出码；请求头需携带 X-Agent-Token
+      parameters:
+      - description: 远程执行结果
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RemoteExecResultPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上报成功
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Token 无效
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 任务不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - AgentTokenAuth: []
+      summary: 上报远程执行结果
+      tags:
+      - openflare-agent
   /api/v1/agent/nodes/heartbeat:
     post:
       consumes:
@@ -9259,6 +9861,38 @@ paths:
       summary: 下载 Pages 项目最新激活部署包
       tags:
       - openflare-agent
+  /api/v1/agent/ping/result:
+    post:
+      consumes:
+      - application/json
+      description: Agent 通过 HTTP 回落上报单次 ICMP/TCP/HTTP 延迟检测结果；请求头需携带 X-Agent-Token
+      parameters:
+      - description: 延迟检测结果
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.PingResultPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 上报成功
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: Token 无效
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - AgentTokenAuth: []
+      summary: 上报延迟检测结果
+      tags:
+      - openflare-agent
   /api/v1/agent/tls/keys:
     post:
       consumes:
@@ -9410,6 +10044,178 @@ paths:
         cli: connection info
         effect: read
         scope: connection:read
+  /api/v1/automation/exec:
+    post:
+      consumes:
+      - application/json
+      description: Create a remote execution task and dispatch the shell command over
+        WebSocket to the selected online edge nodes. Poll completion with openflare_exec_get
+        using the returned task_id. Pass node_id values from openflare_node_list in
+        clients.
+      operationId: openflare_exec_run
+      parameters:
+      - description: Remote command execution request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_automation.ExecRunBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.RunResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Dispatch a remote shell command to edge nodes
+      tags:
+      - automation
+      x-automation:
+        cli: exec run
+        effect: write
+        parameters:
+          clients:
+            maxItems: 200
+            minItems: 1
+        scope: exec:write
+  /api/v1/automation/exec/tasks:
+    get:
+      description: Return recent remote execution tasks together with their per-node
+        exit codes and outputs. This operation is read-only.
+      operationId: openflare_exec_list
+      parameters:
+      - default: 50
+        description: Maximum number of tasks to return
+        in: query
+        maximum: 200
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.ExecTaskList'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: List recent remote command execution tasks
+      tags:
+      - automation
+      x-automation:
+        cli: exec list
+        effect: read
+        scope: exec:read
+  /api/v1/automation/exec/tasks/{task_id}:
+    get:
+      description: Return one remote execution task by task_id with each target node's
+        output, exit code, and completion timestamp. Use this operation to poll tasks
+        started by openflare_exec_run.
+      operationId: openflare_exec_get
+      parameters:
+      - description: Remote execution task identifier returned by openflare_exec_run
+          or openflare_exec_list
+        in: path
+        name: task_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskView'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Read one remote command execution task and per-node outputs
+      tags:
+      - automation
+      x-automation:
+        cli: exec get
+        effect: read
+        parameters:
+          task_id:
+            pattern: ^[A-Za-z0-9_-]{4,64}$
+        scope: exec:read
   /api/v1/automation/logs:
     get:
       description: Query paginated access logs with the specified time and traffic
@@ -9725,17 +10531,23 @@ paths:
       - default: 24
         description: Lookback in hours for recent resource snapshots and traffic analytics
         in: query
-        maximum: 168
+        maximum: 720
         minimum: 1
         name: hours
         type: integer
       - default: 120
         description: Maximum number of recent metric snapshots
         in: query
-        maximum: 120
+        maximum: 500
         minimum: 1
         name: limit
         type: integer
+      - default: false
+        description: Query high-resolution snapshots from the last 30 minutes without
+          caching
+        in: query
+        name: realtime
+        type: boolean
       produces:
       - application/json
       responses:
@@ -9778,6 +10590,82 @@ paths:
         effect: read
         parameters:
           node_record_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: metrics:read
+  /api/v1/automation/nodes/{node_record_id}/ping:
+    get:
+      description: Return per-task latency statistics (min, max, avg, latest, p50,
+        p99, packet loss percentage) and downsampled time-series records for one edge
+        node. Resolve node_record_id with openflare_node_list.
+      operationId: openflare_node_ping_metrics
+      parameters:
+      - description: Node control-plane record ID from openflare_node_list
+        in: path
+        name: node_record_id
+        required: true
+        type: string
+      - description: Optional decimal ping task ID to filter by a single task
+        in: query
+        name: task_id
+        type: string
+      - default: 1
+        description: Lookback window in hours
+        in: query
+        maximum: 720
+        minimum: 1
+        name: hours
+        type: integer
+      - default: 300
+        description: Maximum sampled points per task
+        in: query
+        maximum: 2000
+        minimum: 50
+        name: max_points
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.NodePingMetrics'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Read latency probe statistics and history for one node
+      tags:
+      - automation
+      x-automation:
+        cli: node ping
+        effect: read
+        parameters:
+          node_record_id:
+            pattern: ^[1-9][0-9]{0,18}$
+          task_id:
             pattern: ^[1-9][0-9]{0,18}$
         scope: metrics:read
   /api/v1/automation/nodes/health:
@@ -10008,6 +10896,287 @@ paths:
           policy_id:
             pattern: ^[1-9][0-9]{0,18}$
         scope: performance:write
+  /api/v1/automation/ping-tasks:
+    get:
+      description: Return all ICMP, TCP, and HTTP latency probe tasks ordered by display
+        weight, including bound node registration identifiers and default_on auto-binding
+        flags. This operation is read-only.
+      operationId: openflare_ping_task_list
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.PingTaskList'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: List latency probe tasks
+      tags:
+      - automation
+      x-automation:
+        cli: ping list
+        effect: read
+        scope: ping:read
+    post:
+      consumes:
+      - application/json
+      description: Create an ICMP, TCP, or HTTP latency probe task targeting the specified
+        edge nodes and immediately reload the controller probe scheduler. Use node_id
+        values from openflare_node_list in clients.
+      operationId: openflare_ping_task_create
+      parameters:
+      - description: Latency probe task configuration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_automation.PingTaskBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.PingTaskSaved'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Create a latency probe task
+      tags:
+      - automation
+      x-automation:
+        cli: ping create
+        effect: write
+        parameters:
+          clients:
+            maxItems: 200
+            minItems: 0
+        scope: ping:write
+  /api/v1/automation/ping-tasks/{task_id}:
+    delete:
+      description: Delete one latency probe task and purge its historical ping measurements
+        from logstore. Pass task_id from openflare_ping_task_list.
+      operationId: openflare_ping_task_delete
+      parameters:
+      - description: Decimal ping task ID from openflare_ping_task_list
+        in: path
+        name: task_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.PingTaskDeleted'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Delete a latency probe task
+      tags:
+      - automation
+      x-automation:
+        cli: ping delete
+        effect: write
+        parameters:
+          task_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: ping:write
+    patch:
+      consumes:
+      - application/json
+      description: Replace the configuration and bound nodes of an existing latency
+        probe task and reload the probe scheduler. Pass task_id from openflare_ping_task_list.
+      operationId: openflare_ping_task_update
+      parameters:
+      - description: Decimal ping task ID from openflare_ping_task_list
+        in: path
+        name: task_id
+        required: true
+        type: string
+      - description: Updated latency probe task configuration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_automation.PingTaskBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.PingTaskSaved'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Update a latency probe task
+      tags:
+      - automation
+      x-automation:
+        cli: ping update
+        effect: write
+        parameters:
+          clients:
+            maxItems: 200
+            minItems: 0
+          task_id:
+            pattern: ^[1-9][0-9]{0,18}$
+        scope: ping:write
+  /api/v1/automation/ping-tasks/order:
+    post:
+      consumes:
+      - application/json
+      description: Update display weights of latency probe tasks according to the
+        supplied ordered list of decimal task IDs.
+      operationId: openflare_ping_task_reorder
+      parameters:
+      - description: Ordered decimal ping task IDs
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_automation.PingTaskReorderBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_automation.PingTaskList'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apps_openflare_automation.OperationResponse'
+      security:
+      - AutomationBearer: []
+      summary: Reorder latency probe tasks
+      tags:
+      - automation
+      x-automation:
+        cli: ping reorder
+        effect: write
+        parameters:
+          task_ids:
+            maxItems: 200
+            minItems: 1
+        scope: ping:write
   /api/v1/automation/sites:
     get:
       description: Resolve an existing site's name or hostname to its site_id and
@@ -13211,7 +14380,7 @@ paths:
         name: id
         required: true
         type: integer
-      - description: 统计时间范围（小时）
+      - description: 统计时间范围（小时，最大 720）
         in: query
         name: hours
         type: integer
@@ -13219,6 +14388,10 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: 实时模式（近 30 分钟高分辨率快照）
+        in: query
+        name: realtime
+        type: boolean
       produces:
       - application/json
       responses:
@@ -13286,6 +14459,56 @@ paths:
       summary: 清理节点健康事件
       tags:
       - openflare-node
+  /api/v1/d/nodes/{id}/ping-records:
+    get:
+      description: 返回指定节点关联的延迟检测任务统计（最小/最大/均值/P50/P99/丢包率）及降采样时序记录，需要管理员权限
+      parameters:
+      - description: 节点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 按任务 ID 过滤
+        in: query
+        name: task_id
+        type: integer
+      - description: 查询时间范围（小时，默认 1，最大 720）
+        in: query
+        name: hours
+        type: integer
+      - description: 每任务最大返回采样点数（默认 300）
+        in: query
+        name: max_points
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 节点延迟统计与时序
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_ping.NodePingRecordsView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或节点不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取节点延迟检测记录与统计
+      tags:
+      - openflare-ping
   /api/v1/d/nodes/{id}/quarantine:
     post:
       consumes:
@@ -14608,6 +15831,282 @@ paths:
       summary: 列出 Pages 部署文件
       tags:
       - openflare-pages
+  /api/v1/d/ping-tasks:
+    get:
+      description: 返回按权重排序的全部延迟检测任务，需要管理员权限
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 延迟检测任务列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.OpenFlarePingTask'
+                  type: array
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取延迟检测任务列表
+      tags:
+      - openflare-ping
+    post:
+      consumes:
+      - application/json
+      description: 创建新的 ICMP/TCP/HTTP 延迟检测任务并触发调度重载，需要管理员权限
+      parameters:
+      - description: 任务参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_ping.TaskInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.OpenFlarePingTask'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 创建延迟检测任务
+      tags:
+      - openflare-ping
+  /api/v1/d/ping-tasks/{id}/delete:
+    post:
+      description: 删除指定 ID 的延迟检测任务及其历史采样记录，需要管理员权限
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_ping.DeleteTasksResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除延迟检测任务
+      tags:
+      - openflare-ping
+  /api/v1/d/ping-tasks/{id}/update:
+    post:
+      consumes:
+      - application/json
+      description: 更新指定 ID 的延迟检测任务并重载调度，需要管理员权限
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_ping.TaskInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.OpenFlarePingTask'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或任务不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新延迟检测任务
+      tags:
+      - openflare-ping
+  /api/v1/d/ping-tasks/batch-update:
+    post:
+      consumes:
+      - application/json
+      description: 在单个事务内更新多个延迟检测任务（如按节点视图批量调整绑定关系）并重载调度，需要管理员权限
+      parameters:
+      - description: 批量更新参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_ping.BatchUpdateTasksInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的任务列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.OpenFlarePingTask'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或任务不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 批量更新延迟检测任务
+      tags:
+      - openflare-ping
+  /api/v1/d/ping-tasks/delete:
+    post:
+      consumes:
+      - application/json
+      description: 按 ID 列表批量删除延迟检测任务及其历史采样记录，需要管理员权限
+      parameters:
+      - description: 任务 ID 列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_ping.DeleteTasksInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_ping.DeleteTasksResult'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 批量删除延迟检测任务
+      tags:
+      - openflare-ping
+  /api/v1/d/ping-tasks/order:
+    post:
+      consumes:
+      - application/json
+      description: 按任务 ID 到权重值的映射批量更新排序权重，需要管理员权限
+      parameters:
+      - description: 任务 ID 到排序权重的映射
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties:
+            type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 排序更新成功
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或任务不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 调整延迟检测任务排序
+      tags:
+      - openflare-ping
   /api/v1/d/pow/policies:
     get:
       produces:
@@ -14881,6 +16380,153 @@ paths:
       summary: 更新代理规则
       tags:
       - openflare-proxy-route
+  /api/v1/d/remote-exec:
+    post:
+      consumes:
+      - application/json
+      description: 向选中的在线边缘节点下发 Shell 命令并返回任务 ID 与节点初始状态，需要管理员权限
+      parameters:
+      - description: 执行参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_exec.RunInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 任务已创建并下发
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_exec.RunResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 下发远程执行命令
+      tags:
+      - openflare-exec
+  /api/v1/d/remote-exec/tasks:
+    get:
+      description: 返回最近的远程执行任务及各节点执行结果，需要管理员权限
+      parameters:
+      - description: 返回数量上限（默认 50，最大 200）
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 远程执行任务列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/apps_openflare_exec.TaskView'
+                  type: array
+              type: object
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取远程执行历史列表
+      tags:
+      - openflare-exec
+  /api/v1/d/remote-exec/tasks/{task_id}:
+    get:
+      description: 按 task_id 返回远程执行任务及各节点的最新输出与退出码，需要管理员权限
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: task_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 远程执行任务详情
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_exec.TaskView'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或任务不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 获取远程执行任务详情
+      tags:
+      - openflare-exec
+  /api/v1/d/remote-exec/tasks/{task_id}/delete:
+    post:
+      description: 按 task_id 删除远程执行记录及其各节点输出，需要管理员权限
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: task_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或任务不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除远程执行任务
+      tags:
+      - openflare-exec
   /api/v1/d/status:
     get:
       description: 返回版本、认证源与系统公开配置，无需登录

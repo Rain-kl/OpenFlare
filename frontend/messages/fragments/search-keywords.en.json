@@ -4,7 +4,9 @@
       "keywords": {
         "home": "home|dashboard",
         "docs-how-to-use": "docs|how to|tutorial|help",
-        "console-nodes": "node|edge",
+        "console-nodes": "node|nodes|list|edge",
+        "console-node-ping": "ping|latency|probe|icmp|tcp|http|loss",
+        "console-node-exec": "exec|remote|command|shell|terminal",
         "console-tunnels": "tunnel|relay|openflared|rathole|pool",
         "console-proxy-routes": "route|proxy",
         "console-websites": "website|domain",

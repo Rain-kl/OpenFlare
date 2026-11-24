@@ -398,6 +398,8 @@
       "groupDocs": "文档菜单",
       "descDashboard": "查看边缘节点请求、访客与流量等多维度图表看板",
       "descNodes": "注册与管理反向代理边缘节点服务状态",
+      "descNodePing": "配置并管理面向边缘节点的 ICMP、TCP 与 HTTP 延迟检测任务",
+      "descNodeExec": "向在线边缘节点批量下发远程 Shell 命令并查看执行记录",
       "descProxyRoutes": "配置反向代理路由规则、负载均衡与源站绑定",
       "descWebsites": "配置站点根域名并查看关联网站详情",
       "descCertificates": "管理和下发网站 SSL/TLS 证书",

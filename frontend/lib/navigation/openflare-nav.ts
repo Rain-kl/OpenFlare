@@ -24,6 +24,7 @@ export interface OpenFlareNavSubItem {
   titleKey: string;
   url: string;
   childUrls?: string[];
+  exact?: boolean;
 }
 
 export interface OpenFlareNavGroup {
@@ -35,6 +36,22 @@ export interface OpenFlareNavGroup {
 export type OpenFlareSidebarNavEntry =
   | ({ kind: 'item' } & OpenFlareNavItem)
   | ({ kind: 'group' } & OpenFlareNavGroup);
+
+/** 节点管理折叠组 */
+export const openflareNodeNavGroup: OpenFlareNavGroup = {
+  titleKey: 'nodes',
+  icon: Server,
+  items: [
+    {
+      titleKey: 'nodeList',
+      url: '/nodes',
+      exact: true,
+      childUrls: ['/nodes/detail'],
+    },
+    { titleKey: 'nodePing', url: '/nodes/ping' },
+    { titleKey: 'nodeExec', url: '/nodes/exec' },
+  ],
+};
 
 /** 安全性折叠组 */
 export const openflareSecurityNavGroup: OpenFlareNavGroup = {
@@ -81,13 +98,7 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
  */
 export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
   { kind: 'item', titleKey: 'dashboard', url: '/', icon: LayoutDashboard },
-  {
-    kind: 'item',
-    titleKey: 'nodes',
-    url: '/nodes',
-    icon: Server,
-    childUrls: ['/nodes/detail'],
-  },
+  { kind: 'group', ...openflareNodeNavGroup },
   {
     kind: 'item',
     titleKey: 'tunnels',
@@ -161,12 +172,17 @@ export function matchesNavPath(
   pathname: string,
   url: string,
   childUrls?: string[],
+  exact?: boolean,
 ): boolean {
   if (url === '/') {
     return pathname === '/';
   }
 
-  if (pathname === url || pathname.startsWith(`${url}/`)) {
+  if (exact) {
+    if (pathname === url) {
+      return true;
+    }
+  } else if (pathname === url || pathname.startsWith(`${url}/`)) {
     return true;
   }
 
@@ -180,7 +196,7 @@ export function isNavGroupActive(
   group: OpenFlareNavGroup,
 ): boolean {
   return group.items.some((item) =>
-    matchesNavPath(pathname, item.url, item.childUrls),
+    matchesNavPath(pathname, item.url, item.childUrls, item.exact),
   );
 }
 

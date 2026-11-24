@@ -1206,10 +1206,10 @@ SELECT hour_epoch,
 	COUNT(DISTINCT node_id) AS reported_nodes
 FROM (
 	SELECT node_id, ` + expr + ` AS hour_epoch,
-		cpu_usage_percent,
-		CASE WHEN memory_total_bytes > 0 THEN (memory_used_bytes * 100.0) / memory_total_bytes ELSE 0 END AS memory_usage_percent,
-		` + counterDelta("network_rx_bytes") + ` AS rx_delta,
-		` + counterDelta("network_tx_bytes") + ` AS tx_delta,
+		cpu AS cpu_usage_percent,
+		CASE WHEN ram_total > 0 THEN (ram * 100.0) / ram_total ELSE 0 END AS memory_usage_percent,
+		` + counterDelta("net_total_down") + ` AS rx_delta,
+		` + counterDelta("net_total_up") + ` AS tx_delta,
 		` + counterDelta("disk_read_bytes") + ` AS read_delta,
 		` + counterDelta("disk_write_bytes") + ` AS write_delta
 	FROM of_node_metric_snapshots
@@ -1319,6 +1319,102 @@ func (s *gormLogStore) ListMetricSnapshotsForMigration(ctx context.Context, afte
 func (s *gormLogStore) ListEdgeHealthForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeEdgeHealth, error) {
 	var rows []analyticsmodel.NodeEdgeHealth
 	q := s.db.WithContext(ctx).Model(&analyticsmodel.NodeEdgeHealth{}).
+		Where("id > ?", afterID).
+		Order("id ASC").
+		Limit(limitOr(limit, migrationPageSize))
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// InsertPingRecord 写入入口：冻结检查 + 经 hook 入队（异步），不直接落库。
+func (s *gormLogStore) InsertPingRecord(ctx context.Context, record *model.OpenFlarePingRecord) error {
+	if record == nil {
+		return nil
+	}
+	if err := s.ensureWritable(ctx); err != nil {
+		return err
+	}
+	if h := currentObservabilityHooks().QueuePingRecord; h != nil {
+		h(toAnalyticsNodePingRecord(record))
+	}
+	return nil
+}
+
+func (s *gormLogStore) ListPingRecords(ctx context.Context, nodeID string, taskID uint, since time.Time, limit int) ([]*model.OpenFlarePingRecord, error) {
+	var rows []analyticsmodel.NodePingRecord
+	q := nodeIDScope(s.db.WithContext(ctx).Model(&analyticsmodel.NodePingRecord{}), strings.TrimSpace(nodeID))
+	if taskID > 0 {
+		q = q.Where("task_id = ?", uint64(taskID))
+	}
+	if !since.IsZero() {
+		q = q.Where("recorded_at >= ?", since.UTC())
+	}
+	q = q.Order("recorded_at DESC, id DESC")
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return fromAnalyticsNodePingRecords(rows), nil
+}
+
+func (s *gormLogStore) DeleteAllPingRecords(ctx context.Context) (int64, error) {
+	if err := s.ensureWritable(ctx); err != nil {
+		return 0, err
+	}
+	res := s.db.WithContext(ctx).Where("1 = 1").Delete(&analyticsmodel.NodePingRecord{})
+	return res.RowsAffected, res.Error
+}
+
+func (s *gormLogStore) DeletePingRecordsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	if err := s.ensureWritable(ctx); err != nil {
+		return 0, err
+	}
+	res := s.db.WithContext(ctx).Where("recorded_at < ?", cutoff.UTC()).Delete(&analyticsmodel.NodePingRecord{})
+	return res.RowsAffected, res.Error
+}
+
+func (s *gormLogStore) DeletePingRecordsByTaskIDs(ctx context.Context, taskIDs []uint) (int64, error) {
+	if len(taskIDs) == 0 {
+		return 0, nil
+	}
+	if err := s.ensureWritable(ctx); err != nil {
+		return 0, err
+	}
+	res := s.db.WithContext(ctx).Where("task_id IN ?", taskIDs).Delete(&analyticsmodel.NodePingRecord{})
+	return res.RowsAffected, res.Error
+}
+
+// BatchInsertNodePingRecords 是 batchwriter flush 目标：GORM 分批落库。
+func (s *gormLogStore) BatchInsertNodePingRecords(ctx context.Context, rows []analyticsmodel.NodePingRecord) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	if err := s.ensureWritable(ctx); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	for i := range rows {
+		if rows[i].ID == 0 {
+			rows[i].ID = idgen.NextUint64ID()
+		}
+		if rows[i].RecordedAt.IsZero() {
+			rows[i].RecordedAt = now
+		}
+		if rows[i].CreatedAt.IsZero() {
+			rows[i].CreatedAt = now
+		}
+	}
+	return s.db.WithContext(ctx).CreateInBatches(rows, insertBatchSize).Error
+}
+
+// ListPingRecordsForMigration 按 id 升序分页读取（迁移复制用）。
+func (s *gormLogStore) ListPingRecordsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodePingRecord, error) {
+	var rows []analyticsmodel.NodePingRecord
+	q := s.db.WithContext(ctx).Model(&analyticsmodel.NodePingRecord{}).
 		Where("id > ?", afterID).
 		Order("id ASC").
 		Limit(limitOr(limit, migrationPageSize))
@@ -1547,14 +1643,27 @@ func toAnalyticsNodeMetricSnapshot(record *model.OpenFlareMetricSnapshot) analyt
 		NodeID:            record.NodeID,
 		CapturedAt:        record.CapturedAt,
 		CPUUsagePercent:   record.CPUUsagePercent,
+		GPUUsagePercent:   record.GPUUsagePercent,
 		MemoryUsedBytes:   record.MemoryUsedBytes,
 		MemoryTotalBytes:  record.MemoryTotalBytes,
+		SwapUsedBytes:     record.SwapUsedBytes,
+		SwapTotalBytes:    record.SwapTotalBytes,
+		Load1:             record.Load1,
+		Load5:             record.Load5,
+		Load15:            record.Load15,
+		Temp:              record.Temp,
 		StorageUsedBytes:  record.StorageUsedBytes,
 		StorageTotalBytes: record.StorageTotalBytes,
 		DiskReadBytes:     record.DiskReadBytes,
 		DiskWriteBytes:    record.DiskWriteBytes,
-		NetworkRxBytes:    record.NetworkRxBytes,
+		NetIn:             record.NetIn,
+		NetOut:            record.NetOut,
 		NetworkTxBytes:    record.NetworkTxBytes,
+		NetworkRxBytes:    record.NetworkRxBytes,
+		ProcessCount:      clampInt32(record.ProcessCount),
+		TCPConnections:    clampInt32(record.TCPConnections),
+		UDPConnections:    clampInt32(record.UDPConnections),
+		UptimeSeconds:     record.UptimeSeconds,
 		CreatedAt:         record.CreatedAt,
 	}
 }
@@ -1567,18 +1676,67 @@ func fromAnalyticsNodeMetricSnapshots(rows []analyticsmodel.NodeMetricSnapshot) 
 			NodeID:            row.NodeID,
 			CapturedAt:        row.CapturedAt,
 			CPUUsagePercent:   row.CPUUsagePercent,
+			GPUUsagePercent:   row.GPUUsagePercent,
 			MemoryUsedBytes:   row.MemoryUsedBytes,
 			MemoryTotalBytes:  row.MemoryTotalBytes,
+			SwapUsedBytes:     row.SwapUsedBytes,
+			SwapTotalBytes:    row.SwapTotalBytes,
+			Load1:             row.Load1,
+			Load5:             row.Load5,
+			Load15:            row.Load15,
+			Temp:              row.Temp,
 			StorageUsedBytes:  row.StorageUsedBytes,
 			StorageTotalBytes: row.StorageTotalBytes,
 			DiskReadBytes:     row.DiskReadBytes,
 			DiskWriteBytes:    row.DiskWriteBytes,
-			NetworkRxBytes:    row.NetworkRxBytes,
+			NetIn:             row.NetIn,
+			NetOut:            row.NetOut,
 			NetworkTxBytes:    row.NetworkTxBytes,
+			NetworkRxBytes:    row.NetworkRxBytes,
+			ProcessCount:      int(row.ProcessCount),
+			TCPConnections:    int(row.TCPConnections),
+			UDPConnections:    int(row.UDPConnections),
+			UptimeSeconds:     row.UptimeSeconds,
 			CreatedAt:         row.CreatedAt,
 		}
 	}
 	return result
+}
+
+func toAnalyticsNodePingRecord(record *model.OpenFlarePingRecord) analyticsmodel.NodePingRecord {
+	return analyticsmodel.NodePingRecord{
+		ID:         record.ID,
+		NodeID:     record.NodeID,
+		TaskID:     uint64(record.TaskID),
+		RecordedAt: record.RecordedAt,
+		Value:      clampInt32(record.Value),
+		CreatedAt:  record.CreatedAt,
+	}
+}
+
+func fromAnalyticsNodePingRecords(rows []analyticsmodel.NodePingRecord) []*model.OpenFlarePingRecord {
+	result := make([]*model.OpenFlarePingRecord, len(rows))
+	for index, row := range rows {
+		result[index] = &model.OpenFlarePingRecord{
+			ID:         row.ID,
+			NodeID:     row.NodeID,
+			TaskID:     uint(row.TaskID),
+			RecordedAt: row.RecordedAt,
+			Value:      int(row.Value),
+			CreatedAt:  row.CreatedAt,
+		}
+	}
+	return result
+}
+
+func clampInt32(v int) int32 {
+	if v > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if v < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(v)
 }
 
 func toAnalyticsNodeEdgeHealth(record *model.OpenFlareEdgeHealth) analyticsmodel.NodeEdgeHealth {

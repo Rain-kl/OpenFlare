@@ -4505,6 +4505,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/agent/exec/result": {
+            "post": {
+                "security": [
+                    {
+                        "AgentTokenAuth": []
+                    }
+                ],
+                "description": "Agent 上报远程 Shell 命令的执行输出与退出码；请求头需携带 X-Agent-Token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-agent"
+                ],
+                "summary": "上报远程执行结果",
+                "parameters": [
+                    {
+                        "description": "远程执行结果",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.RemoteExecResultPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "上报成功",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "任务不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/agent/nodes/heartbeat": {
             "post": {
                 "security": [
@@ -4759,6 +4816,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/agent/ping/result": {
+            "post": {
+                "security": [
+                    {
+                        "AgentTokenAuth": []
+                    }
+                ],
+                "description": "Agent 通过 HTTP 回落上报单次 ICMP/TCP/HTTP 延迟检测结果；请求头需携带 X-Agent-Token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-agent"
+                ],
+                "summary": "上报延迟检测结果",
+                "parameters": [
+                    {
+                        "description": "延迟检测结果",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.PingResultPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "上报成功",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/agent/tls/keys": {
             "post": {
                 "security": [
@@ -4999,6 +5107,270 @@ const docTemplate = `{
                     "cli": "connection info",
                     "effect": "read",
                     "scope": "connection:read"
+                }
+            }
+        },
+        "/api/v1/automation/exec": {
+            "post": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Create a remote execution task and dispatch the shell command over WebSocket to the selected online edge nodes. Poll completion with openflare_exec_get using the returned task_id. Pass node_id values from openflare_node_list in clients.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Dispatch a remote shell command to edge nodes",
+                "operationId": "openflare_exec_run",
+                "parameters": [
+                    {
+                        "description": "Remote command execution request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.ExecRunBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.RunResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "exec run",
+                    "effect": "write",
+                    "parameters": {
+                        "clients": {
+                            "maxItems": 200,
+                            "minItems": 1
+                        }
+                    },
+                    "scope": "exec:write"
+                }
+            }
+        },
+        "/api/v1/automation/exec/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Return recent remote execution tasks together with their per-node exit codes and outputs. This operation is read-only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "List recent remote command execution tasks",
+                "operationId": "openflare_exec_list",
+                "parameters": [
+                    {
+                        "maximum": 200,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Maximum number of tasks to return",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.ExecTaskList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "exec list",
+                    "effect": "read",
+                    "scope": "exec:read"
+                }
+            }
+        },
+        "/api/v1/automation/exec/tasks/{task_id}": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Return one remote execution task by task_id with each target node's output, exit code, and completion timestamp. Use this operation to poll tasks started by openflare_exec_run.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Read one remote command execution task and per-node outputs",
+                "operationId": "openflare_exec_get",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Remote execution task identifier returned by openflare_exec_run or openflare_exec_list",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "exec get",
+                    "effect": "read",
+                    "parameters": {
+                        "task_id": {
+                            "pattern": "^[A-Za-z0-9_-]{4,64}$"
+                        }
+                    },
+                    "scope": "exec:read"
                 }
             }
         },
@@ -5588,7 +5960,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "maximum": 168,
+                        "maximum": 720,
                         "minimum": 1,
                         "type": "integer",
                         "default": 24,
@@ -5597,12 +5969,19 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "maximum": 120,
+                        "maximum": 500,
                         "minimum": 1,
                         "type": "integer",
                         "default": 120,
                         "description": "Maximum number of recent metric snapshots",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Query high-resolution snapshots from the last 30 minutes without caching",
+                        "name": "realtime",
                         "in": "query"
                     }
                 ],
@@ -5661,6 +6040,120 @@ const docTemplate = `{
                     "effect": "read",
                     "parameters": {
                         "node_record_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "metrics:read"
+                }
+            }
+        },
+        "/api/v1/automation/nodes/{node_record_id}/ping": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Return per-task latency statistics (min, max, avg, latest, p50, p99, packet loss percentage) and downsampled time-series records for one edge node. Resolve node_record_id with openflare_node_list.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Read latency probe statistics and history for one node",
+                "operationId": "openflare_node_ping_metrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Node control-plane record ID from openflare_node_list",
+                        "name": "node_record_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional decimal ping task ID to filter by a single task",
+                        "name": "task_id",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 720,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Lookback window in hours",
+                        "name": "hours",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 2000,
+                        "minimum": 50,
+                        "type": "integer",
+                        "default": 300,
+                        "description": "Maximum sampled points per task",
+                        "name": "max_points",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.NodePingMetrics"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "node ping",
+                    "effect": "read",
+                    "parameters": {
+                        "node_record_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        },
+                        "task_id": {
                             "pattern": "^[1-9][0-9]{0,18}$"
                         }
                     },
@@ -5892,6 +6385,445 @@ const docTemplate = `{
                         }
                     },
                     "scope": "performance:write"
+                }
+            }
+        },
+        "/api/v1/automation/ping-tasks": {
+            "get": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Return all ICMP, TCP, and HTTP latency probe tasks ordered by display weight, including bound node registration identifiers and default_on auto-binding flags. This operation is read-only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "List latency probe tasks",
+                "operationId": "openflare_ping_task_list",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.PingTaskList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "ping list",
+                    "effect": "read",
+                    "scope": "ping:read"
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Create an ICMP, TCP, or HTTP latency probe task targeting the specified edge nodes and immediately reload the controller probe scheduler. Use node_id values from openflare_node_list in clients.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Create a latency probe task",
+                "operationId": "openflare_ping_task_create",
+                "parameters": [
+                    {
+                        "description": "Latency probe task configuration",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.PingTaskBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.PingTaskSaved"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "ping create",
+                    "effect": "write",
+                    "parameters": {
+                        "clients": {
+                            "maxItems": 200,
+                            "minItems": 0
+                        }
+                    },
+                    "scope": "ping:write"
+                }
+            }
+        },
+        "/api/v1/automation/ping-tasks/order": {
+            "post": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Update display weights of latency probe tasks according to the supplied ordered list of decimal task IDs.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Reorder latency probe tasks",
+                "operationId": "openflare_ping_task_reorder",
+                "parameters": [
+                    {
+                        "description": "Ordered decimal ping task IDs",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.PingTaskReorderBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.PingTaskList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "ping reorder",
+                    "effect": "write",
+                    "parameters": {
+                        "task_ids": {
+                            "maxItems": 200,
+                            "minItems": 1
+                        }
+                    },
+                    "scope": "ping:write"
+                }
+            }
+        },
+        "/api/v1/automation/ping-tasks/{task_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Delete one latency probe task and purge its historical ping measurements from logstore. Pass task_id from openflare_ping_task_list.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Delete a latency probe task",
+                "operationId": "openflare_ping_task_delete",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Decimal ping task ID from openflare_ping_task_list",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.PingTaskDeleted"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "ping delete",
+                    "effect": "write",
+                    "parameters": {
+                        "task_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "ping:write"
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "AutomationBearer": []
+                    }
+                ],
+                "description": "Replace the configuration and bound nodes of an existing latency probe task and reload the probe scheduler. Pass task_id from openflare_ping_task_list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "Update a latency probe task",
+                "operationId": "openflare_ping_task_update",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Decimal ping task ID from openflare_ping_task_list",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated latency probe task configuration",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.PingTaskBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_automation.PingTaskSaved"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
+                        }
+                    }
+                },
+                "x-automation": {
+                    "cli": "ping update",
+                    "effect": "write",
+                    "parameters": {
+                        "clients": {
+                            "maxItems": 200,
+                            "minItems": 0
+                        },
+                        "task_id": {
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                        }
+                    },
+                    "scope": "ping:write"
                 }
             }
         },
@@ -11252,7 +12184,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "统计时间范围（小时）",
+                        "description": "统计时间范围（小时，最大 720）",
                         "name": "hours",
                         "in": "query"
                     },
@@ -11260,6 +12192,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "返回记录数量上限",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "实时模式（近 30 分钟高分辨率快照）",
+                        "name": "realtime",
                         "in": "query"
                     }
                 ],
@@ -11340,6 +12278,88 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/apps_openflare_node.HealthEventCleanupResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或节点不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/nodes/{id}/ping-records": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回指定节点关联的延迟检测任务统计（最小/最大/均值/P50/P99/丢包率）及降采样时序记录，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-ping"
+                ],
+                "summary": "获取节点延迟检测记录与统计",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "按任务 ID 过滤",
+                        "name": "task_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "查询时间范围（小时，默认 1，最大 720）",
+                        "name": "hours",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每任务最大返回采样点数（默认 300）",
+                        "name": "max_points",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "节点延迟统计与时序",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_ping.NodePingRecordsView"
                                         }
                                     }
                                 }
@@ -13359,6 +14379,466 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/ping-tasks": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回按权重排序的全部延迟检测任务，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-ping"
+                ],
+                "summary": "获取延迟检测任务列表",
+                "responses": {
+                    "200": {
+                        "description": "延迟检测任务列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.OpenFlarePingTask"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "创建新的 ICMP/TCP/HTTP 延迟检测任务并触发调度重载，需要管理员权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-ping"
+                ],
+                "summary": "创建延迟检测任务",
+                "parameters": [
+                    {
+                        "description": "任务参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_ping.TaskInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.OpenFlarePingTask"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/ping-tasks/batch-update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "在单个事务内更新多个延迟检测任务（如按节点视图批量调整绑定关系）并重载调度，需要管理员权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-ping"
+                ],
+                "summary": "批量更新延迟检测任务",
+                "parameters": [
+                    {
+                        "description": "批量更新参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_ping.BatchUpdateTasksInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新后的任务列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.OpenFlarePingTask"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或任务不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/ping-tasks/delete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "按 ID 列表批量删除延迟检测任务及其历史采样记录，需要管理员权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-ping"
+                ],
+                "summary": "批量删除延迟检测任务",
+                "parameters": [
+                    {
+                        "description": "任务 ID 列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_ping.DeleteTasksInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除结果",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_ping.DeleteTasksResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/ping-tasks/order": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "按任务 ID 到权重值的映射批量更新排序权重，需要管理员权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-ping"
+                ],
+                "summary": "调整延迟检测任务排序",
+                "parameters": [
+                    {
+                        "description": "任务 ID 到排序权重的映射",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "排序更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或任务不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/ping-tasks/{id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "删除指定 ID 的延迟检测任务及其历史采样记录，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-ping"
+                ],
+                "summary": "删除延迟检测任务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "任务 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除结果",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_ping.DeleteTasksResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/ping-tasks/{id}/update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "更新指定 ID 的延迟检测任务并重载调度，需要管理员权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-ping"
+                ],
+                "summary": "更新延迟检测任务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "任务 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "任务参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_ping.TaskInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.OpenFlarePingTask"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或任务不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/pow/policies": {
             "get": {
                 "security": [
@@ -13807,6 +15287,251 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "无权限或规则不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/remote-exec": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "向选中的在线边缘节点下发 Shell 命令并返回任务 ID 与节点初始状态，需要管理员权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-exec"
+                ],
+                "summary": "下发远程执行命令",
+                "parameters": [
+                    {
+                        "description": "执行参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_exec.RunInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "任务已创建并下发",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_exec.RunResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/remote-exec/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "返回最近的远程执行任务及各节点执行结果，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-exec"
+                ],
+                "summary": "获取远程执行历史列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "返回数量上限（默认 50，最大 200）",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "远程执行任务列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/apps_openflare_exec.TaskView"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/remote-exec/tasks/{task_id}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "按 task_id 返回远程执行任务及各节点的最新输出与退出码，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-exec"
+                ],
+                "summary": "获取远程执行任务详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务 ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "远程执行任务详情",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_exec.TaskView"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或任务不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/remote-exec/tasks/{task_id}/delete": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "按 task_id 删除远程执行记录及其各节点输出，需要管理员权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-exec"
+                ],
+                "summary": "删除远程执行任务",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务 ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或任务不存在",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -22989,6 +24714,45 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_automation.ExecRunBody": {
+            "type": "object",
+            "required": [
+                "clients",
+                "command"
+            ],
+            "properties": {
+                "clients": {
+                    "description": "Target node registration identifiers (node_id values from openflare_node_list).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "command": {
+                    "description": "Shell command to execute on the selected edge nodes.",
+                    "type": "string",
+                    "maxLength": 32768,
+                    "minLength": 1
+                },
+                "timeout_seconds": {
+                    "description": "Per-node execution timeout in seconds (1 to 600; defaults to 60).",
+                    "type": "integer",
+                    "maximum": 600,
+                    "minimum": 1
+                }
+            }
+        },
+        "apps_openflare_automation.ExecTaskList": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskView"
+                    }
+                }
+            }
+        },
         "apps_openflare_automation.IPGroupDetails": {
             "type": "object",
             "properties": {
@@ -23124,6 +24888,9 @@ const docTemplate = `{
                 "node": {
                     "$ref": "#/definitions/apps_openflare_automation.NodeSummary"
                 },
+                "profile": {
+                    "$ref": "#/definitions/model.OpenFlareNodeSystemProfile"
+                },
                 "trends": {
                     "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.NodeTrends"
                 }
@@ -23146,6 +24913,29 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_automation.NodePingMetrics": {
+            "type": "object",
+            "properties": {
+                "hours": {
+                    "type": "integer"
+                },
+                "node": {
+                    "$ref": "#/definitions/apps_openflare_automation.NodeSummary"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_ping.PingRecordView"
+                    }
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_ping.PingTaskStatsView"
+                    }
                 }
             }
         },
@@ -23303,6 +25093,143 @@ const docTemplate = `{
                 },
                 "value": {
                     "type": "string"
+                }
+            }
+        },
+        "apps_openflare_automation.PingTaskBody": {
+            "type": "object",
+            "required": [
+                "name",
+                "target",
+                "type"
+            ],
+            "properties": {
+                "clients": {
+                    "description": "Target node registration identifiers (node_id values from openflare_node_list).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "default_on": {
+                    "description": "Whether newly added or registered nodes are automatically bound to this task.",
+                    "type": "boolean"
+                },
+                "interval": {
+                    "description": "Probe interval in seconds (10 to 86400; defaults to 60).",
+                    "type": "integer",
+                    "maximum": 86400,
+                    "minimum": 10
+                },
+                "name": {
+                    "description": "Display name of the latency probe task.",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "target": {
+                    "description": "Probe target address (IP or host for icmp, host:port for tcp, or full http/https URL for http).",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "type": {
+                    "description": "Probe protocol: icmp, tcp, or http.",
+                    "type": "string",
+                    "enum": [
+                        "icmp",
+                        "tcp",
+                        "http"
+                    ]
+                }
+            }
+        },
+        "apps_openflare_automation.PingTaskDeleted": {
+            "type": "object",
+            "properties": {
+                "deleted": {
+                    "type": "integer"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_automation.PingTaskList": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_automation.PingTaskSummary"
+                    }
+                }
+            }
+        },
+        "apps_openflare_automation.PingTaskReorderBody": {
+            "type": "object",
+            "required": [
+                "task_ids"
+            ],
+            "properties": {
+                "task_ids": {
+                    "description": "Ordered list of decimal ping task IDs from highest priority (weight 0) to lowest.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "apps_openflare_automation.PingTaskSaved": {
+            "type": "object",
+            "properties": {
+                "state": {
+                    "type": "string"
+                },
+                "task": {
+                    "$ref": "#/definitions/apps_openflare_automation.PingTaskSummary"
+                }
+            }
+        },
+        "apps_openflare_automation.PingTaskSummary": {
+            "type": "object",
+            "properties": {
+                "clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "default_on": {
+                    "type": "boolean"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "integer"
                 }
             }
         },
@@ -24166,6 +26093,119 @@ const docTemplate = `{
                         "type": "array",
                         "items": {}
                     }
+                }
+            }
+        },
+        "apps_openflare_exec.RunInput": {
+            "type": "object",
+            "properties": {
+                "clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "command": {
+                    "type": "string"
+                },
+                "timeout_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_exec.RunResponse": {
+            "type": "object",
+            "properties": {
+                "clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "command": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "offline_clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "online_clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_exec.TaskResultView"
+                    }
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_exec.TaskResultView": {
+            "type": "object",
+            "properties": {
+                "client": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "exit_code": {
+                    "type": "integer"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "node_name": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_exec.TaskView": {
+            "type": "object",
+            "properties": {
+                "clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "command": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_exec.TaskResultView"
+                    }
+                },
+                "task_id": {
+                    "type": "string"
                 }
             }
         },
@@ -25622,6 +27662,175 @@ const docTemplate = `{
                 },
                 "settings": {
                     "type": "object"
+                }
+            }
+        },
+        "apps_openflare_ping.BatchUpdateTasksInput": {
+            "type": "object",
+            "properties": {
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_ping.TaskUpdateInput"
+                    }
+                }
+            }
+        },
+        "apps_openflare_ping.DeleteTasksInput": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "apps_openflare_ping.DeleteTasksResult": {
+            "type": "object",
+            "properties": {
+                "deleted": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_ping.NodePingRecordsView": {
+            "type": "object",
+            "properties": {
+                "hours": {
+                    "type": "integer"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_ping.PingRecordView"
+                    }
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_ping.PingTaskStatsView"
+                    }
+                }
+            }
+        },
+        "apps_openflare_ping.PingRecordView": {
+            "type": "object",
+            "properties": {
+                "recorded_at": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_ping.PingTaskStatsView": {
+            "type": "object",
+            "properties": {
+                "avg": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "latest": {
+                    "type": "integer"
+                },
+                "loss": {
+                    "type": "number"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "min": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "p50": {
+                    "type": "integer"
+                },
+                "p99": {
+                    "type": "integer"
+                },
+                "p99_p50_ratio": {
+                    "type": "number"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_ping.TaskInput": {
+            "type": "object",
+            "properties": {
+                "clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "default_on": {
+                    "type": "boolean"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_ping.TaskUpdateInput": {
+            "type": "object",
+            "properties": {
+                "clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "default_on": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         },
@@ -27927,6 +30136,102 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.RunResponse": {
+            "type": "object",
+            "properties": {
+                "clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "command": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "offline_clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "online_clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskResultView"
+                    }
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskResultView": {
+            "type": "object",
+            "properties": {
+                "client": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "exit_code": {
+                    "type": "integer"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "node_name": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskView": {
+            "type": "object",
+            "properties": {
+                "clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "command": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_apps_openflare_exec.TaskResultView"
+                    }
+                },
+                "task_id": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_Rain-kl_Wavelet_internal_apps_openflare_observability.AccessLogList": {
             "type": "object",
             "properties": {
@@ -28173,13 +30478,37 @@ const docTemplate = `{
                 "disk_write_bytes": {
                     "type": "integer"
                 },
+                "gpu_usage_percent": {
+                    "type": "number"
+                },
                 "id": {
                     "type": "integer"
+                },
+                "load1": {
+                    "type": "number"
+                },
+                "load15": {
+                    "type": "number"
+                },
+                "load5": {
+                    "type": "number"
                 },
                 "memory_total_bytes": {
                     "type": "integer"
                 },
                 "memory_used_bytes": {
+                    "type": "integer"
+                },
+                "net_in": {
+                    "type": "integer"
+                },
+                "net_out": {
+                    "type": "integer"
+                },
+                "net_total_down": {
+                    "type": "integer"
+                },
+                "net_total_up": {
                     "type": "integer"
                 },
                 "node_id": {
@@ -28188,10 +30517,31 @@ const docTemplate = `{
                 "openresty_connections": {
                     "type": "integer"
                 },
+                "process_count": {
+                    "type": "integer"
+                },
                 "storage_total_bytes": {
                     "type": "integer"
                 },
                 "storage_used_bytes": {
+                    "type": "integer"
+                },
+                "swap_total_bytes": {
+                    "type": "integer"
+                },
+                "swap_used_bytes": {
+                    "type": "integer"
+                },
+                "tcp_connections": {
+                    "type": "integer"
+                },
+                "temp": {
+                    "type": "number"
+                },
+                "udp_connections": {
+                    "type": "integer"
+                },
+                "uptime_seconds": {
                     "type": "integer"
                 }
             }
@@ -28296,6 +30646,67 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "window_started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_ping.PingRecordView": {
+            "type": "object",
+            "properties": {
+                "recorded_at": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_apps_openflare_ping.PingTaskStatsView": {
+            "type": "object",
+            "properties": {
+                "avg": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "latest": {
+                    "type": "integer"
+                },
+                "loss": {
+                    "type": "number"
+                },
+                "max": {
+                    "type": "integer"
+                },
+                "min": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "p50": {
+                    "type": "integer"
+                },
+                "p99": {
+                    "type": "integer"
+                },
+                "p99_p50_ratio": {
+                    "type": "number"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "type": {
                     "type": "string"
                 }
             }
@@ -28933,16 +31344,61 @@ const docTemplate = `{
                 "disk_write_bytes": {
                     "type": "integer"
                 },
+                "gpu_usage_percent": {
+                    "type": "number"
+                },
+                "load1": {
+                    "type": "number"
+                },
+                "load15": {
+                    "type": "number"
+                },
+                "load5": {
+                    "type": "number"
+                },
                 "memory_total_bytes": {
                     "type": "integer"
                 },
                 "memory_used_bytes": {
                     "type": "integer"
                 },
+                "net_in": {
+                    "type": "integer"
+                },
+                "net_out": {
+                    "type": "integer"
+                },
+                "net_total_down": {
+                    "type": "integer"
+                },
+                "net_total_up": {
+                    "type": "integer"
+                },
+                "process_count": {
+                    "type": "integer"
+                },
                 "storage_total_bytes": {
                     "type": "integer"
                 },
                 "storage_used_bytes": {
+                    "type": "integer"
+                },
+                "swap_total_bytes": {
+                    "type": "integer"
+                },
+                "swap_used_bytes": {
+                    "type": "integer"
+                },
+                "tcp_connections": {
+                    "type": "integer"
+                },
+                "temp": {
+                    "type": "number"
+                },
+                "udp_connections": {
+                    "type": "integer"
+                },
+                "uptime_seconds": {
                     "type": "integer"
                 }
             }
@@ -29039,7 +31495,19 @@ const docTemplate = `{
                 "cpu_model": {
                     "type": "string"
                 },
+                "cpu_physical_cores": {
+                    "type": "integer"
+                },
+                "gpu_name": {
+                    "type": "string"
+                },
                 "hostname": {
+                    "type": "string"
+                },
+                "ipv4": {
+                    "type": "string"
+                },
+                "ipv6": {
                     "type": "string"
                 },
                 "kernel_version": {
@@ -29051,7 +31519,13 @@ const docTemplate = `{
                 "os_version": {
                     "type": "string"
                 },
+                "probe_version": {
+                    "type": "string"
+                },
                 "reported_at_unix": {
+                    "type": "integer"
+                },
+                "swap_total_bytes": {
                     "type": "integer"
                 },
                 "total_disk_bytes": {
@@ -29062,6 +31536,9 @@ const docTemplate = `{
                 },
                 "uptime_seconds": {
                     "type": "integer"
+                },
+                "virtualization": {
+                    "type": "string"
                 }
             }
         },
@@ -29084,6 +31561,23 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "total_size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.PingResultPayload": {
+            "type": "object",
+            "properties": {
+                "finished_at": {
+                    "type": "string"
+                },
+                "ping_type": {
+                    "type": "string"
+                },
+                "task_id": {
+                    "type": "integer"
+                },
+                "value": {
                     "type": "integer"
                 }
             }
@@ -29494,6 +31988,23 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "service_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.RemoteExecResultPayload": {
+            "type": "object",
+            "properties": {
+                "exit_code": {
+                    "type": "integer"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "string"
+                },
+                "task_id": {
                     "type": "string"
                 }
             }
@@ -30407,7 +32918,13 @@ const docTemplate = `{
                 "cpu_model": {
                     "type": "string"
                 },
+                "cpu_physical_cores": {
+                    "type": "integer"
+                },
                 "created_at": {
+                    "type": "string"
+                },
+                "gpu_name": {
                     "type": "string"
                 },
                 "hostname": {
@@ -30415,6 +32932,12 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "integer"
+                },
+                "ipv4": {
+                    "type": "string"
+                },
+                "ipv6": {
+                    "type": "string"
                 },
                 "kernel_version": {
                     "type": "string"
@@ -30428,8 +32951,14 @@ const docTemplate = `{
                 "os_version": {
                     "type": "string"
                 },
+                "probe_version": {
+                    "type": "string"
+                },
                 "reported_at": {
                     "type": "string"
+                },
+                "swap_total_bytes": {
+                    "type": "integer"
                 },
                 "total_disk_bytes": {
                     "type": "integer"
@@ -30442,6 +32971,9 @@ const docTemplate = `{
                 },
                 "uptime_seconds": {
                     "type": "integer"
+                },
+                "virtualization": {
+                    "type": "string"
                 }
             }
         },
@@ -30453,6 +32985,44 @@ const docTemplate = `{
                 },
                 "value": {
                     "type": "string"
+                }
+            }
+        },
+        "model.OpenFlarePingTask": {
+            "type": "object",
+            "properties": {
+                "clients": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "default_on": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "integer"
                 }
             }
         },

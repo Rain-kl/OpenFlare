@@ -10,12 +10,14 @@ import (
 	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/config_version"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/dashboard"
+	ofexec "github.com/Rain-kl/Wavelet/internal/apps/openflare/exec"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/observability"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/option"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/origin"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/performance"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/ping"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pow"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/proxy_route"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
@@ -154,6 +156,28 @@ func registerOpenFlareNodeRoutes(apiGroup *gin.RouterGroup) {
 		nodeRoute.POST("/:id/unquarantine", node.UnquarantineNodeHandler)
 		nodeRoute.GET("/:id/observability", node.GetObservabilityHandler)
 		nodeRoute.POST("/:id/observability/cleanup", node.CleanupHealthEventsHandler)
+		nodeRoute.GET("/:id/ping-records", ping.GetNodePingRecordsHandler)
+	}
+
+	pingRoute := apiGroup.Group("/ping-tasks")
+	pingRoute.Use(openFlareAdminMiddlewares()...)
+	{
+		httpx.RegisterCollection(pingRoute, "GET", ping.ListTasksHandler)
+		httpx.RegisterCollection(pingRoute, "POST", ping.CreateTaskHandler)
+		pingRoute.POST("/batch-update", ping.BatchUpdateTasksHandler)
+		pingRoute.POST("/:id/update", ping.UpdateTaskHandler)
+		pingRoute.POST("/delete", ping.BatchDeleteTasksHandler)
+		pingRoute.POST("/:id/delete", ping.DeleteTaskHandler)
+		pingRoute.POST("/order", ping.ReorderTasksHandler)
+	}
+
+	execRoute := apiGroup.Group("/remote-exec")
+	execRoute.Use(openFlareAdminMiddlewares()...)
+	{
+		httpx.RegisterCollection(execRoute, "POST", ofexec.ExecuteHandler)
+		execRoute.GET("/tasks", ofexec.ListTasksHandler)
+		execRoute.GET("/tasks/:task_id", ofexec.GetTaskHandler)
+		execRoute.POST("/tasks/:task_id/delete", ofexec.DeleteTaskHandler)
 	}
 }
 

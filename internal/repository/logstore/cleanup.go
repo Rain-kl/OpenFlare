@@ -135,6 +135,11 @@ func CleanupExpired(ctx context.Context) (*CleanupSummary, error) {
 	}, summary); err != nil {
 		return nil, err
 	}
+	if err := cleanupTable("ping_records", func() (int64, error) {
+		return s.Observability.DeletePingRecordsBefore(ctx, metricCutoff)
+	}, summary); err != nil {
+		return nil, err
+	}
 	return summary, nil
 }
 

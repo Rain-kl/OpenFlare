@@ -578,6 +578,188 @@
       "resultManual": "Uploaded certificates requiring manual replacement",
       "none": "None",
       "close": "Close"
+    },
+    "overview": {
+      "hardwareTitle": "Hardware",
+      "architecture": "Architecture",
+      "virtualization": "Virtualization",
+      "gpu": "GPU",
+      "kernelVersion": "Kernel Version",
+      "lastReported": "Last Reported",
+      "storageTitle": "Storage",
+      "swap": "Swap",
+      "swapInactive": "Disabled",
+      "disk": "Disk",
+      "networkTitle": "Network",
+      "totalTraffic": "Total Traffic",
+      "networkSpeed": "Network Speed",
+      "loadTitle": "System Performance Monitoring",
+      "loadDesc": "Tracks CPU, memory, swap, disk, real-time network throughput, connections, and process counts.",
+      "loadShort": "Load",
+      "load1": "1m Load",
+      "netIn": "Inbound",
+      "netOut": "Outbound",
+      "networkChart": "Network Throughput",
+      "processes": "Processes",
+      "noLoadData": "No performance snapshots are available for the selected range.",
+      "ranges": {
+        "realtime": "Realtime",
+        "1h": "1h",
+        "6h": "6h",
+        "12h": "12h",
+        "24h": "1d",
+        "7d": "7d",
+        "30d": "30d"
+      }
+    },
+    "ping": {
+      "sectionTitle": "Network Latency Monitoring",
+      "sectionDesc": "Displays per-task ICMP, TCP, and HTTP latency curves, packet loss rate, and percentile statistics.",
+      "selectAll": "Select All",
+      "deselectAll": "Clear All",
+      "noTasksForNode": "No latency probe tasks are bound to this node.",
+      "statsDetails": "View detailed statistics",
+      "min": "Min",
+      "max": "Max",
+      "avg": "Average",
+      "latest": "Latest",
+      "jitter": "P99/P50",
+      "interval": "Interval",
+      "type": "Protocol",
+      "samples": "Samples",
+      "loss": "Packet Loss",
+      "toggleDelay": "Latency",
+      "toggleLoss": "Packet Loss",
+      "toggleSmooth": "Smooth Peaks",
+      "smoothHint": "Applies EWMA smoothing and suppresses isolated latency spikes",
+      "noRecords": "No latency records are available for the selected range."
+    },
+    "selector": {
+      "selectOnline": "Online Only",
+      "selectAll": "Select All",
+      "clear": "Clear",
+      "empty": "No matching nodes found."
+    }
+  },
+  "nodePing": {
+    "title": "Latency Monitoring",
+    "description": "Configure scheduled ICMP, TCP, and HTTP latency probes across edge nodes with drag reordering, per-node assignment, and automatic binding for new nodes.",
+    "refresh": "Refresh",
+    "createTask": "New Task",
+    "loading": "Loading latency probe tasks...",
+    "tabs": {
+      "tasks": "Task View",
+      "servers": "Node View"
+    },
+    "taskView": {
+      "empty": "No latency probe tasks have been configured.",
+      "dragToSort": "Drag to reorder task",
+      "defaultOnBadge": "Auto-bind new nodes",
+      "noNodes": "No nodes bound",
+      "colName": "Task Name",
+      "colNodes": "Bound Nodes",
+      "colTarget": "Target",
+      "colType": "Protocol",
+      "colInterval": "Interval",
+      "colActions": "Actions",
+      "edit": "Edit task",
+      "delete": "Delete task",
+      "bindNodesTitle": "Assign Nodes: {name}",
+      "bindNodesDesc": "Select the edge nodes that execute this latency probe task."
+    },
+    "serverView": {
+      "empty": "No edge nodes are available.",
+      "colNode": "Edge Node",
+      "colTasks": "Assigned Probe Tasks",
+      "noTasks": "No tasks assigned",
+      "configure": "Configure",
+      "dialogTitle": "Assign Tasks: {name}",
+      "dialogDesc": "Select the latency probe tasks bound to this node. Changes synchronize to the scheduler immediately.",
+      "searchPlaceholder": "Search task name or target..."
+    },
+    "dialog": {
+      "createTitle": "Create Latency Probe Task",
+      "editTitle": "Edit Latency Probe Task",
+      "description": "Specify probe protocol, target address, interval, and assigned edge nodes.",
+      "name": "Task Name",
+      "namePlaceholder": "e.g. Cloudflare DNS",
+      "type": "Protocol",
+      "target": "Target",
+      "interval": "Interval (seconds)",
+      "defaultOn": "Auto-enable for new nodes",
+      "defaultOnDesc": "Automatically bind newly created or registered edge nodes to this task.",
+      "nodes": "Bound Nodes ({count} selected)",
+      "create": "Create Task",
+      "save": "Save Changes",
+      "errName": "Task name is required.",
+      "errTarget": "Target address is required.",
+      "errInterval": "Interval must be an integer between 10 and 86400 seconds."
+    },
+    "deleteDialog": {
+      "title": "Delete Latency Probe Task",
+      "description": "Delete task “{name}”? The task and its historical latency records will be permanently removed.",
+      "confirm": "Delete"
+    },
+    "toast": {
+      "created": "Latency probe task created",
+      "updated": "Latency probe task updated",
+      "deleted": "Latency probe task deleted",
+      "failed": "Operation failed. Please try again later."
+    }
+  },
+  "nodeExec": {
+    "title": "Remote Execution",
+    "description": "Dispatch shell commands to online edge nodes over persistent control-plane connections and inspect per-node exit codes and outputs.",
+    "refresh": "Refresh History",
+    "composer": {
+      "title": "Command Composer",
+      "description": "Enter a shell command and select target edge nodes for execution.",
+      "commandLabel": "Shell Command",
+      "shortcutHint": "Press Ctrl + Enter or Command + Enter to execute",
+      "commandPlaceholder": "e.g. uname -a && uptime",
+      "selectNodes": "Target Nodes ({count} selected)",
+      "timeout": "Timeout",
+      "execute": "Execute",
+      "executing": "Dispatching..."
+    },
+    "result": {
+      "sectionTitle": "Execution Results",
+      "polling": "Polling results",
+      "stopPolling": "Stop Polling",
+      "running": "Running",
+      "success": "Succeeded",
+      "failed": "Failed",
+      "copy": "Copy output",
+      "copied": "Output copied to clipboard",
+      "copyFailed": "Failed to copy output.",
+      "waitingOutput": "Waiting for edge node output...",
+      "emptyOutput": "(No output)",
+      "finishedAt": "Completed at {time}"
+    },
+    "history": {
+      "title": "Execution History",
+      "description": "Select a task to review per-node outputs and exit codes.",
+      "empty": "No remote execution tasks have been recorded.",
+      "progress": "Completed {finished} / {total}",
+      "failedCount": "{count} failed",
+      "delete": "Delete record"
+    },
+    "deleteDialog": {
+      "title": "Delete Remote Execution Record",
+      "description": "Delete this remote execution task and all associated node output records? This action cannot be undone.",
+      "confirm": "Delete"
+    },
+    "errors": {
+      "emptyCommand": "Please enter a command to execute.",
+      "noNodes": "Please select at least one target node."
+    },
+    "toast": {
+      "dispatched": "Remote execution task dispatched",
+      "allCompleted": "All target nodes have completed execution",
+      "pollTimeout": "Polling timed out. Refresh later to inspect final results.",
+      "pollFailed": "Failed to poll execution results",
+      "deleted": "Execution record deleted",
+      "failed": "Operation failed. Please try again later."
     }
   },
   "applyLogs": {

@@ -19,10 +19,17 @@ sidebar: false
 
 ### 💥 重大变更
 
+- **节点性能监测表结构升级**：`of_node_metric_snapshots` 切换为对齐 Komari 的完整宿主机指标列（覆盖 CPU、GPU、内存、Swap、1/5/15 分钟负载、温度、磁盘、实时/累计网络速率、进程数、TCP/UDP 连接数与运行时长），并在 PostgreSQL、SQLite 与 ClickHouse 三方言迁移中直接重建该表及小时聚合视图（不迁移旧版性能快照历史数据）。
 - **彻底废除旧版 FRP 内网穿透架构**：全面移除 `frps`/`frpc` 相关 Go 包装代码、历史控制协议及老版穿透节点配置；数据库迁移阶段自动清理新体系不兼容的遗留 `tunnel_relay` 与 `tunnel_client` 节点及历史 FRP 观测表，升级后请通过全新 **「内网穿透（`/tunnels`）」** 控制域重新创建中继与隧道并部署新版客户端。
 
 ### ✨ 新功能
 
+- **独立 Rust 采集库 `openflare-probe` 与边缘节点能力增强**：
+  - 将探针采集能力抽离为独立可复用 Rust 库 `openflare-probe`（位于 `probe/`），供 `openflare-edge` 及后续各类边缘节点直接依赖引入；统一采集主机硬件画像（虚拟化、GPU、Swap、IPv4/IPv6、探针版本）与全维度性能快照。
+  - **节点延迟检测（`/nodes/ping`）**：支持 ICMP、TCP、HTTP 三种定时探测任务，控制面按间隔分组调度并经 WebSocket 下发至绑定节点，结果经 `logstore` 与批量写入器落库；控制台提供任务视图（支持拖拽排序与新节点自动启用）与节点视图批量分配。
+  - **节点远程执行（`/nodes/exec`）**：支持向多个在线边缘节点批量下发 Shell 命令并配置超时时间，实时轮询展示各节点退出码、标准输出与执行历史。
+  - **节点详情概览增强与仪表盘组件**：侧边栏「节点管理」升级为折叠菜单组（包含「节点列表」「延迟检测」「远程执行」）；新增与系统扁平虚线风格统一的可复用仪表盘组件（`ResourceGauge`），并在节点详情概览页展示硬件/系统/存储/网络四象限卡片、实时/历史多时段负载图表与延迟/丢包双通道趋势图。
+  - **CLI 与 MCP 同步完善**：新增 9 个自动化操作（`ping list/create/update/delete/reorder`、`node ping`、`exec run/list/get`）及 `ping:read`、`ping:write`、`exec:read`、`exec:write` 权限范围，`node metrics` 同步返回完整系统画像并支持实时模式与最长 30 天窗口。
 - **原生 Rust 内嵌 Rathole 高可用内网穿透架构**：
   - 新增中继池（`w_tunnel_relay_pools`）、中继节点（`w_tunnel_relays`）、逻辑隧道（`w_tunnels`）、多连接器副本（`w_tunnel_connectors`）、附着拓扑（`w_tunnel_attachments`）及 L4 转发服务（`w_tunnel_services`）完整控制面与 `/tunnels` 管理控制台。
   - 推出纯原生 Rust 组件 `openflare-relay` 与 `openflared`（位于 `tunnel/` 工作区，采用独立 `tunnel-v*` 发布渠道与双槽位热更新）：内嵌 `rathole` 引擎，支持 `oftok1_` 引导令牌一键注册、Noise / WebSocket / TCP 多协议自动回退、跨 `zone_tag` 故障域 Closest-K 探测与 Make-Before-Break 迟滞重平衡。

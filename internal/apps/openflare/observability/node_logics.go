@@ -6,6 +6,7 @@ package observability
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 	"time"
 
@@ -17,8 +18,12 @@ import (
 
 const (
 	defaultObservabilityWindow      = 24 * time.Hour
+	realtimeObservabilityWindow     = 30 * time.Minute
+	maxObservabilityHours           = 720
 	defaultObservabilityLimit       = 120
+	realtimeObservabilityLimit      = 180
 	maxObservabilityLimit           = 500
+	maxRawMetricQueryRows           = 20000
 	defaultTrafficDistributionLimit = 8
 	nodeObservabilityCacheTTL       = 15 * time.Second
 )
@@ -35,8 +40,9 @@ type cachedNodeObservability struct {
 
 // NodeQuery filters node observability data.
 type NodeQuery struct {
-	Hours int `json:"hours"`
-	Limit int `json:"limit"`
+	Hours    int  `json:"hours"`
+	Limit    int  `json:"limit"`
+	Realtime bool `json:"realtime"`
 }
 
 // NodeAnalytics groups node observability analytics.
@@ -79,7 +85,13 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 	}
 	limit := normalizeObservabilityLimit(query.Limit)
 	window := normalizeObservabilityWindow(query.Hours)
-	cacheable := limit == defaultObservabilityLimit && window == defaultObservabilityWindow
+	if query.Realtime {
+		window = realtimeObservabilityWindow
+		if query.Limit <= 0 {
+			limit = realtimeObservabilityLimit
+		}
+	}
+	cacheable := !query.Realtime && limit == defaultObservabilityLimit && window == defaultObservabilityWindow
 	if cacheable {
 		if view, ok := getCachedNodeObservability(node.NodeID); ok {
 			return view, nil
@@ -95,10 +107,15 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 		profile = nil
 	}
 
-	snapshots, err := repository.ListOpenFlareMetricSnapshotsSince(ctx, node.NodeID, since, limit)
+	rawLimit := limit
+	if !query.Realtime && window >= time.Hour {
+		rawLimit = maxRawMetricQueryRows
+	}
+	rawSnapshots, err := repository.ListOpenFlareMetricSnapshotsSince(ctx, node.NodeID, since, rawLimit)
 	if err != nil {
 		return nil, err
 	}
+	snapshots := downsampleMetricSnapshots(rawSnapshots, since, now, limit)
 	edgeHealth, err := repository.ListOpenFlareEdgeHealth(ctx, node.NodeID, since, limit)
 	if err != nil {
 		return nil, err
@@ -123,7 +140,7 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 		Analytics: NodeAnalytics{
 			Traffic:       trafficSummary,
 			Distributions: distributions,
-			Health:        buildHealthSummary(latestMetricSnapshot(snapshots), trafficSummary, events),
+			Health:        buildHealthSummary(latestMetricSnapshot(rawSnapshots), trafficSummary, events),
 		},
 		Trends: BuildNodeTrends(ctx, now, node.NodeID, snapshots),
 	}
@@ -188,5 +205,112 @@ func normalizeObservabilityWindow(hours int) time.Duration {
 	if hours <= 0 {
 		return defaultObservabilityWindow
 	}
+	if hours > maxObservabilityHours {
+		hours = maxObservabilityHours
+	}
 	return time.Duration(hours) * time.Hour
+}
+
+func downsampleMetricSnapshots(snapshots []*model.OpenFlareMetricSnapshot, since, now time.Time, maxPoints int) []*model.OpenFlareMetricSnapshot {
+	if len(snapshots) == 0 {
+		return snapshots
+	}
+	ordered := make([]*model.OpenFlareMetricSnapshot, 0, len(snapshots))
+	for _, s := range snapshots {
+		if s != nil {
+			ordered = append(ordered, s)
+		}
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		return ordered[i].CapturedAt.Before(ordered[j].CapturedAt)
+	})
+	if len(ordered) <= maxPoints || maxPoints <= 0 {
+		return ordered
+	}
+
+	span := now.Sub(since)
+	if span <= 0 {
+		span = time.Hour
+	}
+	bucketDur := span / time.Duration(maxPoints)
+	if bucketDur <= 0 {
+		bucketDur = time.Second
+	}
+
+	type bucket struct {
+		latest *model.OpenFlareMetricSnapshot
+		count  int
+		cpuSum float64
+		gpuSum float64
+		ramSum int64
+		swpSum int64
+		l1Sum  float64
+		l5Sum  float64
+		l15Sum float64
+		tmpSum float64
+		dskSum int64
+		inSum  int64
+		outSum int64
+		prcSum int64
+		tcpSum int64
+		udpSum int64
+	}
+
+	buckets := make(map[int]*bucket, maxPoints)
+	keys := make([]int, 0, maxPoints)
+	for _, s := range ordered {
+		idx := int(s.CapturedAt.Sub(since) / bucketDur)
+		if idx < 0 {
+			idx = 0
+		}
+		if idx >= maxPoints {
+			idx = maxPoints - 1
+		}
+		b, ok := buckets[idx]
+		if !ok {
+			b = &bucket{latest: s}
+			buckets[idx] = b
+			keys = append(keys, idx)
+		}
+		b.latest = s
+		b.count++
+		b.cpuSum += s.CPUUsagePercent
+		b.gpuSum += s.GPUUsagePercent
+		b.ramSum += s.MemoryUsedBytes
+		b.swpSum += s.SwapUsedBytes
+		b.l1Sum += s.Load1
+		b.l5Sum += s.Load5
+		b.l15Sum += s.Load15
+		b.tmpSum += s.Temp
+		b.dskSum += s.StorageUsedBytes
+		b.inSum += s.NetIn
+		b.outSum += s.NetOut
+		b.prcSum += int64(s.ProcessCount)
+		b.tcpSum += int64(s.TCPConnections)
+		b.udpSum += int64(s.UDPConnections)
+	}
+	sort.Ints(keys)
+
+	result := make([]*model.OpenFlareMetricSnapshot, 0, len(keys))
+	for _, idx := range keys {
+		b := buckets[idx]
+		n := float64(b.count)
+		copySnap := *b.latest
+		copySnap.CPUUsagePercent = b.cpuSum / n
+		copySnap.GPUUsagePercent = b.gpuSum / n
+		copySnap.MemoryUsedBytes = b.ramSum / int64(b.count)
+		copySnap.SwapUsedBytes = b.swpSum / int64(b.count)
+		copySnap.Load1 = b.l1Sum / n
+		copySnap.Load5 = b.l5Sum / n
+		copySnap.Load15 = b.l15Sum / n
+		copySnap.Temp = b.tmpSum / n
+		copySnap.StorageUsedBytes = b.dskSum / int64(b.count)
+		copySnap.NetIn = b.inSum / int64(b.count)
+		copySnap.NetOut = b.outSum / int64(b.count)
+		copySnap.ProcessCount = int(b.prcSum / int64(b.count))
+		copySnap.TCPConnections = int(b.tcpSum / int64(b.count))
+		copySnap.UDPConnections = int(b.udpSum / int64(b.count))
+		result = append(result, &copySnap)
+	}
+	return result
 }

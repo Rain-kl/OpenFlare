@@ -17,6 +17,9 @@
       "usageDocs": "使用文档",
       "dashboard": "数据看板",
       "nodes": "节点管理",
+      "nodeList": "节点列表",
+      "nodePing": "延迟检测",
+      "nodeExec": "远程执行",
       "tunnels": "内网穿透",
       "proxyRoutes": "规则管理",
       "websites": "域名列表",
@@ -38,6 +41,7 @@
     "groups": {
       "admin": "管理",
       "docs": "文档库",
+      "nodes": "节点管理",
       "security": "安全性",
       "websites": "网站管理"
     },
@@ -95,6 +99,8 @@
         "homeDesc": "返回控制台总览",
         "usageDocsDesc": "查看入门指南与集成示例",
         "nodesDesc": "管理边缘网关节点状态与配置下发",
+        "nodePingDesc": "配置并管理边缘节点的 ICMP、TCP、HTTP 延迟检测任务",
+        "nodeExecDesc": "向在线边缘节点批量下发远程 Shell 命令并查看执行输出",
         "tunnelsDesc": "管理高可用内网穿透隧道、中继节点池与实时拓扑",
         "proxyRoutesDesc": "配置反向代理、路由匹配规则、WAF 策略与缓存设置",
         "websitesDesc": "管理托管域名及证书绑定与监听配置",

@@ -12,6 +12,7 @@ import (
 
 	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/observability"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/ping"
 	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -111,8 +112,9 @@ type View struct {
 
 // ObservabilityQuery filters node observability data.
 type ObservabilityQuery struct {
-	Hours int `json:"hours"`
-	Limit int `json:"limit"`
+	Hours    int  `form:"hours" json:"hours"`
+	Limit    int  `form:"limit" json:"limit"`
+	Realtime bool `form:"realtime" json:"realtime"`
 }
 
 // ObservabilityView is the node observability API response.
@@ -199,6 +201,7 @@ func CreateNode(ctx context.Context, input Input) (*View, error) {
 		}
 		return nil, err
 	}
+	ping.AttachNewNode(ctx, node.NodeID)
 	return buildNodeView(node), nil
 }
 
@@ -239,10 +242,15 @@ func UpdateNode(ctx context.Context, id uint, input Input) (*View, error) {
 
 // DeleteNode removes a node by id.
 func DeleteNode(ctx context.Context, id uint) error {
-	if _, err := repository.GetOpenFlareNodeByID(ctx, id); err != nil {
+	target, err := repository.GetOpenFlareNodeByID(ctx, id)
+	if err != nil {
 		return err
 	}
-	return repository.DeleteOpenFlareNode(ctx, id)
+	if err := repository.DeleteOpenFlareNode(ctx, id); err != nil {
+		return err
+	}
+	ping.DetachDeletedNode(ctx, target.NodeID)
+	return nil
 }
 
 // GetBootstrapToken returns the global discovery token, creating one if missing.
@@ -389,8 +397,9 @@ func RequestForceSync(ctx context.Context, id uint) (*View, error) {
 // GetObservability returns observability details for a node.
 func GetObservability(ctx context.Context, id uint, query ObservabilityQuery) (*ObservabilityView, error) {
 	return observability.GetNodeObservability(ctx, id, observability.NodeQuery{
-		Hours: query.Hours,
-		Limit: query.Limit,
+		Hours:    query.Hours,
+		Limit:    query.Limit,
+		Realtime: query.Realtime,
 	})
 }
 

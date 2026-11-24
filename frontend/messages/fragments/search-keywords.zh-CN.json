@@ -4,7 +4,9 @@
       "keywords": {
         "home": "home|主页|首页|dashboard|总览",
         "docs-how-to-use": "docs|文档|使用|how to|tutorial|教程|help",
-        "console-nodes": "node|节点|边缘节点|服务器",
+        "console-nodes": "node|节点|节点列表|边缘节点|服务器",
+        "console-node-ping": "ping|延迟|延迟检测|探测|icmp|tcp|http|丢包",
+        "console-node-exec": "exec|远程执行|命令|shell|终端|批量执行",
         "console-tunnels": "tunnel|内网穿透|中继|隧道|relay|openflared",
         "console-proxy-routes": "route|规则|路由|代理|反向代理|proxy",
         "console-websites": "website|domain|网站|域名|站点",

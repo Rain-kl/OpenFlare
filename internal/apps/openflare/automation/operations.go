@@ -115,6 +115,15 @@ func bindings() []binding {
 		"openflare_ip_group_list":       listIPGroups,
 		"openflare_ip_group_get":        getIPGroup,
 		"openflare_node_health":         nodeHealth,
+		"openflare_ping_task_list":      listPingTasks,
+		"openflare_ping_task_create":    createPingTask,
+		"openflare_ping_task_update":    updatePingTask,
+		"openflare_ping_task_delete":    deletePingTask,
+		"openflare_ping_task_reorder":   reorderPingTasks,
+		"openflare_node_ping_metrics":   nodePingMetrics,
+		"openflare_exec_run":            runRemoteExec,
+		"openflare_exec_list":           listRemoteExecTasks,
+		"openflare_exec_get":            getRemoteExecTask,
 	}
 	var result []binding
 	for _, operation := range automationcontract.Operations() {

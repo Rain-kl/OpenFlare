@@ -40,7 +40,40 @@ const (
 	WSMessageTypeQuarantined     = "quarantined"
 	WSMessageTypePing            = "ping"
 	WSMessageTypePong            = "pong"
+	WSMessageTypePingTask        = "ping_task"
+	WSMessageTypePingResult      = "ping_result"
+	WSMessageTypeRemoteExec      = "remote_exec"
 )
+
+// PingTaskDispatch instructs an edge node to execute one latency probe.
+type PingTaskDispatch struct {
+	PingTaskID uint64 `json:"ping_task_id"`
+	PingType   string `json:"ping_type"`
+	PingTarget string `json:"ping_target"`
+}
+
+// PingResultPayload carries one latency probe measurement reported by an edge node.
+type PingResultPayload struct {
+	TaskID     uint64 `json:"task_id"`
+	PingType   string `json:"ping_type"`
+	Value      int    `json:"value"`
+	FinishedAt string `json:"finished_at"`
+}
+
+// RemoteExecDispatch instructs an edge node to execute a shell command.
+type RemoteExecDispatch struct {
+	TaskID         string `json:"task_id"`
+	Command        string `json:"command"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+}
+
+// RemoteExecResultPayload carries a node's remote execution output and exit code.
+type RemoteExecResultPayload struct {
+	TaskID     string `json:"task_id"`
+	Result     string `json:"result"`
+	ExitCode   int    `json:"exit_code"`
+	FinishedAt string `json:"finished_at"`
+}
 
 // WSMessage represents a WebSocket message.
 type WSMessage struct {
@@ -106,7 +139,7 @@ type NodeEdgeHealth struct {
 	Connections    int64  `json:"connections"`
 }
 
-// NodeSystemProfile describes the system profile of a node.
+// NodeSystemProfile describes the Komari-aligned system profile of a node.
 type NodeSystemProfile struct {
 	Hostname         string `json:"hostname"`
 	OSName           string `json:"os_name"`
@@ -115,22 +148,44 @@ type NodeSystemProfile struct {
 	Architecture     string `json:"architecture"`
 	CPUModel         string `json:"cpu_model"`
 	CPUCores         int    `json:"cpu_cores"`
+	CPUPhysicalCores int    `json:"cpu_physical_cores,omitempty"`
+	Virtualization   string `json:"virtualization,omitempty"`
+	GPUName          string `json:"gpu_name,omitempty"`
 	TotalMemoryBytes int64  `json:"total_memory_bytes"`
+	SwapTotalBytes   int64  `json:"swap_total_bytes,omitempty"`
 	TotalDiskBytes   int64  `json:"total_disk_bytes"`
+	IPv4             string `json:"ipv4,omitempty"`
+	IPv6             string `json:"ipv6,omitempty"`
+	ProbeVersion     string `json:"probe_version,omitempty"`
 	UptimeSeconds    int64  `json:"uptime_seconds"`
 	ReportedAtUnix   int64  `json:"reported_at_unix"`
 }
 
-// NodeMetricSnapshot is a metric snapshot of a node.
+// NodeMetricSnapshot is a Komari-aligned real-time metric snapshot of a node.
 type NodeMetricSnapshot struct {
 	CapturedAtUnix    int64   `json:"captured_at_unix"`
 	CPUUsagePercent   float64 `json:"cpu_usage_percent"`
+	GPUUsagePercent   float64 `json:"gpu_usage_percent,omitempty"`
 	MemoryUsedBytes   int64   `json:"memory_used_bytes"`
 	MemoryTotalBytes  int64   `json:"memory_total_bytes"`
+	SwapUsedBytes     int64   `json:"swap_used_bytes,omitempty"`
+	SwapTotalBytes    int64   `json:"swap_total_bytes,omitempty"`
+	Load1             float64 `json:"load1,omitempty"`
+	Load5             float64 `json:"load5,omitempty"`
+	Load15            float64 `json:"load15,omitempty"`
+	Temp              float64 `json:"temp,omitempty"`
 	StorageUsedBytes  int64   `json:"storage_used_bytes"`
 	StorageTotalBytes int64   `json:"storage_total_bytes"`
 	DiskReadBytes     int64   `json:"disk_read_bytes"`
 	DiskWriteBytes    int64   `json:"disk_write_bytes"`
+	NetIn             int64   `json:"net_in,omitempty"`
+	NetOut            int64   `json:"net_out,omitempty"`
+	NetTotalUp        int64   `json:"net_total_up,omitempty"`
+	NetTotalDown      int64   `json:"net_total_down,omitempty"`
+	ProcessCount      int     `json:"process_count,omitempty"`
+	TCPConnections    int     `json:"tcp_connections,omitempty"`
+	UDPConnections    int     `json:"udp_connections,omitempty"`
+	UptimeSeconds     int64   `json:"uptime_seconds,omitempty"`
 }
 
 // NodeAccessLog is an access log entry from agent (L1 business fact).

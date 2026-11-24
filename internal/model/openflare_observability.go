@@ -7,22 +7,35 @@ import (
 	"time"
 )
 
-// OpenFlareMetricSnapshot stores a node capacity snapshot in ClickHouse (database: openflare, table: of_node_metric_snapshots).
-// ClickHouse DDL is managed by goose; reads/writes go through internal/repository/logstore.
+// OpenFlareMetricSnapshot stores a Komari-aligned node performance snapshot in logstore (table: of_node_metric_snapshots).
+// DDL is managed by goose across PostgreSQL, SQLite, and ClickHouse; reads/writes go through internal/repository/logstore.
 type OpenFlareMetricSnapshot struct {
-	ID                uint      `json:"id" gorm:"primaryKey;autoIncrement"`
-	NodeID            string    `json:"node_id" gorm:"index;size:64;not null"`
-	CapturedAt        time.Time `json:"captured_at" gorm:"index"`
-	CPUUsagePercent   float64   `json:"cpu_usage_percent"`
-	MemoryUsedBytes   int64     `json:"memory_used_bytes"`
-	MemoryTotalBytes  int64     `json:"memory_total_bytes"`
-	StorageUsedBytes  int64     `json:"storage_used_bytes"`
-	StorageTotalBytes int64     `json:"storage_total_bytes"`
-	DiskReadBytes     int64     `json:"disk_read_bytes"`
-	DiskWriteBytes    int64     `json:"disk_write_bytes"`
-	NetworkRxBytes    int64     `json:"network_rx_bytes"`
-	NetworkTxBytes    int64     `json:"network_tx_bytes"`
-	CreatedAt         time.Time `json:"created_at" gorm:"autoCreateTime"`
+	ID                uint      `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
+	NodeID            string    `json:"node_id" gorm:"column:node_id;index;size:64;not null"`
+	CapturedAt        time.Time `json:"captured_at" gorm:"column:captured_at;index"`
+	CPUUsagePercent   float64   `json:"cpu_usage_percent" gorm:"column:cpu"`
+	GPUUsagePercent   float64   `json:"gpu_usage_percent" gorm:"column:gpu"`
+	MemoryUsedBytes   int64     `json:"memory_used_bytes" gorm:"column:ram"`
+	MemoryTotalBytes  int64     `json:"memory_total_bytes" gorm:"column:ram_total"`
+	SwapUsedBytes     int64     `json:"swap_used_bytes" gorm:"column:swap"`
+	SwapTotalBytes    int64     `json:"swap_total_bytes" gorm:"column:swap_total"`
+	Load1             float64   `json:"load1" gorm:"column:load"`
+	Load5             float64   `json:"load5" gorm:"column:load5"`
+	Load15            float64   `json:"load15" gorm:"column:load15"`
+	Temp              float64   `json:"temp" gorm:"column:temp"`
+	StorageUsedBytes  int64     `json:"storage_used_bytes" gorm:"column:disk"`
+	StorageTotalBytes int64     `json:"storage_total_bytes" gorm:"column:disk_total"`
+	DiskReadBytes     int64     `json:"disk_read_bytes" gorm:"column:disk_read_bytes"`
+	DiskWriteBytes    int64     `json:"disk_write_bytes" gorm:"column:disk_write_bytes"`
+	NetIn             int64     `json:"net_in" gorm:"column:net_in"`
+	NetOut            int64     `json:"net_out" gorm:"column:net_out"`
+	NetworkRxBytes    int64     `json:"network_rx_bytes" gorm:"column:net_total_down"`
+	NetworkTxBytes    int64     `json:"network_tx_bytes" gorm:"column:net_total_up"`
+	ProcessCount      int       `json:"process_count" gorm:"column:process"`
+	TCPConnections    int       `json:"tcp_connections" gorm:"column:connections"`
+	UDPConnections    int       `json:"udp_connections" gorm:"column:connections_udp"`
+	UptimeSeconds     int64     `json:"uptime_seconds" gorm:"column:uptime"`
+	CreatedAt         time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 }
 
 // TableName returns the GORM table name.
@@ -84,7 +97,7 @@ func (OpenFlareHealthEvent) TableName() string {
 	return "of_node_health_events"
 }
 
-// OpenFlareNodeSystemProfile stores the latest node system profile.
+// OpenFlareNodeSystemProfile stores the latest Komari-aligned node system profile.
 type OpenFlareNodeSystemProfile struct {
 	ID               uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	NodeID           string    `json:"node_id" gorm:"uniqueIndex;size:64;not null"`
@@ -95,8 +108,15 @@ type OpenFlareNodeSystemProfile struct {
 	Architecture     string    `json:"architecture" gorm:"size:64"`
 	CPUModel         string    `json:"cpu_model" gorm:"size:255"`
 	CPUCores         int       `json:"cpu_cores"`
+	CPUPhysicalCores int       `json:"cpu_physical_cores" gorm:"column:cpu_physical_cores;not null;default:0"`
+	Virtualization   string    `json:"virtualization" gorm:"column:virtualization;size:64;not null;default:''"`
+	GPUName          string    `json:"gpu_name" gorm:"column:gpu_name;size:255;not null;default:''"`
 	TotalMemoryBytes int64     `json:"total_memory_bytes"`
+	SwapTotalBytes   int64     `json:"swap_total_bytes" gorm:"column:swap_total_bytes;not null;default:0"`
 	TotalDiskBytes   int64     `json:"total_disk_bytes"`
+	IPv4             string    `json:"ipv4" gorm:"column:ipv4;size:64;not null;default:''"`
+	IPv6             string    `json:"ipv6" gorm:"column:ipv6;size:128;not null;default:''"`
+	ProbeVersion     string    `json:"probe_version" gorm:"column:probe_version;size:64;not null;default:''"`
 	UptimeSeconds    int64     `json:"uptime_seconds"`
 	ReportedAt       time.Time `json:"reported_at" gorm:"index"`
 	CreatedAt        time.Time `json:"created_at" gorm:"autoCreateTime"`

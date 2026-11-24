@@ -49,6 +49,7 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
             if git diff --quiet "$BEFORE" "$source_sha" -- \
               edge/pingora/Cargo.toml edge/pingora/Cargo.lock edge/pingora/.cargo \
+              probe/Cargo.toml \
               .cargo rust-toolchain rust-toolchain.toml edge/pingora/rust-toolchain.toml \
               .github/workflows/build-release-openflare-edge.yml; then
               exit 0
@@ -77,7 +78,7 @@ jobs:
             version="$input_version"
           elif [[ "$GITHUB_REF" == refs/heads/canary ]]; then
             if [[ -n "${BEFORE:-}" && "$BEFORE" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-              if git diff --quiet "$BEFORE" "$source_sha" -- edge/; then
+              if git diff --quiet "$BEFORE" "$source_sha" -- edge/ probe/; then
                 echo "No changes under edge/ between $BEFORE and $source_sha; skipping Edge canary build."
                 exit 0
               fi

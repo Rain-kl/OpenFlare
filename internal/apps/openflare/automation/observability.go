@@ -25,9 +25,10 @@ type TrafficMetrics struct {
 	StatusCodes   []observability.DistributionItem       `json:"status_codes"`
 }
 
-// NodeMetrics combines a safe node summary with operational metrics.
+// NodeMetrics combines a safe node summary with system profile and operational metrics.
 type NodeMetrics struct {
 	Node      NodeSummary                             `json:"node"`
+	Profile   *model.OpenFlareNodeSystemProfile       `json:"profile,omitempty"`
 	Snapshots []*observability.NodeMetricSnapshotView `json:"metric_snapshots"`
 	Analytics observability.NodeAnalytics             `json:"analytics"`
 	Trends    observability.NodeTrends                `json:"trends"`
@@ -188,8 +189,9 @@ func readHourlyTraffic(ctx context.Context, query model.OpenFlareAccessLogQuery,
 // @Produce json
 // @Security AutomationBearer
 // @Param node_record_id path string true "Node control-plane record ID from openflare_node_list"
-// @Param hours query integer false "Lookback in hours for recent resource snapshots and traffic analytics" minimum(1) maximum(168) default(24)
-// @Param limit query integer false "Maximum number of recent metric snapshots" minimum(1) maximum(120) default(120)
+// @Param hours query integer false "Lookback in hours for recent resource snapshots and traffic analytics" minimum(1) maximum(720) default(24)
+// @Param limit query integer false "Maximum number of recent metric snapshots" minimum(1) maximum(500) default(120)
+// @Param realtime query boolean false "Query high-resolution snapshots from the last 30 minutes without caching" default(false)
 // @Success 200 {object} OperationResponse{data=NodeMetrics}
 // @Failure 400,401,403,404,500 {object} OperationResponse
 // @x-automation {"cli":"node metrics","scope":"metrics:read","effect":"read","parameters":{"node_record_id":{"pattern":"^[1-9][0-9]{0,18}$"}}}
@@ -203,9 +205,13 @@ func nodeMetrics(ctx context.Context, _ identity, input map[string]string) (any,
 	if err != nil {
 		return nil, resourceFailure(ctx, "read node", err)
 	}
-	result, err := node.GetObservability(ctx, id, node.ObservabilityQuery{Hours: inputInt(input, "hours"), Limit: inputInt(input, "limit")})
+	result, err := node.GetObservability(ctx, id, node.ObservabilityQuery{
+		Hours:    inputInt(input, "hours"),
+		Limit:    inputInt(input, "limit"),
+		Realtime: input["realtime"] == "true",
+	})
 	if err != nil {
 		return nil, resourceFailure(ctx, "read node metrics", err)
 	}
-	return NodeMetrics{Node: summarizeNode(nodeView), Snapshots: result.MetricSnapshots, Analytics: result.Analytics, Trends: result.Trends}, nil
+	return NodeMetrics{Node: summarizeNode(nodeView), Profile: result.Profile, Snapshots: result.MetricSnapshots, Analytics: result.Analytics, Trends: result.Trends}, nil
 }

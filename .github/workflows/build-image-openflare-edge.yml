@@ -82,6 +82,7 @@ jobs:
             .dockerignore
             docker/Dockerfile.edge
             edge/pingora
+            probe
             internal/openflare/edgeconfig/pow_static
             internal/openflare/edgeconfig/pow_templates
             internal/openflare/edgeconfig/site_auth.html

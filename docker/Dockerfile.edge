@@ -6,6 +6,7 @@ RUN apk add --no-cache build-base ca-certificates cmake git perl pkgconf
 COPY edge/pingora/Cargo.toml edge/pingora/Cargo.lock ./
 COPY edge/pingora/src/ src/
 COPY edge/pingora/vendor/ vendor/
+COPY probe/ /build/probe/
 COPY internal/openflare/edgeconfig/pow_static/ /build/internal/openflare/edgeconfig/pow_static/
 COPY internal/openflare/edgeconfig/pow_templates/ /build/internal/openflare/edgeconfig/pow_templates/
 COPY internal/openflare/edgeconfig/site_auth.html /build/internal/openflare/edgeconfig/

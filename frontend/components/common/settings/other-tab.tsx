@@ -3,6 +3,7 @@
 import { ComponentType, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  Activity,
   Bell,
   Database,
   FileText,
@@ -63,9 +64,21 @@ const MENU_GROUPS: MenuGroup[] = [
       },
       {
         path: '/nodes',
-        labelKey: 'nodes',
+        labelKey: 'nodeList',
         descKey: 'descNodes',
         icon: Server,
+      },
+      {
+        path: '/nodes/ping',
+        labelKey: 'nodePing',
+        descKey: 'descNodePing',
+        icon: Activity,
+      },
+      {
+        path: '/nodes/exec',
+        labelKey: 'nodeExec',
+        descKey: 'descNodeExec',
+        icon: Terminal,
       },
       {
         path: '/proxy-routes',

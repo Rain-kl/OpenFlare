@@ -97,6 +97,7 @@ function SidebarNavGroupMenuItem({
                       pathname,
                       item.url,
                       item.childUrls,
+                      item.exact,
                     )}
                   >
                     <Link href={item.url} onClick={onNavigate}>

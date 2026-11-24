@@ -5,6 +5,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"sync"
@@ -32,6 +33,38 @@ type agentHub struct {
 }
 
 var defaultAgentHub = &agentHub{clients: make(map[string]*agentClient)}
+
+var (
+	agentHandlersMu          sync.RWMutex
+	pingResultHandler        func(ctx context.Context, nodeID string, payload protocol.PingResultPayload)
+	pingScheduleReloadHandle func(ctx context.Context)
+)
+
+// SetPingResultHandler registers the callback invoked when an agent reports a ping result over WebSocket.
+func SetPingResultHandler(fn func(ctx context.Context, nodeID string, payload protocol.PingResultPayload)) {
+	agentHandlersMu.Lock()
+	pingResultHandler = fn
+	agentHandlersMu.Unlock()
+}
+
+// SetPingScheduleReloadHandler registers the callback invoked when ping task schedules change across replicas.
+func SetPingScheduleReloadHandler(fn func(ctx context.Context)) {
+	agentHandlersMu.Lock()
+	pingScheduleReloadHandle = fn
+	agentHandlersMu.Unlock()
+}
+
+func currentPingResultHandler() func(ctx context.Context, nodeID string, payload protocol.PingResultPayload) {
+	agentHandlersMu.RLock()
+	defer agentHandlersMu.RUnlock()
+	return pingResultHandler
+}
+
+func currentPingScheduleReloadHandler() func(ctx context.Context) {
+	agentHandlersMu.RLock()
+	defer agentHandlersMu.RUnlock()
+	return pingScheduleReloadHandle
+}
 
 // ServeAgent handles an upgraded agent websocket connection.
 func ServeAgent(c *gin.Context, nodeID string) {
@@ -112,6 +145,20 @@ func SendForceSyncConfig(nodeID string) bool {
 	}{Force: true}})
 }
 
+func sendLocalPingTask(nodeID string, task protocol.PingTaskDispatch) bool {
+	return sendAgentMessage(nodeID, Message{
+		Type:    protocol.WSMessageTypePingTask,
+		Payload: task,
+	})
+}
+
+func sendLocalRemoteExec(nodeID string, task protocol.RemoteExecDispatch) bool {
+	return sendAgentMessage(nodeID, Message{
+		Type:    protocol.WSMessageTypeRemoteExec,
+		Payload: task,
+	})
+}
+
 func disconnectLocalAgent(nodeID, reason string) bool {
 	defaultAgentHub.mu.Lock()
 	client := defaultAgentHub.clients[nodeID]
@@ -170,6 +217,15 @@ func (c *agentClient) readPump() {
 		case messageTypePing:
 			_ = c.enqueue(Message{Type: messageTypePong})
 		case messageTypePong:
+		case protocol.WSMessageTypePingResult:
+			var payload protocol.PingResultPayload
+			if err := json.Unmarshal(inbound.Payload, &payload); err != nil {
+				slog.Debug("agent ws invalid ping_result payload", "node_id", c.nodeID, "error", err)
+				continue
+			}
+			if handler := currentPingResultHandler(); handler != nil {
+				handler(context.Background(), c.nodeID, payload)
+			}
 		default:
 			slog.Debug("agent ws unsupported message type", "node_id", c.nodeID, "type", inbound.Type)
 		}

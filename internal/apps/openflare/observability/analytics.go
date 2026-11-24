@@ -41,18 +41,33 @@ type TrafficDistributions struct {
 
 const metricSnapshotEdgeHealthMatchWindow = 2 * time.Minute
 
-// NodeMetricSnapshotView is a metric snapshot enriched with edge health connections.
+// NodeMetricSnapshotView is a Komari-aligned metric snapshot enriched with edge health connections.
 type NodeMetricSnapshotView struct {
 	ID                   uint      `json:"id,omitempty"`
 	NodeID               string    `json:"node_id,omitempty"`
 	CapturedAt           time.Time `json:"captured_at"`
 	CPUUsagePercent      float64   `json:"cpu_usage_percent"`
+	GPUUsagePercent      float64   `json:"gpu_usage_percent"`
 	MemoryUsedBytes      int64     `json:"memory_used_bytes"`
 	MemoryTotalBytes     int64     `json:"memory_total_bytes"`
+	SwapUsedBytes        int64     `json:"swap_used_bytes"`
+	SwapTotalBytes       int64     `json:"swap_total_bytes"`
+	Load1                float64   `json:"load1"`
+	Load5                float64   `json:"load5"`
+	Load15               float64   `json:"load15"`
+	Temp                 float64   `json:"temp"`
 	StorageUsedBytes     int64     `json:"storage_used_bytes"`
 	StorageTotalBytes    int64     `json:"storage_total_bytes"`
 	DiskReadBytes        int64     `json:"disk_read_bytes"`
 	DiskWriteBytes       int64     `json:"disk_write_bytes"`
+	NetIn                int64     `json:"net_in"`
+	NetOut               int64     `json:"net_out"`
+	NetTotalUp           int64     `json:"net_total_up"`
+	NetTotalDown         int64     `json:"net_total_down"`
+	ProcessCount         int       `json:"process_count"`
+	TCPConnections       int       `json:"tcp_connections"`
+	UDPConnections       int       `json:"udp_connections"`
+	UptimeSeconds        int64     `json:"uptime_seconds"`
 	OpenrestyConnections int64     `json:"openresty_connections"`
 }
 
@@ -182,12 +197,27 @@ func BuildMetricSnapshotViews(
 			NodeID:            snapshot.NodeID,
 			CapturedAt:        snapshot.CapturedAt,
 			CPUUsagePercent:   snapshot.CPUUsagePercent,
+			GPUUsagePercent:   snapshot.GPUUsagePercent,
 			MemoryUsedBytes:   snapshot.MemoryUsedBytes,
 			MemoryTotalBytes:  snapshot.MemoryTotalBytes,
+			SwapUsedBytes:     snapshot.SwapUsedBytes,
+			SwapTotalBytes:    snapshot.SwapTotalBytes,
+			Load1:             snapshot.Load1,
+			Load5:             snapshot.Load5,
+			Load15:            snapshot.Load15,
+			Temp:              snapshot.Temp,
 			StorageUsedBytes:  snapshot.StorageUsedBytes,
 			StorageTotalBytes: snapshot.StorageTotalBytes,
 			DiskReadBytes:     snapshot.DiskReadBytes,
 			DiskWriteBytes:    snapshot.DiskWriteBytes,
+			NetIn:             snapshot.NetIn,
+			NetOut:            snapshot.NetOut,
+			NetTotalUp:        snapshot.NetworkTxBytes,
+			NetTotalDown:      snapshot.NetworkRxBytes,
+			ProcessCount:      snapshot.ProcessCount,
+			TCPConnections:    snapshot.TCPConnections,
+			UDPConnections:    snapshot.UDPConnections,
+			UptimeSeconds:     snapshot.UptimeSeconds,
 		}
 		if matched := matchEdgeHealth(snapshot.CapturedAt, edgeHealth); matched != nil {
 			view.OpenrestyConnections = matched.Connections

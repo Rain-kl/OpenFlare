@@ -1,6 +1,8 @@
 export { OpenFlareBaseService } from './base.service';
 
 export { NodeService } from './node.service';
+export { PingService } from './ping.service';
+export { ExecService } from './exec.service';
 export { TunnelService, tunnelQueryKey } from './tunnel.service';
 export { ProxyRouteService } from './proxy-route.service';
 export { ApplyLogService } from './apply-log.service';
@@ -39,13 +41,25 @@ export type {
   NodeQuarantineInput,
   NodeQuarantineResult,
   NodeHealthEvent,
+  NodeMetricSnapshot,
   NodeObservability,
   NodeObservabilityAnalytics,
   NodeObservabilityTrends,
+  NodePingRecords,
   NodeSystemProfile,
   NodeStatus,
   NodeType,
   OpenrestyStatus,
+  PingRecord,
+  PingTask,
+  PingTaskBatchUpdateItem,
+  PingTaskPayload,
+  PingTaskStats,
+  PingTaskType,
+  ExecRunPayload,
+  ExecRunResponse,
+  ExecTask,
+  ExecTaskResult,
   ProxyRouteConfigSection,
   ProxyRouteCustomHeader,
   ProxyRouteItem,
@@ -184,6 +198,8 @@ import { ApplyLogService } from './apply-log.service';
 import { DashboardService } from './dashboard.service';
 import { DnsAccountService } from './dns-account.service';
 import { NodeService } from './node.service';
+import { PingService } from './ping.service';
+import { ExecService } from './exec.service';
 import { TunnelService } from './tunnel.service';
 import { OptionService } from './option.service';
 import { StatusService } from './status.service';
@@ -198,6 +214,8 @@ import { CloudflareService } from './cloudflare.service';
 
 export const openflareServices = {
   node: NodeService,
+  ping: PingService,
+  exec: ExecService,
   tunnel: TunnelService,
   proxyRoute: ProxyRouteService,
   applyLog: ApplyLogService,

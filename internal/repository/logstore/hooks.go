@@ -18,6 +18,7 @@ type AccessLogHooks struct {
 type ObservabilityHooks struct {
 	QueueMetricSnapshot func(record analyticsmodel.NodeMetricSnapshot)
 	QueueEdgeHealth     func(record analyticsmodel.NodeEdgeHealth)
+	QueuePingRecord     func(record analyticsmodel.NodePingRecord)
 }
 
 var (

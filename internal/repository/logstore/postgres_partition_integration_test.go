@@ -628,19 +628,32 @@ CREATE TABLE IF NOT EXISTS w_user_access_logs (
 // 与 goose/postgres/202608080001_create_log_tables.sql 对齐（普通表，无分区）。
 const postgresMetricSnapshotsDDL = `
 CREATE TABLE IF NOT EXISTS of_node_metric_snapshots (
-    id                 BIGINT NOT NULL PRIMARY KEY,
-    node_id            VARCHAR(64) NOT NULL DEFAULT '',
-    captured_at        TIMESTAMPTZ NOT NULL,
-    cpu_usage_percent  DOUBLE PRECISION NOT NULL DEFAULT 0,
-    memory_used_bytes  BIGINT NOT NULL DEFAULT 0,
-    memory_total_bytes BIGINT NOT NULL DEFAULT 0,
-    storage_used_bytes BIGINT NOT NULL DEFAULT 0,
-    storage_total_bytes BIGINT NOT NULL DEFAULT 0,
-    disk_read_bytes    BIGINT NOT NULL DEFAULT 0,
-    disk_write_bytes   BIGINT NOT NULL DEFAULT 0,
-    network_rx_bytes   BIGINT NOT NULL DEFAULT 0,
-    network_tx_bytes   BIGINT NOT NULL DEFAULT 0,
-    created_at         TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id               BIGINT NOT NULL PRIMARY KEY,
+    node_id          VARCHAR(64) NOT NULL DEFAULT '',
+    captured_at      TIMESTAMPTZ NOT NULL,
+    cpu              DOUBLE PRECISION NOT NULL DEFAULT 0,
+    gpu              DOUBLE PRECISION NOT NULL DEFAULT 0,
+    ram              BIGINT NOT NULL DEFAULT 0,
+    ram_total        BIGINT NOT NULL DEFAULT 0,
+    swap             BIGINT NOT NULL DEFAULT 0,
+    swap_total       BIGINT NOT NULL DEFAULT 0,
+    load             DOUBLE PRECISION NOT NULL DEFAULT 0,
+    load5            DOUBLE PRECISION NOT NULL DEFAULT 0,
+    load15           DOUBLE PRECISION NOT NULL DEFAULT 0,
+    temp             DOUBLE PRECISION NOT NULL DEFAULT 0,
+    disk             BIGINT NOT NULL DEFAULT 0,
+    disk_total       BIGINT NOT NULL DEFAULT 0,
+    disk_read_bytes  BIGINT NOT NULL DEFAULT 0,
+    disk_write_bytes BIGINT NOT NULL DEFAULT 0,
+    net_in           BIGINT NOT NULL DEFAULT 0,
+    net_out          BIGINT NOT NULL DEFAULT 0,
+    net_total_up     BIGINT NOT NULL DEFAULT 0,
+    net_total_down   BIGINT NOT NULL DEFAULT 0,
+    process          INTEGER NOT NULL DEFAULT 0,
+    connections      INTEGER NOT NULL DEFAULT 0,
+    connections_udp  INTEGER NOT NULL DEFAULT 0,
+    uptime           BIGINT NOT NULL DEFAULT 0,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`
 
 const postgresEdgeHealthDDL = `

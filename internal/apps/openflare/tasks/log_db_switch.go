@@ -213,6 +213,7 @@ func clearTargetLogTables(ctx context.Context, dst *logstore.Store) error {
 	for _, fn := range []func(context.Context) (int64, error){
 		dst.Observability.DeleteAllMetricSnapshots,
 		dst.Observability.DeleteAllEdgeHealth,
+		dst.Observability.DeleteAllPingRecords,
 	} {
 		if _, err := fn(ctx); err != nil {
 			return err
@@ -347,6 +348,12 @@ func copyObservability(ctx context.Context, src, dst *logstore.Store) error {
 		lastEdgeHealthID); err != nil {
 		return err
 	}
+	if err := copyObsTable(ctx, "ping_records",
+		src.Observability.ListPingRecordsForMigration,
+		dst.Observability.BatchInsertNodePingRecords,
+		lastPingRecordID); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -380,3 +387,4 @@ func lastMetricSnapshotID(rows []analyticsmodel.NodeMetricSnapshot) uint64 {
 	return rows[len(rows)-1].ID
 }
 func lastEdgeHealthID(rows []analyticsmodel.NodeEdgeHealth) uint64 { return rows[len(rows)-1].ID }
+func lastPingRecordID(rows []analyticsmodel.NodePingRecord) uint64 { return rows[len(rows)-1].ID }

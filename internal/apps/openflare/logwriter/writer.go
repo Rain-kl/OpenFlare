@@ -43,6 +43,7 @@ var (
 
 	metricSnapshotWriter *batchwriter.Writer[analyticsmodel.NodeMetricSnapshot]
 	edgeHealthWriter     *batchwriter.Writer[analyticsmodel.NodeEdgeHealth]
+	pingRecordWriter     *batchwriter.Writer[analyticsmodel.NodePingRecord]
 	nodeAccessLogWriter  *batchwriter.Writer[analyticsmodel.NodeAccessLog]
 
 	metricSnapshotDedup *dedupSet
@@ -69,10 +70,17 @@ func Init(ctx context.Context) {
 			edgeHealthDedup,
 			edgeHealthKey,
 		)
+		pingRecordWriter = mustNewObservabilityWriter(
+			"ping_records",
+			withFlushRetries(flushNodePingRecords),
+			nil,
+			nil,
+		)
 		nodeAccessLogWriter = mustNewNodeAccessLogWriter()
 
 		metricSnapshotWriter.Start(ctx)
 		edgeHealthWriter.Start(ctx)
+		pingRecordWriter.Start(ctx)
 		nodeAccessLogWriter.Start(ctx)
 
 		wireModelInsertHooks()
@@ -90,6 +98,7 @@ func Stop(ctx context.Context) error {
 	for _, writer := range []batchStopper{
 		metricSnapshotWriter,
 		edgeHealthWriter,
+		pingRecordWriter,
 		nodeAccessLogWriter,
 	} {
 		if writer == nil {
@@ -152,6 +161,7 @@ func WriterStats() []batchwriter.Stats {
 	writers := []statsProvider{
 		metricSnapshotWriter,
 		edgeHealthWriter,
+		pingRecordWriter,
 		nodeAccessLogWriter,
 	}
 	out := make([]batchwriter.Stats, 0, len(writers))
@@ -172,6 +182,14 @@ func QueueMetricSnapshot(snapshot analyticsmodel.NodeMetricSnapshot) {
 // QueueEdgeHealth enqueues an L2 edge health snapshot for asynchronous flush.
 func QueueEdgeHealth(row analyticsmodel.NodeEdgeHealth) {
 	queueWithDedup(edgeHealthWriter, edgeHealthDedup, edgeHealthKey(row), row)
+}
+
+// QueuePingRecord enqueues a node latency probe record for asynchronous flush.
+func QueuePingRecord(row analyticsmodel.NodePingRecord) {
+	if pingRecordWriter == nil {
+		return
+	}
+	pingRecordWriter.TryEnqueue(row)
 }
 
 // QueueNodeAccessLogs enqueues node access logs for asynchronous flush.
@@ -289,6 +307,7 @@ func wireModelInsertHooks() {
 	logstore.SetObservabilityHooks(logstore.ObservabilityHooks{
 		QueueMetricSnapshot: QueueMetricSnapshot,
 		QueueEdgeHealth:     QueueEdgeHealth,
+		QueuePingRecord:     QueuePingRecord,
 	})
 	logstore.SetAccessLogHooks(logstore.AccessLogHooks{
 		QueueNodeAccessLogs: QueueNodeAccessLogs,
@@ -311,6 +330,14 @@ func flushNodeEdgeHealth(ctx context.Context, rows []analyticsmodel.NodeEdgeHeal
 		return err
 	}
 	return s.Observability.BatchInsertNodeEdgeHealth(ctx, rows)
+}
+
+func flushNodePingRecords(ctx context.Context, rows []analyticsmodel.NodePingRecord) error {
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return err
+	}
+	return s.Observability.BatchInsertNodePingRecords(ctx, rows)
 }
 
 func flushNodeAccessLogs(ctx context.Context, rows []analyticsmodel.NodeAccessLog) error {

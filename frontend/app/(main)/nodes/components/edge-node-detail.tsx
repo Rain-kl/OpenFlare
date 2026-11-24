@@ -144,6 +144,12 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
       queryClient.invalidateQueries({
         queryKey: ['openflare', 'node-observability', node.id],
       }),
+      queryClient.invalidateQueries({
+        queryKey: ['openflare', 'node-load-metrics', node.id],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['openflare', 'node-ping-records', node.id],
+      }),
     ]);
   };
 

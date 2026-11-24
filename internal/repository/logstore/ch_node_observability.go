@@ -14,7 +14,7 @@ import (
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 
-const chNodeMetricSnapshotSelectColumns = "id, node_id, captured_at, cpu_usage_percent, memory_used_bytes, memory_total_bytes, storage_used_bytes, storage_total_bytes, disk_read_bytes, disk_write_bytes, network_rx_bytes, network_tx_bytes, created_at"
+const chNodeMetricSnapshotSelectColumns = "id, node_id, captured_at, cpu, gpu, ram, ram_total, swap, swap_total, load, load5, load15, temp, disk, disk_total, disk_read_bytes, disk_write_bytes, net_in, net_out, net_total_up, net_total_down, process, connections, connections_udp, uptime, created_at"
 
 func listCHNodeObservability[A any, M any](
 	ctx context.Context,
@@ -128,19 +128,84 @@ func scanNodeMetricSnapshotRows(rows driver.Rows) ([]analyticsmodel.NodeMetricSn
 			&item.NodeID,
 			&item.CapturedAt,
 			&item.CPUUsagePercent,
+			&item.GPUUsagePercent,
 			&item.MemoryUsedBytes,
 			&item.MemoryTotalBytes,
+			&item.SwapUsedBytes,
+			&item.SwapTotalBytes,
+			&item.Load1,
+			&item.Load5,
+			&item.Load15,
+			&item.Temp,
 			&item.StorageUsedBytes,
 			&item.StorageTotalBytes,
 			&item.DiskReadBytes,
 			&item.DiskWriteBytes,
-			&item.NetworkRxBytes,
+			&item.NetIn,
+			&item.NetOut,
 			&item.NetworkTxBytes,
+			&item.NetworkRxBytes,
+			&item.ProcessCount,
+			&item.TCPConnections,
+			&item.UDPConnections,
+			&item.UptimeSeconds,
 			&item.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan node metric snapshot row: %w", err)
 		}
 		item.CapturedAt = item.CapturedAt.UTC()
+		item.CreatedAt = item.CreatedAt.UTC()
+		result = append(result, item)
+	}
+	return result, nil
+}
+
+func (s *clickhouseLogStore) ListPingRecords(ctx context.Context, nodeID string, taskID uint, since time.Time, limit int) ([]*model.OpenFlarePingRecord, error) {
+	conn, err := chConn()
+	if err != nil {
+		return nil, err
+	}
+	clause, args := buildCHNodeObservabilityFilterClause(analyticsmodel.NodeObservabilityFilter{NodeID: nodeID, Since: since}, "recorded_at")
+	if taskID > 0 {
+		clause += " AND task_id = ?"
+		args = append(args, uint64(taskID))
+	}
+	sql := fmt.Sprintf(`
+SELECT id, node_id, task_id, recorded_at, value, created_at
+FROM %s
+WHERE %s
+ORDER BY recorded_at DESC, id DESC`, chNodePingRecordTableName(), clause)
+	if limit > 0 {
+		sql += clickHouseLimitClause
+		args = append(args, limit)
+	}
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list node ping records: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	scanned, err := scanNodePingRecordRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	return fromAnalyticsNodePingRecords(scanned), nil
+}
+
+func scanNodePingRecordRows(rows driver.Rows) ([]analyticsmodel.NodePingRecord, error) {
+	var result []analyticsmodel.NodePingRecord
+	for rows.Next() {
+		var item analyticsmodel.NodePingRecord
+		if err := rows.Scan(
+			&item.ID,
+			&item.NodeID,
+			&item.TaskID,
+			&item.RecordedAt,
+			&item.Value,
+			&item.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan node ping record row: %w", err)
+		}
+		item.RecordedAt = item.RecordedAt.UTC()
 		item.CreatedAt = item.CreatedAt.UTC()
 		result = append(result, item)
 	}
@@ -339,13 +404,13 @@ FROM (
 	SELECT
 		node_id,
 		toStartOfHour(captured_at) AS hour,
-		cpu_usage_percent,
-		if(memory_total_bytes > 0, (memory_used_bytes * 100.0) / memory_total_bytes, 0) AS memory_usage_percent,
-		network_rx_bytes - lagInFrame(network_rx_bytes, 1, network_rx_bytes) OVER (
+		cpu AS cpu_usage_percent,
+		if(ram_total > 0, (ram * 100.0) / ram_total, 0) AS memory_usage_percent,
+		net_total_down - lagInFrame(net_total_down, 1, net_total_down) OVER (
 			PARTITION BY node_id ORDER BY captured_at, id
 			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 		) AS network_rx_delta,
-		network_tx_bytes - lagInFrame(network_tx_bytes, 1, network_tx_bytes) OVER (
+		net_total_up - lagInFrame(net_total_up, 1, net_total_up) OVER (
 			PARTITION BY node_id ORDER BY captured_at, id
 			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 		) AS network_tx_delta,

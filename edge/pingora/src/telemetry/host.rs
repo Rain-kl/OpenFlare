@@ -1,24 +1,20 @@
+use openflare_probe::{ProbeCollector, ProbeCollectorConfig};
 use serde::Serialize;
-use std::{
-    path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH},
-};
-use sysinfo::{Disks, System};
+use std::path::PathBuf;
 
 pub(crate) struct HostCollector {
-    system: System,
-    disks: Disks,
-    root: PathBuf,
+    probe: ProbeCollector,
+    probe_version: String,
 }
 
 impl HostCollector {
     pub fn new(root: PathBuf) -> Self {
-        let mut system = System::new();
-        system.refresh_cpu_all();
         Self {
-            system,
-            disks: Disks::new_with_refreshed_list(),
-            root,
+            probe: ProbeCollector::new(ProbeCollectorConfig {
+                fallback_disk_path: Some(root),
+                excluded_nic_keywords: Vec::new(),
+            }),
+            probe_version: format!("openflare-edge/{}", crate::EDGE_VERSION),
         }
     }
 
@@ -27,58 +23,73 @@ impl HostCollector {
         status: &'static str,
         message: &'static str,
         last_error: &str,
+        node_ip: &str,
     ) -> HostTelemetry {
-        self.system.refresh_cpu_usage();
-        self.system.refresh_memory();
-        self.disks.refresh(true);
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |time| time.as_secs());
-        let disk = self
-            .disks
-            .iter()
-            .filter(|disk| self.root.starts_with(disk.mount_point()))
-            .max_by_key(|disk| disk.mount_point().as_os_str().len());
-        let total_disk = disk.map_or(0, |disk| disk.total_space());
-        let free_disk = disk.map_or(0, |disk| disk.available_space());
-        let (disk_read, disk_write) =
-            self.disks.iter().fold((0u64, 0u64), |(read, write), disk| {
-                let usage = disk.usage();
-                (
-                    read.saturating_add(usage.total_read_bytes),
-                    write.saturating_add(usage.total_written_bytes),
-                )
-            });
+        let ipv4 = if node_ip.contains('.') && node_ip != "0.0.0.0" {
+            Some(node_ip.to_owned())
+        } else {
+            None
+        };
+        let ipv6 = if node_ip.contains(':') {
+            Some(node_ip.to_owned())
+        } else {
+            None
+        };
+
+        let basic = self
+            .probe
+            .collect_basic_info(&self.probe_version, ipv4, ipv6);
+        let metrics = self.probe.collect_metrics();
+
         let profile = SystemProfile {
-            hostname: System::host_name().unwrap_or_default(),
-            os_name: System::name().unwrap_or_default(),
-            os_version: System::os_version().unwrap_or_default(),
-            kernel_version: System::kernel_version().unwrap_or_default(),
-            architecture: std::env::consts::ARCH,
-            cpu_model: self
-                .system
-                .cpus()
-                .first()
-                .map_or("", |cpu| cpu.brand())
-                .to_owned(),
-            cpu_cores: self.system.cpus().len(),
-            total_memory_bytes: self.system.total_memory(),
-            total_disk_bytes: total_disk,
-            uptime_seconds: System::uptime(),
-            reported_at_unix: timestamp,
+            hostname: basic.hostname,
+            os_name: basic.os_name,
+            os_version: basic.os_version,
+            kernel_version: basic.kernel_version,
+            architecture: basic.arch,
+            cpu_model: basic.cpu_name,
+            cpu_cores: basic.cpu_cores,
+            cpu_physical_cores: basic.cpu_physical_cores,
+            virtualization: basic.virtualization,
+            gpu_name: basic.gpu_name,
+            total_memory_bytes: basic.mem_total,
+            swap_total_bytes: basic.swap_total,
+            total_disk_bytes: basic.disk_total,
+            ipv4: basic.ipv4.unwrap_or_default(),
+            ipv6: basic.ipv6.unwrap_or_default(),
+            probe_version: basic.version,
+            uptime_seconds: basic.uptime,
+            reported_at_unix: basic.reported_at_unix,
         };
+
         let metric = MetricSnapshot {
-            captured_at_unix: timestamp,
-            cpu_usage_percent: self.system.global_cpu_usage(),
-            memory_used_bytes: self.system.used_memory(),
-            memory_total_bytes: self.system.total_memory(),
-            storage_used_bytes: total_disk.saturating_sub(free_disk),
-            storage_total_bytes: total_disk,
-            disk_read_bytes: disk_read,
-            disk_write_bytes: disk_write,
+            captured_at_unix: metrics.captured_at_unix,
+            cpu_usage_percent: metrics.cpu.usage,
+            gpu_usage_percent: metrics.gpu,
+            memory_used_bytes: metrics.ram.used,
+            memory_total_bytes: metrics.ram.total,
+            swap_used_bytes: metrics.swap.used,
+            swap_total_bytes: metrics.swap.total,
+            load1: metrics.load.load1,
+            load5: metrics.load.load5,
+            load15: metrics.load.load15,
+            temp: metrics.temp,
+            storage_used_bytes: metrics.disk.used,
+            storage_total_bytes: metrics.disk.total,
+            disk_read_bytes: metrics.disk.read_bytes,
+            disk_write_bytes: metrics.disk.write_bytes,
+            net_in: metrics.network.down,
+            net_out: metrics.network.up,
+            net_total_up: metrics.network.total_up,
+            net_total_down: metrics.network.total_down,
+            process_count: metrics.process,
+            tcp_connections: metrics.connections.tcp,
+            udp_connections: metrics.connections.udp,
+            uptime_seconds: metrics.uptime,
         };
+
         let health = EdgeHealth {
-            captured_at_unix: timestamp,
+            captured_at_unix: metrics.captured_at_unix,
             status,
             message,
             connections: tcp_sockets()
@@ -86,6 +97,7 @@ impl HostCollector {
                 .filter(|socket| socket.connected)
                 .count(),
         };
+
         let health_events = if last_error.is_empty() {
             vec![]
         } else {
@@ -93,9 +105,10 @@ impl HostCollector {
                 event_type: "sync_error",
                 severity: "warning",
                 message: last_error.into(),
-                triggered_at_unix: timestamp,
+                triggered_at_unix: metrics.captured_at_unix,
             }]
         };
+
         HostTelemetry {
             profile,
             host_metrics: metric,
@@ -119,11 +132,18 @@ struct SystemProfile {
     os_name: String,
     os_version: String,
     kernel_version: String,
-    architecture: &'static str,
+    architecture: String,
     cpu_model: String,
-    cpu_cores: usize,
+    cpu_cores: u64,
+    cpu_physical_cores: u64,
+    virtualization: String,
+    gpu_name: String,
     total_memory_bytes: u64,
+    swap_total_bytes: u64,
     total_disk_bytes: u64,
+    ipv4: String,
+    ipv6: String,
+    probe_version: String,
     uptime_seconds: u64,
     reported_at_unix: u64,
 }
@@ -131,13 +151,28 @@ struct SystemProfile {
 #[derive(Serialize)]
 struct MetricSnapshot {
     captured_at_unix: u64,
-    cpu_usage_percent: f32,
+    cpu_usage_percent: f64,
+    gpu_usage_percent: f64,
     memory_used_bytes: u64,
     memory_total_bytes: u64,
+    swap_used_bytes: u64,
+    swap_total_bytes: u64,
+    load1: f64,
+    load5: f64,
+    load15: f64,
+    temp: f64,
     storage_used_bytes: u64,
     storage_total_bytes: u64,
     disk_read_bytes: u64,
     disk_write_bytes: u64,
+    net_in: u64,
+    net_out: u64,
+    net_total_up: u64,
+    net_total_down: u64,
+    process_count: u64,
+    tcp_connections: u64,
+    udp_connections: u64,
+    uptime_seconds: u64,
 }
 
 #[derive(Serialize)]

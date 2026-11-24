@@ -19,6 +19,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/config_version"
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/logwriter"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/ping"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/listener"
@@ -182,10 +183,13 @@ func Init(ctx context.Context, opts Options) {
 			logger.ErrorF(ctx, "[Bootstrap] sync push events failed: %v", err)
 		}
 		if opts.API {
+			websocket.SetPingResultHandler(ping.RecordResult)
+			websocket.SetPingScheduleReloadHandler(ping.ReloadSchedule)
 			websocket.StartConfigChangeListener(ctx)
 			lifecycle.OnShutdown("live edge snapshot", config_version.StartRefreshLoop(ctx))
 			logwriter.Init(ctx)
 			admin_status.RegisterBatchWriterStatsProvider(logwriter.WriterStats)
+			ping.StartScheduler(ctx)
 		}
 	})
 }

@@ -13,6 +13,7 @@ import type {
   NodeListResult,
   NodeMutationPayload,
   NodeObservability,
+  NodePingRecords,
   ReleaseChannel,
 } from './types';
 
@@ -80,11 +81,23 @@ export class NodeService extends OpenFlareBaseService {
 
   static async getObservability(
     id: number,
-    options?: { hours?: number; limit?: number },
+    options?: { hours?: number; limit?: number; realtime?: boolean },
   ): Promise<NodeObservability> {
     return this.get<NodeObservability>(`/${id}/observability`, {
       hours: options?.hours,
       limit: options?.limit,
+      realtime: options?.realtime ? 'true' : undefined,
+    });
+  }
+
+  static async getPingRecords(
+    id: number,
+    options?: { task_id?: number; hours?: number; max_points?: number },
+  ): Promise<NodePingRecords> {
+    return this.get<NodePingRecords>(`/${id}/ping-records`, {
+      task_id: options?.task_id,
+      hours: options?.hours,
+      max_points: options?.max_points,
     });
   }
 

@@ -398,6 +398,8 @@
       "groupDocs": "Docs menu",
       "descDashboard": "View multi-dimensional charts for edge requests, visitors, and traffic",
       "descNodes": "Register and manage reverse-proxy edge node status",
+      "descNodePing": "Configure and manage ICMP, TCP, and HTTP latency monitoring tasks for edge nodes",
+      "descNodeExec": "Dispatch remote shell commands to online edge nodes and review execution history",
       "descProxyRoutes": "Configure proxy routes, load balancing, and origin bindings",
       "descWebsites": "Configure root domains and view linked website details",
       "descCertificates": "Manage and distribute website SSL/TLS certificates",

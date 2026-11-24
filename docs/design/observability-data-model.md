@@ -48,7 +48,10 @@
 | --- | --- | --- | --- |
 | L1 | 业务交付 | `access_logs` | `of_node_access_logs` |
 | L2 | 边缘健康 | `edge_health` | `of_node_edge_health` |
-| L3 | 宿主机资源 | `host_metrics` | `of_node_metric_snapshots` |
+| L3 | 宿主机资源（`openflare-probe`） | `host_metrics` | `of_node_metric_snapshots` |
+| L4 | 网络延迟探测（`openflare-probe`） | WebSocket `ping_result` / `POST /api/v1/agent/ping/result` | `of_node_ping_records` |
+
+关系库（PostgreSQL / SQLite）同时维护延迟检测任务配置表 `of_ping_tasks` 以及远程命令执行任务与结果表 `of_exec_tasks`、`of_exec_task_results`；节点硬件画像表 `of_node_system_profiles` 已补充 `cpu_physical_cores`、`virtualization`、`gpu_name`、`swap_total_bytes`、`ipv4`、`ipv6`、`probe_version` 等字段。
 
 ---
 

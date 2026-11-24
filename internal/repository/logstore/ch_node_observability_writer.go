@@ -50,14 +50,27 @@ func (s *clickhouseLogStore) BatchInsertNodeMetricSnapshots(ctx context.Context,
 				nodeID,
 				snapshot.CapturedAt.UTC(),
 				snapshot.CPUUsagePercent,
+				snapshot.GPUUsagePercent,
 				snapshot.MemoryUsedBytes,
 				snapshot.MemoryTotalBytes,
+				snapshot.SwapUsedBytes,
+				snapshot.SwapTotalBytes,
+				snapshot.Load1,
+				snapshot.Load5,
+				snapshot.Load15,
+				snapshot.Temp,
 				snapshot.StorageUsedBytes,
 				snapshot.StorageTotalBytes,
 				snapshot.DiskReadBytes,
 				snapshot.DiskWriteBytes,
-				snapshot.NetworkRxBytes,
+				snapshot.NetIn,
+				snapshot.NetOut,
 				snapshot.NetworkTxBytes,
+				snapshot.NetworkRxBytes,
+				snapshot.ProcessCount,
+				snapshot.TCPConnections,
+				snapshot.UDPConnections,
+				snapshot.UptimeSeconds,
 				createdAt.UTC(),
 			); err != nil {
 				return fmt.Errorf("append node metric snapshot to batch: %w", err)
@@ -110,6 +123,55 @@ func (s *clickhouseLogStore) BatchInsertNodeEdgeHealth(ctx context.Context, rows
 				createdAt.UTC(),
 			); err != nil {
 				return fmt.Errorf("append node edge health to batch: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+// InsertPingRecord 写入入口：冻结检查 + 经 hook 入队（异步），不直接落库。
+func (s *clickhouseLogStore) InsertPingRecord(ctx context.Context, record *model.OpenFlarePingRecord) error {
+	if record == nil {
+		return nil
+	}
+	if err := s.ensureWritable(ctx); err != nil {
+		return err
+	}
+	if h := currentObservabilityHooks().QueuePingRecord; h != nil {
+		h(toAnalyticsNodePingRecord(record))
+	}
+	return nil
+}
+
+// BatchInsertNodePingRecords 是 batchwriter flush 目标：CH 原生批量写入。
+func (s *clickhouseLogStore) BatchInsertNodePingRecords(ctx context.Context, rows []analyticsmodel.NodePingRecord) error {
+	return chBatchInsert(ctx, s, analyticsmodel.NodePingRecord{}.BatchInsertSQL(), len(rows), func(batch driver.Batch, now time.Time) error {
+		for _, row := range rows {
+			nodeID := strings.TrimSpace(row.NodeID)
+			if nodeID == "" || row.TaskID == 0 {
+				continue
+			}
+			id := row.ID
+			if id == 0 {
+				id = idgen.NextUint64ID()
+			}
+			createdAt := row.CreatedAt
+			if createdAt.IsZero() {
+				createdAt = now
+			}
+			recordedAt := row.RecordedAt.UTC()
+			if recordedAt.IsZero() {
+				recordedAt = now
+			}
+			if err := batch.Append(
+				id,
+				nodeID,
+				row.TaskID,
+				recordedAt,
+				row.Value,
+				createdAt.UTC(),
+			); err != nil {
+				return fmt.Errorf("append node ping record to batch: %w", err)
 			}
 		}
 		return nil

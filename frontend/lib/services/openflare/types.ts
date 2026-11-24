@@ -138,8 +138,15 @@ export interface NodeSystemProfile {
   architecture: string;
   cpu_model: string;
   cpu_cores: number;
+  cpu_physical_cores?: number;
+  virtualization?: string;
+  gpu_name?: string;
   total_memory_bytes: number;
+  swap_total_bytes?: number;
   total_disk_bytes: number;
+  ipv4?: string;
+  ipv6?: string;
+  probe_version?: string;
   uptime_seconds: number;
   reported_at: string;
 }
@@ -147,13 +154,122 @@ export interface NodeSystemProfile {
 export interface NodeMetricSnapshot {
   captured_at: string;
   cpu_usage_percent: number;
+  gpu_usage_percent?: number;
   memory_used_bytes: number;
   memory_total_bytes: number;
+  swap_used_bytes?: number;
+  swap_total_bytes?: number;
+  load1?: number;
+  load5?: number;
+  load15?: number;
+  temp?: number;
   storage_used_bytes: number;
   storage_total_bytes: number;
   disk_read_bytes: number;
   disk_write_bytes: number;
+  net_in?: number;
+  net_out?: number;
+  net_total_up?: number;
+  net_total_down?: number;
+  process_count?: number;
+  tcp_connections?: number;
+  udp_connections?: number;
+  uptime_seconds?: number;
   openresty_connections: number;
+}
+
+export type PingTaskType = 'icmp' | 'tcp' | 'http';
+
+export interface PingTask {
+  id: number;
+  weight: number;
+  name: string;
+  clients: string[];
+  default_on: boolean;
+  type: PingTaskType;
+  target: string;
+  interval: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PingTaskPayload {
+  name: string;
+  clients: string[];
+  default_on: boolean;
+  type: PingTaskType;
+  target: string;
+  interval: number;
+}
+
+export interface PingTaskBatchUpdateItem extends PingTaskPayload {
+  id: number;
+}
+
+export interface PingTaskStats {
+  id: number;
+  name: string;
+  type: PingTaskType;
+  target: string;
+  interval: number;
+  min: number;
+  max: number;
+  avg: number;
+  latest: number;
+  p50: number;
+  p99: number;
+  p99_p50_ratio: number;
+  loss: number;
+  total: number;
+}
+
+export interface PingRecord {
+  task_id: number;
+  recorded_at: string;
+  value: number;
+}
+
+export interface NodePingRecords {
+  node_id: string;
+  hours: number;
+  tasks: PingTaskStats[];
+  records: PingRecord[];
+}
+
+export interface ExecTaskResult {
+  id?: number;
+  task_id: string;
+  client: string;
+  node_name: string;
+  result: string;
+  exit_code: number | null;
+  finished_at: string | null;
+  created_at: string;
+}
+
+export interface ExecTask {
+  task_id: string;
+  command: string;
+  clients: string[];
+  created_by: number;
+  created_at: string;
+  results: ExecTaskResult[];
+}
+
+export interface ExecRunPayload {
+  command: string;
+  clients: string[];
+  timeout_seconds?: number;
+}
+
+export interface ExecRunResponse {
+  task_id: string;
+  command: string;
+  clients: string[];
+  online_clients: string[];
+  offline_clients: string[];
+  created_at: string;
+  results: ExecTaskResult[];
 }
 
 export interface NodeHealthEvent {

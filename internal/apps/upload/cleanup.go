@@ -11,6 +11,7 @@ import (
 
 	"gorm.io/gorm"
 
+	ofexec "github.com/Rain-kl/Wavelet/internal/apps/openflare/exec"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -136,6 +137,13 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 		task.AppendLog(ctx, "No expired logs require cleanup (access log retention: %d days; metric retention: %d days)", summary.RetentionDays, summary.MetricRetentionDays)
 	default:
 		task.AppendLog(ctx, "Log cleanup completed: access log retention %d days, metric retention %d days, deleted %d records", summary.RetentionDays, summary.MetricRetentionDays, summary.Deleted)
+	}
+
+	if execDeleted, execErr := ofexec.CleanupExpired(ctx); execErr != nil {
+		logger.ErrorF(ctx, "Failed to clean up expired remote execution tasks: %v", execErr)
+		task.AppendLog(ctx, "Failed to clean up expired remote execution tasks: %v", execErr)
+	} else if execDeleted > 0 {
+		task.AppendLog(ctx, "Cleaned up %d expired remote execution records", execDeleted)
 	}
 
 	msg := fmt.Sprintf("System cleanup completed. Removed %d/%d unused uploads, %d notification audit records and %d task execution logs.",

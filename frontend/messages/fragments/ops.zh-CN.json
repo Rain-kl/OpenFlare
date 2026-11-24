@@ -578,6 +578,188 @@
       "resultManual": "需人工替换并重新签发的上传证书 ID",
       "none": "无",
       "close": "关闭"
+    },
+    "overview": {
+      "hardwareTitle": "硬件信息",
+      "architecture": "架构",
+      "virtualization": "虚拟化",
+      "gpu": "GPU",
+      "kernelVersion": "内核版本",
+      "lastReported": "最后上报",
+      "storageTitle": "存储信息",
+      "swap": "交换内存",
+      "swapInactive": "未启用",
+      "disk": "磁盘",
+      "networkTitle": "网络信息",
+      "totalTraffic": "累计流量",
+      "networkSpeed": "网络速率",
+      "loadTitle": "系统性能监测",
+      "loadDesc": "展示节点 CPU、内存、交换分区、磁盘、实时网络速率、连接数与进程数趋势。",
+      "loadShort": "负载",
+      "load1": "1 分钟负载",
+      "netIn": "下行速率",
+      "netOut": "上行速率",
+      "networkChart": "网络速率",
+      "processes": "进程数",
+      "noLoadData": "当前时间范围内暂无性能快照数据。",
+      "ranges": {
+        "realtime": "实时",
+        "1h": "1 小时",
+        "6h": "6 小时",
+        "12h": "12 小时",
+        "24h": "1 天",
+        "7d": "7 天",
+        "30d": "30 天"
+      }
+    },
+    "ping": {
+      "sectionTitle": "网络延迟监测",
+      "sectionDesc": "按任务展示节点 ICMP、TCP 与 HTTP 探测延迟曲线、丢包率及百分位统计。",
+      "selectAll": "全选",
+      "deselectAll": "全不选",
+      "noTasksForNode": "当前节点尚未绑定任何延迟检测任务。",
+      "statsDetails": "查看详细统计指标",
+      "min": "最小",
+      "max": "最大",
+      "avg": "平均",
+      "latest": "最新",
+      "jitter": "波动率",
+      "interval": "间隔",
+      "type": "类型",
+      "samples": "采样数",
+      "loss": "丢包率",
+      "toggleDelay": "延迟",
+      "toggleLoss": "丢包",
+      "toggleSmooth": "平滑峰值",
+      "smoothHint": "使用指数加权移动平均算法平滑曲线并抑制孤立尖峰",
+      "noRecords": "当前时间范围内暂无延迟探测记录。"
+    },
+    "selector": {
+      "selectOnline": "选择在线",
+      "selectAll": "全选",
+      "clear": "清空",
+      "empty": "未找到匹配的节点。"
+    }
+  },
+  "nodePing": {
+    "title": "延迟检测",
+    "description": "配置面向边缘节点的 ICMP、TCP 与 HTTP 定时探测任务，支持拖拽排序、按节点批量绑定与新节点自动启用。",
+    "refresh": "刷新",
+    "createTask": "新增任务",
+    "loading": "正在加载延迟检测任务...",
+    "tabs": {
+      "tasks": "任务视图",
+      "servers": "节点视图"
+    },
+    "taskView": {
+      "empty": "当前尚未配置任何延迟检测任务。",
+      "dragToSort": "拖拽调整任务排序",
+      "defaultOnBadge": "新节点自动启用",
+      "noNodes": "未绑定节点",
+      "colName": "任务名称",
+      "colNodes": "探测节点",
+      "colTarget": "探测目标",
+      "colType": "协议类型",
+      "colInterval": "检测间隔",
+      "colActions": "操作",
+      "edit": "编辑任务",
+      "delete": "删除任务",
+      "bindNodesTitle": "配置探测节点：{name}",
+      "bindNodesDesc": "选择执行当前延迟检测任务的边缘节点。"
+    },
+    "serverView": {
+      "empty": "当前没有可用节点。",
+      "colNode": "边缘节点",
+      "colTasks": "已绑定探测任务",
+      "noTasks": "未绑定任务",
+      "configure": "管理任务",
+      "dialogTitle": "配置节点任务：{name}",
+      "dialogDesc": "勾选当前节点需要执行的延迟检测任务，保存后立即同步调度器。",
+      "searchPlaceholder": "搜索任务名称或目标地址..."
+    },
+    "dialog": {
+      "createTitle": "新增延迟检测任务",
+      "editTitle": "编辑延迟检测任务",
+      "description": "设置探测协议、目标地址、调度间隔及目标边缘节点。",
+      "name": "任务名称",
+      "namePlaceholder": "例如：Cloudflare DNS",
+      "type": "探测协议",
+      "target": "探测目标",
+      "interval": "检测间隔（秒）",
+      "defaultOn": "新接入节点自动启用",
+      "defaultOnDesc": "开启后，新创建或新注册的边缘节点将自动加入当前任务。",
+      "nodes": "绑定节点（已选 {count} 个）",
+      "create": "创建任务",
+      "save": "保存修改",
+      "errName": "请输入任务名称。",
+      "errTarget": "请输入探测目标地址。",
+      "errInterval": "检测间隔须为 10 至 86400 之间的整数。"
+    },
+    "deleteDialog": {
+      "title": "确认删除延迟检测任务",
+      "description": "确认删除任务「{name}」吗？该任务及其历史延迟采样记录将被永久移除。",
+      "confirm": "确认删除"
+    },
+    "toast": {
+      "created": "延迟检测任务已创建",
+      "updated": "延迟检测任务已更新",
+      "deleted": "延迟检测任务已删除",
+      "failed": "操作失败，请稍后重试。"
+    }
+  },
+  "nodeExec": {
+    "title": "远程执行",
+    "description": "通过控制面与边缘节点的长连接批量下发 Shell 命令，实时汇总各节点退出码与标准输出。",
+    "refresh": "刷新历史",
+    "composer": {
+      "title": "命令编排",
+      "description": "输入需要在目标边缘节点执行的 Shell 命令并选择执行节点。",
+      "commandLabel": "执行命令",
+      "shortcutHint": "按 Ctrl + Enter 或 Command + Enter 下发",
+      "commandPlaceholder": "例如：uname -a && uptime",
+      "selectNodes": "目标节点（已选 {count} 个）",
+      "timeout": "超时时间",
+      "execute": "立即执行",
+      "executing": "正在下发..."
+    },
+    "result": {
+      "sectionTitle": "执行结果",
+      "polling": "正在轮询输出",
+      "stopPolling": "停止轮询",
+      "running": "执行中",
+      "success": "成功",
+      "failed": "失败",
+      "copy": "复制输出",
+      "copied": "输出内容已复制",
+      "copyFailed": "无法复制到剪贴板。",
+      "waitingOutput": "等待边缘节点上报执行输出...",
+      "emptyOutput": "（无输出内容）",
+      "finishedAt": "完成时间：{time}"
+    },
+    "history": {
+      "title": "执行历史",
+      "description": "点击任意历史记录可查看各节点的执行输出与退出状态。",
+      "empty": "当前尚无远程执行记录。",
+      "progress": "已完成 {finished} / {total}",
+      "failedCount": "失败 {count}",
+      "delete": "删除记录"
+    },
+    "deleteDialog": {
+      "title": "确认删除远程执行记录",
+      "description": "确认删除该远程执行任务及其关联的节点输出记录吗？此操作不可撤销。",
+      "confirm": "确认删除"
+    },
+    "errors": {
+      "emptyCommand": "请输入需要执行的命令。",
+      "noNodes": "请至少选择一个目标节点。"
+    },
+    "toast": {
+      "dispatched": "远程执行任务已下发",
+      "allCompleted": "所有目标节点已执行完成",
+      "pollTimeout": "轮询已超时，请稍后刷新查看最新结果",
+      "pollFailed": "轮询任务状态失败",
+      "deleted": "执行记录已删除",
+      "failed": "操作失败，请稍后重试。"
     }
   },
   "applyLogs": {

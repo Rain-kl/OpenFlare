@@ -17,6 +17,7 @@ import (
 
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/node"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/ping"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"gorm.io/gorm"
@@ -128,6 +129,7 @@ func RegisterWithDiscovery(ctx context.Context, payload protocol.NodePayload, re
 		return nil, err
 	}
 	RefreshAccessTokenCache(ctx, record)
+	ping.AttachNewNode(ctx, record.NodeID)
 	return &protocol.RegisterNodeResponse{
 		NodeID:      record.NodeID,
 		AccessToken: record.AccessToken,

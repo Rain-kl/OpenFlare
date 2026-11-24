@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	ofexec "github.com/Rain-kl/Wavelet/internal/apps/openflare/exec"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/ping"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
@@ -223,6 +225,63 @@ func pagesUintParam(c *gin.Context, name string) (uint, bool) {
 		return 0, false
 	}
 	return uint(id64), true
+}
+
+// ReportPingResultHandler records a latency probe measurement reported over HTTP fallback.
+// @Summary 上报延迟检测结果
+// @Description Agent 通过 HTTP 回落上报单次 ICMP/TCP/HTTP 延迟检测结果；请求头需携带 X-Agent-Token
+// @Tags openflare-agent
+// @Accept json
+// @Produce json
+// @Security AgentTokenAuth
+// @Param body body protocol.PingResultPayload true "延迟检测结果"
+// @Success 200 {object} response.Any "上报成功"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "Token 无效"
+// @Router /api/v1/agent/ping/result [post]
+func ReportPingResultHandler(c *gin.Context) {
+	authNode, ok := NodeFromContext(c)
+	if !ok {
+		response.AbortUnauthorized(c, errInvalidAgentToken)
+		return
+	}
+	var payload protocol.PingResultPayload
+	if !httpx.BindJSON(c, &payload) {
+		return
+	}
+	if err := ping.RecordResultWithError(c.Request.Context(), authNode.NodeID, payload); httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OKNil())
+}
+
+// ReportExecResultHandler records a node's remote command execution result.
+// @Summary 上报远程执行结果
+// @Description Agent 上报远程 Shell 命令的执行输出与退出码；请求头需携带 X-Agent-Token
+// @Tags openflare-agent
+// @Accept json
+// @Produce json
+// @Security AgentTokenAuth
+// @Param body body protocol.RemoteExecResultPayload true "远程执行结果"
+// @Success 200 {object} response.Any "上报成功"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "Token 无效"
+// @Failure 404 {object} response.Any "任务不存在"
+// @Router /api/v1/agent/exec/result [post]
+func ReportExecResultHandler(c *gin.Context) {
+	authNode, ok := NodeFromContext(c)
+	if !ok {
+		response.AbortUnauthorized(c, errInvalidAgentToken)
+		return
+	}
+	var payload protocol.RemoteExecResultPayload
+	if !httpx.BindJSON(c, &payload) {
+		return
+	}
+	if err := ofexec.RecordResult(c.Request.Context(), authNode.NodeID, payload); httpx.AbortNotFoundIfMissing(c, err, "remote execution task was not found") {
+		return
+	}
+	c.JSON(http.StatusOK, response.OKNil())
 }
 
 // WebSocketHandler upgrades an authenticated agent websocket connection.

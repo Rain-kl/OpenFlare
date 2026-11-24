@@ -413,6 +413,279 @@
     }
   },
   {
+    "id": "openflare_exec_get",
+    "cli": "exec get",
+    "method": "GET",
+    "path": "/exec/tasks/{task_id}",
+    "scope": "exec:read",
+    "effect": "read",
+    "description": "Return one remote execution task by task_id with each target node's output, exit code, and completion timestamp. Use this operation to poll tasks started by openflare_exec_run.",
+    "parameters": [
+      {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "description": "Remote execution task identifier returned by openflare_exec_run or openflare_exec_list",
+        "schema": {
+          "pattern": "^[A-Za-z0-9_-]{4,64}$",
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "clients": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "command": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "created_by": {
+          "type": "integer"
+        },
+        "results": {
+          "items": {
+            "properties": {
+              "client": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "exit_code": {
+                "type": "integer"
+              },
+              "finished_at": {
+                "type": "string"
+              },
+              "id": {
+                "type": "integer"
+              },
+              "node_name": {
+                "type": "string"
+              },
+              "result": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "task_id": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_exec_list",
+    "cli": "exec list",
+    "method": "GET",
+    "path": "/exec/tasks",
+    "scope": "exec:read",
+    "effect": "read",
+    "description": "Return recent remote execution tasks together with their per-node exit codes and outputs. This operation is read-only.",
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "description": "Maximum number of tasks to return",
+        "schema": {
+          "default": 50,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "results": {
+          "items": {
+            "properties": {
+              "clients": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "command": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "created_by": {
+                "type": "integer"
+              },
+              "results": {
+                "items": {
+                  "properties": {
+                    "client": {
+                      "type": "string"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "exit_code": {
+                      "type": "integer"
+                    },
+                    "finished_at": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "integer"
+                    },
+                    "node_name": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "type": "string"
+                    },
+                    "task_id": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "task_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_exec_run",
+    "cli": "exec run",
+    "method": "POST",
+    "path": "/exec",
+    "scope": "exec:write",
+    "effect": "write",
+    "description": "Create a remote execution task and dispatch the shell command over WebSocket to the selected online edge nodes. Poll completion with openflare_exec_get using the returned task_id. Pass node_id values from openflare_node_list in clients.",
+    "parameters": [
+      {
+        "name": "clients",
+        "in": "body",
+        "required": true,
+        "description": "Target node registration identifiers (node_id values from openflare_node_list).",
+        "schema": {
+          "items": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 200,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      {
+        "name": "command",
+        "in": "body",
+        "required": true,
+        "description": "Shell command to execute on the selected edge nodes.",
+        "schema": {
+          "maxLength": 32768,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      {
+        "name": "timeout_seconds",
+        "in": "body",
+        "description": "Per-node execution timeout in seconds (1 to 600; defaults to 60).",
+        "schema": {
+          "maximum": 600,
+          "minimum": 1,
+          "type": "integer"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "clients": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "command": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "offline_clients": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "online_clients": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "results": {
+          "items": {
+            "properties": {
+              "client": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "exit_code": {
+                "type": "integer"
+              },
+              "finished_at": {
+                "type": "string"
+              },
+              "id": {
+                "type": "integer"
+              },
+              "node_name": {
+                "type": "string"
+              },
+              "result": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "task_id": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
     "id": "openflare_ip_group_get",
     "cli": "ip-group get",
     "method": "GET",
@@ -1208,7 +1481,7 @@
         "description": "Lookback in hours for recent resource snapshots and traffic analytics",
         "schema": {
           "default": 24,
-          "maximum": 168,
+          "maximum": 720,
           "minimum": 1,
           "type": "integer"
         }
@@ -1219,9 +1492,18 @@
         "description": "Maximum number of recent metric snapshots",
         "schema": {
           "default": 120,
-          "maximum": 120,
+          "maximum": 500,
           "minimum": 1,
           "type": "integer"
+        }
+      },
+      {
+        "name": "realtime",
+        "in": "query",
+        "description": "Query high-resolution snapshots from the last 30 minutes without caching",
+        "schema": {
+          "default": false,
+          "type": "boolean"
         }
       }
     ],
@@ -1349,13 +1631,37 @@
               "disk_write_bytes": {
                 "type": "integer"
               },
+              "gpu_usage_percent": {
+                "type": "number"
+              },
               "id": {
                 "type": "integer"
+              },
+              "load1": {
+                "type": "number"
+              },
+              "load15": {
+                "type": "number"
+              },
+              "load5": {
+                "type": "number"
               },
               "memory_total_bytes": {
                 "type": "integer"
               },
               "memory_used_bytes": {
+                "type": "integer"
+              },
+              "net_in": {
+                "type": "integer"
+              },
+              "net_out": {
+                "type": "integer"
+              },
+              "net_total_down": {
+                "type": "integer"
+              },
+              "net_total_up": {
                 "type": "integer"
               },
               "node_id": {
@@ -1364,10 +1670,31 @@
               "openresty_connections": {
                 "type": "integer"
               },
+              "process_count": {
+                "type": "integer"
+              },
               "storage_total_bytes": {
                 "type": "integer"
               },
               "storage_used_bytes": {
+                "type": "integer"
+              },
+              "swap_total_bytes": {
+                "type": "integer"
+              },
+              "swap_used_bytes": {
+                "type": "integer"
+              },
+              "tcp_connections": {
+                "type": "integer"
+              },
+              "temp": {
+                "type": "number"
+              },
+              "udp_connections": {
+                "type": "integer"
+              },
+              "uptime_seconds": {
                 "type": "integer"
               }
             },
@@ -1414,6 +1741,77 @@
               "type": "string"
             },
             "version": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "profile": {
+          "properties": {
+            "architecture": {
+              "type": "string"
+            },
+            "cpu_cores": {
+              "type": "integer"
+            },
+            "cpu_model": {
+              "type": "string"
+            },
+            "cpu_physical_cores": {
+              "type": "integer"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "gpu_name": {
+              "type": "string"
+            },
+            "hostname": {
+              "type": "string"
+            },
+            "id": {
+              "type": "integer"
+            },
+            "ipv4": {
+              "type": "string"
+            },
+            "ipv6": {
+              "type": "string"
+            },
+            "kernel_version": {
+              "type": "string"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "os_name": {
+              "type": "string"
+            },
+            "os_version": {
+              "type": "string"
+            },
+            "probe_version": {
+              "type": "string"
+            },
+            "reported_at": {
+              "type": "string"
+            },
+            "swap_total_bytes": {
+              "type": "integer"
+            },
+            "total_disk_bytes": {
+              "type": "integer"
+            },
+            "total_memory_bytes": {
+              "type": "integer"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "uptime_seconds": {
+              "type": "integer"
+            },
+            "virtualization": {
               "type": "string"
             }
           },
@@ -1514,6 +1912,177 @@
             }
           },
           "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_node_ping_metrics",
+    "cli": "node ping",
+    "method": "GET",
+    "path": "/nodes/{node_record_id}/ping",
+    "scope": "metrics:read",
+    "effect": "read",
+    "description": "Return per-task latency statistics (min, max, avg, latest, p50, p99, packet loss percentage) and downsampled time-series records for one edge node. Resolve node_record_id with openflare_node_list.",
+    "parameters": [
+      {
+        "name": "node_record_id",
+        "in": "path",
+        "required": true,
+        "description": "Node control-plane record ID from openflare_node_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      },
+      {
+        "name": "task_id",
+        "in": "query",
+        "description": "Optional decimal ping task ID to filter by a single task",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      },
+      {
+        "name": "hours",
+        "in": "query",
+        "description": "Lookback window in hours",
+        "schema": {
+          "default": 1,
+          "maximum": 720,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      {
+        "name": "max_points",
+        "in": "query",
+        "description": "Maximum sampled points per task",
+        "schema": {
+          "default": 300,
+          "maximum": 2000,
+          "minimum": 50,
+          "type": "integer"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "hours": {
+          "type": "integer"
+        },
+        "node": {
+          "properties": {
+            "current_version": {
+              "type": "string"
+            },
+            "desired_site_version": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "last_heartbeat_at": {
+              "type": "string"
+            },
+            "latest_apply_at": {
+              "type": "string"
+            },
+            "latest_apply_checksum": {
+              "type": "string"
+            },
+            "latest_apply_result": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "node_record_id": {
+              "type": "string"
+            },
+            "node_type": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "records": {
+          "items": {
+            "properties": {
+              "recorded_at": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "integer"
+              },
+              "value": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "tasks": {
+          "items": {
+            "properties": {
+              "avg": {
+                "type": "number"
+              },
+              "id": {
+                "type": "integer"
+              },
+              "interval": {
+                "type": "integer"
+              },
+              "latest": {
+                "type": "integer"
+              },
+              "loss": {
+                "type": "number"
+              },
+              "max": {
+                "type": "integer"
+              },
+              "min": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "p50": {
+                "type": "integer"
+              },
+              "p99": {
+                "type": "integer"
+              },
+              "p99_p50_ratio": {
+                "type": "number"
+              },
+              "target": {
+                "type": "string"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -1659,6 +2228,432 @@
         },
         "value": {
           "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_ping_task_create",
+    "cli": "ping create",
+    "method": "POST",
+    "path": "/ping-tasks",
+    "scope": "ping:write",
+    "effect": "write",
+    "description": "Create an ICMP, TCP, or HTTP latency probe task targeting the specified edge nodes and immediately reload the controller probe scheduler. Use node_id values from openflare_node_list in clients.",
+    "parameters": [
+      {
+        "name": "clients",
+        "in": "body",
+        "description": "Target node registration identifiers (node_id values from openflare_node_list).",
+        "schema": {
+          "items": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 200,
+          "minItems": 0,
+          "type": "array"
+        }
+      },
+      {
+        "name": "default_on",
+        "in": "body",
+        "description": "Whether newly added or registered nodes are automatically bound to this task.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      {
+        "name": "interval",
+        "in": "body",
+        "description": "Probe interval in seconds (10 to 86400; defaults to 60).",
+        "schema": {
+          "maximum": 86400,
+          "minimum": 10,
+          "type": "integer"
+        }
+      },
+      {
+        "name": "name",
+        "in": "body",
+        "required": true,
+        "description": "Display name of the latency probe task.",
+        "schema": {
+          "maxLength": 255,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      {
+        "name": "target",
+        "in": "body",
+        "required": true,
+        "description": "Probe target address (IP or host for icmp, host:port for tcp, or full http/https URL for http).",
+        "schema": {
+          "maxLength": 255,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      {
+        "name": "type",
+        "in": "body",
+        "required": true,
+        "description": "Probe protocol: icmp, tcp, or http.",
+        "schema": {
+          "enum": [
+            "icmp",
+            "tcp",
+            "http"
+          ],
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "state": {
+          "type": "string"
+        },
+        "task": {
+          "properties": {
+            "clients": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "default_on": {
+              "type": "boolean"
+            },
+            "interval": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "task_id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "weight": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_ping_task_delete",
+    "cli": "ping delete",
+    "method": "DELETE",
+    "path": "/ping-tasks/{task_id}",
+    "scope": "ping:write",
+    "effect": "write",
+    "description": "Delete one latency probe task and purge its historical ping measurements from logstore. Pass task_id from openflare_ping_task_list.",
+    "parameters": [
+      {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "description": "Decimal ping task ID from openflare_ping_task_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "deleted": {
+          "type": "integer"
+        },
+        "state": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_ping_task_list",
+    "cli": "ping list",
+    "method": "GET",
+    "path": "/ping-tasks",
+    "scope": "ping:read",
+    "effect": "read",
+    "description": "Return all ICMP, TCP, and HTTP latency probe tasks ordered by display weight, including bound node registration identifiers and default_on auto-binding flags. This operation is read-only.",
+    "parameters": [],
+    "output": {
+      "properties": {
+        "results": {
+          "items": {
+            "properties": {
+              "clients": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "default_on": {
+                "type": "boolean"
+              },
+              "interval": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "weight": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_ping_task_reorder",
+    "cli": "ping reorder",
+    "method": "POST",
+    "path": "/ping-tasks/order",
+    "scope": "ping:write",
+    "effect": "write",
+    "description": "Update display weights of latency probe tasks according to the supplied ordered list of decimal task IDs.",
+    "parameters": [
+      {
+        "name": "task_ids",
+        "in": "body",
+        "required": true,
+        "description": "Ordered list of decimal ping task IDs from highest priority (weight 0) to lowest.",
+        "schema": {
+          "items": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 200,
+          "minItems": 1,
+          "type": "array"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "results": {
+          "items": {
+            "properties": {
+              "clients": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "default_on": {
+                "type": "boolean"
+              },
+              "interval": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "weight": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "id": "openflare_ping_task_update",
+    "cli": "ping update",
+    "method": "PATCH",
+    "path": "/ping-tasks/{task_id}",
+    "scope": "ping:write",
+    "effect": "write",
+    "description": "Replace the configuration and bound nodes of an existing latency probe task and reload the probe scheduler. Pass task_id from openflare_ping_task_list.",
+    "parameters": [
+      {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "description": "Decimal ping task ID from openflare_ping_task_list",
+        "schema": {
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "type": "string"
+        }
+      },
+      {
+        "name": "clients",
+        "in": "body",
+        "description": "Target node registration identifiers (node_id values from openflare_node_list).",
+        "schema": {
+          "items": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 200,
+          "minItems": 0,
+          "type": "array"
+        }
+      },
+      {
+        "name": "default_on",
+        "in": "body",
+        "description": "Whether newly added or registered nodes are automatically bound to this task.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      {
+        "name": "interval",
+        "in": "body",
+        "description": "Probe interval in seconds (10 to 86400; defaults to 60).",
+        "schema": {
+          "maximum": 86400,
+          "minimum": 10,
+          "type": "integer"
+        }
+      },
+      {
+        "name": "name",
+        "in": "body",
+        "required": true,
+        "description": "Display name of the latency probe task.",
+        "schema": {
+          "maxLength": 255,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      {
+        "name": "target",
+        "in": "body",
+        "required": true,
+        "description": "Probe target address (IP or host for icmp, host:port for tcp, or full http/https URL for http).",
+        "schema": {
+          "maxLength": 255,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      {
+        "name": "type",
+        "in": "body",
+        "required": true,
+        "description": "Probe protocol: icmp, tcp, or http.",
+        "schema": {
+          "enum": [
+            "icmp",
+            "tcp",
+            "http"
+          ],
+          "type": "string"
+        }
+      }
+    ],
+    "output": {
+      "properties": {
+        "state": {
+          "type": "string"
+        },
+        "task": {
+          "properties": {
+            "clients": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "default_on": {
+              "type": "boolean"
+            },
+            "interval": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "task_id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "weight": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
         }
       },
       "type": "object"

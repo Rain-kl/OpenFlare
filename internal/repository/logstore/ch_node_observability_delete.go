@@ -62,3 +62,58 @@ func (s *clickhouseLogStore) DeleteAllEdgeHealth(ctx context.Context) (int64, er
 func (s *clickhouseLogStore) DeleteEdgeHealthBefore(ctx context.Context, _ time.Time) (int64, error) {
 	return s.chMaterializeObsTTL(ctx, chNodeEdgeHealthTableName(), chTableTTLDaysNodeObs)
 }
+
+func (s *clickhouseLogStore) DeleteAllPingRecords(ctx context.Context) (int64, error) {
+	return s.chTruncateTable(ctx, chNodePingRecordTableName())
+}
+
+func (s *clickhouseLogStore) DeletePingRecordsBefore(ctx context.Context, _ time.Time) (int64, error) {
+	if err := s.ensureWritable(ctx); err != nil {
+		return 0, err
+	}
+	conn, err := chConn()
+	if err != nil {
+		return 0, err
+	}
+	cutoff := tableTTLCutoff(chTableTTLDaysNodeMetricSnapshots, time.Now())
+	outcome, err := materializeExpiredByTableTTL(
+		ctx,
+		conn,
+		chNodePingRecordTableName(),
+		chTableTTLDaysNodeMetricSnapshots,
+		fmt.Sprintf("SELECT count() FROM %s WHERE recorded_at < ?", chNodePingRecordTableName()),
+		[]any{cutoff},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return outcome.EligibleCount, nil
+}
+
+func (s *clickhouseLogStore) DeletePingRecordsByTaskIDs(ctx context.Context, taskIDs []uint) (int64, error) {
+	if len(taskIDs) == 0 {
+		return 0, nil
+	}
+	if err := s.ensureWritable(ctx); err != nil {
+		return 0, err
+	}
+	conn, err := chConn()
+	if err != nil {
+		return 0, err
+	}
+	ids := make([]uint64, len(taskIDs))
+	for i, id := range taskIDs {
+		ids[i] = uint64(id)
+	}
+	count, err := countClickHouseRows(ctx, conn, fmt.Sprintf("SELECT count() FROM %s WHERE task_id IN ?", chNodePingRecordTableName()), []any{ids})
+	if err != nil {
+		return 0, err
+	}
+	if count == 0 {
+		return 0, nil
+	}
+	if err := conn.Exec(ctx, fmt.Sprintf("ALTER TABLE %s DELETE WHERE task_id IN ?", chNodePingRecordTableName()), ids); err != nil {
+		return 0, fmt.Errorf("delete ping records by task ids: %w", err)
+	}
+	return count, nil
+}

@@ -74,11 +74,27 @@ export const searchData: SearchItemSource[] = [
   // ==================== 业务控制台 ====================
   {
     id: 'console-nodes',
-    titleKey: 'nav.nodes',
+    titleKey: 'nav.nodeList',
     descriptionKey: 'search.items.nodesDesc',
     url: '/nodes',
     category: 'page',
     keywordKey: 'search.keywords.console-nodes',
+  },
+  {
+    id: 'console-node-ping',
+    titleKey: 'nav.nodePing',
+    descriptionKey: 'search.items.nodePingDesc',
+    url: '/nodes/ping',
+    category: 'page',
+    keywordKey: 'search.keywords.console-node-ping',
+  },
+  {
+    id: 'console-node-exec',
+    titleKey: 'nav.nodeExec',
+    descriptionKey: 'search.items.nodeExecDesc',
+    url: '/nodes/exec',
+    category: 'page',
+    keywordKey: 'search.keywords.console-node-exec',
   },
   {
     id: 'console-tunnels',

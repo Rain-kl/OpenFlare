@@ -156,6 +156,14 @@ func (s *clickhouseLogStore) ListEdgeHealthForMigration(ctx context.Context, aft
 	return out, nil
 }
 
+// ListPingRecordsForMigration 按 id 升序分页读取（迁移复制用）。
+func (s *clickhouseLogStore) ListPingRecordsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodePingRecord, error) {
+	return chListForMigration(ctx, afterID, limit,
+		analyticsmodel.NodePingRecord{}.TableName(),
+		analyticsmodel.NodePingRecord{}.InsertColumns(),
+		scanNodePingRecordRows)
+}
+
 // chListForMigration 执行按 id 升序分页的 CH 原生表查询，并交给 scanner 扫描。
 func chListForMigration[T any](ctx context.Context, afterID uint64, limit int, table, columns string, scanner func(driver.Rows) ([]T, error)) ([]T, error) {
 	conn, err := chConn()

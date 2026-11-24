@@ -269,8 +269,9 @@ func RequestForceSyncHandler(c *gin.Context) {
 // @Produce json
 // @Security SessionCookie
 // @Param id path int true "节点 ID"
-// @Param hours query int false "统计时间范围（小时）"
+// @Param hours query int false "统计时间范围（小时，最大 720）"
 // @Param limit query int false "返回记录数量上限"
+// @Param realtime query bool false "实时模式（近 30 分钟高分辨率快照）"
 // @Success 200 {object} response.Any{data=node.ObservabilityView} "可观测性数据"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"

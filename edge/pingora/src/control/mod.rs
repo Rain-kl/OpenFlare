@@ -250,6 +250,7 @@ impl Runtime {
                 websocket::run(
                     &authenticated.base_url,
                     &authenticated.token,
+                    &authenticated.client,
                     &wake,
                     &authenticated.keys
                 ),
@@ -577,7 +578,7 @@ impl Runtime {
             edge_update_ready: self.ready.load(Ordering::Acquire),
             access_logs,
             last_error,
-            telemetry: Some(collector.sample(status, message, last_error)),
+            telemetry: Some(collector.sample(status, message, last_error, &node_ip)),
         };
         let response = self
             .client

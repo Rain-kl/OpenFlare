@@ -4,7 +4,9 @@
       "keywords": {
         "home": "главная страница|панель управления",
         "docs-how-to-use": "документы|как|руководство|помощь",
-        "console-nodes": "узел|node|nodes|edge",
+        "console-nodes": "узел|список узлов|node|nodes|edge",
+        "console-node-ping": "ping|задержка|мониторинг|icmp|tcp|http|потери",
+        "console-node-exec": "exec|удалённое выполнение|команда|оболочка|shell",
         "console-tunnels": "туннель|ретранслятор|пул|tunnel|relay|openflared",
         "console-proxy-routes": "маршрут|прокси|proxy|routes",
         "console-websites": "сайт|домен",

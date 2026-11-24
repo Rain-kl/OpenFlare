@@ -1,0 +1,20 @@
+[package]
+name = "openflare-probe"
+version = "0.1.0"
+edition = "2021"
+description = "Reusable host telemetry, latency probe, and remote execution library for OpenFlare nodes (derived from komari-monitor-rs)"
+license = "Apache-2.0"
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots"] }
+serde = { version = "1", features = ["derive"] }
+sysinfo = { version = "0.37", default-features = false, features = ["disk", "system", "network", "component", "multithread"] }
+time = { version = "0.3", features = ["formatting"] }
+tokio = { version = "1", features = ["net", "process", "rt", "time", "io-util"] }
+tracing = "0.1"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

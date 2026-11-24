@@ -40,6 +40,10 @@ func chNodeEdgeHealthTableName() string {
 	return "of_node_edge_health"
 }
 
+func chNodePingRecordTableName() string {
+	return "of_node_ping_records"
+}
+
 func chAccessLogHourlyTableName() string {
 	return "of_access_log_hourly"
 }

@@ -17,6 +17,9 @@
       "usageDocs": "User Guide",
       "dashboard": "Dashboard",
       "nodes": "Nodes",
+      "nodeList": "Node List",
+      "nodePing": "Latency Monitoring",
+      "nodeExec": "Remote Execution",
       "tunnels": "Tunnels",
       "proxyRoutes": "Proxy Routes",
       "websites": "Domains",
@@ -38,6 +41,7 @@
     "groups": {
       "admin": "Admin",
       "docs": "Docs",
+      "nodes": "Nodes",
       "security": "Security",
       "websites": "Websites"
     },
@@ -95,6 +99,8 @@
         "homeDesc": "Return to the console dashboard",
         "usageDocsDesc": "View getting-started guides and integration examples",
         "nodesDesc": "Manage edge gateway nodes and deployment status",
+        "nodePingDesc": "Configure and manage ICMP, TCP, and HTTP latency probe tasks for edge nodes",
+        "nodeExecDesc": "Dispatch remote shell commands to online edge nodes and inspect execution outputs",
         "tunnelsDesc": "Manage private network tunnels, HA relay PoPs, pools, and topology",
         "proxyRoutesDesc": "Configure reverse proxies, match rules, WAF policies, and cache settings",
         "websitesDesc": "Manage hosted domains, certificate bindings, and listeners",
