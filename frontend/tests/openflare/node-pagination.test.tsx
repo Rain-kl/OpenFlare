@@ -59,8 +59,8 @@ beforeEach(() => {
   vi.mocked(NodeService.listNodePage).mockImplementation(
     async (query = {}) => ({
       page: query.page ?? 1,
-      page_size: query.page_size ?? 20,
-      total: 41,
+      page_size: query.page_size ?? 50,
+      total: 101,
       results: [node(query.page ?? 1)],
     }),
   );
@@ -75,10 +75,15 @@ it('fetches only visible pages and debounces server search while resetting the p
   fireEvent.click(screen.getByRole('button', { name: 'Next' }));
   await screen.findByText('Edge 2');
   expect(NodeService.listNodePage).toHaveBeenLastCalledWith(
-    expect.objectContaining({ page: 2, page_size: 20 }),
+    expect.objectContaining({
+      page: 2,
+      page_size: 50,
+      include_monitoring: true,
+    }),
   );
   expect(NodeService.listNodes).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByLabelText('Search nodes'), {
+  fireEvent.click(screen.getByRole('button', { name: 'Search nodes' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search nodes' }), {
     target: { value: 'test' },
   });
   await waitFor(() =>
@@ -93,10 +98,10 @@ it('refetches the previous valid page after deleting the only node on the last p
   vi.mocked(NodeService.listNodePage).mockImplementation(
     async (query = {}) => ({
       page: query.page ?? 1,
-      page_size: 20,
-      total: deleted ? 20 : 21,
+      page_size: 50,
+      total: deleted ? 50 : 51,
       results:
-        deleted && query.page === 2 ? [] : [node(query.page === 2 ? 21 : 1)],
+        deleted && query.page === 2 ? [] : [node(query.page === 2 ? 51 : 1)],
     }),
   );
   vi.mocked(NodeService.deleteNode).mockImplementation(async () => {
@@ -105,7 +110,7 @@ it('refetches the previous valid page after deleting the only node on the last p
   renderPage();
   await screen.findByText('Edge 1');
   fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await screen.findByText('Edge 21');
+  await screen.findByText('Edge 51');
   fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
   fireEvent.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', {
@@ -156,7 +161,8 @@ function deferred<T>() {
 it('validates the UTF-8 search limit before requesting and recovers after shortening', async () => {
   renderPage();
   await screen.findByText('Edge 1');
-  const input = screen.getByLabelText('Search nodes');
+  fireEvent.click(screen.getByRole('button', { name: 'Search nodes' }));
+  const input = screen.getByRole('textbox', { name: 'Search nodes' });
   for (const search of ['a'.repeat(256), '汉'.repeat(85) + 'a']) {
     fireEvent.change(input, { target: { value: search } });
     await waitFor(() =>
@@ -191,7 +197,7 @@ it('retains the loaded page and total during navigation without leaving stale no
   vi.mocked(NodeService.listNodePage).mockImplementation(async (query = {}) =>
     query.page === 2
       ? pending.promise
-      : { page: 1, page_size: 20, total: 41, results: [node(1)] },
+      : { page: 1, page_size: 50, total: 101, results: [node(1)] },
   );
   renderPage();
   await screen.findByText('Edge 1');
@@ -204,7 +210,7 @@ it('retains the loaded page and total during navigation without leaving stale no
     expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled(),
   );
   expect(screen.getByText('Edge 1')).toBeInTheDocument();
-  expect(screen.getByText('Page 1 of 3 · 41 nodes')).toBeInTheDocument();
+  expect(screen.getByText('Page 1 of 3 · 101 nodes')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Details' })).toBeDisabled();
   expect(
@@ -214,11 +220,11 @@ it('retains the loaded page and total during navigation without leaving stale no
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(NodeService.deleteNode).not.toHaveBeenCalled();
   await act(async () => {
-    pending.resolve({ page: 2, page_size: 20, total: 41, results: [node(2)] });
+    pending.resolve({ page: 2, page_size: 50, total: 101, results: [node(2)] });
   });
   await screen.findByText('Edge 2');
   expect(screen.queryByText('Edge 1')).not.toBeInTheDocument();
-  expect(screen.getByText('Page 2 of 3 · 41 nodes')).toBeInTheDocument();
+  expect(screen.getByText('Page 2 of 3 · 101 nodes')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Edit' })).toBeEnabled();
   expect(screen.getByRole('link', { name: 'Details' })).toHaveAttribute(
     'href',
@@ -232,11 +238,12 @@ it('does not reuse nodes or totals from a different search while it is loading',
   vi.mocked(NodeService.listNodePage).mockImplementation(async (query = {}) =>
     query.search
       ? pending.promise
-      : { page: 1, page_size: 20, total: 41, results: [node(1)] },
+      : { page: 1, page_size: 50, total: 101, results: [node(1)] },
   );
   renderPage();
   await screen.findByText('Edge 1');
-  fireEvent.change(screen.getByLabelText('Search nodes'), {
+  fireEvent.click(screen.getByRole('button', { name: 'Search nodes' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search nodes' }), {
     target: { value: 'another' },
   });
   await waitFor(() =>
@@ -245,12 +252,12 @@ it('does not reuse nodes or totals from a different search while it is loading',
     ),
   );
   expect(screen.queryByText('Edge 1')).not.toBeInTheDocument();
-  expect(screen.queryByText('Page 1 of 3 · 41 nodes')).not.toBeInTheDocument();
+  expect(screen.queryByText('Page 1 of 3 · 101 nodes')).not.toBeInTheDocument();
   expect(
     screen.queryByRole('link', { name: 'Details' }),
   ).not.toBeInTheDocument();
   await act(async () => {
-    pending.resolve({ page: 1, page_size: 20, total: 1, results: [node(9)] });
+    pending.resolve({ page: 1, page_size: 50, total: 1, results: [node(9)] });
   });
   await screen.findByText('Edge 9');
   expect(screen.getByText('Page 1 of 1 · 1 nodes')).toBeInTheDocument();
@@ -262,7 +269,7 @@ it('drops placeholder actions and unknown totals after a failed page request and
   vi.mocked(NodeService.listNodePage).mockImplementation(async (query = {}) =>
     query.page === 2
       ? pending.promise
-      : { page: 1, page_size: 20, total: 41, results: [node(1)] },
+      : { page: 1, page_size: 50, total: 101, results: [node(1)] },
   );
   renderPage();
   await screen.findByText('Edge 1');
@@ -281,13 +288,13 @@ it('drops placeholder actions and unknown totals after a failed page request and
   ).not.toBeInTheDocument();
   vi.mocked(NodeService.listNodePage).mockResolvedValue({
     page: 2,
-    page_size: 20,
-    total: 41,
+    page_size: 50,
+    total: 101,
     results: [node(2)],
   });
   fireEvent.click(screen.getByRole('button', { name: 'Refresh now' }));
   await screen.findByText('Edge 2');
-  expect(screen.getByText('Page 2 of 3 · 41 nodes')).toBeInTheDocument();
+  expect(screen.getByText('Page 2 of 3 · 101 nodes')).toBeInTheDocument();
 });
 
 it('closes an open node confirmation when a background refresh clamps a depleted page', async () => {
@@ -295,16 +302,16 @@ it('closes an open node confirmation when a background refresh clamps a depleted
   vi.mocked(NodeService.listNodePage).mockImplementation(
     async (query = {}) => ({
       page: query.page ?? 1,
-      page_size: 20,
-      total: removed ? 20 : 21,
+      page_size: 50,
+      total: removed ? 50 : 51,
       results:
-        removed && query.page === 2 ? [] : [node(query.page === 2 ? 21 : 1)],
+        removed && query.page === 2 ? [] : [node(query.page === 2 ? 51 : 1)],
     }),
   );
   const { client } = renderPage();
   await screen.findByText('Edge 1');
   fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await screen.findByText('Edge 21');
+  await screen.findByText('Edge 51');
   fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
   await screen.findByRole('alertdialog');
   removed = true;
@@ -314,4 +321,71 @@ it('closes an open node confirmation when a background refresh clamps a depleted
   await screen.findByText('Edge 1');
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(NodeService.deleteNode).not.toHaveBeenCalled();
+});
+
+it('shows monitoring in both layouts and restores focus when closing search', async () => {
+  const monitoredNode = {
+    ...node(1),
+    status: 'online',
+    openresty_status: 'unhealthy',
+    version: 'v1.0.0',
+    current_version: '1aef2e8',
+    monitoring: {
+      system: 'Debian 12',
+      metric: {
+        captured_at: '2026-11-25T00:00:00Z',
+        cpu_usage_percent: 15,
+        memory_used_bytes: 0,
+        memory_total_bytes: 4,
+        storage_used_bytes: 1,
+        storage_total_bytes: 4,
+        net_in: 1024,
+        net_out: 0,
+      },
+      ping: [
+        {
+          task_id: 1,
+          name: 'Tokyo',
+          samples: [{ recorded_at: '2026-11-25T00:00:00Z', value: 0 }],
+        },
+      ],
+    },
+  } satisfies NodeItem;
+  vi.mocked(NodeService.listNodePage).mockResolvedValue({
+    page: 1,
+    page_size: 50,
+    total: 1,
+    results: [monitoredNode],
+  });
+  renderPage();
+
+  await screen.findByText('Edge 1');
+  expect(screen.getByRole('table')).toBeInTheDocument();
+  expect(
+    screen.queryByRole('textbox', { name: 'Search nodes' }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole('progressbar', { name: 'Memory' })).toHaveAttribute(
+    'aria-valuenow',
+    '0',
+  );
+  expect(screen.getByText('0 ms')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('radio', { name: 'Card view' }));
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.getByText('Debian 12')).toBeInTheDocument();
+  expect(screen.getByText('1aef2e8')).toBeInTheDocument();
+  expect(screen.getByRole('progressbar', { name: 'CPU' })).toHaveAttribute(
+    'aria-valuenow',
+    '15',
+  );
+  expect(NodeService.listNodePage).toHaveBeenCalledTimes(1);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Search nodes' }));
+  const search = screen.getByRole('textbox', { name: 'Search nodes' });
+  expect(search).toHaveFocus();
+  fireEvent.keyDown(search, { key: 'Escape' });
+  expect(
+    screen.queryByRole('textbox', { name: 'Search nodes' }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Search nodes' })).toHaveFocus();
 });

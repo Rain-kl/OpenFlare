@@ -63,6 +63,7 @@ type ObservabilityStore interface {
 	InsertMetricSnapshot(ctx context.Context, record *model.OpenFlareMetricSnapshot) error
 	ListMetricSnapshots(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareMetricSnapshot, error)
 	ListLatestMetricSnapshots(ctx context.Context, nodeID string, since time.Time) ([]*model.OpenFlareMetricSnapshot, error)
+	ListLatestMetricSnapshotsByNodeIDs(ctx context.Context, nodeIDs []string, since time.Time) ([]*model.OpenFlareMetricSnapshot, error)
 	DeleteAllMetricSnapshots(ctx context.Context) (int64, error)
 	DeleteMetricSnapshotsBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	BatchInsertNodeMetricSnapshots(ctx context.Context, rows []analyticsmodel.NodeMetricSnapshot) error
@@ -83,6 +84,7 @@ type ObservabilityStore interface {
 
 	InsertPingRecord(ctx context.Context, record *model.OpenFlarePingRecord) error
 	ListPingRecords(ctx context.Context, nodeID string, taskID uint, since time.Time, limit int) ([]*model.OpenFlarePingRecord, error)
+	ListRecentPingRecordsByTask(ctx context.Context, tasks map[uint]analyticsmodel.PingTaskWindow, limit int) ([]*model.OpenFlarePingRecord, error)
 	DeleteAllPingRecords(ctx context.Context) (int64, error)
 	DeletePingRecordsBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	DeletePingRecordsByTaskIDs(ctx context.Context, taskIDs []uint) (int64, error)

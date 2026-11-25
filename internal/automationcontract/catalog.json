@@ -1207,7 +1207,7 @@
       {
         "name": "search",
         "in": "query",
-        "description": "Literal substring of the node name, registration identifier or IP address",
+        "description": "Literal substring of the node name, registration identifier, IP address, region or operating system",
         "schema": {
           "maxLength": 256,
           "type": "string"
@@ -1362,7 +1362,7 @@
       {
         "name": "search",
         "in": "query",
-        "description": "Literal substring of the node name, registration identifier or IP address, at most 256 bytes",
+        "description": "Literal substring of the node name, registration identifier, IP address, region or operating system, at most 256 bytes",
         "schema": {
           "maxLength": 256,
           "type": "string"

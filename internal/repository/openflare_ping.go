@@ -11,6 +11,7 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 	"gorm.io/gorm"
 )
@@ -228,6 +229,15 @@ func ListOpenFlarePingRecords(ctx context.Context, nodeID string, taskID uint, s
 		return nil, err
 	}
 	return s.Observability.ListPingRecords(ctx, nodeID, taskID, since, limit)
+}
+
+// ListRecentOpenFlarePingRecordsByTask returns bounded samples for selected node-task pairs.
+func ListRecentOpenFlarePingRecordsByTask(ctx context.Context, tasks map[uint]analyticsmodel.PingTaskWindow, limit int) ([]*model.OpenFlarePingRecord, error) {
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.Observability.ListRecentPingRecordsByTask(ctx, tasks, limit)
 }
 
 // DeleteOpenFlarePingRecordsByTaskIDs purges latency records belonging to deleted ping tasks.

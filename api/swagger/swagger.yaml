@@ -2153,6 +2153,8 @@ definitions:
     type: object
   apps_openflare_node.ListResult:
     properties:
+      monitoring_unavailable:
+        type: boolean
       page:
         type: integer
       page_size:
@@ -2163,6 +2165,54 @@ definitions:
         type: array
       total:
         type: integer
+    type: object
+  apps_openflare_node.MonitoringMetric:
+    properties:
+      captured_at:
+        type: string
+      cpu_usage_percent:
+        type: number
+      memory_total_bytes:
+        type: integer
+      memory_used_bytes:
+        type: integer
+      net_in:
+        type: integer
+      net_out:
+        type: integer
+      storage_total_bytes:
+        type: integer
+      storage_used_bytes:
+        type: integer
+    type: object
+  apps_openflare_node.MonitoringPing:
+    properties:
+      name:
+        type: string
+      samples:
+        items:
+          $ref: '#/definitions/apps_openflare_node.MonitoringPingSample'
+        type: array
+      task_id:
+        type: integer
+    type: object
+  apps_openflare_node.MonitoringPingSample:
+    properties:
+      recorded_at:
+        type: string
+      value:
+        type: integer
+    type: object
+  apps_openflare_node.MonitoringView:
+    properties:
+      metric:
+        $ref: '#/definitions/apps_openflare_node.MonitoringMetric'
+      ping:
+        items:
+          $ref: '#/definitions/apps_openflare_node.MonitoringPing'
+        type: array
+      system:
+        type: string
     type: object
   apps_openflare_node.ObservabilityView:
     properties:
@@ -2266,6 +2316,8 @@ definitions:
         type: string
       latest_support_file_count:
         type: integer
+      monitoring:
+        $ref: '#/definitions/apps_openflare_node.MonitoringView'
       name:
         type: string
       node_id:
@@ -10397,8 +10449,8 @@ paths:
         minimum: 1
         name: page_size
         type: integer
-      - description: Literal substring of the node name, registration identifier or
-          IP address, at most 256 bytes
+      - description: Literal substring of the node name, registration identifier,
+          IP address, region or operating system, at most 256 bytes
         in: query
         maxLength: 256
         name: search
@@ -10689,8 +10741,8 @@ paths:
         minimum: 1
         name: page_size
         type: integer
-      - description: Literal substring of the node name, registration identifier or
-          IP address
+      - description: Literal substring of the node name, registration identifier,
+          IP address, region or operating system
         in: query
         maxLength: 256
         name: search
@@ -14706,7 +14758,7 @@ paths:
         in: query
         name: page_size
         type: integer
-      - description: 名称、节点标识或 IP 的字面子串（最多 256 字节）
+      - description: 名称、节点标识、IP、地区或操作系统名称的字面子串（最多 256 字节）
         in: query
         name: search
         type: string
@@ -14718,6 +14770,10 @@ paths:
         in: query
         name: node_type
         type: string
+      - description: 包含系统名称、最新资源快照及近期延迟样本
+        in: query
+        name: include_monitoring
+        type: boolean
       produces:
       - application/json
       responses:

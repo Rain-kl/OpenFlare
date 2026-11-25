@@ -15,9 +15,12 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 	"github.com/glebarez/sqlite"
 	"github.com/pressly/goose/v3"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -91,6 +94,68 @@ func TestNodeListQueryValidation(t *testing.T) {
 	if err != nil || query.PageSize != 100 {
 		t.Errorf("normalizeListQuery(size1000)=(%+v,%v), want size100", query, err)
 	}
+}
+
+func TestNodePageMonitoringUsesLatestScopedSamples(t *testing.T) {
+	conn := setupNodePageDB(t, 3)
+	logstore.InvalidateCache()
+	t.Cleanup(logstore.InvalidateCache)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	nodeID := "node-00003"
+	require.NoError(t, conn.Model(&model.OpenFlareNode{}).Where("node_id IN ?", []string{nodeID, "node-00002"}).
+		Updates(map[string]any{"last_seen_at": now, "geo_name": "East Asia"}).Error)
+	require.NoError(t, conn.Create(&model.OpenFlareNodeSystemProfile{NodeID: nodeID, OSName: "Debian 12"}).Error)
+	require.NoError(t, conn.Create(&[]analyticsmodel.NodeMetricSnapshot{
+		{ID: 1, NodeID: nodeID, CapturedAt: now.Add(-time.Minute), CPUUsagePercent: 9},
+		{ID: 2, NodeID: nodeID, CapturedAt: now, CPUUsagePercent: 23, NetOut: 128},
+		{ID: 3, NodeID: "node-00002", CapturedAt: now.Add(-10 * time.Minute), CPUUsagePercent: 99},
+		{ID: 4, NodeID: "node-00001", CapturedAt: now, CPUUsagePercent: 99},
+	}).Error)
+	tasks := []model.OpenFlarePingTask{
+		{Name: "Fourth", Weight: 4, Clients: model.StringSliceJSON{nodeID}},
+		{Name: "Second", Weight: 2, Clients: model.StringSliceJSON{nodeID, "node-00002"}},
+		{Name: "First", Weight: 1, Clients: model.StringSliceJSON{nodeID}},
+		{Name: "Third", Weight: 3, Clients: model.StringSliceJSON{nodeID}},
+	}
+	require.NoError(t, conn.Create(&tasks).Error)
+	for i := range nodePagePingSamples + 1 {
+		require.NoError(t, conn.Create(&analyticsmodel.NodePingRecord{
+			ID: uint64(i + 1), NodeID: nodeID, TaskID: uint64(tasks[2].ID),
+			RecordedAt: now.Add(time.Duration(i-nodePagePingSamples) * time.Second), Value: int32(i - 1),
+		}).Error)
+	}
+	require.NoError(t, conn.Create(&analyticsmodel.NodePingRecord{
+		ID: 100, NodeID: "node-00002", TaskID: uint64(tasks[2].ID), RecordedAt: now, Value: 999,
+	}).Error)
+
+	page, err := ListPage(ctx, ListQuery{PageSize: 2, IncludeMonitoring: true})
+	require.NoError(t, err)
+	require.False(t, page.MonitoringUnavailable)
+	require.Len(t, page.Results, 2)
+	first, second := page.Results[0].Monitoring, page.Results[1].Monitoring
+	require.Equal(t, "Debian 12", first.System)
+	require.Equal(t, 23.0, first.Metric.CPUUsagePercent)
+	require.EqualValues(t, 128, first.Metric.NetOut)
+	require.Nil(t, second.Metric)
+	require.Len(t, first.Ping, 3)
+	require.Equal(t, "First", first.Ping[0].Name)
+	require.Equal(t, "Second", first.Ping[1].Name)
+	require.Equal(t, "Third", first.Ping[2].Name)
+	require.Len(t, first.Ping[0].Samples, nodePagePingSamples)
+	require.Zero(t, first.Ping[0].Samples[0].Value)
+	require.Equal(t, nodePagePingSamples-1, first.Ping[0].Samples[nodePagePingSamples-1].Value)
+	require.Len(t, second.Ping, 1)
+	require.Empty(t, second.Ping[0].Samples)
+
+	page, err = ListPage(ctx, ListQuery{Search: "debian"})
+	require.NoError(t, err)
+	require.Len(t, page.Results, 1)
+	require.Equal(t, nodeID, page.Results[0].NodeID)
+	require.Nil(t, page.Results[0].Monitoring)
+	page, err = ListPage(ctx, ListQuery{Search: "East Asia"})
+	require.NoError(t, err)
+	require.EqualValues(t, 2, page.Total)
 }
 
 func TestNodePageTwentyThousandNodes(t *testing.T) {

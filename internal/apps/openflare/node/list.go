@@ -11,6 +11,7 @@ import (
 
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
 const (
@@ -21,19 +22,21 @@ const (
 
 // ListQuery filters the bounded node list.
 type ListQuery struct {
-	Page     int    `form:"page"`
-	PageSize int    `form:"page_size"`
-	Search   string `form:"search"`
-	Status   string `form:"status"`
-	NodeType string `form:"node_type"`
+	Page              int    `form:"page"`
+	PageSize          int    `form:"page_size"`
+	Search            string `form:"search"`
+	Status            string `form:"status"`
+	NodeType          string `form:"node_type"`
+	IncludeMonitoring bool   `form:"include_monitoring"`
 }
 
 // ListResult contains one node page and its filtered total.
 type ListResult struct {
-	Total    int64   `json:"total"`
-	Results  []*View `json:"results"`
-	Page     int     `json:"page"`
-	PageSize int     `json:"page_size"`
+	Total                 int64   `json:"total"`
+	Results               []*View `json:"results"`
+	Page                  int     `json:"page"`
+	PageSize              int     `json:"page_size"`
+	MonitoringUnavailable bool    `json:"monitoring_unavailable,omitempty"`
 }
 
 var errBadListQuery = errors.New(errInvalidNodeListQuery)
@@ -93,7 +96,14 @@ func ListPage(ctx context.Context, input ListQuery) (*ListResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ListResult{Total: total, Results: views, Page: query.Page, PageSize: query.PageSize}, nil
+	result := &ListResult{Total: total, Results: views, Page: query.Page, PageSize: query.PageSize}
+	if query.IncludeMonitoring && len(views) > 0 {
+		if err := attachNodeMonitoring(ctx, views, now.UTC()); err != nil {
+			logger.ErrorF(ctx, "Failed to load node page monitoring: %v", err)
+			result.MonitoringUnavailable = true
+		}
+	}
+	return result, nil
 }
 
 // GetNode returns a single node with the same latest apply metadata as the list.

@@ -133,10 +133,9 @@
   "nodes": {
     "pagination": {
       "search": "Поиск узлов",
-      "searchPlaceholder": "Имя, идентификатор узла или IP",
+      "searchPlaceholder": "Поиск по имени, региону, ОС, ID узла или IP",
       "searchTooLong": "Поисковый запрос слишком длинный. Сократите его.",
       "allStatuses": "Все статусы",
-      "pageSize": "На странице",
       "summary": "Страница {page} из {totalPages} · {total, plural, one {# узел} few {# узла} many {# узлов} other {# узла}}",
       "navigation": "Страницы узлов",
       "previous": "Назад",
@@ -235,11 +234,25 @@
       "node": "Узел",
       "status": "Статус",
       "version": "Версия",
-      "runHealth": "Состояние выполнения",
       "currentVersion": "Текущая версия",
-      "latestApply": "Последняя подача заявки",
-      "lastSeen": "Последний сигнал",
       "actions": "Действия"
+    },
+    "monitoring": {
+      "cpu": "ЦП",
+      "memory": "Память",
+      "disk": "Диск",
+      "rate": "Скорость",
+      "latency": "Задержка",
+      "upload": "Отправка",
+      "download": "Получение",
+      "probeFailed": "Сбой проверки",
+      "milliseconds": "{value, number} мс",
+      "probeHistory": "{name} · {value} · График",
+      "view": "Вид списка узлов",
+      "gridView": "Карточки",
+      "listView": "Список",
+      "closeSearch": "Закрыть поиск",
+      "unavailable": "Часть данных мониторинга временно недоступна."
     },
     "editor": {
       "editTitle": "Редактировать узел",

@@ -47,6 +47,29 @@ export interface NodeItem {
   latest_apply_at?: string | null;
   created_at: string;
   updated_at: string;
+  monitoring?: NodeMonitoring;
+}
+
+export interface NodeMonitoring {
+  system?: string;
+  metric?: Pick<
+    NodeMetricSnapshot,
+    | 'captured_at'
+    | 'cpu_usage_percent'
+    | 'memory_used_bytes'
+    | 'memory_total_bytes'
+    | 'storage_used_bytes'
+    | 'storage_total_bytes'
+    | 'net_in'
+    | 'net_out'
+  >;
+  ping?: NodeMonitoringPing[];
+}
+
+export interface NodeMonitoringPing {
+  task_id: number;
+  name: string;
+  samples: Pick<PingRecord, 'recorded_at' | 'value'>[];
 }
 
 export interface NodeCertificateDelivery {
@@ -86,6 +109,7 @@ export interface NodeListQuery {
   search?: string;
   status?: NodeStatus | '';
   node_type?: NodeType | '';
+  include_monitoring?: boolean;
 }
 
 export interface NodeListResult {
@@ -93,6 +117,7 @@ export interface NodeListResult {
   results: NodeItem[];
   page: number;
   page_size: number;
+  monitoring_unavailable?: boolean;
 }
 
 export interface NodeBootstrapToken {

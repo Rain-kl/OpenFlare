@@ -204,7 +204,7 @@ export function formatBytesPerSecond(value?: number | null, windowSeconds = 1) {
 }
 
 export function formatUsageRatio(used?: number | null, total?: number | null) {
-  if (!used || !total || total <= 0) {
+  if (used == null || !total || total <= 0) {
     return null;
   }
   return Math.max(0, Math.min(100, (used / total) * 100));

@@ -34,7 +34,14 @@ func filterOpenFlareNodes(query *gorm.DB, filters model.OpenFlareNodeListQuery) 
 	if filters.Search != "" {
 		escaped := strings.NewReplacer("!", "!!", "%", "!%", "_", "!_").Replace(filters.Search)
 		pattern := "%" + escaped + "%"
-		query = query.Where("(LOWER(name) LIKE LOWER(?) ESCAPE '!' OR LOWER(node_id) LIKE LOWER(?) ESCAPE '!' OR LOWER(ip) LIKE LOWER(?) ESCAPE '!')", pattern, pattern, pattern)
+		query = query.Where(`(
+			LOWER(name) LIKE LOWER(?) ESCAPE '!' OR LOWER(node_id) LIKE LOWER(?) ESCAPE '!'
+			OR LOWER(ip) LIKE LOWER(?) ESCAPE '!' OR LOWER(geo_name) LIKE LOWER(?) ESCAPE '!'
+			OR EXISTS (
+				SELECT 1 FROM of_node_system_profiles
+				WHERE of_node_system_profiles.node_id = of_nodes.node_id AND LOWER(os_name) LIKE LOWER(?) ESCAPE '!'
+			)
+		)`, pattern, pattern, pattern, pattern, pattern)
 	}
 	if filters.NodeType == "edge_node" {
 		query = query.Where("(node_type = ? OR node_type = '')", filters.NodeType)

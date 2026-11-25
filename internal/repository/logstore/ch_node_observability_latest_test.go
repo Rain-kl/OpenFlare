@@ -37,6 +37,30 @@ func TestCHListLatestMetricSnapshots_UsesLimit1ByNodeID(t *testing.T) {
 	assert.Equal(t, since, mock.queryArgs[0][0])
 }
 
+func TestCHNodePageSamplingIsScopedPerNodeAndTask(t *testing.T) {
+	mock := &chMockConn{}
+	db.SetChConnForTest(mock)
+	t.Cleanup(func() { db.SetChConnForTest(nil) })
+	ctx := context.Background()
+	store := newClickHouseStore()
+	since := time.Date(2026, 11, 25, 0, 0, 0, 0, time.UTC)
+	_, err := store.ListLatestMetricSnapshotsByNodeIDs(ctx, []string{"edge-a", "edge-b"}, since)
+	require.NoError(t, err)
+	_, err = store.ListRecentPingRecordsByTask(ctx, map[uint]analyticsmodel.PingTaskWindow{
+		1: {NodeIDs: []string{"edge-a", "edge-b"}, Since: since},
+		2: {NodeIDs: []string{"edge-b"}, Since: since.Add(-time.Hour)},
+	}, 12)
+	require.NoError(t, err)
+
+	require.Len(t, mock.queries, 2)
+	assert.Contains(t, mock.queries[0], "node_id IN (?, ?) AND captured_at >= ?")
+	assert.Contains(t, mock.queries[0], "LIMIT 1 BY node_id")
+	assert.Equal(t, []any{"edge-a", "edge-b", since}, mock.queryArgs[0])
+	assert.Contains(t, mock.queries[1], "(task_id = ? AND recorded_at >= ? AND node_id IN (?, ?)) OR (task_id = ? AND recorded_at >= ? AND node_id IN (?))")
+	assert.Contains(t, mock.queries[1], "LIMIT ? BY node_id, task_id")
+	assert.Equal(t, []any{uint64(1), since, "edge-a", "edge-b", uint64(2), since.Add(-time.Hour), "edge-b", 12}, mock.queryArgs[1])
+}
+
 func TestCHListMetricHourly_PrefersRollup(t *testing.T) {
 	ctx := context.Background()
 	hour := time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)

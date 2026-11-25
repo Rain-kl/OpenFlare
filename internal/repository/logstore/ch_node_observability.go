@@ -65,12 +65,23 @@ func (s *clickhouseLogStore) ListMetricSnapshots(ctx context.Context, nodeID str
 
 // ListLatestMetricSnapshots uses ClickHouse LIMIT 1 BY node_id so dashboard health does not depend on a global raw LIMIT.
 func (s *clickhouseLogStore) ListLatestMetricSnapshots(ctx context.Context, nodeID string, since time.Time) ([]*model.OpenFlareMetricSnapshot, error) {
+	return listCHLatestMetricSnapshots(ctx, analyticsmodel.NodeObservabilityFilter{NodeID: nodeID, Since: since})
+}
+
+func (s *clickhouseLogStore) ListLatestMetricSnapshotsByNodeIDs(ctx context.Context, nodeIDs []string, since time.Time) ([]*model.OpenFlareMetricSnapshot, error) {
+	if len(nodeIDs) == 0 {
+		return nil, nil
+	}
+	return listCHLatestMetricSnapshots(ctx, analyticsmodel.NodeObservabilityFilter{NodeIDs: nodeIDs, Since: since})
+}
+
+func listCHLatestMetricSnapshots(ctx context.Context, filter analyticsmodel.NodeObservabilityFilter) ([]*model.OpenFlareMetricSnapshot, error) {
 	return listCHNodeObservability(
 		ctx,
 		chNodeMetricSnapshotTableName(),
 		chNodeMetricSnapshotSelectColumns,
 		"list latest node metric snapshots",
-		analyticsmodel.NodeObservabilityFilter{NodeID: nodeID, Since: since},
+		filter,
 		clickHouseLimit1ByNodeIDClause,
 		scanNodeMetricSnapshotRows,
 		fromAnalyticsNodeMetricSnapshots,
@@ -161,24 +172,37 @@ func scanNodeMetricSnapshotRows(rows driver.Rows) ([]analyticsmodel.NodeMetricSn
 }
 
 func (s *clickhouseLogStore) ListPingRecords(ctx context.Context, nodeID string, taskID uint, since time.Time, limit int) ([]*model.OpenFlarePingRecord, error) {
-	conn, err := chConn()
-	if err != nil {
-		return nil, err
-	}
 	clause, args := buildCHNodeObservabilityFilterClause(analyticsmodel.NodeObservabilityFilter{NodeID: nodeID, Since: since}, "recorded_at")
 	if taskID > 0 {
 		clause += " AND task_id = ?"
 		args = append(args, uint64(taskID))
 	}
+	suffix := ""
+	if limit > 0 {
+		suffix = clickHouseLimitClause
+		args = append(args, limit)
+	}
+	return listCHPingRecords(ctx, clause, suffix, args)
+}
+
+func (s *clickhouseLogStore) ListRecentPingRecordsByTask(ctx context.Context, tasks map[uint]analyticsmodel.PingTaskWindow, limit int) ([]*model.OpenFlarePingRecord, error) {
+	clause, args := pingTaskNodesFilter(tasks)
+	if clause == "" || limit <= 0 {
+		return nil, nil
+	}
+	return listCHPingRecords(ctx, clause, " LIMIT ? BY node_id, task_id", append(args, limit))
+}
+
+func listCHPingRecords(ctx context.Context, clause, suffix string, args []any) ([]*model.OpenFlarePingRecord, error) {
+	conn, err := chConn()
+	if err != nil {
+		return nil, err
+	}
 	sql := fmt.Sprintf(`
 SELECT id, node_id, task_id, recorded_at, value, created_at
 FROM %s
 WHERE %s
-ORDER BY recorded_at DESC, id DESC`, chNodePingRecordTableName(), clause)
-	if limit > 0 {
-		sql += clickHouseLimitClause
-		args = append(args, limit)
-	}
+ORDER BY recorded_at DESC, id DESC%s`, chNodePingRecordTableName(), clause, suffix)
 	rows, err := conn.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list node ping records: %w", err)
@@ -209,7 +233,7 @@ func scanNodePingRecordRows(rows driver.Rows) ([]analyticsmodel.NodePingRecord, 
 		item.CreatedAt = item.CreatedAt.UTC()
 		result = append(result, item)
 	}
-	return result, nil
+	return result, rows.Err()
 }
 
 // ListTrafficHourly 读 of_access_log_hourly rollup（M5 口径，UV 恒 0）。

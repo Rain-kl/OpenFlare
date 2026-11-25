@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Plus, RefreshCw, Server } from 'lucide-react';
+import { FileText, Plus, Server } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -18,13 +18,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
@@ -37,11 +32,15 @@ import type {
 import { NodeService } from '@/lib/services/openflare';
 
 import { NodeEditorDialog } from './components/node-editor-dialog';
-import { NodesTable } from './components/nodes-table';
-import { NodeListControls } from './components/node-list-controls';
+import { NodesTable, type NodeListView } from './components/nodes-table';
+import {
+  NodeListControls,
+  NodePagination,
+} from './components/node-list-controls';
 import { getErrorMessage } from './components/node-utils';
 
 const nodesQueryKey = ['openflare', 'nodes'];
+const pageSize = 50;
 
 export function NodesPageClient() {
   return <NodesPage />;
@@ -55,7 +54,7 @@ function NodesPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<NodeItem | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [view, setView] = useState<NodeListView>('list');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState<NodeStatus | ''>('');
@@ -83,6 +82,7 @@ function NodesPage() {
     search: debouncedSearch,
     status,
     node_type: '' as const,
+    include_monitoring: true,
   };
   const nodesQuery = useQuery({
     queryKey: [...nodesQueryKey, 'page', query],
@@ -173,48 +173,36 @@ function NodesPage() {
           </h1>
         </div>
         <div className='flex items-center gap-2'>
-          <Button variant='outline' size='sm' className='h-7 text-xs' asChild>
-            <Link href='/apply-logs'>{t('applyLogs')}</Link>
+          <Button variant='outline' size='icon-sm' asChild>
+            <Link
+              href='/apply-logs'
+              aria-label={t('applyLogs')}
+              title={t('applyLogs')}
+            >
+              <FileText />
+            </Link>
           </Button>
           <Button
+            type='button'
             variant='secondary'
-            size='sm'
-            className='h-7 text-xs'
+            size='icon-sm'
+            aria-label={t('create')}
+            title={t('create')}
             onClick={handleCreate}
           >
-            <Plus className='size-3.5 mr-1' />
-            {t('create')}
+            <Plus />
           </Button>
         </div>
       </div>
 
-      <Card className='border-dashed shadow-none'>
-        <CardHeader className='pb-3'>
-          <div className='flex items-center justify-between gap-3'>
-            <div>
-              <CardTitle className='text-base font-semibold'>
-                {t('listTitle')}
-              </CardTitle>
-              <CardDescription>{t('filter.descEdge')}</CardDescription>
-            </div>
-            <Button
-              variant='outline'
-              size='sm'
-              className='h-7 text-xs'
-              onClick={handleRefresh}
-              disabled={nodesQuery.isFetching}
-            >
-              {nodesQuery.isFetching ? (
-                <Loader2 className='size-3.5 mr-1 animate-spin' />
-              ) : (
-                <RefreshCw className='size-3.5 mr-1' />
-              )}
-              {t('refreshNow')}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className='flex flex-col gap-4'>
+      <Card className='gap-2'>
+        <CardHeader className='flex flex-wrap items-start justify-between gap-3 px-4'>
+          <CardTitle className='flex min-h-8 items-center text-base font-semibold'>
+            {t('listTitle')}
+          </CardTitle>
           <NodeListControls
+            view={view}
+            onViewChange={setView}
             search={search}
             searchTooLong={searchTooLong}
             onSearchChange={setSearch}
@@ -224,23 +212,16 @@ function NodesPage() {
               setPage(1);
               resetNodeActions();
             }}
-            page={nodesQuery.data?.page ?? page}
-            pageSize={pageSize}
-            onPageSizeChange={(value) => {
-              setPageSize(value);
-              setPage(1);
-              resetNodeActions();
-            }}
-            total={total}
-            totalPages={totalPages}
-            loading={nodesQuery.isFetching || nodesQuery.isPlaceholderData}
-            hasData={Boolean(nodesQuery.data)}
-            onPageChange={(value) => {
-              setPage(value);
-              resetNodeActions();
-            }}
+            refreshing={nodesQuery.isFetching}
+            onRefresh={handleRefresh}
           />
-
+        </CardHeader>
+        <CardContent className='flex flex-col gap-3 px-4'>
+          {nodesQuery.data?.monitoring_unavailable && (
+            <Alert>
+              <AlertDescription>{t('monitoring.unavailable')}</AlertDescription>
+            </Alert>
+          )}
           {nodesQuery.isLoading ? (
             <LoadingStateWithBorder
               icon={Server}
@@ -264,6 +245,7 @@ function NodesPage() {
           ) : (
             <NodesTable
               nodes={nodes}
+              view={view}
               deletingId={
                 deleteMutation.isPending ? (deleteTarget?.id ?? null) : null
               }
@@ -272,6 +254,18 @@ function NodesPage() {
                 if (!nodesQuery.isPlaceholderData) setDeleteTarget(node);
               }}
               actionsDisabled={nodesQuery.isPlaceholderData}
+            />
+          )}
+          {nodesQuery.data && (
+            <NodePagination
+              page={nodesQuery.data.page}
+              total={total}
+              totalPages={totalPages}
+              loading={nodesQuery.isFetching || nodesQuery.isPlaceholderData}
+              onPageChange={(value) => {
+                setPage(value);
+                resetNodeActions();
+              }}
             />
           )}
         </CardContent>

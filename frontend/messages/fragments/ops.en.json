@@ -133,10 +133,9 @@
   "nodes": {
     "pagination": {
       "search": "Search nodes",
-      "searchPlaceholder": "Name, node ID or IP",
+      "searchPlaceholder": "Search name, region, OS, node ID, or IP",
       "searchTooLong": "Search text is too long. Shorten it to continue.",
       "allStatuses": "All statuses",
-      "pageSize": "Per page",
       "summary": "Page {page} of {totalPages} · {total} nodes",
       "navigation": "Node pages",
       "previous": "Previous",
@@ -235,11 +234,25 @@
       "node": "Node",
       "status": "Status",
       "version": "Version",
-      "runHealth": "Runtime health",
       "currentVersion": "Current version",
-      "latestApply": "Latest apply",
-      "lastSeen": "Last heartbeat",
       "actions": "Actions"
+    },
+    "monitoring": {
+      "cpu": "CPU",
+      "memory": "Memory",
+      "disk": "Disk",
+      "rate": "Rate",
+      "latency": "Latency",
+      "upload": "Upload",
+      "download": "Download",
+      "probeFailed": "Probe failed",
+      "milliseconds": "{value, number} ms",
+      "probeHistory": "{name} · {value} · View trend",
+      "view": "Node view",
+      "gridView": "Card view",
+      "listView": "List view",
+      "closeSearch": "Close search",
+      "unavailable": "Some monitoring data is temporarily unavailable."
     },
     "editor": {
       "editTitle": "Edit node",

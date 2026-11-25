@@ -6,12 +6,12 @@ import { NodesPageClient } from './page-client';
 
 function NodesPageFallback() {
   return (
-    <div className='py-6 px-1 space-y-6'>
+    <div className='flex w-full flex-col gap-6 py-6 px-1'>
       <div className='flex items-center justify-between gap-3'>
         <Skeleton className='h-8 w-40' />
         <div className='flex gap-2'>
-          <Skeleton className='h-7 w-20' />
-          <Skeleton className='h-7 w-24' />
+          <Skeleton className='size-8' />
+          <Skeleton className='size-8' />
         </div>
       </div>
       <Skeleton className='h-96 w-full' />

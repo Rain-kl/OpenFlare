@@ -1065,6 +1065,21 @@ func (s *gormLogStore) ListLatestMetricSnapshots(ctx context.Context, nodeID str
 	return result, nil
 }
 
+func (s *gormLogStore) ListLatestMetricSnapshotsByNodeIDs(ctx context.Context, nodeIDs []string, since time.Time) ([]*model.OpenFlareMetricSnapshot, error) {
+	if len(nodeIDs) == 0 {
+		return nil, nil
+	}
+	conn := s.db.WithContext(ctx)
+	ranked := conn.Model(&analyticsmodel.NodeMetricSnapshot{}).
+		Select("*, ROW_NUMBER() OVER (PARTITION BY node_id ORDER BY captured_at DESC, id DESC) AS sample_rank").
+		Where("node_id IN ? AND captured_at >= ?", nodeIDs, since.UTC())
+	var rows []analyticsmodel.NodeMetricSnapshot
+	if err := conn.Table("(?) AS ranked", ranked).Where("sample_rank = 1").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return fromAnalyticsNodeMetricSnapshots(rows), nil
+}
+
 func (s *gormLogStore) DeleteAllMetricSnapshots(ctx context.Context) (int64, error) {
 	if err := s.ensureWritable(ctx); err != nil {
 		return 0, err
@@ -1356,6 +1371,23 @@ func (s *gormLogStore) ListPingRecords(ctx context.Context, nodeID string, taskI
 		q = q.Limit(limit)
 	}
 	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return fromAnalyticsNodePingRecords(rows), nil
+}
+
+func (s *gormLogStore) ListRecentPingRecordsByTask(ctx context.Context, tasks map[uint]analyticsmodel.PingTaskWindow, limit int) ([]*model.OpenFlarePingRecord, error) {
+	clause, args := pingTaskNodesFilter(tasks)
+	if clause == "" || limit <= 0 {
+		return nil, nil
+	}
+	conn := s.db.WithContext(ctx)
+	ranked := conn.Model(&analyticsmodel.NodePingRecord{}).
+		Select("*, ROW_NUMBER() OVER (PARTITION BY node_id, task_id ORDER BY recorded_at DESC, id DESC) AS sample_rank").
+		Where(clause, args...)
+	var rows []analyticsmodel.NodePingRecord
+	if err := conn.Table("(?) AS ranked", ranked).Where("sample_rank <= ?", limit).
+		Order("recorded_at DESC, id DESC").Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	return fromAnalyticsNodePingRecords(rows), nil

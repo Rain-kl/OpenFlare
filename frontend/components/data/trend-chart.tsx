@@ -15,7 +15,7 @@ type TrendChartSeries = {
   label: string;
   color: string;
   fillColor?: string;
-  values: number[];
+  values: (number | null)[];
   variant?: 'line' | 'area';
   valueFormatter?: (value: number) => string;
 };
@@ -70,7 +70,7 @@ export function TrendChart({
   const option = useMemo<EChartsOption>(() => {
     const axisFormatter = yAxisValueFormatter ?? defaultFormatter;
     const maxValue = calculateNiceAxisMax(
-      series.flatMap((item) => item.values),
+      series.flatMap((item) => item.values.filter((value) => value !== null)),
     );
 
     return {
@@ -116,7 +116,7 @@ export function TrendChart({
               '<span style="display:inline-flex;align-items:center;gap:8px;">',
               `<span style="display:inline-block;width:8px;height:8px;border-radius:9999px;background:${item.color ?? '#94a3b8'};"></span>`,
               `<span>${item.seriesName ?? ''}</span>`,
-              `<strong style="margin-left:8px;">${formatter(numericValue)}</strong>`,
+              `<strong style="margin-left:8px;">${rawValue == null || !Number.isFinite(numericValue) ? '—' : formatter(numericValue)}</strong>`,
               '</span>',
             ].join('');
           });
@@ -169,7 +169,7 @@ export function TrendChart({
           name: item.label,
           type: 'line',
           smooth: true,
-          showSymbol: false,
+          showSymbol: item.values.length === 1 || item.values.includes(null),
           symbol: 'circle',
           symbolSize: 8,
           lineStyle: {
@@ -226,7 +226,10 @@ export function TrendChart({
           )}
         >
           {series.map((item) => {
-            const summaryValue = resolveSummaryValue(item.values, summaryScope);
+            const summaryValue = resolveSummaryValue(
+              item.values.filter((value) => value !== null),
+              summaryScope,
+            );
             const formatter = item.valueFormatter ?? defaultFormatter;
             return (
               <div

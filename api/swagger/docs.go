@@ -5645,7 +5645,7 @@ const docTemplate = `{
                     {
                         "maxLength": 256,
                         "type": "string",
-                        "description": "Literal substring of the node name, registration identifier or IP address, at most 256 bytes",
+                        "description": "Literal substring of the node name, registration identifier, IP address, region or operating system, at most 256 bytes",
                         "name": "search",
                         "in": "query"
                     },
@@ -5765,7 +5765,7 @@ const docTemplate = `{
                     {
                         "maxLength": 256,
                         "type": "string",
-                        "description": "Literal substring of the node name, registration identifier or IP address",
+                        "description": "Literal substring of the node name, registration identifier, IP address, region or operating system",
                         "name": "search",
                         "in": "query"
                     },
@@ -11622,7 +11622,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "名称、节点标识或 IP 的字面子串（最多 256 字节）",
+                        "description": "名称、节点标识、IP、地区或操作系统名称的字面子串（最多 256 字节）",
                         "name": "search",
                         "in": "query"
                     },
@@ -11636,6 +11636,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "节点类型（edge_node）",
                         "name": "node_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "包含系统名称、最新资源快照及近期延迟样本",
+                        "name": "include_monitoring",
                         "in": "query"
                     }
                 ],
@@ -26356,6 +26362,9 @@ const docTemplate = `{
         "apps_openflare_node.ListResult": {
             "type": "object",
             "properties": {
+                "monitoring_unavailable": {
+                    "type": "boolean"
+                },
                 "page": {
                     "type": "integer"
                 },
@@ -26370,6 +26379,80 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_node.MonitoringMetric": {
+            "type": "object",
+            "properties": {
+                "captured_at": {
+                    "type": "string"
+                },
+                "cpu_usage_percent": {
+                    "type": "number"
+                },
+                "memory_total_bytes": {
+                    "type": "integer"
+                },
+                "memory_used_bytes": {
+                    "type": "integer"
+                },
+                "net_in": {
+                    "type": "integer"
+                },
+                "net_out": {
+                    "type": "integer"
+                },
+                "storage_total_bytes": {
+                    "type": "integer"
+                },
+                "storage_used_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_node.MonitoringPing": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "samples": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_node.MonitoringPingSample"
+                    }
+                },
+                "task_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_node.MonitoringPingSample": {
+            "type": "object",
+            "properties": {
+                "recorded_at": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_node.MonitoringView": {
+            "type": "object",
+            "properties": {
+                "metric": {
+                    "$ref": "#/definitions/apps_openflare_node.MonitoringMetric"
+                },
+                "ping": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_node.MonitoringPing"
+                    }
+                },
+                "system": {
+                    "type": "string"
                 }
             }
         },
@@ -26526,6 +26609,9 @@ const docTemplate = `{
                 },
                 "latest_support_file_count": {
                     "type": "integer"
+                },
+                "monitoring": {
+                    "$ref": "#/definitions/apps_openflare_node.MonitoringView"
                 },
                 "name": {
                     "type": "string"

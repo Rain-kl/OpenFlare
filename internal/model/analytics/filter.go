@@ -42,9 +42,16 @@ type NodeAccessLogFilter struct {
 
 // NodeObservabilityFilter scopes ClickHouse node observability queries.
 type NodeObservabilityFilter struct {
-	NodeID string
-	Since  time.Time
-	Limit  int
+	NodeID  string
+	NodeIDs []string
+	Since   time.Time
+	Limit   int
+}
+
+// PingTaskWindow selects recent ping records for the given nodes of one task.
+type PingTaskWindow struct {
+	NodeIDs []string
+	Since   time.Time
 }
 
 // DailyTrend is a single day's access count.

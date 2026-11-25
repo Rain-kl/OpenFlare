@@ -133,10 +133,9 @@
   "nodes": {
     "pagination": {
       "search": "搜索节点",
-      "searchPlaceholder": "名称、节点标识或 IP",
+      "searchPlaceholder": "搜索名称、地区、系统、节点标识或 IP",
       "searchTooLong": "搜索内容过长，请缩短后重试。",
       "allStatuses": "全部状态",
-      "pageSize": "每页数量",
       "summary": "第 {page} / {totalPages} 页 · 共 {total} 个节点",
       "navigation": "节点分页",
       "previous": "上一页",
@@ -235,11 +234,25 @@
       "node": "节点",
       "status": "状态",
       "version": "Version",
-      "runHealth": "运行健康",
       "currentVersion": "当前版本",
-      "latestApply": "最近应用",
-      "lastSeen": "最近心跳",
       "actions": "操作"
+    },
+    "monitoring": {
+      "cpu": "CPU",
+      "memory": "内存",
+      "disk": "硬盘",
+      "rate": "速率",
+      "latency": "延迟",
+      "upload": "上传",
+      "download": "下载",
+      "probeFailed": "探测失败",
+      "milliseconds": "{value, number} 毫秒",
+      "probeHistory": "{name} · {value} · 查看趋势",
+      "view": "节点视图",
+      "gridView": "卡片视图",
+      "listView": "列表视图",
+      "closeSearch": "关闭搜索",
+      "unavailable": "部分监控数据暂时无法读取。"
     },
     "editor": {
       "editTitle": "编辑节点",

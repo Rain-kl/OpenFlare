@@ -221,10 +221,14 @@ curl -fsSL -X GET "https://panel.example.com/api/v1/d/dashboard/overview" \
 ### 2. 分页查询边缘节点列表
 
 ```bash
-curl -fsSL -X GET "https://panel.example.com/api/v1/d/nodes?page=1&page_size=10" \
+curl -fsSL -X GET "https://panel.example.com/api/v1/d/nodes/page?page=1&page_size=50&include_monitoring=true" \
   -H "Authorization: Bearer of_pat_9a8b7c6d5e4f3a2b1c" \
   -H "Accept: application/json"
 ```
+
+控制台的节点列表和卡片视图均使用 50 条分页。`search` 匹配名称、节点标识、IP、地区或操作系统名称。
+
+`include_monitoring=true` 为当前页的节点返回 `monitoring`。其中 `system` 为操作系统名称，`metric` 为在线节点最近 5 分钟内的最新资源快照，`net_in` 和 `net_out` 分别以字节每秒表示下载和上传速率。`ping` 按任务顺序返回最多 3 个已绑定任务，每个任务最多包含 12 条按时间升序排列的样本。延迟值以毫秒计，负值表示探测失败。部分监控数据暂时无法读取时，响应仍返回节点列表，并标记 `monitoring_unavailable`。
 
 ### 3. 创建反向代理路由规则
 
