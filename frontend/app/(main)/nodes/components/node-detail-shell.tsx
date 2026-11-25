@@ -15,7 +15,7 @@ import { NodeKpiCard } from './node-detail-primitives';
 import { NodeStatusBadge } from './node-status-badge';
 import type { StatusTone } from './node-utils';
 
-export type NodeDetailTabId = 'overview' | 'manage';
+export type NodeDetailTabId = 'overview' | 'manage' | 'logs';
 
 export type NodeDetailTabConfig = {
   id: NodeDetailTabId;
@@ -31,14 +31,18 @@ export type NodeDetailKpi = {
   valueClassName?: string;
 };
 
-const TAB_IDS: NodeDetailTabId[] = ['overview', 'manage'];
+const TAB_LABELS = {
+  overview: 'tabOverview',
+  manage: 'tabManage',
+  logs: 'tabLogs',
+} as const;
 
 function resolveTab(value: string | null): NodeDetailTabId | null {
   if (value === 'overview' || value === 'dashboard') {
     return 'overview';
   }
-  if (value === 'manage') {
-    return 'manage';
+  if (value === 'manage' || value === 'logs') {
+    return value;
   }
   return null;
 }
@@ -52,6 +56,7 @@ export function NodeDetailShell({
   kpis,
   overview,
   manage,
+  logs,
   defaultTab = 'overview',
 }: {
   title: string;
@@ -62,6 +67,7 @@ export function NodeDetailShell({
   kpis: NodeDetailKpi[];
   overview: ReactNode;
   manage: ReactNode;
+  logs: ReactNode;
   defaultTab?: NodeDetailTabId;
 }) {
   const t = useTranslations('nodes');
@@ -159,7 +165,7 @@ export function NodeDetailShell({
             variant='line'
             className='h-auto w-full justify-start gap-6 bg-transparent p-0'
           >
-            {TAB_IDS.map((tabId) => (
+            {Object.entries(TAB_LABELS).map(([tabId, label]) => (
               <TabsTrigger
                 key={tabId}
                 value={tabId}
@@ -168,7 +174,7 @@ export function NodeDetailShell({
                   'data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground',
                 )}
               >
-                {tabId === 'overview' ? t('tabOverview') : t('tabManage')}
+                {t(label)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -179,6 +185,9 @@ export function NodeDetailShell({
         </TabsContent>
         <TabsContent value='manage' className='mt-6 outline-none'>
           {activeTab === 'manage' ? manage : null}
+        </TabsContent>
+        <TabsContent value='logs' className='mt-6 outline-none'>
+          {activeTab === 'logs' ? logs : null}
         </TabsContent>
       </Tabs>
     </div>

@@ -155,6 +155,7 @@ func registerOpenFlareNodeRoutes(apiGroup *gin.RouterGroup) {
 		nodeRoute.POST("/:id/quarantine", node.QuarantineNodeHandler)
 		nodeRoute.POST("/:id/unquarantine", node.UnquarantineNodeHandler)
 		nodeRoute.GET("/:id/observability", node.GetObservabilityHandler)
+		nodeRoute.GET("/:id/runtime-logs", node.RuntimeLogsHandler)
 		nodeRoute.POST("/:id/observability/cleanup", node.CleanupHealthEventsHandler)
 		nodeRoute.GET("/:id/ping-records", ping.GetNodePingRecordsHandler)
 	}

@@ -1,3 +1,4 @@
+import { getApiBaseUrl } from '@/lib/services/core/config';
 import { OpenFlareBaseService } from './base.service';
 import type {
   NodeCertificateDelivery,
@@ -28,6 +29,13 @@ export class NodeService extends OpenFlareBaseService {
     query: NodeListQuery = {},
   ): Promise<NodeListResult> {
     return this.get<NodeListResult>('/page', { ...query });
+  }
+
+  static openRuntimeLogs(id: number): EventSource {
+    const origin = getApiBaseUrl().replace(/\/$/, '');
+    return new EventSource(`${origin}${this.basePath}/${id}/runtime-logs`, {
+      withCredentials: true,
+    });
   }
 
   static async getNode(id: number): Promise<NodeItem> {

@@ -230,6 +230,12 @@ curl -fsSL -X GET "https://panel.example.com/api/v1/d/nodes/page?page=1&page_siz
 
 `include_monitoring=true` 为当前页的节点返回 `monitoring`。其中 `system` 为操作系统名称，`metric` 为在线节点最近 5 分钟内的最新资源快照，`net_in` 和 `net_out` 分别以字节每秒表示下载和上传速率。`ping` 按任务顺序返回最多 3 个已绑定任务，每个任务最多包含 12 条按时间升序排列的样本。延迟值以毫秒计，负值表示探测失败。部分监控数据暂时无法读取时，响应仍返回节点列表，并标记 `monitoring_unavailable`。
 
+#### 实时运行日志
+
+`GET /api/v1/d/nodes/{id}/runtime-logs` 需要管理员权限。连接建立后返回 `text/event-stream`，发送 `ready` 事件。后续的 `logs` 事件携带 `lines` 字符串数组，若节点跳过积压日志，则同批返回 `dropped` 数量。订阅结束时发送 `closed` 事件。节点离线、版本不支持或无法建立订阅时返回 HTTP 503。
+
+SSE 仅包含连接后产生的 OpenFlare Edge 运行日志。响应禁止缓存，主控不持久化日志。使用反向代理部署主控时，需允许该路径持续传输 SSE。
+
 ### 3. 创建反向代理路由规则
 
 ```bash

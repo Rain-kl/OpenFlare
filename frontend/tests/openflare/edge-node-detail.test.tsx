@@ -1,5 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -25,6 +32,7 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/services/openflare')>()),
   NodeService: {
     getObservability: vi.fn(),
+    openRuntimeLogs: vi.fn(),
     updateNode: vi.fn(),
     requestForceSync: vi.fn(),
     requestEdgeRestart: vi.fn(),
@@ -133,9 +141,9 @@ function makeObservability(): NodeObservabilityData {
   } as unknown as NodeObservabilityData;
 }
 
-function renderDetail(tab: 'overview' | 'manage' = 'overview') {
+function renderDetail(tab: 'overview' | 'manage' | 'logs' = 'overview') {
   mockSearchParams = new URLSearchParams(
-    tab === 'manage' ? 'id=1&tab=manage' : 'id=1',
+    tab === 'overview' ? 'id=1' : `id=1&tab=${tab}`,
   );
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -214,4 +222,32 @@ describe('EdgeNodeDetail card layout swap', () => {
     expect(kpiScope.getByText('Last heartbeat')).toBeInTheDocument();
     expect(kpiScope.getByText('N/A')).toBeInTheDocument();
   });
+});
+
+it('opens runtime logs on demand and closes the stream when leaving the logs view', () => {
+  const source = Object.assign(new EventTarget(), { close: vi.fn() });
+  vi.mocked(NodeService.openRuntimeLogs).mockReturnValue(
+    source as unknown as EventSource,
+  );
+  const { unmount } = renderDetail('logs');
+
+  expect(screen.getByRole('tab', { name: 'Logs' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  expect(NodeService.openRuntimeLogs).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Connect to node' }));
+  expect(NodeService.openRuntimeLogs).toHaveBeenCalledWith(1);
+  act(() => {
+    source.dispatchEvent(new MessageEvent('ready'));
+    source.dispatchEvent(
+      new MessageEvent('logs', {
+        data: JSON.stringify({ lines: ['edge runtime event'] }),
+      }),
+    );
+  });
+  expect(screen.getByText('edge runtime event')).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('Connected');
+  unmount();
+  expect(source.close).toHaveBeenCalledOnce();
 });

@@ -25,4 +25,5 @@ const (
 	errEdgeUpdateUnavailable     = "no newer Edge release is available in the selected channel"
 	errEdgeReleaseLookup         = "could not check Edge releases"
 	errNodeQuarantined           = "node is quarantined"
+	errRuntimeLogsUnavailable    = "node runtime log stream is unavailable"
 )

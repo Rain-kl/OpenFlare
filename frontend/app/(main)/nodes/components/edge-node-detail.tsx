@@ -46,6 +46,7 @@ import {
   NodeSecuritySection,
 } from './node-security-section';
 import { type NodeDetailKpi, NodeDetailShell } from './node-detail-shell';
+import { NodeRuntimeLogs } from './node-runtime-logs';
 import {
   NodeErrorBanner,
   NodeInfoRow,
@@ -511,6 +512,7 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
           />
         }
         manage={manageTab}
+        logs={<NodeRuntimeLogs key={node.id} nodeId={node.id} />}
         defaultTab='overview'
       />
 

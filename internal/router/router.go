@@ -21,6 +21,7 @@ import (
 	v1 "github.com/Rain-kl/Wavelet/internal/router/v1"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	otel_trace "github.com/Rain-kl/Wavelet/pkg/trace"
 	"github.com/Rain-kl/Wavelet/pkg/util"
@@ -85,6 +86,8 @@ func Serve(onStarted func()) {
 		Handler:           r,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+
+	srv.RegisterOnShutdown(websocket.StopRuntimeLogStreams)
 
 	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", config.Config.App.Addr)
 	if err != nil {

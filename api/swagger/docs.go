@@ -12468,6 +12468,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/nodes/{id}/runtime-logs": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "通过 SSE 即时转发节点运行日志，需要管理员权限。连接建立后发送 ready 事件，日志批次使用 logs 事件，流结束时发送 closed 事件。",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "openflare-node"
+                ],
+                "summary": "实时查看节点运行日志",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "节点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE 日志流",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或节点不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "503": {
+                        "description": "节点日志流不可用",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/nodes/{id}/unquarantine": {
             "post": {
                 "security": [

@@ -25,6 +25,7 @@ const (
 
 type agentClient struct {
 	wsClientCore
+	runtimeLogs agentRuntimeLogs
 }
 
 type agentHub struct {
@@ -82,6 +83,7 @@ func ServeAgent(c *gin.Context, nodeID string) {
 			done:   make(chan struct{}),
 		},
 	}
+	conn.SetReadLimit(maxAgentMessageBytes)
 	defaultAgentHub.register(client)
 	defer defaultAgentHub.unregister(client)
 
@@ -225,6 +227,11 @@ func (c *agentClient) readPump() {
 			}
 			if handler := currentPingResultHandler(); handler != nil {
 				handler(context.Background(), c.nodeID, payload)
+			}
+		case protocol.WSMessageTypeRuntimeLogFrame:
+			var frame protocol.RuntimeLogFrame
+			if json.Unmarshal(inbound.Payload, &frame) == nil {
+				c.dispatchRuntimeLogFrame(frame)
 			}
 		default:
 			slog.Debug("agent ws unsupported message type", "node_id", c.nodeID, "type", inbound.Type)

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use tracing_subscriber::{filter::dynamic_filter_fn, prelude::*};
 
 mod config;
 mod control;
@@ -56,10 +57,19 @@ enum Command {
 }
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
+    tracing_subscriber::registry()
+        .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .with_writer(telemetry::runtime_logs::LiveLogWriter::default)
+                .with_filter(dynamic_filter_fn(|_, _| {
+                    telemetry::runtime_logs::has_subscribers()
+                })),
         )
         .init();
 

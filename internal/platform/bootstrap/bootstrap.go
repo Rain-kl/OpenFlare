@@ -186,6 +186,7 @@ func Init(ctx context.Context, opts Options) {
 			websocket.SetPingResultHandler(ping.RecordResult)
 			websocket.SetPingScheduleReloadHandler(ping.ReloadSchedule)
 			websocket.StartConfigChangeListener(ctx)
+			websocket.StartRuntimeLogRelay(ctx)
 			lifecycle.OnShutdown("live edge snapshot", config_version.StartRefreshLoop(ctx))
 			logwriter.Init(ctx)
 			admin_status.RegisterBatchWriterStatsProvider(logwriter.WriterStats)

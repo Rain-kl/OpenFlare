@@ -12,7 +12,8 @@ use std::{
     },
     time::Duration,
 };
-use tokio::sync::{mpsc, Notify, Semaphore};
+use tokio::sync::{broadcast, mpsc, Notify, Semaphore};
+use tokio::time::Instant;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{client::IntoClientRequest, Message},
@@ -21,6 +22,9 @@ use tokio_tungstenite::{
 const MAX_CONCURRENT_PINGS: usize = 16;
 const MAX_CONCURRENT_EXECS: usize = 4;
 const WS_OUTBOUND_BUFFER: usize = 64;
+const LIVE_LOG_BATCH: usize = 8;
+const LIVE_LOG_TICK: Duration = Duration::from_millis(100);
+const LIVE_LOG_LEASE: Duration = Duration::from_secs(45);
 
 #[derive(Default)]
 pub(super) struct Wake {
@@ -91,6 +95,56 @@ struct OutboundMessage<T: Serialize> {
     payload: T,
 }
 
+#[derive(Deserialize)]
+struct LogSubscription {
+    stream_id: String,
+}
+
+#[derive(Serialize)]
+struct LogFrame<'a> {
+    stream_id: &'a str,
+    ready: bool,
+    lines: Vec<String>,
+    dropped: u64,
+}
+
+struct LiveLogs {
+    stream_id: String,
+    expires: Instant,
+    receiver: broadcast::Receiver<String>,
+}
+
+impl LiveLogs {
+    fn start(stream_id: String) -> Self {
+        Self {
+            stream_id,
+            expires: Instant::now() + LIVE_LOG_LEASE,
+            receiver: crate::telemetry::runtime_logs::subscribe(),
+        }
+    }
+
+    fn batch(&mut self) -> Option<LogFrame<'_>> {
+        let mut lines = Vec::new();
+        let mut dropped = 0;
+        for _ in 0..LIVE_LOG_BATCH {
+            match self.receiver.try_recv() {
+                Ok(line) => lines.push(line),
+                Err(broadcast::error::TryRecvError::Lagged(count)) => dropped += count,
+                Err(_) => break,
+            }
+        }
+        if lines.is_empty() && dropped == 0 {
+            return None;
+        }
+        Some(LogFrame {
+            stream_id: &self.stream_id,
+            ready: false,
+            lines,
+            dropped,
+        })
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn connect(
     base_url: &str,
@@ -119,6 +173,9 @@ async fn connect(
     let (outbound_tx, mut outbound_rx) = mpsc::channel::<String>(WS_OUTBOUND_BUFFER);
     let mut keepalive = tokio::time::interval(Duration::from_secs(20));
     keepalive.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut live_logs: Option<LiveLogs> = None;
+    let mut log_tick = tokio::time::interval(LIVE_LOG_TICK);
+    log_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
     loop {
         tokio::select! {
@@ -166,6 +223,26 @@ async fn connect(
                                     }
                                 }
                             }
+                            "runtime_log_subscribe" => {
+                                if let Some(subscription) = message.payload.and_then(|p| serde_json::from_value::<LogSubscription>(p).ok()) {
+                                    if let Some(live) = live_logs.as_mut().filter(|live| live.stream_id == subscription.stream_id) {
+                                        live.expires = Instant::now() + LIVE_LOG_LEASE;
+                                        continue;
+                                    }
+                                    let live = LiveLogs::start(subscription.stream_id);
+                                    let frame = LogFrame { stream_id: &live.stream_id, ready: true, lines: Vec::new(), dropped: 0 };
+                                    let text = serde_json::to_string(&OutboundMessage { kind: "runtime_log_frame", payload: frame })?;
+                                    live_logs = Some(live);
+                                    tokio::time::timeout(Duration::from_secs(5), sink.send(Message::Text(text.into()))).await??;
+                                }
+                            }
+                            "runtime_log_unsubscribe" => {
+                                if let Some(subscription) = message.payload.and_then(|p| serde_json::from_value::<LogSubscription>(p).ok()) {
+                                    if live_logs.as_ref().is_some_and(|live| live.stream_id == subscription.stream_id) {
+                                        live_logs = None;
+                                    }
+                                }
+                            }
                             "remote_exec" => {
                                 if let Some(payload) = message.payload {
                                     match serde_json::from_value::<ExecRequest>(payload) {
@@ -197,6 +274,16 @@ async fn connect(
                     Duration::from_secs(5),
                     sink.send(Message::Text(outbound.into())),
                 ).await??;
+            }
+            _ = log_tick.tick(), if live_logs.is_some() => {
+                if let Some(live) = live_logs.as_mut() {
+                    if live.expires <= Instant::now() {
+                        live_logs = None;
+                    } else if let Some(frame) = live.batch() {
+                        let text = serde_json::to_string(&OutboundMessage { kind: "runtime_log_frame", payload: frame })?;
+                        tokio::time::timeout(Duration::from_secs(5), sink.send(Message::Text(text.into()))).await??;
+                    }
+                }
             }
             _ = keepalive.tick() => {
                 tokio::time::timeout(
