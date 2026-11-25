@@ -21,6 +21,7 @@ const copy = {
   zh: {
     navDocs: '阅读文档',
     github: 'GitHub',
+    telegram: 'Telegram',
     eyebrow: 'OPEN SOURCE · EDGE SECURITY',
     title: '让边缘网络',
     accent: '清晰可控',
@@ -91,11 +92,14 @@ const copy = {
     ctaTitle: '从第一台节点开始',
     ctaText: '快速开始指南涵盖 Server 部署、首次登录与节点接入。',
     ctaButton: '打开快速开始',
+    ctaCommunity: '加入 Telegram 群组',
+    footerCommunity: 'Telegram 群组',
     footer: '基于 Apache License 2.0 发布',
   },
   en: {
     navDocs: 'Read the docs',
     github: 'GitHub',
+    telegram: 'Telegram',
     eyebrow: 'OPEN SOURCE · EDGE SECURITY',
     title: 'Make your edge',
     accent: 'clear and controlled',
@@ -166,6 +170,8 @@ const copy = {
     ctaTitle: 'Begin with your first node',
     ctaText: 'The quick start covers Server deployment, first login, and connecting an edge node.',
     ctaButton: 'Open the quick start',
+    ctaCommunity: 'Join Telegram Group',
+    footerCommunity: 'Telegram Group',
     footer: 'Released under the Apache License 2.0',
   },
 } as const;
@@ -174,6 +180,7 @@ export function LandingPage({ locale }: LandingPageProps) {
   const text = copy[locale];
   const homeUrl = locale === 'zh' ? '/' : '/en';
   const githubUrl = 'https://github.com/Rain-kl/OpenFlare';
+  const telegramUrl = 'https://t.me/OpenFlareCDN';
 
   return (
     <main className="landing-page relative">
@@ -194,13 +201,22 @@ export function LandingPage({ locale }: LandingPageProps) {
             {locale === 'zh' ? 'EN' : '中文'}
           </Link>
           <Link
-            className="hidden rounded-full px-4 py-2 text-sm font-medium text-fd-muted-foreground transition hover:bg-fd-accent hover:text-fd-foreground sm:inline-flex"
+            className="hidden items-center rounded-full px-4 py-2 text-sm font-medium text-fd-muted-foreground transition hover:bg-fd-accent hover:text-fd-foreground sm:inline-flex"
             href={githubUrl}
             rel="noreferrer"
             target="_blank"
           >
             <ArrowUpRight aria-hidden="true" className="mr-2 size-4" />
             {text.github}
+          </Link>
+          <Link
+            className="hidden items-center rounded-full px-4 py-2 text-sm font-medium text-fd-muted-foreground transition hover:bg-fd-accent hover:text-fd-foreground sm:inline-flex"
+            href={telegramUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <ArrowUpRight aria-hidden="true" className="mr-2 size-4" />
+            {text.telegram}
           </Link>
           <Link
             className="inline-flex items-center gap-2 rounded-full bg-fd-primary px-4 py-2 text-sm font-medium text-fd-primary-foreground transition hover:opacity-90"
@@ -428,13 +444,24 @@ export function LandingPage({ locale }: LandingPageProps) {
             <p className="mt-3 text-sm leading-6 text-fd-muted-foreground sm:text-base">
               {text.ctaText}
             </p>
-            <Link
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-fd-primary px-5 py-3 text-sm font-semibold text-fd-primary-foreground transition hover:gap-3"
-              href={locale === 'zh' ? '/guide/quick-start' : '/en/guide/quick-start'}
-            >
-              {text.ctaButton}
-              <ArrowRight aria-hidden="true" className="size-4" />
-            </Link>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link
+                className="inline-flex items-center gap-2 rounded-full bg-fd-primary px-5 py-3 text-sm font-semibold text-fd-primary-foreground transition hover:gap-3"
+                href={locale === 'zh' ? '/guide/quick-start' : '/en/guide/quick-start'}
+              >
+                {text.ctaButton}
+                <ArrowRight aria-hidden="true" className="size-4" />
+              </Link>
+              <Link
+                className="inline-flex items-center gap-2 rounded-full border border-dashed border-fd-border px-5 py-3 text-sm font-medium transition hover:border-fd-primary/50 hover:bg-fd-accent"
+                href={telegramUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {text.ctaCommunity}
+                <ArrowUpRight aria-hidden="true" className="size-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -442,7 +469,25 @@ export function LandingPage({ locale }: LandingPageProps) {
       <footer className="border-t border-dashed border-fd-border px-6 py-6">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 text-xs text-fd-muted-foreground sm:flex-row lg:px-10">
           <span>© OpenFlare contributors</span>
-          <span>{text.footer}</span>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link
+              className="transition hover:text-fd-foreground"
+              href={telegramUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {text.footerCommunity}
+            </Link>
+            <Link
+              className="transition hover:text-fd-foreground"
+              href={githubUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {text.github}
+            </Link>
+            <span>{text.footer}</span>
+          </div>
         </div>
       </footer>
     </main>

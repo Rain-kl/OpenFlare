@@ -181,3 +181,10 @@ curl -Iv https://your-domain
 * 响应带 `Set-Cookie` 或 `private`：**不入库**。  
 * 无源站缓存头的可缓存状态码：使用默认 Edge TTL（如 200 约 120 分钟）。
 
+## 进一步获取支持
+
+若上述排查步骤未能定位问题，可通过以下渠道获取协助（建议附带 Server 日志、节点日志与版本信息）：
+
+* **Telegram 群组**：[https://t.me/OpenFlareCDN](https://t.me/OpenFlareCDN)，用于日常使用交流与部署答疑。
+* **GitHub Issues**：[https://github.com/Rain-kl/OpenFlare/issues](https://github.com/Rain-kl/OpenFlare/issues)，用于提交可复现的缺陷报告与功能建议。
+

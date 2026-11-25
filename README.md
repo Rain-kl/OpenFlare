@@ -21,6 +21,9 @@
   <a href="https://github.com/Rain-kl/OpenFlare/pkgs/container/openflare">
     <img src="https://img.shields.io/badge/GHCR-ghcr.io%2Frain--kl%2Fopenflare-brightgreen" alt="ghcr">
   </a>
+  <a href="https://t.me/OpenFlareCDN">
+    <img src="https://img.shields.io/badge/Telegram-%40OpenFlareCDN-26A5E4?logo=telegram&logoColor=white" alt="Telegram">
+  </a>
 </p>
 
 </div>
@@ -260,6 +263,13 @@ Official Documentation: **[https://openflare.cc](https://openflare.cc)**
 | **OpenFlared Client** | 1 CPU / 256 MB RAM / 1 GB Disk | 1 CPU / 512 MB RAM / 5 GB Disk | Extremely lightweight client |
 
 </details>
+
+---
+
+## 💬 Community
+
+* **Telegram Group**: [https://t.me/OpenFlareCDN](https://t.me/OpenFlareCDN) — usage discussions, deployment questions, and community feedback.
+* **GitHub Issues**: [Rain-kl/OpenFlare/issues](https://github.com/Rain-kl/OpenFlare/issues) — bug reports and feature requests.
 
 ---
 

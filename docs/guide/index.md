@@ -64,3 +64,10 @@ OpenFlare 是基于 OpenFlare Edge 边缘架构的分布式反向代理与边缘
 - [技术参考](../reference/index.md)：查询配置项、命令行、接口协议与性能基准。
 - [架构设计](../design/index.md)：了解系统架构、数据模型、状态同步与安全机制。
 - [更新日志](../changelog/index.md)：查看版本变更与升级注意事项。
+
+---
+
+## 社区与支持
+
+- [Telegram 群组](https://t.me/OpenFlareCDN)：使用交流、部署答疑与社区反馈。
+- [GitHub Issues](https://github.com/Rain-kl/OpenFlare/issues)：提交缺陷报告与功能建议。

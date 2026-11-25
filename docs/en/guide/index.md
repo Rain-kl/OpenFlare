@@ -64,3 +64,10 @@ Maintenance, diagnostic procedures, and open-source references:
 - [Reference](../reference/index.md): look up configuration settings, commands, protocols, and benchmarks.
 - [Architecture](../design/index.md): explore system architecture, data models, configuration synchronization, and security.
 - [Changelog](../changelog/index.md): review release changes and upgrade notes.
+
+---
+
+## Community & Support
+
+- [Telegram Group](https://t.me/OpenFlareCDN): usage discussions, deployment questions, and community feedback.
+- [GitHub Issues](https://github.com/Rain-kl/OpenFlare/issues): bug reports and feature requests.

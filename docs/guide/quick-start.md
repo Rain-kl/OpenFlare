@@ -176,7 +176,7 @@ sudo bash install-openflare-edge.sh \
 4. 重建或重装 Agent（重新执行安装脚本）。
 5. 上述步骤均无效时，携带 Server 日志与节点应用记录提交 [GitHub Issue](https://github.com/Rain-kl/OpenFlare/issues)。
 
-更多排查思路见 [故障排查](./troubleshooting.md)。
+更多排查思路见 [故障排查](./troubleshooting.md)，日常使用与部署交流可加入 [Telegram 群组](https://t.me/OpenFlareCDN)。
 
 ---
 

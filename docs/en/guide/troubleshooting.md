@@ -179,3 +179,10 @@ Access logs classify cache status into three categories: **Hit** (HIT/STALE/REVA
 * Authenticated users with login cookies requesting `/_app/**/*.js`: **Can HIT**.
 * Responses with `Set-Cookie` or `private`: **Not stored**.
 * Cacheable status codes without origin caching headers: use default Edge TTL (~120 minutes for HTTP 200).
+
+## Getting Further Support
+
+If the steps above do not resolve the issue, seek assistance through the following channels (include Server logs, node logs, and version details when applicable):
+
+* **Telegram Group**: [https://t.me/OpenFlareCDN](https://t.me/OpenFlareCDN) for usage discussions and deployment questions.
+* **GitHub Issues**: [https://github.com/Rain-kl/OpenFlare/issues](https://github.com/Rain-kl/OpenFlare/issues) for reproducible bug reports and feature requests.

@@ -176,7 +176,7 @@ Handle in this order:
 4. Rebuild or reinstall the Agent (re-run the install script).
 5. If none of the above works, file a [GitHub Issue](https://github.com/Rain-kl/OpenFlare/issues) with the Server logs and node apply records.
 
-More troubleshooting: [Troubleshooting](./troubleshooting.md).
+For more diagnostics, see [Troubleshooting](./troubleshooting.md). For usage and deployment discussions, join the [Telegram Group](https://t.me/OpenFlareCDN).
 
 ---
 

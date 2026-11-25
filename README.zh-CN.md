@@ -22,6 +22,9 @@
   <a href="https://github.com/Rain-kl/OpenFlare/pkgs/container/openflare">
     <img src="https://img.shields.io/badge/GHCR-ghcr.io%2Frain--kl%2Fopenflare-brightgreen" alt="ghcr">
   </a>
+  <a href="https://t.me/OpenFlareCDN">
+    <img src="https://img.shields.io/badge/Telegram-%40OpenFlareCDN-26A5E4?logo=telegram&logoColor=white" alt="Telegram">
+  </a>
 </p>
 
 </div>
@@ -261,6 +264,13 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/upda
 | **OpenFlared 客户端** | 1 核 CPU / 256 MB 内存 / 1 GB 磁盘 | 1 核 CPU / 512 MB 内存 / 5 GB 磁盘 | 极低内存占用，保证网络连接畅通即可 |
 
 </details>
+
+---
+
+## 💬 社区交流
+
+* **Telegram 群组**：[https://t.me/OpenFlareCDN](https://t.me/OpenFlareCDN) —— 使用交流、部署答疑与社区反馈。
+* **GitHub Issues**：[Rain-kl/OpenFlare/issues](https://github.com/Rain-kl/OpenFlare/issues) —— 缺陷反馈与功能建议。
 
 ---
 
