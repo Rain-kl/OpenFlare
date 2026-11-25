@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Command openflare connects to an OpenFlare control plane for routine operations.
 package main
 

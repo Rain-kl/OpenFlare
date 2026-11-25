@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Package automation serves the OpenFlare CLI API, MCP tools, and OAuth flow.
 package automation
 
