@@ -4,10 +4,11 @@ import { useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Loader2 } from 'lucide-react';
+import { Loader2, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,11 +18,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -42,11 +50,12 @@ import {
   resolveZoneDomainInput,
   type ZoneDomainInputError,
 } from './resolve-zone-domain-input';
+import { findMatchingCertificate, getCertificateMatch } from './website-utils';
 
 type Values = {
   zone_id: string;
   domain_input: string;
-  cert_id: string;
+  manual_cert_id: string | null;
 };
 
 export function QuickCreateZoneDomainDialog({
@@ -115,14 +124,14 @@ export function QuickCreateZoneDomainDialog({
   const schema = z.object({
     zone_id: z.string().min(1, t('selectZone')),
     domain_input: z.string().min(1, t('enterDomain')),
-    cert_id: z.string(),
+    manual_cert_id: z.string().nullable(),
   });
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
       zone_id: fixedZoneId ? String(fixedZoneId) : '',
       domain_input: '',
-      cert_id: '',
+      manual_cert_id: null,
     },
   });
 
@@ -133,7 +142,7 @@ export function QuickCreateZoneDomainDialog({
     form.reset({
       zone_id: fixedZoneId ? String(fixedZoneId) : '',
       domain_input: '',
-      cert_id: '',
+      manual_cert_id: null,
     });
   }, [fixedZoneId, form, open]);
 
@@ -151,22 +160,33 @@ export function QuickCreateZoneDomainDialog({
     ? previewZoneDomainInput(watchedInput, selectedZone.domain)
     : '';
 
+  const certificates = certificatesQuery.data ?? [];
+  const manualCertificateId = form.watch('manual_cert_id');
+  const suggestedCertificate =
+    manualCertificateId === null
+      ? findMatchingCertificate(certificates, preview)
+      : undefined;
+  const certificateId =
+    manualCertificateId ?? String(suggestedCertificate?.id ?? '');
+  const selectedCertificate = certificates.find(
+    (certificate) => String(certificate.id) === certificateId,
+  );
+  const certificateMismatch =
+    !!preview &&
+    !!selectedCertificate &&
+    !getCertificateMatch(selectedCertificate, preview);
+  const { errors } = form.formState;
+
   const mutation = useMutation({
-    mutationFn: async (values: Values) => {
-      const zoneId = Number(values.zone_id);
-      const zone = fixedZone ?? zones.find((item) => item.id === zoneId);
-      if (!zone) {
-        throw new Error(t('selectZone'));
-      }
-      const resolved = resolveZoneDomainInput(values.domain_input, zone.domain);
-      if (resolved.error || !resolved.domain) {
-        throw new Error(domainErrorMessage(resolved.error, zone.domain));
-      }
-      return ZoneDomainService.create(zone.id, {
-        domain: resolved.domain,
-        cert_id: values.cert_id ? Number(values.cert_id) : null,
-      });
-    },
+    mutationFn: ({
+      zoneId,
+      domain,
+      certId,
+    }: {
+      zoneId: number;
+      domain: string;
+      certId: number | null;
+    }) => ZoneDomainService.create(zoneId, { domain, cert_id: certId }),
     onSuccess: async (domain) => {
       toast.success(t('domainAdded'), { description: domain.domain });
       await Promise.all([
@@ -192,7 +212,6 @@ export function QuickCreateZoneDomainDialog({
 
         <form
           id='quick-create-zone-domain'
-          className='space-y-4'
           onSubmit={form.handleSubmit((values) => {
             if (!selectedZone) {
               form.setError('zone_id', { message: t('selectZone') });
@@ -211,102 +230,146 @@ export function QuickCreateZoneDomainDialog({
               });
               return;
             }
-            mutation.mutate(values);
+            mutation.mutate({
+              zoneId: selectedZone.id,
+              domain: resolved.domain,
+              certId: certificateId ? Number(certificateId) : null,
+            });
           })}
         >
-          {!fixedZoneId ? (
-            <div className='space-y-1.5'>
-              <Label>{uiText('ui_zone')}</Label>
+          <FieldGroup className='gap-4'>
+            {!fixedZoneId ? (
+              <Field className='gap-1.5' data-invalid={!!errors.zone_id}>
+                <FieldLabel htmlFor='quick-create-zone'>
+                  {uiText('ui_zone')}
+                </FieldLabel>
+                <Select
+                  value={watchedZoneId}
+                  onValueChange={(value) => form.setValue('zone_id', value)}
+                >
+                  <SelectTrigger
+                    id='quick-create-zone'
+                    aria-invalid={!!errors.zone_id}
+                  >
+                    <SelectValue placeholder={t('selectRegisteredRoot')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {zones.map((zone) => (
+                        <SelectItem key={zone.id} value={String(zone.id)}>
+                          {zone.domain}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldError errors={[errors.zone_id]} />
+              </Field>
+            ) : (
+              <div className='rounded-md border bg-muted/30 px-3 py-2 text-sm'>
+                {t('zoneLabel')}
+                <span className='ml-1 font-medium'>
+                  {fixedZoneRoot || fixedZone?.domain || `#${fixedZoneId}`}
+                </span>
+              </div>
+            )}
+
+            <Field className='gap-1.5' data-invalid={!!errors.domain_input}>
+              <FieldLabel htmlFor='domain-input'>{t('domain')}</FieldLabel>
+              <Input
+                id='domain-input'
+                aria-invalid={!!errors.domain_input}
+                placeholder={
+                  selectedZone
+                    ? t('domainPlaceholderWithZone', {
+                        domain: selectedZone.domain,
+                      })
+                    : t('domainPlaceholder')
+                }
+                {...form.register('domain_input')}
+              />
+              {preview ? (
+                <FieldDescription>
+                  {t('willCreate')}
+                  <code className='ml-1 rounded bg-muted px-1 py-0.5 font-mono text-[11px]'>
+                    {preview}
+                  </code>
+                </FieldDescription>
+              ) : (
+                <FieldDescription>
+                  {t.rich('domainExample', {
+                    api: (chunks) => (
+                      <code className='font-mono'>{chunks}</code>
+                    ),
+                    fqdn: (chunks) => (
+                      <code className='font-mono'>{chunks}</code>
+                    ),
+                    apex: (chunks) => (
+                      <code className='font-mono'>{chunks}</code>
+                    ),
+                  })}
+                </FieldDescription>
+              )}
+              <FieldError errors={[errors.domain_input]} />
+            </Field>
+
+            <Field className='gap-1.5' data-invalid={certificateMismatch}>
+              <FieldLabel htmlFor='quick-create-cert'>
+                {t('certOptional')}
+              </FieldLabel>
               <Select
-                value={form.watch('zone_id') || undefined}
-                onValueChange={(value) => form.setValue('zone_id', value)}
+                value={certificateId || '__none'}
+                onValueChange={(value) => {
+                  // The native select can emit an empty value while options load.
+                  if (value) {
+                    form.setValue(
+                      'manual_cert_id',
+                      value === '__none' ? '' : value,
+                    );
+                  }
+                }}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder={t('selectRegisteredRoot')} />
+                <SelectTrigger
+                  id='quick-create-cert'
+                  aria-invalid={certificateMismatch}
+                  aria-describedby={
+                    certificateMismatch
+                      ? 'quick-create-cert-warning'
+                      : undefined
+                  }
+                >
+                  <SelectValue placeholder={t('noCert')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {zones.map((zone) => (
-                    <SelectItem key={zone.id} value={String(zone.id)}>
-                      {zone.domain}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectItem value='__none'>{t('noCert')}</SelectItem>
+                    {certificates.map((certificate) => {
+                      const labelDomain =
+                        certificate.dns_names?.[0] ||
+                        certificate.primary_domain;
+                      return (
+                        <SelectItem
+                          key={certificate.id}
+                          value={String(certificate.id)}
+                        >
+                          {certificate.name}
+                          {labelDomain ? ` · ${labelDomain}` : ''}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
-              {form.formState.errors.zone_id ? (
-                <p className='text-xs text-destructive'>
-                  {form.formState.errors.zone_id.message}
-                </p>
+              {certificateMismatch ? (
+                <Alert variant='destructive' id='quick-create-cert-warning'>
+                  <TriangleAlert />
+                  <AlertDescription>
+                    {t('certificateMismatch', { domain: preview })}
+                  </AlertDescription>
+                </Alert>
               ) : null}
-            </div>
-          ) : (
-            <div className='rounded-md border bg-muted/30 px-3 py-2 text-sm'>
-              {t('zoneLabel')}
-              <span className='ml-1 font-medium'>
-                {fixedZoneRoot || fixedZone?.domain || `#${fixedZoneId}`}
-              </span>
-            </div>
-          )}
-
-          <div className='space-y-1.5'>
-            <Label htmlFor='domain-input'>{t('domain')}</Label>
-            <Input
-              id='domain-input'
-              placeholder={
-                selectedZone
-                  ? t('domainPlaceholderWithZone', {
-                      domain: selectedZone.domain,
-                    })
-                  : t('domainPlaceholder')
-              }
-              {...form.register('domain_input')}
-            />
-            {preview ? (
-              <p className='text-xs text-muted-foreground'>
-                {t('willCreate')}
-                <code className='ml-1 rounded bg-muted px-1 py-0.5 font-mono text-[11px]'>
-                  {preview}
-                </code>
-              </p>
-            ) : (
-              <p className='text-xs text-muted-foreground'>
-                {t.rich('domainExample', {
-                  api: (chunks) => <code className='font-mono'>{chunks}</code>,
-                  fqdn: (chunks) => <code className='font-mono'>{chunks}</code>,
-                  apex: (chunks) => <code className='font-mono'>{chunks}</code>,
-                })}
-              </p>
-            )}
-            {form.formState.errors.domain_input ? (
-              <p className='text-xs text-destructive'>
-                {form.formState.errors.domain_input.message}
-              </p>
-            ) : null}
-          </div>
-
-          <div className='space-y-1.5'>
-            <Label>{t('certOptional')}</Label>
-            <Select
-              value={form.watch('cert_id') || '__none'}
-              onValueChange={(value) =>
-                form.setValue('cert_id', value === '__none' ? '' : value)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t('noCert')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='__none'>{t('noCert')}</SelectItem>
-                {(certificatesQuery.data ?? []).map((certificate) => (
-                  <SelectItem
-                    key={certificate.id}
-                    value={String(certificate.id)}
-                  >
-                    {certificate.name} · {certificate.primary_domain}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            </Field>
+          </FieldGroup>
         </form>
 
         <DialogFooter>
@@ -316,7 +379,12 @@ export function QuickCreateZoneDomainDialog({
           <Button
             type='submit'
             form='quick-create-zone-domain'
-            disabled={mutation.isPending}
+            disabled={
+              mutation.isPending ||
+              (!!preview &&
+                manualCertificateId === null &&
+                certificatesQuery.isLoading)
+            }
           >
             {mutation.isPending ? (
               <Loader2 className='mr-1 size-4 animate-spin' />

@@ -17,6 +17,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/credential"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
 // CertificateInput TLS 证书创建/更新请求。
@@ -72,9 +73,37 @@ type DNSAccountInput struct {
 	Authorization string `json:"authorization"`
 }
 
+// CertificateListItem 包含已签发证书中的 DNS 名称。
+type CertificateListItem struct {
+	model.TLSCertificate
+	DNSNames []string `json:"dns_names"`
+}
+
 // ListCertificates 列出全部证书（不含 PEM）。
-func ListCertificates(ctx context.Context) ([]model.TLSCertificate, error) {
-	return repository.ListTLSCertificates(ctx)
+func ListCertificates(ctx context.Context) ([]CertificateListItem, error) {
+	certificates, err := repository.ListTLSCertificates(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]CertificateListItem, 0, len(certificates))
+	for i := range certificates {
+		certificate := &certificates[i]
+		item := CertificateListItem{
+			TLSCertificate: *sanitizeCertificateForResponse(certificate),
+			DNSNames:       []string{},
+		}
+		if certificate.CertPEM != "" {
+			leaf, err := parseLeafCertificate(certificate.CertPEM)
+			if err != nil {
+				logger.WarnF(ctx, "[TLS] could not read DNS names for certificate %d: %v", certificate.ID, err)
+			} else {
+				item.DNSNames = append(item.DNSNames, leaf.DNSNames...)
+				item.NotBefore, item.NotAfter = leaf.NotBefore, leaf.NotAfter
+			}
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 // GetCertificate 获取证书详情（不含 PEM）。

@@ -156,6 +156,7 @@ export type {
   TlsCertificateDetailItem,
   TlsCertificateFileImportPayload,
   TlsCertificateItem,
+  TlsCertificateListItem,
   TlsCertificateMutationPayload,
   CloudflareAvailableDomain,
   CloudflareConnection,

@@ -104,7 +104,8 @@
     "willCreate": "将创建：",
     "domainExample": "示例：<api>api</api> → <fqdn>api.zone.com</fqdn>；<apex>@</apex> → 根域；* → *.zone.com。泛域名无法直接访问，请使用匹配的具体主机名进行访问。",
     "certOptional": "证书（可选）",
-    "noCert": "不绑定证书"
+    "noCert": "不绑定证书",
+    "certificateMismatch": "所选证书未覆盖域名 {domain}，HTTPS 访问可能失败。"
   },
   "certificates": {
     "title": "证书",

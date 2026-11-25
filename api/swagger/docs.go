@@ -15654,7 +15654,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "返回全部 TLS 证书（不含 PEM），需要管理员权限",
+                "description": "返回全部 TLS 证书及已签发证书中的 DNS 名称（不含 PEM），需要管理员权限",
                 "produces": [
                     "application/json"
                 ],
@@ -15676,7 +15676,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.TLSCertificate"
+                                                "$ref": "#/definitions/apps_openflare_tls.CertificateListItem"
                                             }
                                         }
                                     }
@@ -28371,6 +28371,77 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "remark": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_tls.CertificateListItem": {
+            "type": "object",
+            "properties": {
+                "acme_account_id": {
+                    "type": "integer"
+                },
+                "apply_message": {
+                    "type": "string"
+                },
+                "apply_status": {
+                    "type": "string"
+                },
+                "auto_renew": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "disable_cname": {
+                    "type": "boolean"
+                },
+                "dns1": {
+                    "type": "string"
+                },
+                "dns2": {
+                    "type": "string"
+                },
+                "dns_account_id": {
+                    "type": "integer"
+                },
+                "dns_names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "key_algorithm": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "not_after": {
+                    "type": "string"
+                },
+                "not_before": {
+                    "type": "string"
+                },
+                "other_domains": {
+                    "type": "string"
+                },
+                "primary_domain": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "skip_dns": {
+                    "type": "boolean"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

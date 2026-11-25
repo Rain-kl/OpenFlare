@@ -1593,6 +1593,10 @@ export interface TlsCertificateItem {
   updated_at: string;
 }
 
+export interface TlsCertificateListItem extends TlsCertificateItem {
+  dns_names: string[];
+}
+
 export interface TlsCertificateDetailItem extends TlsCertificateItem {
   cert_pem?: never;
   key_pem?: never;

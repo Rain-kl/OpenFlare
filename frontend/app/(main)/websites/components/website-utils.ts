@@ -2,6 +2,7 @@ import { runtimeText } from '@/i18n/runtime';
 import type {
   TlsCertificateFileImportPayload,
   TlsCertificateItem,
+  TlsCertificateListItem,
   TlsCertificateMutationPayload,
 } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
@@ -64,6 +65,44 @@ export function buildCertificateLabel(certificate: TlsCertificateItem) {
         value1: formatDateTime(certificate.not_after),
       })
     : certificate.name;
+}
+
+export function getCertificateMatch(
+  certificate: TlsCertificateListItem,
+  domain: string,
+) {
+  const names = (certificate.dns_names ?? []).map((name) => name.toLowerCase());
+  if (names.includes(domain)) {
+    return 'exact';
+  }
+  // A wildcard covers one label. A wildcard domain needs the same wildcard SAN.
+  if (names.includes(domain.replace(/^[^.]+\./, '*.'))) {
+    return 'wildcard';
+  }
+}
+
+export function findMatchingCertificate(
+  certificates: TlsCertificateListItem[],
+  domain: string,
+) {
+  if (!domain) return;
+
+  const now = Date.now();
+  const validCertificates = certificates
+    .filter(
+      (certificate) =>
+        Date.parse(certificate.not_before) <= now &&
+        now < Date.parse(certificate.not_after),
+    )
+    .sort((a, b) => Date.parse(b.not_after) - Date.parse(a.not_after));
+  return (
+    validCertificates.find(
+      (certificate) => getCertificateMatch(certificate, domain) === 'exact',
+    ) ??
+    validCertificates.find(
+      (certificate) => getCertificateMatch(certificate, domain) === 'wildcard',
+    )
+  );
 }
 
 export function toManualPayload(

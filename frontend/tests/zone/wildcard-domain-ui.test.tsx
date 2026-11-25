@@ -12,6 +12,7 @@ import {
   TlsCertificateService,
   ZoneDomainService,
   ZoneService,
+  type TlsCertificateListItem,
   type ZoneDomainItem,
 } from '@/lib/services/openflare';
 import zhCN from '@/messages/zh-CN.json';
@@ -34,6 +35,30 @@ const wildcardDomain: ZoneDomainItem = {
   domain: '*.example.com',
   cert_id: null,
   proxy_route_id: null,
+  created_at: '',
+  updated_at: '',
+};
+
+const wildcardCertificate: TlsCertificateListItem = {
+  id: 9,
+  name: 'Wildcard',
+  provider: 'upload',
+  acme_account_id: 0,
+  dns_account_id: 0,
+  key_algorithm: '',
+  auto_renew: false,
+  primary_domain: '',
+  other_domains: '',
+  dns_names: ['*.example.com'],
+  disable_cname: false,
+  skip_dns: false,
+  dns1: '',
+  dns2: '',
+  apply_status: 'ready',
+  apply_message: '',
+  not_before: '2020-01-01T00:00:00Z',
+  not_after: '2099-01-01T00:00:00Z',
+  remark: '',
   created_at: '',
   updated_at: '',
 };
@@ -61,11 +86,15 @@ describe('wildcard domain entry points', () => {
       async (_zoneId, payload) => ({
         ...wildcardDomain,
         domain: payload.domain,
+        cert_id: payload.cert_id ?? null,
       }),
     );
   });
 
-  it('quick-add previews and submits * as a wildcard under the selected zone', async () => {
+  it('quick-add previews and submits * with its matching wildcard certificate', async () => {
+    vi.mocked(TlsCertificateService.list).mockResolvedValue([
+      wildcardCertificate,
+    ]);
     const onCreated = vi.fn();
     renderUI(
       <QuickCreateZoneDomainDialog
@@ -80,14 +109,83 @@ describe('wildcard domain entry points', () => {
       target: { value: '*' },
     });
     expect(screen.getByText('*.example.com')).toBeVisible();
-    fireEvent.submit(document.getElementById('quick-create-zone-domain')!);
+    const certificateSelect = screen.getByRole('combobox', {
+      name: '证书（可选）',
+    });
+    await waitFor(() =>
+      expect(certificateSelect).toHaveTextContent('Wildcard'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '添加域名' }));
     await waitFor(() => {
       expect(ZoneDomainService.create).toHaveBeenCalledWith(1, {
         domain: '*.example.com',
-        cert_id: null,
+        cert_id: wildcardCertificate.id,
       });
-      expect(onCreated).toHaveBeenCalledWith(wildcardDomain);
+      expect(onCreated).toHaveBeenCalledWith({
+        ...wildcardDomain,
+        cert_id: wildcardCertificate.id,
+      });
     });
+  });
+
+  it('prefers a valid exact match and warns when a manual choice does not cover the domain', async () => {
+    const exactCertificate = {
+      ...wildcardCertificate,
+      id: 10,
+      name: 'Exact',
+      dns_names: ['example.com', 'API.EXAMPLE.COM'],
+      not_after: '2098-01-01T00:00:00Z',
+    };
+    vi.mocked(TlsCertificateService.list).mockResolvedValue([
+      wildcardCertificate,
+      exactCertificate,
+      {
+        ...exactCertificate,
+        id: 11,
+        name: 'Expired',
+        not_after: '2021-01-01T00:00:00Z',
+      },
+    ]);
+    renderUI(
+      <QuickCreateZoneDomainDialog
+        open
+        onOpenChange={vi.fn()}
+        zones={[zone]}
+        onCreated={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByLabelText('域名');
+    fireEvent.change(input, { target: { value: 'api' } });
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '域名区域' }), {
+      key: 'ArrowDown',
+    });
+    fireEvent.click(screen.getByRole('option', { name: zone.domain }));
+
+    const certificateSelect = screen.getByRole('combobox', {
+      name: '证书（可选）',
+    });
+    await waitFor(() => expect(certificateSelect).toHaveTextContent('Exact'));
+    fireEvent.change(input, { target: { value: 'api.s3.example.com' } });
+    expect(certificateSelect).toHaveTextContent('不绑定证书');
+    fireEvent.change(input, { target: { value: 'api' } });
+    expect(certificateSelect).toHaveTextContent('Exact');
+
+    fireEvent.keyDown(certificateSelect, { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('option', { name: /Wildcard/ }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: '@' } });
+    expect(certificateSelect).toHaveTextContent('Wildcard');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '所选证书未覆盖域名 example.com',
+    );
+
+    fireEvent.keyDown(certificateSelect, { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('option', { name: '不绑定证书' }));
+    expect(certificateSelect).toHaveTextContent('不绑定证书');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: 'api' } });
+    expect(certificateSelect).toHaveTextContent('不绑定证书');
   });
 
   it('the Zone details dialog uses the same nested wildcard resolver', async () => {

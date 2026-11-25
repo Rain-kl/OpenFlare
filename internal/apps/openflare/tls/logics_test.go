@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"math/big"
 	"strings"
@@ -118,7 +119,8 @@ func TestCreateCertificateEncryptsPrivateKey(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	certPEM, keyPEM := generateTestCertificatePair(t, []string{"secure.example.com"})
+	dnsNames := []string{"secure.example.com", "*.example.net"}
+	certPEM, keyPEM := generateTestCertificatePair(t, dnsNames)
 	certificate, err := CreateCertificate(ctx, CertificateInput{
 		Name:    "secure-cert",
 		CertPEM: certPEM,
@@ -134,4 +136,15 @@ func TestCreateCertificateEncryptsPrivateKey(t *testing.T) {
 	content, err := GetCertificateContent(ctx, certificate.ID)
 	require.NoError(t, err)
 	assert.Equal(t, strings.TrimSpace(keyPEM), strings.TrimSpace(content.KeyPEM))
+
+	items, err := ListCertificates(ctx)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Empty(t, items[0].PrimaryDomain)
+	assert.Equal(t, dnsNames, items[0].DNSNames)
+	body, err := json.Marshal(items[0])
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"dns_names":["secure.example.com","*.example.net"]`)
+	assert.NotContains(t, string(body), `"cert_pem"`)
+	assert.NotContains(t, string(body), `"key_pem"`)
 }

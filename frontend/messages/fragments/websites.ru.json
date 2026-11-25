@@ -104,7 +104,8 @@
     "willCreate": "Создаст:",
     "domainExample": "Пример: введите <api>api</api> → <fqdn>api.zone.com</fqdn>; <apex>@</apex> → сам корень",
     "certOptional": "Сертификат (необязательно)",
-    "noCert": "Нет сертификата"
+    "noCert": "Нет сертификата",
+    "certificateMismatch": "Выбранный сертификат не покрывает домен {domain}. Подключения по HTTPS могут завершаться ошибкой."
   },
   "certificates": {
     "title": "Сертификаты",

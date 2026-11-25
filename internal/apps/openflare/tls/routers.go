@@ -20,11 +20,11 @@ func handleLogicError(c *gin.Context, err error) bool {
 
 // GetCertificates 列出 TLS 证书。
 // @Summary 列出 TLS 证书
-// @Description 返回全部 TLS 证书（不含 PEM），需要管理员权限
+// @Description 返回全部 TLS 证书及已签发证书中的 DNS 名称（不含 PEM），需要管理员权限
 // @Tags openflare-tls
 // @Produce json
 // @Security SessionCookie
-// @Success 200 {object} response.Any{data=[]model.TLSCertificate} "证书列表"
+// @Success 200 {object} response.Any{data=[]CertificateListItem} "证书列表"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
 // @Failure 404 {object} response.Any "无权限或不存在"

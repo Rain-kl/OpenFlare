@@ -6,6 +6,7 @@ import type {
   TlsCertificateDetailItem,
   TlsCertificateFileImportPayload,
   TlsCertificateItem,
+  TlsCertificateListItem,
   TlsCertificateMutationPayload,
 } from './types';
 
@@ -22,8 +23,8 @@ export class TlsCertificateService extends OpenFlareBaseService {
   protected static override readonly basePath: string =
     '/api/v1/d/tls-certificates';
 
-  static async list(): Promise<TlsCertificateItem[]> {
-    return this.get<TlsCertificateItem[]>('/');
+  static async list(): Promise<TlsCertificateListItem[]> {
+    return this.get<TlsCertificateListItem[]>('/');
   }
 
   static async getById(id: number): Promise<TlsCertificateDetailItem> {

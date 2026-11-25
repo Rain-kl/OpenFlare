@@ -104,7 +104,8 @@
     "willCreate": "Will create:",
     "domainExample": "Example: <api>api</api> → <fqdn>api.zone.com</fqdn>; <apex>@</apex> → the root; * → *.zone.com. A wildcard cannot be opened directly; visit a concrete matching hostname.",
     "certOptional": "Certificate (optional)",
-    "noCert": "No certificate"
+    "noCert": "No certificate",
+    "certificateMismatch": "The selected certificate does not cover {domain}. HTTPS connections may fail."
   },
   "certificates": {
     "title": "Certificates",
