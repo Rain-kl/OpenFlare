@@ -45,7 +45,7 @@ futures-util = { version = "0.3", features = ["sink"] }
 tokio-tungstenite = { version = "0.29", features = ["rustls-tls-native-roots"] }
 httpdate = "1"
 bytes = "1"
-openflare-probe = { path = "../../probe" }
+openflare-probe = { path = "../../shared/probe" }
 sysinfo = "0.37"
 zeroize = "1"
 zentinel-modsec = { git = "https://github.com/zentinelproxy/zentinel-modsec.git", rev = "f85a24022ca85eec0e1e502623f963e91eca07bc" }

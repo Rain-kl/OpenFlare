@@ -82,10 +82,8 @@ jobs:
             .dockerignore
             docker/Dockerfile.edge
             edge/pingora
-            probe
-            internal/openflare/edgeconfig/pow_static
-            internal/openflare/edgeconfig/pow_templates
-            internal/openflare/edgeconfig/site_auth.html
+            shared/probe
+            shared/edgeassets
             docker/entrypoints/edge-entrypoint.sh
           sparse-checkout-cone-mode: false
 

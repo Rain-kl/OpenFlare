@@ -6,10 +6,10 @@ RUN apk add --no-cache build-base ca-certificates cmake git perl pkgconf
 COPY edge/pingora/Cargo.toml edge/pingora/Cargo.lock ./
 COPY edge/pingora/src/ src/
 COPY edge/pingora/vendor/ vendor/
-COPY probe/ /build/probe/
-COPY internal/openflare/edgeconfig/pow_static/ /build/internal/openflare/edgeconfig/pow_static/
-COPY internal/openflare/edgeconfig/pow_templates/ /build/internal/openflare/edgeconfig/pow_templates/
-COPY internal/openflare/edgeconfig/site_auth.html /build/internal/openflare/edgeconfig/
+COPY shared/probe/ /build/shared/probe/
+COPY shared/edgeassets/pow_static/ /build/shared/edgeassets/pow_static/
+COPY shared/edgeassets/pow_templates/ /build/shared/edgeassets/pow_templates/
+COPY shared/edgeassets/site_auth.html /build/shared/edgeassets/
 ARG VERSION=dev
 ARG TARGETARCH
 RUN --mount=type=cache,target=/usr/local/cargo/registry \

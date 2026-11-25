@@ -12,7 +12,7 @@ Policies specify `algorithm`, `difficulty`, `session_ttl`, `challenge_ttl`, and 
 
 Snapshot publishing attaches standalone policies to the corresponding site's `pow_enabled` / `pow_config`; the control plane compiles policies into the `sites.v1` snapshot. Challenge page templates and assets are tracked under configuration checksum and rollback mechanisms. Standalone PoW endpoints and static assets render on sites without requiring dedicated WAF PoW graph nodes.
 
-The single source of truth for built-in HTML templates is `internal/openflare/edgeconfig/pow_templates/`. Running `node frontend/scripts/generate-pow-assets.mjs` synchronizes frontend preview assets; `make code-check` validates synchronization. Generated files are committed alongside frontend source code and are available for container builds.
+The single source of truth for built-in HTML templates is `shared/edgeassets/pow_templates/`. Running `node frontend/scripts/generate-pow-assets.mjs` synchronizes frontend preview assets; `make code-check` validates synchronization. Generated files are committed alongside frontend source code and are available for container builds.
 
 Edge node release packages cover `amd64` and `arm64` targets, built and verified via dedicated CI pipelines. New PoW policies take effect dynamically across edge nodes via control-plane snapshot synchronization.
 

@@ -4,15 +4,13 @@
 package edgeconfig
 
 import (
-	_ "embed"
 	"strings"
+
+	"github.com/Rain-kl/Wavelet/shared/edgeassets"
 )
 
-//go:embed pow_static/img/openflare-mark.svg
-var brandMark string
-
 func withBrandMark(html string) string {
-	return strings.ReplaceAll(html, "<!-- openflare-brand -->", brandMark)
+	return strings.ReplaceAll(html, "<!-- openflare-brand -->", edgeassets.BrandMark)
 }
 
 // OriginErrorPageSupportPath identifies the published origin error HTML asset.

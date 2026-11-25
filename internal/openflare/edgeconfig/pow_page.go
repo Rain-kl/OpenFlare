@@ -4,8 +4,9 @@
 package edgeconfig
 
 import (
-	_ "embed"
 	"fmt"
+
+	"github.com/Rain-kl/Wavelet/shared/edgeassets"
 )
 
 // PoWPageSupportPath stores the published challenge page independently of Lua.
@@ -18,18 +19,12 @@ type PoWPageConfig struct {
 	HTML     string `json:"html,omitempty"`
 }
 
-//go:embed pow_templates/classic.html
-var classicPoWPage string
-
-//go:embed pow_templates/shield.html
-var shieldPoWPage string
-
 // DefaultPoWPageHTML returns one of the built-in challenge templates.
 func DefaultPoWPageHTML(template string) string {
 	if template == "classic" {
-		return withBrandMark(classicPoWPage)
+		return withBrandMark(edgeassets.ClassicPoWPage)
 	}
-	return withBrandMark(shieldPoWPage)
+	return withBrandMark(edgeassets.ShieldPoWPage)
 }
 
 // ValidatePoWPageConfig validates the administrator's page configuration.

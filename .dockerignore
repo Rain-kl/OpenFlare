@@ -35,5 +35,5 @@ internal/router/dist/
 internal/router/root/dist/
 
 edge/pingora/target/
-probe/target/
+shared/probe/target/
 tunnel/target/

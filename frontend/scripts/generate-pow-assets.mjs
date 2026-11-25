@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const root = new URL('../../', import.meta.url);
 const brandMark = readFileSync(
   new URL(
-    'internal/openflare/edgeconfig/pow_static/img/openflare-mark.svg',
+    'shared/edgeassets/pow_static/img/openflare-mark.svg',
     root,
   ),
   'utf8',
@@ -33,24 +33,24 @@ const templates = Object.fromEntries(
   ['classic', 'shield'].map((id) => [
     id,
     readBrandedTemplate(
-      `internal/openflare/edgeconfig/pow_templates/${id}.html`,
+      `shared/edgeassets/pow_templates/${id}.html`,
     ),
   ]),
 );
 const widget = readFileSync(
-  new URL('internal/openflare/edgeconfig/pow_static/js/widget.mjs', root),
+  new URL('shared/edgeassets/pow_static/js/widget.mjs', root),
   'utf8',
 );
 const css = readFileSync(
-  new URL('internal/openflare/edgeconfig/pow_static/css/xess.css', root),
+  new URL('shared/edgeassets/pow_static/css/xess.css', root),
   'utf8',
 );
 const image = readFileSync(
-  new URL('internal/openflare/edgeconfig/pow_static/img/pensive.webp', root),
+  new URL('shared/edgeassets/pow_static/img/pensive.webp', root),
 ).toString('base64');
 syncAsset('pow-assets.generated.json', { templates, widget, css, image });
 syncAsset(
   'site-auth-page.generated.json',
-  readBrandedTemplate('internal/openflare/edgeconfig/site_auth.html'),
+  readBrandedTemplate('shared/edgeassets/site_auth.html'),
 );
 syncAsset('brand-mark.generated.json', brandMark);

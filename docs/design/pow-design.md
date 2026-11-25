@@ -12,7 +12,7 @@ PoW 由独立的站点策略、页面模板、浏览器运行时和组件组成�
 
 发布快照将独立策略附加到对应站点的 `pow_enabled` / `pow_config`；控制端将策略编译进 `sites.v1` 站点快照。挑战页模板与资源统一纳入配置校验和与回滚体系。独立 PoW 的端点和静态资源可在没有 WAF PoW 节点的站点上渲染。
 
-内置 HTML 的唯一来源为 `internal/openflare/edgeconfig/pow_templates/`。运行 `node frontend/scripts/generate-pow-assets.mjs` 可同步前端预览素材，`make code-check` 会检查素材是否同步。生成文件随前端源码交付，Docker 前端构建可直接使用；预览复用实际 Widget 源码。
+内置 HTML 的唯一来源为 `shared/edgeassets/pow_templates/`。运行 `node frontend/scripts/generate-pow-assets.mjs` 可同步前端预览素材，`make code-check` 会检查素材是否同步。生成文件随前端源码交付，Docker 前端构建可直接使用；预览复用实际 Widget 源码。
 
 Edge 节点发布包含 `amd64` 与 `arm64` 平台产物，由独立 CI 流水线构建验证。部署新的 PoW 策略时通过控制端保存并同步，边缘节点热生效。
 

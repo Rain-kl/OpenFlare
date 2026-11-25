@@ -4,8 +4,7 @@ on:
   pull_request:
     paths:
       - edge/pingora/**
-      - probe/**
-      - internal/openflare/edgeconfig/**
+      - shared/**
       - scripts/*-openflare-edge.sh
       - .github/workflows/test-openflare-edge.yml
   push:
@@ -13,8 +12,7 @@ on:
     tags: ["edge-v*"]
     paths:
       - edge/pingora/**
-      - probe/**
-      - internal/openflare/edgeconfig/**
+      - shared/**
       - scripts/*-openflare-edge.sh
       - .github/workflows/test-openflare-edge.yml
   workflow_dispatch:
