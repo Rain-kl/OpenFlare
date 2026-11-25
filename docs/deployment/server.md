@@ -31,6 +31,12 @@ volumes:
 
 ---
 
+## 节点远程执行
+
+远程执行默认关闭。需要下发 Shell 命令时，在 Server 的 `config.yaml` 顶层设置 `enable_webshell: true`，或为 Server 进程设置环境变量 `ENABLE_WEBSHELL=true`。环境变量优先。此配置仅在进程启动时读取，修改后须重启 Server。多实例部署中，处理请求和连接目标节点的 Server 实例都须启用该配置。
+
+关闭时，控制台、CLI 和 MCP 均无法下发新命令，仍可查看已有执行记录。
+
 ## Docker Compose 部署方案
 
 根据业务规模与数据存储需求，选择对应的编排方案：

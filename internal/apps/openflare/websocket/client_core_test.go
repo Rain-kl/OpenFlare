@@ -6,6 +6,9 @@ package websocket
 import (
 	"sync"
 	"testing"
+
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
+	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 )
 
 func TestWSClientCoreCloseIsIdempotent(t *testing.T) {
@@ -57,5 +60,41 @@ func TestWSClientCoreEnqueueNeverBlocks(t *testing.T) {
 	}
 	if core.enqueue(Message{Type: messageTypePing}) {
 		t.Fatal("enqueue must fail when buffer full")
+	}
+}
+
+func TestRemoteExecDeliveryRequiresWebShell(t *testing.T) {
+	previous := config.Config.EnableWebShell
+	t.Cleanup(func() { config.Config.EnableWebShell = previous })
+	config.Config.EnableWebShell = false
+
+	client := &agentClient{wsClientCore: wsClientCore{
+		nodeID: "remote-exec-test",
+		send:   make(chan Message, 1),
+		done:   make(chan struct{}),
+	}}
+	defaultAgentHub.register(client)
+	t.Cleanup(func() { defaultAgentHub.unregister(client) })
+	task := protocol.RemoteExecDispatch{TaskID: "test-exec", Command: "true"}
+
+	// Redis events go through sendLocalRemoteExec without calling DispatchRemoteExec.
+	if sendLocalRemoteExec(client.nodeID, task) || len(client.send) != 0 {
+		t.Fatal("disabled server delivered an incoming remote execution task")
+	}
+	if DispatchRemoteExec(t.Context(), client.nodeID, task) {
+		t.Fatal("disabled server dispatched a remote execution task")
+	}
+
+	config.Config.EnableWebShell = true
+	if !DispatchRemoteExec(t.Context(), client.nodeID, task) {
+		t.Fatal("enabled server failed to dispatch to a connected node")
+	}
+	select {
+	case msg := <-client.send:
+		if msg.Type != protocol.WSMessageTypeRemoteExec || msg.Payload != task {
+			t.Fatalf("unexpected dispatch message: %+v", msg)
+		}
+	default:
+		t.Fatal("dispatch did not enqueue a message")
 	}
 }

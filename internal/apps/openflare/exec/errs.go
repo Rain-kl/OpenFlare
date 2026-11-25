@@ -3,7 +3,13 @@
 
 package exec
 
+import "errors"
+
+// ErrWebShellDisabled is returned when startup configuration disables command dispatch.
+var ErrWebShellDisabled = errors.New(errExecDisabled)
+
 const (
+	errExecDisabled         = "remote execution is disabled on this server"
 	errExecCommandRequired  = "command must not be empty"
 	errExecCommandTooLong   = "command exceeds maximum allowed length"
 	errExecClientsRequired  = "at least one target node must be selected"

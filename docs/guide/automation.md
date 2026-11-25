@@ -48,7 +48,7 @@ openflare site create --help
 | 查看当前网站和近期访问 | 使用 `site overview`（MCP 工具 `openflare_site_overview`），一次返回站点清单、请求量排行、实例总流量和常见状态码。可用 `--hours 168` 查看近 7 天。 |
 | 排查流量与节点 | 使用 `logs list` 按主机、节点、状态码和时间查询；`metrics traffic` 查询流量趋势，只需总量和状态码时设置 `--with-trends=false`。使用 `node health` 一次检查一页节点的在线状态、运行健康、活跃告警和站点快照同步状态；使用 `node metrics` 查看系统画像与资源指标（支持 `--realtime=true` 与最长 720 小时窗口）；使用 `node ping` 查看节点各延迟检测任务的百分位统计与历史采样。 |
 | 管理延迟检测任务 | 使用 `ping list`、`ping create`、`ping update`、`ping delete` 和 `ping reorder` 管理面向边缘节点的 ICMP、TCP、HTTP 延迟探测任务（需要 `ping:read` / `ping:write` 权限）。 |
-| 边缘节点远程执行 | 使用 `exec run` 向指定 `node_id` 列表下发 Shell 命令并获取 `task_id`，再使用 `exec get` 轮询或 `exec list` 查看各节点退出码与输出（需要 `exec:write` / `exec:read` 权限）。 |
+| 边缘节点远程执行 | 在 Server [启动配置](../deployment/server.md#节点远程执行)中启用远程执行后，使用 `exec run` 向指定 `node_id` 列表下发 Shell 命令并获取 `task_id`。使用 `exec get` 或 `exec list` 查看各节点退出码与输出。下发和查询分别需要 `exec:write` 和 `exec:read` 权限。 |
 | 调整性能策略参数 | 先用 `performance list` 查看现有策略、受影响节点和参数范围，再使用 `performance set` 修改一个参数。修改默认策略影响未显式分配策略的 边缘节点。 |
 
 MCP 工具使用相同的对象和动作，例如 `openflare_site_set_upstreams` 对应 `openflare site set-upstreams`。建站和绑定不会修改公网 DNS 或签发证书。控制端保存后由现有配置同步链路分发；通过 `node get` 比较 `current_version` 与 `desired_site_version`，核对节点是否已应用控制端当前的站点快照。

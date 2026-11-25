@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/listener"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
@@ -206,6 +207,9 @@ func DispatchPingTask(ctx context.Context, nodeID string, task protocol.PingTask
 
 // DispatchRemoteExec delivers a remote command task to a connected edge node, fanning out over Redis if needed.
 func DispatchRemoteExec(ctx context.Context, nodeID string, task protocol.RemoteExecDispatch) bool {
+	if !config.Config.EnableWebShell {
+		return false
+	}
 	if sendLocalRemoteExec(nodeID, task) {
 		return true
 	}

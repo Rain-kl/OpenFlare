@@ -4,6 +4,7 @@
 package exec
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -31,6 +32,7 @@ func handleLogicError(c *gin.Context, err error) bool {
 // @Success 200 {object} response.Any{data=exec.RunResponse} "任务已创建并下发"
 // @Failure 400 {object} response.Any "参数错误"
 // @Failure 401 {object} response.Any "未登录"
+// @Failure 403 {object} response.Any "启动配置未启用远程执行"
 // @Failure 404 {object} response.Any "无权限"
 // @Router /api/v1/d/remote-exec [post]
 func ExecuteHandler(c *gin.Context) {
@@ -40,6 +42,10 @@ func ExecuteHandler(c *gin.Context) {
 	}
 	userID := uint(oauth.GetUserIDFromContext(c))
 	result, err := RunCommand(c.Request.Context(), userID, input)
+	if errors.Is(err, ErrWebShellDisabled) {
+		response.AbortForbidden(c, err.Error())
+		return
+	}
 	if handleLogicError(c, err) {
 		return
 	}

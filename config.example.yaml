@@ -2,6 +2,9 @@
 # Copy this file to config.yaml and fill in your values.
 # Fields marked with <...> are required; others have sensible defaults.
 
+# Enable remote shell commands from this Server. Startup only (ENABLE_WEBSHELL).
+enable_webshell: false
+
 # ─── Application ────────────────────────────────────────────────────────────────
 app:
   app_name: "openflare"

@@ -5,6 +5,8 @@ package automation
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/exec"
 )
@@ -33,7 +35,8 @@ type ExecTaskList struct {
 // @Security AutomationBearer
 // @Param body body ExecRunBody true "Remote command execution request"
 // @Success 200 {object} OperationResponse{data=exec.RunResponse}
-// @Failure 400,401,403,404,500 {object} OperationResponse
+// @Failure 400,401,404,500 {object} OperationResponse
+// @Failure 403 {object} OperationResponse "Insufficient permissions or remote execution disabled at startup"
 // @x-automation {"cli":"exec run","scope":"exec:write","effect":"write","parameters":{"clients":{"minItems":1,"maxItems":200}}}
 // @Router /api/v1/automation/exec [post]
 func runRemoteExec(ctx context.Context, actor identity, input map[string]string) (any, *operationError) {
@@ -46,6 +49,9 @@ func runRemoteExec(ctx context.Context, actor identity, input map[string]string)
 		Clients:        body.Clients,
 		TimeoutSeconds: body.TimeoutSeconds,
 	})
+	if errors.Is(err, exec.ErrWebShellDisabled) {
+		return nil, &operationError{http.StatusForbidden, "WEBSHELL_DISABLED", err.Error()}
+	}
 	if err != nil {
 		return nil, invalidArguments(err)
 	}

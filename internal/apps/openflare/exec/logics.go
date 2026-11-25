@@ -11,6 +11,7 @@ import (
 	"time"
 
 	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -71,15 +72,12 @@ type RunResponse struct {
 
 // RunCommand persists a remote execution task and dispatches it to target edge nodes.
 func RunCommand(ctx context.Context, userID uint, input RunInput) (*RunResponse, error) {
-	if strings.TrimSpace(input.Command) == "" {
-		return nil, errors.New(errExecCommandRequired)
+	if !config.Config.EnableWebShell {
+		return nil, ErrWebShellDisabled
 	}
-	if len(input.Command) > maxExecCommandLength {
-		return nil, errors.New(errExecCommandTooLong)
-	}
-	requestedClients := dedupeStrings(input.Clients)
-	if len(requestedClients) == 0 {
-		return nil, errors.New(errExecClientsRequired)
+	requestedClients, err := validateRunInput(input)
+	if err != nil {
+		return nil, err
 	}
 
 	timeoutSeconds := normalizeExecTimeout(input.TimeoutSeconds)
@@ -346,6 +344,20 @@ func isNodeReachable(n *model.OpenFlareNode, now time.Time) bool {
 		return false
 	}
 	return now.Sub(*n.LastSeenAt) <= nodeOnlineThreshold
+}
+
+func validateRunInput(input RunInput) ([]string, error) {
+	if strings.TrimSpace(input.Command) == "" {
+		return nil, errors.New(errExecCommandRequired)
+	}
+	if len(input.Command) > maxExecCommandLength {
+		return nil, errors.New(errExecCommandTooLong)
+	}
+	clients := dedupeStrings(input.Clients)
+	if len(clients) == 0 {
+		return nil, errors.New(errExecClientsRequired)
+	}
+	return clients, nil
 }
 
 func normalizeExecTimeout(timeout int) int {

@@ -4,9 +4,12 @@
 package automation
 
 import (
+	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/automationcontract"
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,4 +45,22 @@ func TestProbeAutomationOperationsRegistered(t *testing.T) {
 	// Also verify bindings() wires every catalog operation without panicking.
 	bound := bindings()
 	require.GreaterOrEqual(t, len(bound), len(expected))
+}
+
+func TestExecRunRequiresWebShellWithWriteScope(t *testing.T) {
+	previous := config.Config.EnableWebShell
+	t.Cleanup(func() { config.Config.EnableWebShell = previous })
+	config.Config.EnableWebShell = false
+
+	operations := bindings()
+	index := slices.IndexFunc(operations, func(operation binding) bool { return operation.ID == "openflare_exec_run" })
+	require.NotEqual(t, -1, index)
+	result, failure := operations[index].execute(t.Context(), identity{scope: "exec:write"}, map[string]string{
+		"command": "true",
+		"clients": `["test-edge"]`,
+	})
+	require.Nil(t, result)
+	require.NotNil(t, failure)
+	require.Equal(t, http.StatusForbidden, failure.Status)
+	require.Equal(t, "WEBSHELL_DISABLED", failure.Code)
 }

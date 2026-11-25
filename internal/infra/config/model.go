@@ -7,14 +7,15 @@ package config
 import "time"
 
 type configModel struct {
-	App        appConfig        `mapstructure:"app"`
-	Database   databaseConfig   `mapstructure:"database"`
-	Redis      redisConfig      `mapstructure:"redis"`
-	Log        logConfig        `mapstructure:"log"`
-	Scheduler  schedulerConfig  `mapstructure:"scheduler"`
-	Worker     workerConfig     `mapstructure:"worker"`
-	ClickHouse clickHouseConfig `mapstructure:"clickhouse"`
-	Otel       otelConfig       `mapstructure:"otel"`
+	EnableWebShell bool             `mapstructure:"enable_webshell"`
+	App            appConfig        `mapstructure:"app"`
+	Database       databaseConfig   `mapstructure:"database"`
+	Redis          redisConfig      `mapstructure:"redis"`
+	Log            logConfig        `mapstructure:"log"`
+	Scheduler      schedulerConfig  `mapstructure:"scheduler"`
+	Worker         workerConfig     `mapstructure:"worker"`
+	ClickHouse     clickHouseConfig `mapstructure:"clickhouse"`
+	Otel           otelConfig       `mapstructure:"otel"`
 }
 
 // appConfig 应用基本配置

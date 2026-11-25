@@ -5172,7 +5172,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Insufficient permissions or remote execution disabled at startup",
                         "schema": {
                             "$ref": "#/definitions/apps_openflare_automation.OperationResponse"
                         }
@@ -15414,6 +15414,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "403": {
+                        "description": "启动配置未启用远程执行",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/gin-gonic/gin"
 )
@@ -155,6 +156,9 @@ func sendLocalPingTask(nodeID string, task protocol.PingTaskDispatch) bool {
 }
 
 func sendLocalRemoteExec(nodeID string, task protocol.RemoteExecDispatch) bool {
+	if !config.Config.EnableWebShell {
+		return false
+	}
 	return sendAgentMessage(nodeID, Message{
 		Type:    protocol.WSMessageTypeRemoteExec,
 		Payload: task,

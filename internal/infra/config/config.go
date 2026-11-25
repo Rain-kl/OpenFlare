@@ -66,6 +66,7 @@ func init() {
 
 	// 设置配置文件
 	viper.SetConfigFile(configPath)
+	viper.SetDefault("enable_webshell", false)
 	viper.AutomaticEnv()
 
 	// 读取配置文件（可选：找不到文件时使用空默认值 + 环境变量）

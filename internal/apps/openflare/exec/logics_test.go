@@ -5,10 +5,12 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/infra/config"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
@@ -50,10 +52,19 @@ func TestExecRunRecordAndList(t *testing.T) {
 		t.Fatalf("create node: %v", err)
 	}
 
-	resp, err := RunCommand(ctx, 42, RunInput{
+	input := RunInput{
 		Command: "uname -a",
 		Clients: []string{"node-offline"},
-	})
+	}
+	previous := config.Config.EnableWebShell
+	t.Cleanup(func() { config.Config.EnableWebShell = previous })
+	config.Config.EnableWebShell = false
+	if resp, err := RunCommand(ctx, 42, input); resp != nil || !errors.Is(err, ErrWebShellDisabled) {
+		t.Fatalf("expected disabled execution, got response=%+v err=%v", resp, err)
+	}
+
+	config.Config.EnableWebShell = true
+	resp, err := RunCommand(ctx, 42, input)
 	if err != nil {
 		t.Fatalf("RunCommand: %v", err)
 	}
@@ -61,7 +72,8 @@ func TestExecRunRecordAndList(t *testing.T) {
 		t.Fatalf("expected offline node marked with exit_code -1, got %+v", resp)
 	}
 
-	// Simulate late/updated result report from agent.
+	// A restart with WebShell disabled still allows outstanding results and history.
+	config.Config.EnableWebShell = false
 	if err := RecordResult(ctx, "node-offline", protocol.RemoteExecResultPayload{
 		TaskID:     resp.TaskID,
 		Result:     "Linux test 6.8.0\n",
