@@ -6,9 +6,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import {
   Activity,
+  BarChart3,
   Cpu,
   FileText,
   Fingerprint,
+  Gauge,
+  Globe,
   Package,
   RefreshCw,
   RotateCcw,
@@ -31,6 +34,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { getFormattingLocale } from '@/i18n/format';
 import { formatDateTime } from '@/lib/utils';
 import type { NodeItem } from '@/lib/services/openflare';
 import { NodeService } from '@/lib/services/openflare';
@@ -41,20 +45,28 @@ import {
   NodeQuarantineDialog,
   NodeSecuritySection,
 } from './node-security-section';
-import { NodeDetailShell } from './node-detail-shell';
+import { type NodeDetailKpi, NodeDetailShell } from './node-detail-shell';
 import {
   NodeErrorBanner,
   NodeInfoRow,
+  NodeKpiCard,
   NodeSectionCard,
 } from './node-detail-primitives';
 import { NodeEditorDialog } from './node-editor-dialog';
-import { NodeObservability } from './node-observability';
+import {
+  NodeObservability,
+  useNodeObservabilityQuery,
+} from './node-observability';
 import { NodeStatusBadge } from './node-status-badge';
 import {
+  formatMetricCount,
+  formatPercent,
   formatRelativeTime,
+  formatUsageRatio,
   getApplyLabel,
   getApplyTone,
   getErrorMessage,
+  getHealthEventLabel,
   getNodeStatusLabel,
   getNodeStatusTone,
   getOpenrestyStatusLabel,
@@ -76,6 +88,93 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
   const [quarantineOpen, setQuarantineOpen] = useState(false);
   const [unquarantineOpen, setUnquarantineOpen] = useState(false);
   const isQuarantined = node.status === 'quarantined';
+  const observabilityQuery = useNodeObservabilityQuery(node.id);
+  const observability = observabilityQuery.data ?? null;
+  const activeHealthEvents =
+    observability?.health_events.filter((event) => event.status === 'active') ??
+    [];
+  const latestHealthEvent = activeHealthEvents[0] ?? null;
+  const trafficSummary = observability?.analytics?.traffic ?? null;
+  const healthSummary = observability?.analytics?.health ?? null;
+  const topSourceCountry =
+    observability?.analytics?.distributions?.source_countries?.[0] ?? null;
+  const latestMetric =
+    observability?.metric_snapshots && observability.metric_snapshots.length > 0
+      ? observability.metric_snapshots[
+          observability.metric_snapshots.length - 1
+        ]
+      : null;
+  const storageUsageRatio = formatUsageRatio(
+    latestMetric?.storage_used_bytes,
+    latestMetric?.storage_total_bytes,
+  );
+  const diagnosticPlaceholderHint = observabilityQuery.isLoading
+    ? t('obs.loading')
+    : t('requestFailed');
+  const diagnosticReady =
+    !observabilityQuery.isLoading && !observabilityQuery.isError;
+  const diagnosticKpis: NodeDetailKpi[] = [
+    {
+      label: t('obs.diag'),
+      icon: Activity,
+      value: !diagnosticReady
+        ? '—'
+        : activeHealthEvents.length
+          ? t('obs.activeIssues', { count: activeHealthEvents.length })
+          : t('obs.stable'),
+      hint: !diagnosticReady
+        ? diagnosticPlaceholderHint
+        : latestHealthEvent
+          ? getHealthEventLabel(latestHealthEvent)
+          : t('obs.noActiveEvents'),
+    },
+    {
+      label: t('obs.windowRequests'),
+      icon: BarChart3,
+      value: !diagnosticReady
+        ? '—'
+        : formatMetricCount(trafficSummary?.request_count),
+      hint: !diagnosticReady
+        ? diagnosticPlaceholderHint
+        : trafficSummary
+          ? t('obs.windowVisitorsHint', {
+              visitors: formatMetricCount(trafficSummary.unique_visitor_count),
+              rate: trafficSummary.error_rate_percent.toFixed(1),
+            })
+          : t('obs.noWindowSummary'),
+    },
+    {
+      label: t('obs.capacityPressure'),
+      icon: Gauge,
+      value: !diagnosticReady
+        ? '—'
+        : healthSummary?.has_capacity_risk
+          ? t('obs.needsAttention')
+          : t('obs.normalRange'),
+      hint: !diagnosticReady
+        ? diagnosticPlaceholderHint
+        : latestMetric
+          ? t('obs.cpuStorage', {
+              cpu: formatPercent(latestMetric.cpu_usage_percent),
+              storage: formatPercent(storageUsageRatio),
+            })
+          : t('obs.noResourceSnapshot'),
+    },
+    {
+      label: t('obs.sourceSignal'),
+      icon: Globe,
+      value: !diagnosticReady ? '—' : (topSourceCountry?.key ?? '—'),
+      hint: !diagnosticReady
+        ? diagnosticPlaceholderHint
+        : topSourceCountry
+          ? t('obs.requestTimes', {
+              count: topSourceCountry.value.toLocaleString(
+                getFormattingLocale(),
+              ),
+            })
+          : t('obs.noSourceDist'),
+    },
+  ];
 
   const saveMutation = useMutation({
     mutationFn: (payload: Parameters<typeof NodeService.updateNode>[1]) =>
@@ -239,6 +338,33 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
     <div className='space-y-6'>
       {node.last_error ? <NodeErrorBanner message={node.last_error} /> : null}
 
+      <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
+        <NodeKpiCard
+          label={t('kpiNodeId')}
+          value={node.node_id}
+          icon={Fingerprint}
+        />
+        <NodeKpiCard
+          label={t('edge.kpiAgent')}
+          value={node.version || 'unknown'}
+          icon={Cpu}
+        />
+        <NodeKpiCard
+          label={t('kpiCurrentConfig')}
+          value={node.current_version || t('notApplied')}
+          icon={Package}
+        />
+        <NodeKpiCard
+          label={t('kpiLastSeen')}
+          value={
+            isMeaningfulTime(node.last_seen_at)
+              ? formatRelativeTime(node.last_seen_at, t)
+              : t('na')
+          }
+          icon={Activity}
+        />
+      </div>
+
       <div className='grid gap-6 xl:grid-cols-2'>
         <NodeSectionCard
           title={t('edge.runStatus')}
@@ -374,32 +500,14 @@ export function EdgeNodeDetail({ node }: { node: NodeItem }) {
           },
         ]}
         actions={headerActions}
-        kpis={[
-          { label: t('kpiNodeId'), value: node.node_id, icon: Fingerprint },
-          {
-            label: t('edge.kpiAgent'),
-            value: node.version || 'unknown',
-            icon: Cpu,
-          },
-          {
-            label: t('kpiCurrentConfig'),
-            value: node.current_version || t('notApplied'),
-            icon: Package,
-          },
-          {
-            label: t('kpiLastSeen'),
-            value: isMeaningfulTime(node.last_seen_at)
-              ? formatRelativeTime(node.last_seen_at, t)
-              : t('na'),
-            icon: Activity,
-          },
-        ]}
+        kpis={diagnosticKpis}
         overview={
           <NodeObservability
             nodeId={node.id}
             node={node}
             variant='edge'
             connectionHint={t('edge.connectionHint')}
+            showSummaryStats={false}
           />
         }
         manage={manageTab}

@@ -37,21 +37,34 @@ export function NodeInfoRow({
 export function NodeKpiCard({
   label,
   value,
+  hint,
   icon: Icon,
+  valueClassName,
 }: {
   label: string;
   value: ReactNode;
+  hint?: ReactNode;
   icon?: LucideIcon;
+  valueClassName?: string;
 }) {
   return (
     <div className='rounded-xl border border-dashed bg-card px-4 py-3.5'>
       <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-        {Icon ? <Icon className='size-3.5 opacity-70' /> : null}
+        {Icon ? <Icon className='size-3.5 shrink-0 opacity-70' /> : null}
         <span>{label}</span>
       </div>
-      <p className='mt-2 text-sm font-semibold tracking-tight break-all'>
+      <p
+        className={cn(
+          'mt-2 font-semibold tracking-tight',
+          hint ? 'text-base break-words' : 'text-sm break-all',
+          valueClassName,
+        )}
+      >
         {value}
       </p>
+      {hint ? (
+        <p className='mt-1 text-xs text-muted-foreground'>{hint}</p>
+      ) : null}
     </div>
   );
 }

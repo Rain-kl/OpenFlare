@@ -196,16 +196,27 @@ function HealthEventTimeline({
   );
 }
 
+export function useNodeObservabilityQuery(nodeId: number) {
+  return useQuery({
+    queryKey: ['openflare', 'node-observability', nodeId],
+    queryFn: () =>
+      NodeService.getObservability(nodeId, { hours: 24, limit: 48 }),
+    refetchInterval: 30000,
+  });
+}
+
 export function NodeObservability({
   nodeId,
   node,
   variant = 'edge',
   connectionHint,
+  showSummaryStats = true,
 }: {
   nodeId: number;
   node?: NodeItem;
   variant?: NodeObservabilityVariant;
   connectionHint?: string;
+  showSummaryStats?: boolean;
 }) {
   const t = useTranslations('nodes');
   const tc = useTranslations('common');
@@ -215,12 +226,7 @@ export function NodeObservability({
     useState<HealthEventFilter>('all');
   const [cleanupOpen, setCleanupOpen] = useState(false);
 
-  const observabilityQuery = useQuery({
-    queryKey: ['openflare', 'node-observability', nodeId],
-    queryFn: () =>
-      NodeService.getObservability(nodeId, { hours: 24, limit: 48 }),
-    refetchInterval: 30000,
-  });
+  const observabilityQuery = useNodeObservabilityQuery(nodeId);
 
   const cleanupMutation = useMutation({
     mutationFn: () => NodeService.cleanupHealthEvents(nodeId),
@@ -447,64 +453,66 @@ export function NodeObservability({
 
   return (
     <div className='flex flex-col gap-6'>
-      <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
-        <SummaryStat
-          label={t('obs.diag')}
-          value={
-            activeHealthEvents.length
-              ? t('obs.activeIssues', { count: activeHealthEvents.length })
-              : t('obs.stable')
-          }
-          hint={
-            latestHealthEvent
-              ? getHealthEventLabel(latestHealthEvent)
-              : t('obs.noActiveEvents')
-          }
-        />
-        <SummaryStat
-          label={t('obs.windowRequests')}
-          value={formatMetricCount(trafficSummary?.request_count)}
-          hint={
-            trafficSummary
-              ? t('obs.windowVisitorsHint', {
-                  visitors: formatMetricCount(
-                    trafficSummary.unique_visitor_count,
-                  ),
-                  rate: trafficSummary.error_rate_percent.toFixed(1),
-                })
-              : t('obs.noWindowSummary')
-          }
-        />
-        <SummaryStat
-          label={t('obs.capacityPressure')}
-          value={
-            healthSummary?.has_capacity_risk
-              ? t('obs.needsAttention')
-              : t('obs.normalRange')
-          }
-          hint={
-            latestMetric
-              ? t('obs.cpuStorage', {
-                  cpu: formatPercent(latestMetric.cpu_usage_percent),
-                  storage: formatPercent(storageUsageRatio),
-                })
-              : t('obs.noResourceSnapshot')
-          }
-        />
-        <SummaryStat
-          label={t('obs.sourceSignal')}
-          value={topSourceCountry?.key ?? '—'}
-          hint={
-            topSourceCountry
-              ? t('obs.requestTimes', {
-                  count: topSourceCountry.value.toLocaleString(
-                    getFormattingLocale(),
-                  ),
-                })
-              : t('obs.noSourceDist')
-          }
-        />
-      </div>
+      {showSummaryStats ? (
+        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+          <SummaryStat
+            label={t('obs.diag')}
+            value={
+              activeHealthEvents.length
+                ? t('obs.activeIssues', { count: activeHealthEvents.length })
+                : t('obs.stable')
+            }
+            hint={
+              latestHealthEvent
+                ? getHealthEventLabel(latestHealthEvent)
+                : t('obs.noActiveEvents')
+            }
+          />
+          <SummaryStat
+            label={t('obs.windowRequests')}
+            value={formatMetricCount(trafficSummary?.request_count)}
+            hint={
+              trafficSummary
+                ? t('obs.windowVisitorsHint', {
+                    visitors: formatMetricCount(
+                      trafficSummary.unique_visitor_count,
+                    ),
+                    rate: trafficSummary.error_rate_percent.toFixed(1),
+                  })
+                : t('obs.noWindowSummary')
+            }
+          />
+          <SummaryStat
+            label={t('obs.capacityPressure')}
+            value={
+              healthSummary?.has_capacity_risk
+                ? t('obs.needsAttention')
+                : t('obs.normalRange')
+            }
+            hint={
+              latestMetric
+                ? t('obs.cpuStorage', {
+                    cpu: formatPercent(latestMetric.cpu_usage_percent),
+                    storage: formatPercent(storageUsageRatio),
+                  })
+                : t('obs.noResourceSnapshot')
+            }
+          />
+          <SummaryStat
+            label={t('obs.sourceSignal')}
+            value={topSourceCountry?.key ?? '—'}
+            hint={
+              topSourceCountry
+                ? t('obs.requestTimes', {
+                    count: topSourceCountry.value.toLocaleString(
+                      getFormattingLocale(),
+                    ),
+                  })
+                : t('obs.noSourceDist')
+            }
+          />
+        </div>
+      ) : null}
 
       <NodeHardwareOverview profile={profile} latestMetric={latestMetric} />
 

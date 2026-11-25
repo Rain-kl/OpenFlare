@@ -9,6 +9,8 @@ import ReactECharts from 'echarts-for-react';
 import { cn } from '@/lib/utils';
 import { calculateNiceAxisMax, formatCompactNumber } from '@/lib/utils/metrics';
 
+import { resolveChartColor } from './chart-theme';
+
 type TrendChartSeries = {
   label: string;
   color: string;
@@ -158,32 +160,38 @@ export function TrendChart({
           },
         },
       },
-      series: series.map((item) => ({
-        name: item.label,
-        type: 'line',
-        smooth: true,
-        showSymbol: false,
-        symbol: 'circle',
-        symbolSize: 8,
-        lineStyle: {
-          color: item.color,
-          width: 3,
-        },
-        itemStyle: {
-          color: item.color,
-        },
-        areaStyle:
-          item.variant === 'area'
-            ? {
-                color: item.fillColor ?? `${item.color}33`,
-              }
-            : undefined,
-        emphasis: {
-          focus: 'series',
-          scale: true,
-        },
-        data: item.values,
-      })),
+      series: series.map((item) => {
+        const strokeColor = resolveChartColor(item.color, '#4f46e5');
+        const areaColor = item.fillColor
+          ? resolveChartColor(item.fillColor, `${strokeColor}33`)
+          : `${strokeColor}33`;
+        return {
+          name: item.label,
+          type: 'line',
+          smooth: true,
+          showSymbol: false,
+          symbol: 'circle',
+          symbolSize: 8,
+          lineStyle: {
+            color: strokeColor,
+            width: 3,
+          },
+          itemStyle: {
+            color: strokeColor,
+          },
+          areaStyle:
+            item.variant === 'area'
+              ? {
+                  color: areaColor,
+                }
+              : undefined,
+          emphasis: {
+            focus: 'series',
+            scale: true,
+          },
+          data: item.values,
+        };
+      }),
     };
   }, [labels, series, yAxisValueFormatter]);
 

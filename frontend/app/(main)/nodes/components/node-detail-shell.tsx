@@ -26,7 +26,9 @@ export type NodeDetailTabConfig = {
 export type NodeDetailKpi = {
   label: string;
   value: ReactNode;
+  hint?: ReactNode;
   icon?: LucideIcon;
+  valueClassName?: string;
 };
 
 const TAB_IDS: NodeDetailTabId[] = ['overview', 'manage'];
@@ -137,7 +139,9 @@ export function NodeDetailShell({
                   key={kpi.label}
                   label={kpi.label}
                   value={kpi.value}
+                  hint={kpi.hint}
                   icon={kpi.icon}
+                  valueClassName={kpi.valueClassName}
                 />
               ))}
             </div>

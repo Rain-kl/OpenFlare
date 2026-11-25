@@ -43,6 +43,14 @@ export function useCustomTheme() {
 }
 
 /**
+ * 可选自定义主题 Hook
+ * 在 CustomThemeProvider 外部调用时安全返回 null，供共享图表主题工具使用
+ */
+export function useOptionalCustomTheme() {
+  return useContext(ThemeContext);
+}
+
+/**
  * 自定义主题提供者
  * 管理用户选择的界面外观主题（配色方案），独立于明暗模式
  */
