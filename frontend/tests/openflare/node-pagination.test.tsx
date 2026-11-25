@@ -346,17 +346,20 @@ it('shows monitoring in both layouts and restores focus when closing search', as
         {
           task_id: 1,
           name: 'Tokyo',
-          samples: [{ recorded_at: '2026-11-25T00:00:00Z', value: 0 }],
+          samples: [{ recorded_at: '2026-11-25T00:00:00Z', value: 120 }],
         },
         {
           task_id: 2,
           name: 'Singapore',
-          samples: [{ recorded_at: '2026-11-25T00:00:00Z', value: 228 }],
+          samples: [
+            { recorded_at: '2026-11-24T23:59:00Z', value: 121 },
+            { recorded_at: '2026-11-25T00:00:00Z', value: 250 },
+          ],
         },
         {
           task_id: 3,
           name: 'Osaka',
-          samples: [{ recorded_at: '2026-11-25T00:00:00Z', value: 260 }],
+          samples: [{ recorded_at: '2026-11-25T00:00:00Z', value: 251 }],
         },
       ],
     },
@@ -380,11 +383,16 @@ it('shows monitoring in both layouts and restores focus when closing search', as
     screen.getByRole('columnheader', { name: 'Versions' }),
   ).toBeInTheDocument();
   const versionCell = screen.getByText('v1.0.0').closest('td');
-  expect(versionCell).toHaveTextContent('Current version');
+  expect(versionCell?.querySelectorAll('dt.sr-only')).toHaveLength(2);
   expect(versionCell).toHaveTextContent('1aef2e8');
   expect(screen.getByText('Edge 1').previousElementSibling).toHaveClass(
     'bg-success',
   );
+  const onlineRow = screen.getByRole('row', { name: /Edge 1/ });
+  expect(within(onlineRow).getByText('Unhealthy')).toBeInTheDocument();
+  expect(within(onlineRow).queryByText(/Online/)).not.toBeInTheDocument();
+  expect(onlineRow).not.toHaveClass('grayscale');
+  expect(screen.getByRole('row', { name: /Edge 2/ })).toHaveClass('grayscale');
   expect(screen.getByText('Edge 2').previousElementSibling).toBeNull();
   expect(
     screen.queryByRole('textbox', { name: 'Search nodes' }),
@@ -393,9 +401,15 @@ it('shows monitoring in both layouts and restores focus when closing search', as
     'aria-valuenow',
     '0',
   );
-  expect(screen.getByText('0ms')).toHaveClass('text-success');
-  expect(screen.getByText('228ms')).toHaveClass('text-warning');
-  expect(screen.getByText('260ms')).toHaveClass('text-destructive');
+  expect(screen.getByText('120ms')).toHaveClass('text-success');
+  expect(screen.getByText('250ms')).toHaveClass('text-warning');
+  expect(screen.getByText('251ms')).toHaveClass('text-destructive');
+  const sampleStrip = within(onlineRow).getByRole('button', {
+    name: /Edge 1 · Latency and packet loss/,
+  }).lastElementChild;
+  expect(sampleStrip?.children[1].firstElementChild).toHaveClass(
+    'bg-warning/75',
+  );
   expect(screen.queryByText('Tokyo')).not.toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: 'Edit' }),
@@ -420,6 +434,9 @@ it('shows monitoring in both layouts and restores focus when closing search', as
   fireEvent.click(screen.getByRole('radio', { name: 'Card view' }));
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   expect(screen.getByText('Debian 12')).toBeInTheDocument();
+  expect(screen.getByText('Edge 2').closest('[data-slot="card"]')).toHaveClass(
+    'grayscale',
+  );
   expect(
     screen.queryByRole('button', { name: 'Edit' }),
   ).not.toBeInTheDocument();

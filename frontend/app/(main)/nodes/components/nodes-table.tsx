@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { NodeItem } from '@/lib/services/openflare';
+import { cn } from '@/lib/utils';
 
 import {
   MissingMetric,
@@ -99,7 +100,8 @@ function NodeIdentity({ node }: { node: NodeItem }) {
       <div className='flex min-w-0 items-center gap-1.5'>
         {node.status === 'online' && (
           <span
-            aria-hidden
+            role='img'
+            aria-label={t('status.online')}
             className='size-1.5 shrink-0 rounded-full bg-success'
           />
         )}
@@ -126,15 +128,14 @@ function NodeIdentity({ node }: { node: NodeItem }) {
 
 function NodeHealth({ node }: { node: NodeItem }) {
   const t = useTranslations('nodes');
-  const status = getNodeStatusLabel(node.status, t);
   const online = node.status === 'online';
   return (
     <NodeStatusBadge
       className='max-w-full justify-start border-0 bg-transparent p-0 text-xs whitespace-normal'
       label={
         online
-          ? `${status} · ${getOpenrestyStatusLabel(node.openresty_status, t)}`
-          : status
+          ? getOpenrestyStatusLabel(node.openresty_status, t)
+          : getNodeStatusLabel(node.status, t)
       }
       tone={
         online
@@ -150,12 +151,12 @@ function NodeVersions({ node }: { node: NodeItem }) {
   const currentVersion = node.current_version || t('notApplied');
 
   return (
-    <dl className='grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2 gap-y-1 text-xs'>
-      <dt className='text-muted-foreground'>{t('table.version')}</dt>
+    <dl className='flex min-w-0 flex-col gap-1 text-xs'>
+      <dt className='sr-only'>{t('table.version')}</dt>
       <dd className='truncate tabular-nums' title={node.version}>
         {node.version || <MissingMetric />}
       </dd>
-      <dt className='text-muted-foreground'>{t('table.currentVersion')}</dt>
+      <dt className='sr-only'>{t('table.currentVersion')}</dt>
       <dd className='truncate tabular-nums' title={currentVersion}>
         {currentVersion}
       </dd>
@@ -191,7 +192,13 @@ function NodeCards({
         {nodes.map((node) => {
           const metrics = getMetricValues(node);
           return (
-            <Card key={node.id} className='gap-4 py-4'>
+            <Card
+              key={node.id}
+              className={cn(
+                'gap-4 py-4',
+                node.status === 'offline' && 'bg-muted/60 grayscale',
+              )}
+            >
               <CardHeader className='grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto] gap-2 px-4'>
                 <div className='flex min-w-0 flex-col gap-2'>
                   <div className='flex flex-wrap items-start justify-between gap-2'>
@@ -292,7 +299,11 @@ export function NodesTable({
             return (
               <TableRow
                 key={node.id}
-                className='bg-card [&>td]:border-y [&>td]:border-dashed [&>td]:py-2 [&>td:first-child]:rounded-l-lg [&>td:first-child]:border-l [&>td:first-child]:pl-3 [&>td:last-child]:rounded-r-lg [&>td:last-child]:border-r [&>td:last-child]:py-1'
+                className={cn(
+                  'bg-card [&>td]:border-y [&>td]:border-dashed [&>td]:py-2 [&>td:first-child]:rounded-l-lg [&>td:first-child]:border-l [&>td:first-child]:pl-3 [&>td:last-child]:rounded-r-lg [&>td:last-child]:border-r [&>td:last-child]:py-1',
+                  node.status === 'offline' &&
+                    'bg-transparent grayscale hover:bg-transparent [&>td]:bg-muted/60',
+                )}
               >
                 <TableCell>
                   <NodeIdentity node={node} />

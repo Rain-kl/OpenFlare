@@ -102,8 +102,8 @@ const latencyColors = {
 
 function getLatencyColors(value?: number) {
   if (value === undefined) return latencyColors.missing;
-  if (value < 0 || value >= 250) return latencyColors.high;
-  if (value >= 200) return latencyColors.elevated;
+  if (value < 0 || value > 250) return latencyColors.high;
+  if (value > 120) return latencyColors.elevated;
   return latencyColors.low;
 }
 
