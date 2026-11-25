@@ -58,7 +58,7 @@ build-backend:
 		cmd/server/main.go
 
 build-edge:
-	cargo build --manifest-path edge/pingora/Cargo.toml --release --locked
+	cargo build --manifest-path edge/Cargo.toml --release --locked
 
 build-relay:
 	@echo "==> Building relay version=$(VERSION)..."

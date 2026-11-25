@@ -99,7 +99,7 @@ OpenFlare Edge (Agent, TLS/WAF)
 * 统一接收 Pages 本地上传、Remote URL 与公开 GitHub Release 预构建产物，完成来源检查、受限下载、归档校验和不可变 deployment。
 * 提供可选的 Cloudflare DNS 指向控制面：以 ZoneDomain 为成员维护分组期望状态，通过 Asynq 将单条 A 记录幂等同步到当前生效节点 IPv4。
 * 后台集成 Uptime Kuma 监控同步服务，自动为可用站点维护 HTTP 探测任务。
-* 启动入口为 `cmd/server/main.go` + `cmd/server/cli/`（`api` / `worker` / `scheduler` / `all`）；OpenFlare 业务在 `internal/apps/openflare/`，穿透控制面域在 `internal/apps/openflare/tunnel/`，边缘 Data Plane 源码分别位于 `edge/pingora/`（Edge 网关）与 `tunnel/`（Relay 与 OpenFlared 工作区）。
+* 启动入口为 `cmd/server/main.go` + `cmd/server/cli/`（`api` / `worker` / `scheduler` / `all`）；OpenFlare 业务在 `internal/apps/openflare/`，穿透控制面域在 `internal/apps/openflare/tunnel/`，边缘 Data Plane 源码分别位于 `edge/`（Edge 网关）与 `tunnel/`（Relay 与 OpenFlared 工作区）。
 * *详细设计请参阅：[边缘节点设计](./pingora-edge-design.md) 以及 [内网穿透设计](./tunnel-design.md)*
 
 ### 2. OpenFlare Edge（数据面）

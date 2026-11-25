@@ -93,7 +93,7 @@ pub fn site_auth_login(
     let default_html;
     let html = if template.trim().is_empty() {
         default_html = with_brand_mark(include_str!(
-            "../../../../shared/edgeassets/site_auth.html"
+            "../../../shared/edgeassets/site_auth.html"
         ));
         default_html.as_str()
     } else {

@@ -55,7 +55,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             LICENSE
-            edge/pingora/vendor/owasp-crs/LICENSE
+            edge/vendor/owasp-crs/LICENSE
             scripts/install-openflare-edge.sh
             scripts/update-openflare-edge.sh
             scripts/uninstall-openflare-edge.sh
@@ -85,7 +85,7 @@ jobs:
             mkdir -p "$staging/scripts"
             install -m 0755 "artifacts/edge-binary-${arch}/openflare-edge" "$staging/openflare-edge"
             cp edge-source/LICENSE "$staging/"
-            cp edge-source/edge/pingora/vendor/owasp-crs/LICENSE "$staging/LICENSE-OWASP-CRS"
+            cp edge-source/edge/vendor/owasp-crs/LICENSE "$staging/LICENSE-OWASP-CRS"
             cp edge-source/scripts/{install,update,uninstall}-openflare-edge.sh \
               edge-source/scripts/fetch-agent-geoip-mmdb.sh "$staging/scripts/"
             printf '%s\n' "$VERSION" > "$staging/VERSION"

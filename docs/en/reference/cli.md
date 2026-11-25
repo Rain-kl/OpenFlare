@@ -105,10 +105,10 @@ openflare-edge attack-rule-catalog
 ```bash
 # Compile OpenFlare Edge release binary
 make build-edge
-# Output located at: edge/pingora/target/release/openflare-edge
+# Output located at: edge/target/release/openflare-edge
 
 # Run Rust test suite
-cargo test --manifest-path edge/pingora/Cargo.toml --locked
+cargo test --manifest-path edge/Cargo.toml --locked
 ```
 
 ---

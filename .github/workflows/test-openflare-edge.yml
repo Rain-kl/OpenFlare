@@ -3,7 +3,7 @@ name: Test OpenFlare Edge
 on:
   pull_request:
     paths:
-      - edge/pingora/**
+      - edge/**
       - shared/**
       - scripts/*-openflare-edge.sh
       - .github/workflows/test-openflare-edge.yml
@@ -11,7 +11,7 @@ on:
     branches: [main, canary]
     tags: ["edge-v*"]
     paths:
-      - edge/pingora/**
+      - edge/**
       - shared/**
       - scripts/*-openflare-edge.sh
       - .github/workflows/test-openflare-edge.yml
@@ -25,7 +25,7 @@ permissions:
   contents: read
 
 env:
-  CARGO_MANIFEST: edge/pingora/Cargo.toml
+  CARGO_MANIFEST: edge/Cargo.toml
   CARGO_INCREMENTAL: "0"
   CARGO_PROFILE_DEV_DEBUG: "0"
   CARGO_PROFILE_TEST_DEBUG: "0"
@@ -63,7 +63,7 @@ jobs:
       - name: Cache test dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: edge/pingora
+          workspaces: edge
           shared-key: openflare-edge-test-${{ matrix.target }}
           cache-bin: false
           save-if: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
@@ -78,5 +78,5 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           cargo build --locked --manifest-path "$CARGO_MANIFEST" --target "$TARGET"
-          binary="edge/pingora/target/${TARGET}/debug/openflare-edge"
-          python3 edge/pingora/tests/runtime_smoke.py "$binary"
+          binary="edge/target/${TARGET}/debug/openflare-edge"
+          python3 edge/tests/runtime_smoke.py "$binary"

@@ -433,7 +433,7 @@ mod tests {
     #[test]
     fn checked_in_rule_catalog_matches_the_engine() {
         let checked_in: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../frontend/lib/openflare/attack-rule-catalog.generated.json"
+            "../../../frontend/lib/openflare/attack-rule-catalog.generated.json"
         ))
         .unwrap();
         assert_eq!(checked_in, attack_rule_catalog().unwrap());

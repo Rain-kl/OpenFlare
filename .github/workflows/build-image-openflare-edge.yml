@@ -81,7 +81,7 @@ jobs:
           sparse-checkout: |
             .dockerignore
             docker/Dockerfile.edge
-            edge/pingora
+            edge
             shared/probe
             shared/edgeassets
             docker/entrypoints/edge-entrypoint.sh

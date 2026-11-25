@@ -1,12 +1,12 @@
 # OpenFlare Edge node Development Notes
 
-OpenFlare Edge nodes are built under `edge/pingora/` and communicate with the control plane.
+OpenFlare Edge nodes are built under `edge/` and communicate with the control plane.
 
 ## Package Structure
 
 | Module | Responsibility |
 | --- | --- |
-| `edge/pingora/src/main.rs`, `runtime/` | Startup arguments, component assembly, and listener readiness |
+| `edge/src/main.rs`, `runtime/` | Startup arguments, component assembly, and listener readiness |
 | `protocol/` | Decodes unified snapshot contracts and converts runtime parameters |
 | `control/` | Registration, identity, heartbeat, WebSocket notifications, configuration and resource synchronization |
 | `config.rs` | Candidate validation, snapshot recovery, persistence, and in-memory publishing |
@@ -22,11 +22,11 @@ Heartbeats return a versioned resource manifest. The WebSocket `config_changed` 
 ## Build and Verification
 
 ```bash
-cargo fmt --manifest-path edge/pingora/Cargo.toml --check
-cargo clippy --manifest-path edge/pingora/Cargo.toml --locked --all-targets -- -D warnings
-cargo test --manifest-path edge/pingora/Cargo.toml --locked
-cargo build --manifest-path edge/pingora/Cargo.toml --locked
-python3 edge/pingora/tests/runtime_smoke.py edge/pingora/target/debug/openflare-edge
+cargo fmt --manifest-path edge/Cargo.toml --check
+cargo clippy --manifest-path edge/Cargo.toml --locked --all-targets -- -D warnings
+cargo test --manifest-path edge/Cargo.toml --locked
+cargo build --manifest-path edge/Cargo.toml --locked
+python3 edge/tests/runtime_smoke.py edge/target/debug/openflare-edge
 ```
 
 When building directly with Cargo, the binary version defaults to `dev`. To reproduce release builds, set `OPENFLARE_EDGE_VERSION=0.1.3` before compilation, using the release tag value stripped of the `edge-v` prefix.

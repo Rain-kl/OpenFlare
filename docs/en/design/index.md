@@ -71,14 +71,14 @@ When developing and contributing code, **you must strictly follow** these busine
 
 ## Repository Structure
 
-OpenFlare is structured as a **single monorepo** (Go module `github.com/Rain-kl/Wavelet`). The control-plane Server and edge components (Relay, OpenFlared) share the Go codebase, organized by Wavelet `internal/apps/` domain modules, while the edge proxy runtime is implemented in Rust under `edge/pingora/`.
+OpenFlare is structured as a **single monorepo** (Go module `github.com/Rain-kl/Wavelet`). The control-plane Server and edge components (Relay, OpenFlared) share the Go codebase, organized by Wavelet `internal/apps/` domain modules, while the edge proxy runtime is implemented in Rust under `edge/`.
 
 When contributing code, strictly follow this physical layering and directory division:
 
 | Path | Responsibility |
 | --- | --- |
 | `cmd/server`, `cmd/relay`, `cmd/flared` | CLI entrypoints for Server, Relay, and OpenFlared (Server in `cmd/server/main.go` + `cmd/server/cli/`) |
-| `edge/pingora/` | Rust OpenFlare Edge gateway (`openflare-edge`) source and build directory |
+| `edge/` | Rust OpenFlare Edge gateway (`openflare-edge`) source and build directory |
 | `internal/` | Control-plane and edge runtime implementations |
 | `frontend/` | Next.js admin console; build artifacts embedded into the Go Server |
 | `pkg/` | Generic cross-cutting libraries (GeoIP, cache, mail, push, utilities, etc.) |
@@ -120,7 +120,7 @@ When contributing code, strictly follow this physical layering and directory div
 
 ### 2. OpenFlare Edge node
 
-The node runtime is located at `edge/pingora/`. The control plane distributes sites, WAF IP groups, and performance policies via configuration manifests. Nodes validate and apply updates to their local data plane. See [OpenFlare Edge node Design](./pingora-edge-design.md).
+The node runtime is located at `edge/`. The control plane distributes sites, WAF IP groups, and performance policies via configuration manifests. Nodes validate and apply updates to their local data plane. See [OpenFlare Edge node Design](./pingora-edge-design.md).
 
 ### 3. Frontend Layering (`frontend/`)
 

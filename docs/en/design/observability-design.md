@@ -530,7 +530,7 @@ bytes_sent (= $body_bytes_sent), request_length
 | Area | Main Paths |
 | --- | --- |
 | Protocol | `internal/openflare/protocol/agent.go` |
-| Edge collection & log buffer | `edge/pingora/src/telemetry/`, `edge/pingora/src/control/` |
+| Edge collection & log buffer | `edge/src/telemetry/`, `edge/src/control/` |
 | Server storage | `internal/apps/openflare/agent/observability.go` |
 | Log aggregation | `internal/repository/logstore/ch_node_access_log*.go`, `internal/repository/logstore/postgres_store.go`, `internal/apps/openflare/zone/stats.go` |
 | Dashboard | `internal/apps/openflare/dashboard/`, `internal/apps/openflare/observability/analytics.go` |

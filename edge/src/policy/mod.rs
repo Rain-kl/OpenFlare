@@ -58,7 +58,7 @@ pub enum PolicyDecision {
 fn with_brand_mark(html: &str) -> String {
     html.replace(
         "<!-- openflare-brand -->",
-        include_str!("../../../../shared/edgeassets/pow_static/img/openflare-mark.svg"),
+        include_str!("../../../shared/edgeassets/pow_static/img/openflare-mark.svg"),
     )
 }
 

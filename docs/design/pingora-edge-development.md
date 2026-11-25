@@ -1,12 +1,12 @@
 # 边缘节点开发说明
 
-边缘节点在 `edge/pingora/` 中构建并连接主控。
+边缘节点在 `edge/` 中构建并连接主控。
 
 ## 包结构
 
 | 模块 | 职责 |
 | --- | --- |
-| `edge/pingora/src/main.rs`、`runtime/` | 启动参数、组件装配和监听就绪 |
+| `edge/src/main.rs`、`runtime/` | 启动参数、组件装配和监听就绪 |
 | `protocol/` | 解码统一快照契约并转换运行参数 |
 | `control/` | 注册、身份、心跳、WebSocket 通知、配置和资源同步 |
 | `config.rs` | 候选校验、快照恢复、持久化和内存发布 |
@@ -22,11 +22,11 @@
 ## 构建和验证
 
 ```bash
-cargo fmt --manifest-path edge/pingora/Cargo.toml --check
-cargo clippy --manifest-path edge/pingora/Cargo.toml --locked --all-targets -- -D warnings
-cargo test --manifest-path edge/pingora/Cargo.toml --locked
-cargo build --manifest-path edge/pingora/Cargo.toml --locked
-python3 edge/pingora/tests/runtime_smoke.py edge/pingora/target/debug/openflare-edge
+cargo fmt --manifest-path edge/Cargo.toml --check
+cargo clippy --manifest-path edge/Cargo.toml --locked --all-targets -- -D warnings
+cargo test --manifest-path edge/Cargo.toml --locked
+cargo build --manifest-path edge/Cargo.toml --locked
+python3 edge/tests/runtime_smoke.py edge/target/debug/openflare-edge
 ```
 
 直接使用 Cargo 构建时，二进制版本默认为 `dev`。复现发布构建时，可在编译命令前设置 `OPENFLARE_EDGE_VERSION=0.1.3`，其值取自发布标签并去掉 `edge-v` 前缀。

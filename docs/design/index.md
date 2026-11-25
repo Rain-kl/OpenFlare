@@ -71,12 +71,12 @@ OpenFlare 适合需要统一管理多台 OpenFlare Edge 代理节点、构建自
 
 ## 仓库结构
 
-OpenFlare 采用单 monorepo（Go 模块 `github.com/Rain-kl/Wavelet`，Rust Edge 位于 `edge/pingora/`，Rust 隧道工作区位于 `tunnel/`）。控制面与边缘组件共享同一仓库，业务代码按 Wavelet `internal/apps/` 领域模块组织：
+OpenFlare 采用单 monorepo（Go 模块 `github.com/Rain-kl/Wavelet`，Rust Edge 位于 `edge/`，Rust 隧道工作区位于 `tunnel/`）。控制面与边缘组件共享同一仓库，业务代码按 Wavelet `internal/apps/` 领域模块组织：
 
 | 路径 | 职责 |
 | --- | --- |
 | `cmd/server/` | 控制面 Server 启动入口（`main.go` + Cobra 子命令 `cli/`） |
-| `edge/pingora/` | Rust OpenFlare Edge 边缘网关（`openflare-edge`）源码与构建目录 |
+| `edge/` | Rust OpenFlare Edge 边缘网关（`openflare-edge`）源码与构建目录 |
 | `tunnel/` | Rust 原生内网穿透工作区（`common/`、`relay/`、`flared/`） |
 | `internal/` | 控制面域实现、持久化仓库与跨端共享协议 |
 | `frontend/` | Next.js 管理端，构建产物嵌入 Go Server |
@@ -116,9 +116,9 @@ OpenFlare 采用单 monorepo（Go 模块 `github.com/Rain-kl/Wavelet`，Rust Edg
 | `/api/v1/tunnel/*` | OpenFlared 连接器协议 | `X-Tunnel-Token` |
 | `/api/v1/admin/*` | Wavelet 平台管理 API | 管理员 Session |
 
-### 2. 边缘节点（`edge/pingora/`）
+### 2. 边缘节点（`edge/`）
 
-节点运行时位于 `edge/pingora/`。控制端通过配置清单分发站点（`sites.v1`）、隧道网关路由（`tunnel-routing.v1`）、WAF IP 组和性能策略，节点校验后更新本地数据面。详见 [边缘节点设计](./pingora-edge-design.md)。
+节点运行时位于 `edge/`。控制端通过配置清单分发站点（`sites.v1`）、隧道网关路由（`tunnel-routing.v1`）、WAF IP 组和性能策略，节点校验后更新本地数据面。详见 [边缘节点设计](./pingora-edge-design.md)。
 
 ### 3. Native Rust 内网穿透工作区（`tunnel/`）
 

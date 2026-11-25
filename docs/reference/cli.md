@@ -105,10 +105,10 @@ openflare-edge attack-rule-catalog
 ```bash
 # 编译 OpenFlare Edge Release 生产二进制
 make build-edge
-# 产物位于：edge/pingora/target/release/openflare-edge
+# 产物位于：edge/target/release/openflare-edge
 
 # 运行 Rust 测试套件
-cargo test --manifest-path edge/pingora/Cargo.toml --locked
+cargo test --manifest-path edge/Cargo.toml --locked
 ```
 
 ---

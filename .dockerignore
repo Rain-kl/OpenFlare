@@ -34,6 +34,6 @@ frontend/package-lock.json
 internal/router/dist/
 internal/router/root/dist/
 
-edge/pingora/target/
+edge/target/
 shared/probe/target/
 tunnel/target/

@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 env:
-  CARGO_MANIFEST: edge/pingora/Cargo.toml
+  CARGO_MANIFEST: edge/Cargo.toml
   CARGO_INCREMENTAL: "0"
 
 jobs:
@@ -48,9 +48,9 @@ jobs:
           source_sha="$(git rev-parse HEAD)"
           if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
             if git diff --quiet "$BEFORE" "$source_sha" -- \
-              edge/pingora/Cargo.toml edge/pingora/Cargo.lock edge/pingora/.cargo \
+              edge/Cargo.toml edge/Cargo.lock edge/.cargo \
               shared/probe/Cargo.toml \
-              .cargo rust-toolchain rust-toolchain.toml edge/pingora/rust-toolchain.toml \
+              .cargo rust-toolchain rust-toolchain.toml edge/rust-toolchain.toml \
               .github/workflows/build-release-openflare-edge.yml; then
               exit 0
             fi
@@ -157,7 +157,7 @@ jobs:
         id: cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: edge/pingora
+          workspaces: edge
           shared-key: openflare-edge-release-${{ matrix.target }}
           cache-bin: false
           save-if: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
@@ -173,7 +173,7 @@ jobs:
           version="${VERSION:-dev}"
           export OPENFLARE_EDGE_VERSION="${version#edge-v}"
           cargo build --locked --release --manifest-path "$CARGO_MANIFEST" --target "$TARGET"
-          binary="edge/pingora/target/${TARGET}/release/openflare-edge"
+          binary="edge/target/${TARGET}/release/openflare-edge"
           actual_version="$("$binary" --version)"
           [[ "$actual_version" == "openflare-edge $OPENFLARE_EDGE_VERSION" ]] || {
             echo "unexpected binary version: $actual_version" >&2

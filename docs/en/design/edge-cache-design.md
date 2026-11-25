@@ -176,8 +176,8 @@ Upstream response phase
 
 | Area | Path |
 | --- | --- |
-| Edge cache runtime | `edge/pingora/src/proxy/cache.rs` (cache key, TTL, evaluation, TinyUFO storage) |
-| Performance policy & storage | `internal/openflare/performance/`, `edge/pingora/src/runtime/performance.rs` |
+| Edge cache runtime | `edge/src/proxy/cache.rs` (cache key, TTL, evaluation, TinyUFO storage) |
+| Performance policy & storage | `internal/openflare/performance/`, `edge/src/runtime/performance.rs` |
 | Route snapshot compilation | `internal/openflare/edgeconfig/`, `internal/apps/openflare/config_version/snapshot.go` |
 | Validation | `internal/apps/openflare/proxy_route/helpers.go` |
 | Models & Defaults | New routes default `cache_policy=static`; read/write normalizes `url` -> `all` |
