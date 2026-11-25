@@ -3,6 +3,17 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, Save } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -31,12 +42,15 @@ export function PoWPageTab({
   optionMap: Record<string, string>;
 }) {
   const t = useTranslations('pow');
+  const tc = useTranslations('common');
+  const tr = useTranslations('responses');
   const preview = usePoWPagePreview();
   const saved = readPoWPage(optionMap[POW_PAGE_KEY]);
   const [draft, setDraft] = useState<
     Partial<Pick<PoWPageConfig, 'template' | 'widget'>>
   >({});
   const config = { ...saved, ...draft };
+  const hasCustomHTML = Boolean(saved.html?.trim());
   const save = useSaveResponsePageOption(POW_PAGE_KEY, t('pageSaved'));
   const hasChanges =
     config.template !== saved.template || config.widget !== saved.widget;
@@ -87,7 +101,50 @@ export function PoWPageTab({
                   {t('classic')}
                 </ToggleGroupItem>
               </ToggleGroup>
-              <FieldDescription>{t('templateHelp')}</FieldDescription>
+              <FieldDescription>
+                {hasCustomHTML ? t('customHtmlActive') : t('templateHelp')}
+              </FieldDescription>
+              {hasCustomHTML ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      className='w-fit'
+                      disabled={save.isPending}
+                    >
+                      {t('useBuiltin')}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{tr('restoreTitle')}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t('useBuiltinConfirm')}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{tc('cancel')}</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() =>
+                          save.mutate(
+                            (latest) =>
+                              JSON.stringify({
+                                ...readPoWPage(latest),
+                                ...draft,
+                                html: '',
+                              }),
+                            { onSuccess: () => setDraft({}) },
+                          )
+                        }
+                      >
+                        {tr('confirmRestore')}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : null}
             </Field>
             <Field>
               <FieldLabel>{t('widgetStyle')}</FieldLabel>

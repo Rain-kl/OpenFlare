@@ -132,3 +132,64 @@ func TestValidateSWOfflineDomains(t *testing.T) {
 		})
 	}
 }
+
+func TestValidatePoWPageOption(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{
+			name:  "valid custom html",
+			value: `{"template":"shield","widget":"turnstile","html":"<main>{{host}}{{widget}}</main>"}`,
+		},
+		{
+			name:  "empty and whitespace html",
+			value: `{"template":"classic","widget":"progress","html":"   "}`,
+		},
+		{
+			name:    "invalid template",
+			value:   `{"template":"unknown","widget":"progress"}`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid widget",
+			value:   `{"template":"shield","widget":"captcha"}`,
+			wantErr: true,
+		},
+		{
+			name:    "unknown field",
+			value:   `{"template":"shield","widget":"progress","extra":true}`,
+			wantErr: true,
+		},
+		{
+			name:    "null json",
+			value:   `null`,
+			wantErr: true,
+		},
+		{
+			name:    "non-object json",
+			value:   `[]`,
+			wantErr: true,
+		},
+		{
+			name:    "oversized html",
+			value:   fmt.Sprintf(`{"template":"shield","widget":"progress","html":"%s"}`, strings.Repeat("a", (256<<10)+1)),
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateEdgeOption(model.ConfigKeyPoWPage, tc.value)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

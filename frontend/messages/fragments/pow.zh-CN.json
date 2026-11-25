@@ -43,6 +43,8 @@
     "turnstile": "状态转换",
     "loadTemplate": "加载模板",
     "useBuiltin": "使用内置页面",
+    "customHtmlActive": "当前正在使用自定义 HTML，内置页面风格暂不生效。如需应用所选内置风格，请恢复使用内置页面或在编辑器中清空自定义 HTML。",
+    "useBuiltinConfirm": "将清空自定义 HTML 并恢复使用所选内置页面风格，此操作将立即保存并同步到边缘节点。",
     "pageSaved": "挑战页已保存，将自动同步到边缘节点。",
     "htmlTooLarge": "自定义 HTML 不得超过 256 KiB",
     "customHelp": "使用 {widget} 插入验证组件，使用 {host} 显示域名。验证脚本将自动注入；自定义界面可监听 openflare:pow 状态事件。",

@@ -116,3 +116,29 @@ func TestLookupGeoIPDisabledProvider(t *testing.T) {
 	assert.Equal(t, "disabled", view.Provider)
 	assert.Equal(t, "8.8.8.8", view.IP)
 }
+
+func TestUpdatePoWPagePersistsAsBusinessOptionWhenMissing(t *testing.T) {
+	cleanup := setupOptionTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	payload := `{"template":"classic","widget":"turnstile","html":"<main>{{host}}{{widget}}</main>"}`
+	err := updateOption(ctx, model.OpenFlareOption{
+		Key:   model.ConfigKeyPoWPage,
+		Value: payload,
+	})
+	require.NoError(t, err)
+
+	stored, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyPoWPage)
+	require.NoError(t, err)
+	assert.Equal(t, "business", stored.Type)
+	assert.Equal(t, payload, stored.Value)
+
+	options, err := listOptions(ctx)
+	require.NoError(t, err)
+	keys := make(map[string]string, len(options))
+	for _, opt := range options {
+		keys[opt.Key] = opt.Value
+	}
+	assert.Equal(t, payload, keys[model.ConfigKeyPoWPage])
+}

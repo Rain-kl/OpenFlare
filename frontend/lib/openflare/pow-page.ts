@@ -73,7 +73,11 @@ export function previewPoWPage(
       updateState({status:progress >= 100 ? 'success' : 'working', progress:Math.min(progress,100), message:progress >= 100 ? ${success} : ${message}});
     }, 200);
   </script>`;
-  return /<\/body\s*>/i.test(html)
-    ? html.replace(/<\/body\s*>/i, () => `${runtime}</body>`)
+  const closingBodyMatches = [...html.matchAll(/<\/body\s*>/gi)];
+  const lastClosingBody = closingBodyMatches[closingBodyMatches.length - 1];
+  return lastClosingBody?.index !== undefined
+    ? html.slice(0, lastClosingBody.index) +
+        runtime +
+        html.slice(lastClosingBody.index)
     : html + runtime;
 }

@@ -457,6 +457,11 @@ def release(seq, origin, tls_origin, certificate, key, *, empty=False, ws_origin
             "origin_error_page_enabled": True,
             "origin_error_page_status_codes": ["503"],
             "trusted_proxy_cidrs": [],
+            "pow_page": {
+                "template": "shield",
+                "widget": "turnstile",
+                "html": "<!DOCTYPE html><html><body><h1>custom pow {{host}}</h1>{{widget}}</body></html>",
+            },
             "site_auth_html": "<form>fixture sign-in {{login_error}}</form>",
         },
         "waf": {
@@ -680,7 +685,12 @@ def main(binary):
                                  data="username=alice&password=fixture-password",
                                  headers=(f"Origin: https://login.edge.test:{tls_port}",))
                 assert result[0] == 303 and "__Host-openflare_site_auth=" in result[2]
-                challenge = request("pow.edge.test")
+                challenge = request("pow.edge.test", use_http2=True)
+                assert challenge[0] == 200
+                assert "<h1>custom pow pow.edge.test</h1>" in challenge[3]
+                assert '<openflare-pow appearance="turnstile"></openflare-pow>' in challenge[3]
+                static_js = request("pow.edge.test", "/.within.website/x/cmd/anubis/static/js/main.mjs", use_http2=True)
+                assert static_js[0] == 200 and static_js[3]
                 boot = json.loads(re.search(r'id="openflare-pow-config" type="application/json">(.*?)</script>', challenge[3]).group(1))
                 proof = request("pow.edge.test", "/.within.website/x/cmd/anubis/api/pass-challenge?" + browser_proof(boot))
                 assert proof[0] == 200 and json.loads(proof[3]) == {"ok": True}

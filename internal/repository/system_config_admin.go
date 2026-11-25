@@ -62,8 +62,17 @@ func UpdateSystemConfigFieldsTx(tx *gorm.DB, config *model.SystemConfig, updates
 	return tx.Model(config).Updates(updates).Error
 }
 
-// SaveOrUpdateSystemConfig creates or updates a config row and invalidates cache.
+// SaveOrUpdateSystemConfig creates or updates a system config row and invalidates cache.
 func SaveOrUpdateSystemConfig(ctx context.Context, key, value string) error {
+	return saveOrUpdateSystemConfig(ctx, key, value, configTypeSystem)
+}
+
+// SaveOrUpdateBusinessSystemConfig creates or updates a business config row and invalidates cache.
+func SaveOrUpdateBusinessSystemConfig(ctx context.Context, key, value string) error {
+	return saveOrUpdateSystemConfig(ctx, key, value, configTypeBusiness)
+}
+
+func saveOrUpdateSystemConfig(ctx context.Context, key, value, configType string) error {
 	var sc model.SystemConfig
 	err := db.DB(ctx).Where("key = ?", key).First(&sc).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -74,7 +83,7 @@ func SaveOrUpdateSystemConfig(ctx context.Context, key, value string) error {
 		sc = model.SystemConfig{
 			Key:        key,
 			Value:      value,
-			Type:       configTypeSystem,
+			Type:       configType,
 			Visibility: model.ConfigVisibilityHidden,
 		}
 		if err := db.DB(ctx).Create(&sc).Error; err != nil {

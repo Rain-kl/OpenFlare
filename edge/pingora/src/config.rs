@@ -880,4 +880,47 @@ mod tests {
         assert!(route.is_tunnel());
         assert_eq!(route.tunnel_id, Some(7));
     }
+
+    #[test]
+    fn decode_preserves_custom_pow_page_configuration() {
+        let payload = serde_json::json!({
+            "schema_version": 1,
+            "contract_version": CONTRACT_VERSION,
+            "required_capabilities": [
+                BASE_CAPABILITY,
+                POLICY_CAPABILITY,
+                PROXY_CAPABILITY,
+                MEMORY_KEYS_CAPABILITY
+            ],
+            "snapshot": {
+                "routes": [{
+                    "id": 1,
+                    "site_name": "example",
+                    "domains": ["example.com"],
+                    "domain_cert_ids": [0],
+                    "origin_url": "http://127.0.0.1:9080",
+                    "enabled": true,
+                    "enable_https": false,
+                    "enable_http2": false,
+                    "redirect_http": false
+                }],
+                "edge_config": {
+                    "pow_page": {
+                        "template": "classic",
+                        "widget": "turnstile",
+                        "html": "<main>{{host}}{{widget}}</main>"
+                    }
+                },
+                "waf": {"rule_groups": [], "bindings": []}
+            },
+            "assets": { "certificates": {} }
+        })
+        .to_string();
+        let digest = format!("{:x}", Sha256::digest(payload.as_bytes()));
+        let applied = decode("v1", "checksum", 1, &digest, &payload).unwrap();
+        let pow_page = applied.pow_page();
+        assert_eq!(pow_page.template, "classic");
+        assert_eq!(pow_page.widget, "turnstile");
+        assert_eq!(pow_page.html, "<main>{{host}}{{widget}}</main>");
+    }
 }

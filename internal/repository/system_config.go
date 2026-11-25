@@ -18,7 +18,10 @@ import (
 	"github.com/Rain-kl/Wavelet/pkg/cache/ram"
 )
 
-const configTypeSystem = "system"
+const (
+	configTypeSystem   = "system"
+	configTypeBusiness = "business"
+)
 
 // PreheatSystemConfigs loads all system configs from database.
 // This function strictly performs database read and does not perform any cache read or write operations.

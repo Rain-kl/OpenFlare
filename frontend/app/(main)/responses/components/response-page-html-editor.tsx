@@ -95,6 +95,7 @@ export function ResponsePageHtmlEditor({
     }
     save.mutate(
       mergeHTML ? (latest) => mergeHTML(latest, valueToSave) : valueToSave,
+      { onSuccess: () => setDraft(null) },
     );
   };
 

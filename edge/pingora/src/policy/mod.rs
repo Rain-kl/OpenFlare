@@ -477,6 +477,85 @@ mod tests {
     }
 
     #[test]
+    fn pow_custom_html_preserves_custom_markup_and_widget_style() {
+        let mut route = route();
+        route.pow_enabled = true;
+        route.pow = Some(PoWConfig {
+            difficulty: 4,
+            algorithm: "fast".into(),
+            challenge_ttl: 300,
+            ..Default::default()
+        });
+        let mut context = context();
+        context.accept_language = "en-US".into();
+        let challenge = PowChallenge {
+            data: "randomdata".into(),
+            difficulty: 4,
+            host: context.host.clone(),
+            site: route.site_name.clone(),
+            redir: "/".into(),
+            algorithm: "fast".into(),
+            session_ttl: 600,
+            expires_at: 400,
+        };
+        let custom_page = PoWPageConfig {
+            template: "shield".into(),
+            widget: "turnstile".into(),
+            html: "<!DOCTYPE html><html><head><script>const o = {{a: 1}}; const s = '</body>';</script></head><BODY><h1>Custom {{host}}</h1>{{widget}}{{{widget}}} {{ title }} {{host}x {{unknown}}</BODY></html>".into(),
+        };
+        let html = render_pow_challenge(
+            route.pow.as_ref().unwrap(),
+            &route,
+            &custom_page,
+            &context,
+            "id-custom",
+            &challenge,
+        );
+        assert!(html.contains("<h1>Custom example.com</h1>"));
+        assert!(html.contains(
+            r#"<openflare-pow appearance="turnstile"></openflare-pow>{<openflare-pow appearance="turnstile"></openflare-pow>}"#
+        ));
+        assert!(html.contains("const o = {{a: 1}};"));
+        assert!(html.contains("const s = '</body>';"));
+        assert!(html.contains("{{ title }} {{host}x {{unknown}}"));
+        assert!(html.contains("</script>\n</BODY></html>"));
+        assert!(!html.contains("const s = '<script"));
+
+        let blank_page = PoWPageConfig {
+            template: "classic".into(),
+            widget: "progress".into(),
+            html: "   \n".into(),
+        };
+        let fallback_html = render_pow_challenge(
+            route.pow.as_ref().unwrap(),
+            &route,
+            &blank_page,
+            &context,
+            "id-blank",
+            &challenge,
+        );
+        assert!(fallback_html.contains("pensive.webp"));
+        assert!(fallback_html.contains(r#"class="brand-icon""#));
+
+        let fragment_page = PoWPageConfig {
+            template: "shield".into(),
+            widget: "progress".into(),
+            html: "<main>{{widget}}</main>".into(),
+        };
+        let fragment_html = render_pow_challenge(
+            route.pow.as_ref().unwrap(),
+            &route,
+            &fragment_page,
+            &context,
+            "id-fragment",
+            &challenge,
+        );
+        assert!(fragment_html
+            .starts_with(r#"<main><openflare-pow appearance="progress"></openflare-pow></main>"#));
+        assert!(fragment_html.contains(r#"<script id="openflare-pow-config""#));
+    }
+
+    #[test]
     fn pow_static_assets_are_embedded_and_path_lookup_is_safe() {
         assert!(pow_static("js/main.mjs").is_some());
         assert_eq!(

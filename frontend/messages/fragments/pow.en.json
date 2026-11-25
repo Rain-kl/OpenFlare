@@ -43,6 +43,8 @@
     "turnstile": "Status transition",
     "loadTemplate": "Load template",
     "useBuiltin": "Use built-in page",
+    "customHtmlActive": "Custom HTML is currently active and overrides the built-in page style. Switch to the built-in page or clear the custom HTML in the editor to apply a built-in style.",
+    "useBuiltinConfirm": "This clears the custom HTML and restores the selected built-in page style. The change is saved immediately and synced to edge nodes.",
     "pageSaved": "Challenge page saved and queued for automatic sync to edge nodes.",
     "htmlTooLarge": "Custom HTML must not exceed 256 KiB",
     "customHelp": "Insert {widget} for the verification widget and {host} for the hostname. The runtime is injected automatically. Custom interfaces can listen to openflare:pow state events.",

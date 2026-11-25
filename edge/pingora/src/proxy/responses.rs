@@ -237,12 +237,15 @@ pub(super) async fn serve_pow_static(session: &mut Session, path: &str) -> Resul
     })?;
     let _ = response.insert_header("Content-Type", content_type);
     let _ = response.insert_header("Content-Length", contents.len());
+    let end_of_stream = contents.is_empty() || session.req_header().method == http::Method::HEAD;
     session
-        .write_response_header(Box::new(response), true)
+        .write_response_header(Box::new(response), end_of_stream)
         .await?;
-    session
-        .write_response_body(Some(contents.to_vec().into()), true)
-        .await?;
+    if !end_of_stream {
+        session
+            .write_response_body(Some(contents.to_vec().into()), true)
+            .await?;
+    }
     Ok(true)
 }
 
@@ -277,12 +280,15 @@ impl ProxyService {
         let _ = response.insert_header("Content-Type", "text/html; charset=utf-8");
         let _ = response.insert_header("Cache-Control", "no-store");
         let _ = response.insert_header("Content-Length", body.len());
+        let end_of_stream = body.is_empty() || session.req_header().method == http::Method::HEAD;
         session
-            .write_response_header(Box::new(response), true)
+            .write_response_header(Box::new(response), end_of_stream)
             .await?;
-        session
-            .write_response_body(Some(body.into_bytes().into()), true)
-            .await?;
+        if !end_of_stream {
+            session
+                .write_response_body(Some(body.into_bytes().into()), true)
+                .await?;
+        }
         Ok(true)
     }
 

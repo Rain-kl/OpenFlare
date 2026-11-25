@@ -39,6 +39,21 @@ describe('PoW page preview', () => {
     expect(html).toContain('<script type="module">');
   });
 
+  it('injects the runtime before the last closing body tag', () => {
+    const html = previewPoWPage(
+      {
+        template: 'shield',
+        widget: 'turnstile',
+        html: "<!DOCTYPE html><html><head><script>const s = '</body>';</script></head><BODY>{{widget}}</BODY></html>",
+      },
+      'en',
+      text,
+    );
+    expect(html).toContain("const s = '</body>';");
+    expect(html).not.toContain("const s = '<script");
+    expect(html).toContain('</script></BODY></html>');
+  });
+
   it.each([undefined, 'null', '{}', '{"template":"","widget":""}', 'invalid'])(
     'normalizes empty configuration %s',
     (raw) => {

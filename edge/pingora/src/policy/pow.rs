@@ -26,7 +26,6 @@ const POW_CHALLENGE_ZH_CN: &str = include_str!(
 
 fn resolved_pow_page(page: &PoWPageConfig) -> PoWPageConfig {
     let mut resolved = page.clone();
-    resolved.html = Default::default();
     if resolved.template.is_empty() {
         resolved.template = "shield".to_owned();
     }
@@ -52,21 +51,6 @@ pub fn render_pow_challenge(
     challenge: &PowChallenge,
 ) -> String {
     let page = resolved_pow_page(page);
-    let template = if page.template.is_empty() {
-        "shield"
-    } else {
-        page.template.as_str()
-    };
-    let default_html = if template == "classic" {
-        POW_CLASSIC_HTML
-    } else {
-        POW_SHIELD_HTML
-    };
-    let html = if page.html.trim().is_empty() {
-        default_html
-    } else {
-        page.html.as_str()
-    };
     let widget = match page.widget.as_str() {
         "turnstile" => "turnstile",
         _ => "progress",
@@ -87,7 +71,7 @@ pub fn render_pow_challenge(
         ("noscript", translation.noscript.clone()),
         ("protected", translation.protected.clone()),
     ]);
-    let rendered = replace_pow_placeholders(html, &values, widget);
+    let rendered = replace_pow_placeholders(page.html.as_str(), &values, widget);
     let boot = serde_json::json!({
         "id": id,
         "randomData": challenge.data,
@@ -115,57 +99,51 @@ fn pow_translation(lang: &str) -> PowTranslation {
 
 fn replace_pow_placeholders(html: &str, values: &HashMap<&str, String>, widget: &str) -> String {
     let mut output = String::with_capacity(html.len());
-    let mut chars = html.char_indices().peekable();
-    while let Some((_start, ch)) = chars.next() {
-        if ch != '{' || chars.peek().is_none_or(|&(_, next)| next != '{') {
-            output.push(ch);
-            continue;
-        }
-        chars.next();
-        let mut name = String::new();
-        let mut closed = false;
-        while let Some((_, ch)) = chars.next() {
-            if ch == '}' {
-                if chars.peek().is_some_and(|&(_, next)| next == '}') {
-                    chars.next();
-                }
-                closed = true;
-                break;
-            } else if ch.is_ascii_alphanumeric() || ch == '_' {
-                name.push(ch);
-            } else {
-                closed = false;
-                break;
-            }
-        }
-        if closed {
+    let mut cursor = 0;
+    while let Some(offset) = html[cursor..].find("{{") {
+        let start = cursor + offset;
+        output.push_str(&html[cursor..start]);
+        let rest = &html[start + 2..];
+        let name_len = rest
+            .bytes()
+            .take_while(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+            .count();
+        if name_len > 0 && rest[name_len..].starts_with("}}") {
+            let name = &rest[..name_len];
             if name == "widget" {
                 output.push_str(&format!(
                     "<openflare-pow appearance=\"{widget}\"></openflare-pow>"
                 ));
-            } else if let Some(value) = values.get(name.as_str()) {
+            } else if let Some(value) = values.get(name) {
                 output.push_str(&html_escape(value));
             } else {
-                output.push_str("{{");
-                output.push_str(&name);
-                output.push_str("}}");
+                output.push_str(&html[start..start + 2 + name_len + 2]);
             }
+            cursor = start + 2 + name_len + 2;
         } else {
-            output.push_str("{{");
-            output.push_str(&name);
+            output.push('{');
+            cursor = start + 1;
         }
     }
+    output.push_str(&html[cursor..]);
     output
 }
 
 fn insert_before_closing_body(html: &str, runtime: &str) -> String {
-    let Some(index) = html.rfind("</body>") else {
-        return format!("{html}{runtime}");
-    };
-    let mut output = html[..index].to_owned();
-    output.push_str(runtime);
-    output.push_str(&html[index..]);
-    output
+    let lower = html.to_ascii_lowercase();
+    let mut end = lower.len();
+    while let Some(idx) = lower[..end].rfind("</body") {
+        let after = lower[idx + 6..].trim_start_matches(|ch: char| ch.is_ascii_whitespace());
+        if after.starts_with('>') {
+            let mut output = String::with_capacity(html.len() + runtime.len());
+            output.push_str(&html[..idx]);
+            output.push_str(runtime);
+            output.push_str(&html[idx..]);
+            return output;
+        }
+        end = idx;
+    }
+    format!("{html}{runtime}")
 }
 
 fn html_escape(value: &str) -> String {

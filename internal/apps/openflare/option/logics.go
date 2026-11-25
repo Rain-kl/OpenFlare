@@ -93,7 +93,7 @@ func updateOptions(ctx context.Context, options []model.OpenFlareOption) error {
 
 	// 将每个 option 更新到 SystemConfig
 	for _, opt := range options {
-		if err := repository.SaveOrUpdateSystemConfig(ctx, opt.Key, opt.Value); err != nil {
+		if err := repository.SaveOrUpdateBusinessSystemConfig(ctx, opt.Key, opt.Value); err != nil {
 			return fmt.Errorf("failed to update config %s: %w", opt.Key, err)
 		}
 

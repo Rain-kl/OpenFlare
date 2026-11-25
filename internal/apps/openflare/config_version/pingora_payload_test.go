@@ -57,7 +57,7 @@ func TestRefreshSiteSnapshotCreatesAlignedPingoraPayload(t *testing.T) {
 	}).Error)
 
 	require.NoError(t, db.DB(ctx).Create(&model.SystemConfig{
-		Key: model.ConfigKeyPoWPage, Value: `{"template":"shield","widget":"turnstile"}`, Type: "business", Visibility: 0,
+		Key: model.ConfigKeyPoWPage, Value: `{"template":"shield","widget":"turnstile","html":"<main>{{host}}{{widget}}</main>"}`, Type: "business", Visibility: 0,
 		Description: "PoW challenge page",
 	}).Error)
 
@@ -86,6 +86,7 @@ func TestRefreshSiteSnapshotCreatesAlignedPingoraPayload(t *testing.T) {
 	assert.Equal(t, []string{"tls-sni-h2-v1", "policy-runtime-v1", "shared-snapshot-v1", "tls-memory-keys-v1"}, payload.RequiredCapabilities)
 	assert.Equal(t, "shield", snapshot.EdgeSettings.PoWPage.Template)
 	assert.Equal(t, "turnstile", snapshot.EdgeSettings.PoWPage.Widget)
+	assert.Equal(t, "<main>{{host}}{{widget}}</main>", snapshot.EdgeSettings.PoWPage.HTML)
 	certAsset, ok := payload.Assets.Certificates[strconv.FormatUint(uint64(certificate.ID), 10)]
 	require.True(t, ok)
 	assert.Equal(t, edgeconfig.CertificatePEMDigest(certPEM), certAsset.CertSHA256)
