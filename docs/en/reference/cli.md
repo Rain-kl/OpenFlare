@@ -211,7 +211,7 @@ Whenever API doc annotations are modified, regenerate OpenAPI / Swagger specific
 
 ```bash
 make swagger
-# Output files: docs/swagger.json, docs/swagger.yaml
+# Output files: api/swagger/swagger.json, api/swagger/swagger.yaml
 ```
 
 Access the interactive UI in non-production environments at: `http://localhost:3000/api/swagger/index.html`.

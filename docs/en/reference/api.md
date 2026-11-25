@@ -10,16 +10,16 @@ The OpenFlare backend automatically maintains OpenAPI 2.0 / Swagger specificatio
 
 ### 1. Static Specification Files
 
-The specification definition files are stored under the `docs/` directory of the repository, ready to be imported into tools like Postman, Apifox, or Insomnia, or used for automated client SDK generation:
+The specification definition files are stored under the `api/swagger/` directory of the repository, ready to be imported into tools like Postman, Apifox, or Insomnia, or used for automated client SDK generation:
 
-- **JSON Format**: `docs/swagger.json`
-- **YAML Format**: `docs/swagger.yaml`
+- **JSON Format**: `api/swagger/swagger.json`
+- **YAML Format**: `api/swagger/swagger.yaml`
 
 Whenever you update Handler annotations, structs, or route bindings, regenerate the specification from the repository root:
 
 ```bash
 make swagger
-# Equivalent to executing scripts/swagger.sh
+# Equivalent to executing tools/codegen/swagger.sh
 ```
 
 ### 2. Interactive Swagger UI

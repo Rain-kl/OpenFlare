@@ -12,7 +12,7 @@ This section consolidates stable reference material across OpenFlare runtime env
 | --- | --- | --- |
 | **Configuration** | [Configuration Reference](./configuration.md) | `config.yaml` base settings, environment variable overrides, `w_system_configs` runtime dynamic options, edge security limits, and Relay / OpenFlared daemon configurations |
 | **CLI & Tooling** | [Commands & Scripts](./cli.md) | `openflare-server`, `openflare-edge`, `openflare-relay`, and `flared` binary subcommands and flags, Makefile build/test targets, and frontend linters |
-| **API & Protocols** | [API & Protocols](./api.md) | OpenAPI 2.0 / Swagger definition files (`docs/swagger.json`, `docs/swagger.yaml`), Swagger UI interactive console, Access Token / Session authentication, response envelopes, and core endpoints |
+| **API & Protocols** | [API & Protocols](./api.md) | OpenAPI 2.0 / Swagger definition files (`api/swagger/swagger.json`, `api/swagger/swagger.yaml`), Swagger UI interactive console, Access Token / Session authentication, response envelopes, and core endpoints |
 | **Benchmarks** | [OpenFlare Edge Performance Benchmarks](./pingora-benchmark.md) | Direct cross-region benchmarking data, throughput/latency comparisons across full WAF, IP-filtering, and disabled WAF, and multi-threaded scaling results |
 
 ---

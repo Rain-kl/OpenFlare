@@ -211,7 +211,7 @@ make code-check
 
 ```bash
 make swagger
-# 生成产物：docs/swagger.json, docs/swagger.yaml
+# 生成产物：api/swagger/swagger.json, api/swagger/swagger.yaml
 ```
 
 在线控制台请在非生产环境下访问：`http://localhost:3000/api/swagger/index.html`。

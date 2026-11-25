@@ -4,7 +4,7 @@
 package root
 
 import (
-	_ "github.com/Rain-kl/Wavelet/docs" // Swagger documentation generation setup
+	_ "github.com/Rain-kl/Wavelet/api/swagger" // Swagger documentation generation setup
 	publicconfig "github.com/Rain-kl/Wavelet/internal/apps/config"
 	"github.com/Rain-kl/Wavelet/internal/apps/health"
 	"github.com/Rain-kl/Wavelet/internal/apps/upload"

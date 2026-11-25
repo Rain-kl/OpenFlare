@@ -36,7 +36,7 @@ Server、Agent、后台任务、安装/卸载脚本以及浏览器 PoW 调试日
 
 ## 校验与扩展
 
-在仓库根目录运行 `node scripts/audit-non-english.mjs` 可生成完整的非 ASCII 文本清单，默认输出到被 Git 忽略的 `.codex-artifacts/non-english-audit/`。`occurrences.csv` 包含文件、行号、模块、分类和原文；JSON 另含字符位置、Unicode 码点、字符集及跳过的文件；`review-candidates.csv` 单列待审查源码。命令读取所有已跟踪和未被忽略的新文件，不按业务目录名称排除内容，也识别 Unicode 转义。
+在仓库根目录运行 `node tools/lint/audit-non-english.mjs` 可生成完整的非 ASCII 文本清单，默认输出到被 Git 忽略的 `.codex-artifacts/non-english-audit/`。`occurrences.csv` 包含文件、行号、模块、分类和原文；JSON 另含字符位置、Unicode 码点、字符集及跳过的文件；`review-candidates.csv` 单列待审查源码。命令读取所有已跟踪和未被忽略的新文件，不按业务目录名称排除内容，也识别 Unicode 转义。
 
 清单包含标点、表情、注释、文档、语言资源与历史迁移，不表示每个命中都需要替换。依赖、构建输出和私有环境文件不进入清单；二进制文件单独列出，不执行截图 OCR 或解包。生成的 Swagger 和中文文档站配置保留中文，既有上传分类键保留兼容性。字符集也不等同于语言，例如 Han 字符可能属于中文或日文。
 

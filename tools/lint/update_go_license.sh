@@ -7,7 +7,7 @@ MODE="write"
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/update_go_license.sh [--check]
+  tools/lint/update_go_license.sh [--check]
 
 Updates Go source files with the project SPDX license header.
 
@@ -52,6 +52,7 @@ find_go_files() {
   find . \
     \( -path './.*' \
     -o -path './*-source' \
+    -o -path './api/swagger' \
     -o -path './docs' \
     -o -path './frontend/node_modules' \
     -o -path './frontend/.next' \

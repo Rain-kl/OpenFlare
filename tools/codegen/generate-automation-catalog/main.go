@@ -1,3 +1,6 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
 // Command generate-automation-catalog derives automation contracts from Swagger.
 package main
 
@@ -57,7 +60,7 @@ func main() {
 }
 
 func run(check bool) error {
-	source, err := os.ReadFile("docs/swagger.json")
+	source, err := os.ReadFile("api/swagger/swagger.json")
 	if err != nil {
 		return err
 	}

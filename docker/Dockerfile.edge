@@ -28,7 +28,7 @@ RUN test -s /etc/ssl/certs/ca-certificates.crt \
     && adduser -S -D -H -u 10001 -G openflare-edge -s /sbin/nologin openflare-edge \
     && install -d -m 0750 -o openflare-edge -g openflare-edge /var/lib/openflare-edge
 
-COPY --chmod=0755 scripts/edge-entrypoint.sh /usr/local/bin/edge-entrypoint
+COPY --chmod=0755 docker/entrypoints/edge-entrypoint.sh /usr/local/bin/edge-entrypoint
 COPY --from=builder /out/openflare-edge /usr/local/bin/openflare-edge
 
 ARG VERSION=dev

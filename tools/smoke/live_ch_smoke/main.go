@@ -4,7 +4,7 @@
 // Package main is a manual smoke tool for ClickHouse app write path.
 // Usage (from repo root, with config.yaml and Docker CH up):
 //
-//	go run ./scripts/live_ch_smoke
+//	go run ./tools/smoke/live_ch_smoke
 package main
 
 import (

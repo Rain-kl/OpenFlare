@@ -5,7 +5,7 @@ import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const output = resolve(root, process.argv[2] ?? '.codex-artifacts/non-english-audit');
 const paths = [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: root, maxBuffer: 16 * 1024 * 1024 }).toString('utf8').split('\0').filter(Boolean))].sort();
 const scripts = ['Han', 'Hiragana', 'Katakana', 'Hangul', 'Cyrillic', 'Arabic', 'Hebrew', 'Greek', 'Thai', 'Devanagari', 'Latin'];
@@ -55,10 +55,9 @@ function commentMask(text, path) {
 function category(path, line, spans, mask, offset) {
   if (path.startsWith('frontend/messages/') || /\/locales\//.test(path)) return 'translation-resource';
   if (/\.(md|mdx)$/i.test(path)) return 'documentation';
-  if (['docs/docs.go', 'docs/swagger.json', 'docs/swagger.yaml'].includes(path)) return 'generated-api-documentation';
+  if (['api/swagger/docs.go', 'api/swagger/swagger.json', 'api/swagger/swagger.yaml'].includes(path)) return 'generated-api-documentation';
   if (path.startsWith('docs/')) return 'documentation-site';
-  if (path.startsWith('.agents/') || path === 'scripts/audit-non-english.mjs') return 'developer-tooling';
-  if (path.startsWith('.auto/')) return 'development-history';
+  if (path.startsWith('.agents/') || path === 'tools/lint/audit-non-english.mjs') return 'developer-tooling';
   if (path.startsWith('.github/ISSUE_TEMPLATE/') || /close.ticket/i.test(path)) return 'community-template';
   if (/(_test\.go|\.(test|spec)\.[^.]+)$/.test(path) || /(^|\/)(tests?|testdata|testhelper)\//.test(path)) return 'test-fixture';
   if (path.startsWith('internal/infra/persistence/migrator/goose/')) return 'historical-migration';
@@ -154,6 +153,6 @@ writeFileSync(resolve(output, 'summary.md'), [
   '## Components requiring review', '', '| Component | Lines |', '| --- | ---: |', ...[...groups].sort((a, b) => b[1] - a[1]).map(([name, count]) => `| ${name} | ${count} |`), '',
   '## Largest components (all categories)', '', '| Component | Lines | Files |', '| --- | ---: | ---: |', ...componentRows.slice(0, 30).map(([name, group]) => `| ${name} | ${group.lines} | ${group.files.size} |`), '',
   '## Files', '', '- occurrences.csv: every matching line with its source path and component.', '- occurrences.json: exact character positions, Unicode code points, script classifications and skipped files.', '- components.json: every affected component, its source files, counts and categories.', '- review-candidates.csv: remaining source/configuration candidates, including embedded templates.', '',
-  'Regenerate from the repository root: `node scripts/audit-non-english.mjs`.', '',
+  'Regenerate from the repository root: `node tools/lint/audit-non-english.mjs`.', '',
 ].join('\n'));
 console.log(JSON.stringify({ scanned, skipped: skipped.length, lines: records.length, files: new Set(records.map((r) => r.path)).size, totals, output }, null, 2));

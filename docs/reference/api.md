@@ -10,16 +10,16 @@ OpenFlare 后端基于 [Swaggo](https://github.com/swaggo/swag) 根据源码注�
 
 ### 1. 静态规范定义文件
 
-规范文件位于仓库的 `docs/` 目录下，可直接导入 Postman、Apifox、Insomnia 等 API 协作工具或用于自动化客户端生成：
+规范文件位于仓库的 `api/swagger/` 目录下，可直接导入 Postman、Apifox、Insomnia 等 API 协作工具或用于自动化客户端生成：
 
-- **JSON 格式**：`docs/swagger.json`
-- **YAML 格式**：`docs/swagger.yaml`
+- **JSON 格式**：`api/swagger/swagger.json`
+- **YAML 格式**：`api/swagger/swagger.yaml`
 
 每次在业务代码中修改 Handler 注释、结构体或路由后，通过根目录 Makefile 重新生成规范：
 
 ```bash
 make swagger
-# 等价于执行 scripts/swagger.sh
+# 等价于执行 tools/codegen/swagger.sh
 ```
 
 ### 2. 在线 Swagger UI

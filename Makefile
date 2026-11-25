@@ -5,14 +5,14 @@ BUILD_DATE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 MODULE := $(shell go list -m)
 
 swagger:
-	scripts/swagger.sh
-	go run ./scripts/generate-automation-catalog
+	tools/codegen/swagger.sh
+	go run ./tools/codegen/generate-automation-catalog
 
 license:
-	scripts/update_go_license.sh
+	tools/lint/update_go_license.sh
 
 license-check:
-	scripts/update_go_license.sh --check
+	tools/lint/update_go_license.sh --check
 
 format:
 	@echo "==> Formatting backend Go source and removing unused imports..."
@@ -45,8 +45,8 @@ code-check:
 		echo 'error: internal/model must not access db.DB or db.Redis (non-test code)' >&2; \
 		exit 1; \
 	fi
-	node scripts/generate-attack-rule-ids.mjs --check
-	go run ./scripts/generate-automation-catalog -check
+	node tools/codegen/generate-attack-rule-ids.mjs --check
+	go run ./tools/codegen/generate-automation-catalog -check
 	golangci-lint run
 	cd frontend && node scripts/generate-pow-assets.mjs --check && node scripts/merge-i18n-fragments.mjs && pnpm check:i18n && pnpm tsc --noEmit --jsx preserve && npx eslint . --max-warnings 0
 
