@@ -50,7 +50,6 @@ function NodesPage() {
   const t = useTranslations('nodes');
   const tc = useTranslations('common');
   const queryClient = useQueryClient();
-  const [editingNode, setEditingNode] = useState<NodeItem | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<NodeItem | null>(null);
   const [page, setPage] = useState(1);
@@ -61,7 +60,6 @@ function NodesPage() {
   const searchTooLong = new TextEncoder().encode(search.trim()).length > 256;
 
   const resetNodeActions = useCallback(() => {
-    setEditingNode(null);
     setEditorOpen(false);
     setDeleteTarget(null);
   }, []);
@@ -118,16 +116,11 @@ function NodesPage() {
     resetNodeActions();
   }
 
-  const saveMutation = useMutation({
-    mutationFn: async (payload: NodeMutationPayload) => {
-      if (editingNode) {
-        return NodeService.updateNode(editingNode.id, payload);
-      }
-      return NodeService.createNode(payload);
-    },
+  const createMutation = useMutation({
+    mutationFn: (payload: NodeMutationPayload) =>
+      NodeService.createNode(payload),
     onSuccess: async () => {
-      toast.success(editingNode ? t('updated') : t('created'));
-      setEditingNode(null);
+      toast.success(t('created'));
       setEditorOpen(false);
       await queryClient.invalidateQueries({ queryKey: nodesQueryKey });
     },
@@ -147,17 +140,6 @@ function NodesPage() {
       toast.error(getErrorMessage(error, t('requestFailed')));
     },
   });
-
-  const handleCreate = () => {
-    setEditingNode(null);
-    setEditorOpen(true);
-  };
-
-  const handleEdit = (node: NodeItem) => {
-    if (nodesQuery.isPlaceholderData) return;
-    setEditingNode(node);
-    setEditorOpen(true);
-  };
 
   const handleRefresh = () => {
     void queryClient.invalidateQueries({ queryKey: nodesQueryKey });
@@ -188,7 +170,7 @@ function NodesPage() {
             size='icon-sm'
             aria-label={t('create')}
             title={t('create')}
-            onClick={handleCreate}
+            onClick={() => setEditorOpen(true)}
           >
             <Plus />
           </Button>
@@ -249,7 +231,6 @@ function NodesPage() {
               deletingId={
                 deleteMutation.isPending ? (deleteTarget?.id ?? null) : null
               }
-              onEdit={handleEdit}
               onDelete={(node) => {
                 if (!nodesQuery.isPlaceholderData) setDeleteTarget(node);
               }}
@@ -273,18 +254,11 @@ function NodesPage() {
 
       <NodeEditorDialog
         open={editorOpen}
-        node={editingNode}
-        submitting={
-          saveMutation.isPending ||
-          (Boolean(editingNode) && nodesQuery.isPlaceholderData)
-        }
-        onClose={() => {
-          setEditorOpen(false);
-          setEditingNode(null);
-        }}
+        node={null}
+        submitting={createMutation.isPending}
+        onClose={() => setEditorOpen(false)}
         onSubmit={async (payload) => {
-          if (!editingNode || !nodesQuery.isPlaceholderData)
-            await saveMutation.mutateAsync(payload);
+          await createMutation.mutateAsync(payload);
         }}
       />
 

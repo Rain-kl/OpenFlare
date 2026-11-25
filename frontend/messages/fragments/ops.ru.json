@@ -233,6 +233,7 @@
     "table": {
       "node": "Узел",
       "status": "Статус",
+      "versions": "Версии",
       "version": "Версия",
       "currentVersion": "Текущая версия",
       "actions": "Действия"
@@ -246,8 +247,8 @@
       "upload": "Отправка",
       "download": "Получение",
       "probeFailed": "Сбой проверки",
-      "milliseconds": "{value, number} мс",
-      "probeHistory": "{name} · {value} · График",
+      "milliseconds": "{value, number}мс",
+      "probeHistory": "{name} · Задержка и потеря пакетов",
       "view": "Вид списка узлов",
       "gridView": "Карточки",
       "listView": "Список",
@@ -645,6 +646,8 @@
       "toggleLoss": "Потери",
       "toggleSmooth": "Сглаживание пиков",
       "smoothHint": "Применяет экспоненциальное сглаживание EWMA и подавляет единичные выбросы",
+      "noLoss": "Для выбранных проверок потерь пакетов не зафиксировано",
+      "noSelection": "Выберите проверку и показатель для графика.",
       "noRecords": "За выбранный период отсутствуют записи задержки."
     },
     "selector": {

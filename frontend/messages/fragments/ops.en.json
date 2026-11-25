@@ -233,6 +233,7 @@
     "table": {
       "node": "Node",
       "status": "Status",
+      "versions": "Versions",
       "version": "Version",
       "currentVersion": "Current version",
       "actions": "Actions"
@@ -246,8 +247,8 @@
       "upload": "Upload",
       "download": "Download",
       "probeFailed": "Probe failed",
-      "milliseconds": "{value, number} ms",
-      "probeHistory": "{name} · {value} · View trend",
+      "milliseconds": "{value, number}ms",
+      "probeHistory": "{name} · Latency and packet loss",
       "view": "Node view",
       "gridView": "Card view",
       "listView": "List view",
@@ -645,6 +646,8 @@
       "toggleLoss": "Packet Loss",
       "toggleSmooth": "Smooth Peaks",
       "smoothHint": "Applies EWMA smoothing and suppresses isolated latency spikes",
+      "noLoss": "No packet loss recorded for the selected probes",
+      "noSelection": "Select a probe and a chart metric.",
       "noRecords": "No latency records are available for the selected range."
     },
     "selector": {

@@ -233,6 +233,7 @@
     "table": {
       "node": "节点",
       "status": "状态",
+      "versions": "版本",
       "version": "Version",
       "currentVersion": "当前版本",
       "actions": "操作"
@@ -246,8 +247,8 @@
       "upload": "上传",
       "download": "下载",
       "probeFailed": "探测失败",
-      "milliseconds": "{value, number} 毫秒",
-      "probeHistory": "{name} · {value} · 查看趋势",
+      "milliseconds": "{value, number}ms",
+      "probeHistory": "{name} · 延迟与丢包",
       "view": "节点视图",
       "gridView": "卡片视图",
       "listView": "列表视图",
@@ -645,6 +646,8 @@
       "toggleLoss": "丢包",
       "toggleSmooth": "平滑峰值",
       "smoothHint": "使用指数加权移动平均算法平滑曲线并抑制孤立尖峰",
+      "noLoss": "所选任务未记录到丢包",
+      "noSelection": "请选择探测任务及图表指标。",
       "noRecords": "当前时间范围内暂无延迟探测记录。"
     },
     "selector": {

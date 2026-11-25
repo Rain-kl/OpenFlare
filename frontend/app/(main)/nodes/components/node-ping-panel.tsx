@@ -8,6 +8,8 @@ import { Info, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useChartThemePalette } from '@/components/data/chart-theme';
+import { ErrorInline } from '@/components/layout/error';
+import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -90,10 +92,14 @@ function TaskStatCard({
   return (
     <div
       role='button'
+      aria-pressed={selected}
       tabIndex={0}
       onClick={onToggle}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (
+          e.target === e.currentTarget &&
+          (e.key === 'Enter' || e.key === ' ')
+        ) {
           e.preventDefault();
           onToggle();
         }
@@ -192,7 +198,13 @@ function TaskStatCard({
   );
 }
 
-export function NodePingPanel({ nodeId }: { nodeId: number }) {
+export function NodePingPanel({
+  nodeId,
+  showIntro = true,
+}: {
+  nodeId: number;
+  showIntro?: boolean;
+}) {
   const t = useTranslations('nodes');
   const palette = useChartThemePalette();
   const [hours, setHours] = useState<PingRangeHours>(1);
@@ -260,6 +272,7 @@ export function NodePingPanel({ nodeId }: { nodeId: number }) {
       else slotMap.set(slot, [rec]);
     }
     const slots = Array.from(slotMap.keys()).sort((a, b) => a - b);
+    if (slots.length === 0) return {};
     const xLabels = slots.map((ms) =>
       formatPingTimestamp(new Date(ms).toISOString(), hours),
     );
@@ -288,7 +301,7 @@ export function NodePingPanel({ nodeId }: { nodeId: number }) {
           yAxisIndex: 0,
           smooth: true,
           connectNulls: true,
-          showSymbol: false,
+          showSymbol: values.filter((value) => value !== null).length === 1,
           lineStyle: { width: 2, color },
           itemStyle: { color },
           data: values,
@@ -396,8 +409,24 @@ export function NodePingPanel({ nodeId }: { nodeId: number }) {
           splitLine: { lineStyle: { color: palette.border, type: 'dashed' } },
         };
 
+    const noLoss =
+      showLoss &&
+      activeTasks.every((task) => task.total > 0 && task.loss === 0);
     return {
       animationDuration: 350,
+      graphic: noLoss
+        ? {
+            type: 'text',
+            left: 'center',
+            top: dualGrid ? '83%' : '50%',
+            silent: true,
+            style: {
+              text: t('ping.noLoss'),
+              fill: palette.mutedForeground,
+              fontSize: 12,
+            },
+          }
+        : undefined,
       axisPointer: dualGrid ? { link: [{ xAxisIndex: 'all' }] } : undefined,
       tooltip: {
         trigger: 'axis',
@@ -423,15 +452,15 @@ export function NodePingPanel({ nodeId }: { nodeId: number }) {
     tasks,
   ]);
 
-  const hasChartData =
-    tasks.length > 0 &&
-    records.length > 0 &&
-    selectedTaskIds.length > 0 &&
-    (showDelay || showLoss);
+  const hasSelection = selectedTaskIds.length > 0 && (showDelay || showLoss);
+  const hasChartData = hasSelection && Boolean(chartOption.series);
 
   return (
-    <section className='space-y-4'>
-      <div className='flex flex-wrap items-center justify-between gap-3'>
+    <section
+      className='flex min-w-0 flex-col gap-4'
+      aria-busy={pingQuery.isFetching}
+    >
+      {showIntro && (
         <div>
           <h2 className='text-base font-semibold tracking-tight'>
             {t('ping.sectionTitle')}
@@ -440,58 +469,67 @@ export function NodePingPanel({ nodeId }: { nodeId: number }) {
             {t('ping.sectionDesc')}
           </p>
         </div>
-
-        <div className='flex flex-wrap items-center gap-2'>
-          {pingQuery.isFetching ? (
-            <Loader2 className='size-3.5 animate-spin text-muted-foreground' />
-          ) : null}
-          <Tabs
-            value={String(hours)}
-            onValueChange={(value) => setHours(Number(value) as PingRangeHours)}
-          >
-            <TabsList className='h-8'>
-              {PING_RANGES.map((item) => (
-                <TabsTrigger
-                  key={item.key}
-                  value={String(item.hours)}
-                  className='h-6.5 px-2.5 text-xs'
-                >
-                  {t(`overview.ranges.${item.key}`)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-
-          {tasks.length > 0 ? (
-            <div className='flex items-center gap-1'>
-              <Button
-                type='button'
-                variant={
-                  selectedTaskIds.length === tasks.length
-                    ? 'secondary'
-                    : 'outline'
-                }
-                size='sm'
-                className='h-8 text-xs'
-                onClick={() => setSelectedTaskIds(tasks.map((item) => item.id))}
+      )}
+      <div className='flex flex-wrap items-center gap-3'>
+        <Tabs
+          value={String(hours)}
+          onValueChange={(value) => setHours(Number(value) as PingRangeHours)}
+        >
+          <TabsList className='h-auto min-h-8 flex-wrap justify-start'>
+            {PING_RANGES.map((item) => (
+              <TabsTrigger
+                key={item.key}
+                value={String(item.hours)}
+                className='h-6.5 px-2.5 text-xs'
               >
-                {t('ping.selectAll')}
-              </Button>
-              <Button
-                type='button'
-                variant={selectedTaskIds.length === 0 ? 'secondary' : 'outline'}
-                size='sm'
-                className='h-8 text-xs'
-                onClick={() => setSelectedTaskIds([])}
-              >
-                {t('ping.deselectAll')}
-              </Button>
-            </div>
-          ) : null}
-        </div>
+                {t(`overview.ranges.${item.key}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        {tasks.length > 0 ? (
+          <div className='flex items-center gap-1 sm:ml-auto'>
+            <Button
+              type='button'
+              variant={
+                selectedTaskIds.length === tasks.length
+                  ? 'secondary'
+                  : 'outline'
+              }
+              size='sm'
+              className='h-8 text-xs'
+              onClick={() => setSelectedTaskIds(tasks.map((item) => item.id))}
+            >
+              {t('ping.selectAll')}
+            </Button>
+            <Button
+              type='button'
+              variant={selectedTaskIds.length === 0 ? 'secondary' : 'outline'}
+              size='sm'
+              className='h-8 text-xs'
+              onClick={() => setSelectedTaskIds([])}
+            >
+              {t('ping.deselectAll')}
+            </Button>
+          </div>
+        ) : null}
+        {pingQuery.isFetching && !pingQuery.isPending && (
+          <Loader2
+            className='size-3.5 animate-spin text-muted-foreground'
+            aria-hidden
+          />
+        )}
       </div>
 
-      {tasks.length === 0 ? (
+      {pingQuery.isPending ? (
+        <LoadingStateWithBorder />
+      ) : pingQuery.isLoadingError ? (
+        <ErrorInline
+          message={t('requestFailed')}
+          onRetry={() => void pingQuery.refetch()}
+        />
+      ) : tasks.length === 0 ? (
         <Card>
           <CardContent className='flex items-center justify-center py-10 text-sm text-muted-foreground'>
             {t('ping.noTasksForNode')}
@@ -499,7 +537,7 @@ export function NodePingPanel({ nodeId }: { nodeId: number }) {
         </Card>
       ) : (
         <>
-          <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
+          <div className='grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3'>
             {tasks.map((task, idx) => (
               <TaskStatCard
                 key={task.id}
@@ -515,6 +553,7 @@ export function NodePingPanel({ nodeId }: { nodeId: number }) {
             <Button
               type='button'
               variant={showDelay ? 'secondary' : 'outline'}
+              aria-pressed={showDelay}
               size='sm'
               className='h-7 text-xs'
               onClick={() => setShowDelay((v) => !v)}
@@ -524,6 +563,7 @@ export function NodePingPanel({ nodeId }: { nodeId: number }) {
             <Button
               type='button'
               variant={showLoss ? 'secondary' : 'outline'}
+              aria-pressed={showLoss}
               size='sm'
               className='h-7 text-xs'
               onClick={() => setShowLoss((v) => !v)}
@@ -534,6 +574,7 @@ export function NodePingPanel({ nodeId }: { nodeId: number }) {
               <Button
                 type='button'
                 variant={cutPeak ? 'secondary' : 'outline'}
+                aria-pressed={cutPeak}
                 size='sm'
                 className='h-7 text-xs'
                 onClick={() => setCutPeak((v) => !v)}
@@ -573,7 +614,7 @@ export function NodePingPanel({ nodeId }: { nodeId: number }) {
                 />
               ) : (
                 <div className='flex h-64 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground'>
-                  {t('ping.noRecords')}
+                  {t(hasSelection ? 'ping.noRecords' : 'ping.noSelection')}
                 </div>
               )}
             </CardContent>

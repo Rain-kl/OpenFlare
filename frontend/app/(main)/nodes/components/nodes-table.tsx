@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { Eye, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,6 @@ export type NodeListView = 'list' | 'grid';
 type NodeActionsProps = {
   deletingId: number | null;
   actionsDisabled?: boolean;
-  onEdit: (node: NodeItem) => void;
   onDelete: (node: NodeItem) => void;
 };
 
@@ -44,7 +43,6 @@ function NodeActions({
   node,
   deletingId,
   actionsDisabled,
-  onEdit,
   onDelete,
 }: NodeActionsProps & { node: NodeItem }) {
   const t = useTranslations('nodes');
@@ -75,18 +73,6 @@ function NodeActions({
         type='button'
         variant='ghost'
         size='icon-sm'
-        className='size-7'
-        aria-label={t('edit')}
-        title={t('edit')}
-        disabled={actionsDisabled}
-        onClick={() => onEdit(node)}
-      >
-        <Pencil />
-      </Button>
-      <Button
-        type='button'
-        variant='ghost'
-        size='icon-sm'
         className='size-7 text-destructive hover:text-destructive'
         aria-label={t('delete')}
         title={t('delete')}
@@ -110,9 +96,17 @@ function NodeIdentity({ node }: { node: NodeItem }) {
 
   return (
     <div className='flex min-w-0 flex-col gap-0.5'>
-      <p className='truncate font-semibold' title={node.name}>
-        {node.name}
-      </p>
+      <div className='flex min-w-0 items-center gap-1.5'>
+        {node.status === 'online' && (
+          <span
+            aria-hidden
+            className='size-1.5 shrink-0 rounded-full bg-success'
+          />
+        )}
+        <p className='truncate font-semibold' title={node.name}>
+          {node.name}
+        </p>
+      </div>
       {description && (
         <p
           className='truncate text-xs text-muted-foreground'
@@ -136,7 +130,7 @@ function NodeHealth({ node }: { node: NodeItem }) {
   const online = node.status === 'online';
   return (
     <NodeStatusBadge
-      className='max-w-full justify-start gap-1.5 border-0 bg-transparent p-0 text-xs whitespace-normal before:size-1.5 before:shrink-0 before:rounded-full before:bg-current'
+      className='max-w-full justify-start border-0 bg-transparent p-0 text-xs whitespace-normal'
       label={
         online
           ? `${status} · ${getOpenrestyStatusLabel(node.openresty_status, t)}`
@@ -148,6 +142,24 @@ function NodeHealth({ node }: { node: NodeItem }) {
           : getNodeStatusTone(node.status)
       }
     />
+  );
+}
+
+function NodeVersions({ node }: { node: NodeItem }) {
+  const t = useTranslations('nodes');
+  const currentVersion = node.current_version || t('notApplied');
+
+  return (
+    <dl className='grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-2 gap-y-1 text-xs'>
+      <dt className='text-muted-foreground'>{t('table.version')}</dt>
+      <dd className='truncate tabular-nums' title={node.version}>
+        {node.version || <MissingMetric />}
+      </dd>
+      <dt className='text-muted-foreground'>{t('table.currentVersion')}</dt>
+      <dd className='truncate tabular-nums' title={currentVersion}>
+        {currentVersion}
+      </dd>
+    </dl>
   );
 }
 
@@ -188,27 +200,7 @@ function NodeCards({
                     </CardTitle>
                     <NodeHealth node={node} />
                   </div>
-                  <dl className='grid grid-cols-2 gap-x-3 gap-y-1 text-xs'>
-                    {(
-                      [
-                        [t('table.version'), node.version],
-                        [
-                          t('table.currentVersion'),
-                          node.current_version || t('notApplied'),
-                        ],
-                      ] as const
-                    ).map(([label, value]) => (
-                      <div
-                        key={label}
-                        className='flex min-w-0 flex-col gap-0.5'
-                      >
-                        <dt className='text-muted-foreground'>{label}</dt>
-                        <dd className='truncate' title={value}>
-                          {value || <MissingMetric />}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
+                  <NodeVersions node={node} />
                 </div>
                 <NodeActions node={node} {...actions} />
               </CardHeader>
@@ -240,7 +232,10 @@ function NodeCards({
                     <p className='text-xs text-muted-foreground'>
                       {t('monitoring.latency')}
                     </p>
-                    <NodeLatency tasks={node.monitoring?.ping} />
+                    <NodeLatency
+                      node={node}
+                      disabled={actions.actionsDisabled}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -262,25 +257,23 @@ export function NodesTable({
 
   return (
     <div aria-busy={actions.actionsDisabled}>
-      <Table className='min-w-[59rem] table-fixed border-separate border-spacing-y-2'>
+      <Table className='min-w-[59.25rem] table-fixed border-separate border-spacing-y-2'>
         <colgroup>
           <col />
           <col className='w-28' />
-          <col className='w-20' />
-          <col className='w-21' />
+          <col className='w-48' />
           <col className='w-20' />
           <col className='w-20' />
           <col className='w-20' />
           <col className='w-24' />
-          <col className='w-43' />
+          <col className='w-37' />
           <col className='w-15' />
         </colgroup>
         <TableHeader>
           <TableRow className='hover:bg-transparent [&>th]:h-8 [&>th]:text-xs [&>th]:whitespace-normal [&>th]:text-muted-foreground [&>th:first-child]:pl-3'>
             <TableHead scope='col'>{t('table.node')}</TableHead>
             <TableHead scope='col'>{t('table.status')}</TableHead>
-            <TableHead scope='col'>{t('table.version')}</TableHead>
-            <TableHead scope='col'>{t('table.currentVersion')}</TableHead>
+            <TableHead scope='col'>{t('table.versions')}</TableHead>
             {usageKeys.map((key) => (
               <TableHead scope='col' key={key}>
                 {t(`monitoring.${key}`)}
@@ -296,7 +289,6 @@ export function NodesTable({
         <TableBody>
           {nodes.map((node) => {
             const metrics = getMetricValues(node);
-            const currentVersion = node.current_version || t('notApplied');
             return (
               <TableRow
                 key={node.id}
@@ -308,17 +300,8 @@ export function NodesTable({
                 <TableCell>
                   <NodeHealth node={node} />
                 </TableCell>
-                <TableCell
-                  className='truncate text-xs tabular-nums'
-                  title={node.version}
-                >
-                  {node.version || <MissingMetric />}
-                </TableCell>
-                <TableCell
-                  className='truncate text-xs text-muted-foreground tabular-nums'
-                  title={currentVersion}
-                >
-                  {currentVersion}
+                <TableCell>
+                  <NodeVersions node={node} />
                 </TableCell>
                 {usageKeys.map((key) => (
                   <TableCell key={key}>
@@ -335,7 +318,7 @@ export function NodesTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <NodeLatency tasks={node.monitoring?.ping} />
+                  <NodeLatency node={node} disabled={actions.actionsDisabled} />
                 </TableCell>
                 <TableCell>
                   <NodeActions node={node} {...actions} />

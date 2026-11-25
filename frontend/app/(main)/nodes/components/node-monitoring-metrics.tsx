@@ -6,18 +6,21 @@ import { useFormatter, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import type { NodeMonitoringPing } from '@/lib/services/openflare/types';
+import type { NodeItem } from '@/lib/services/openflare';
 import { cn } from '@/lib/utils';
 
 import { formatBytesPerSecond } from './node-utils';
 
-const TrendChart = dynamic(() =>
-  import('@/components/data/trend-chart').then((module) => module.TrendChart),
+const NodePingPanel = dynamic(() =>
+  import('./node-ping-panel').then((module) => module.NodePingPanel),
 );
 
 export function NodeUsageBar({
@@ -90,113 +93,107 @@ export function NodeNetworkRate({
   );
 }
 
-function NodePingHistory({ task }: { task: NodeMonitoringPing }) {
-  const t = useTranslations('nodes.monitoring');
-  const format = useFormatter();
-  const latest = task.samples.at(-1);
-  const readout = latest
-    ? latest.value < 0
-      ? t('probeFailed')
-      : t('milliseconds', { value: latest.value })
-    : '—';
-  const peak = Math.max(1, ...task.samples.map((sample) => sample.value));
+const latencyColors = {
+  low: { text: 'text-success', strip: 'bg-success/70' },
+  elevated: { text: 'text-warning', strip: 'bg-warning/75' },
+  high: { text: 'text-destructive', strip: 'bg-destructive/75' },
+  missing: { text: 'text-muted-foreground', strip: 'bg-muted' },
+} as const;
 
-  if (!latest) {
-    return (
-      <div className='flex items-center justify-between gap-2 rounded px-1.5 py-0.5 text-xs'>
-        <span className='truncate text-muted-foreground' title={task.name}>
-          {task.name}
-        </span>
-        <MissingMetric />
-      </div>
-    );
-  }
+function getLatencyColors(value?: number) {
+  if (value === undefined) return latencyColors.missing;
+  if (value < 0 || value >= 250) return latencyColors.high;
+  if (value >= 200) return latencyColors.elevated;
+  return latencyColors.low;
+}
+
+export function NodeLatency({
+  node,
+  disabled,
+}: {
+  node: NodeItem;
+  disabled?: boolean;
+}) {
+  const t = useTranslations('nodes');
+  const tasks = node.monitoring?.ping;
+  if (!tasks?.length) return <MissingMetric />;
+
+  const readouts = tasks.map(({ task_id, samples }) => {
+    const value = samples.at(-1)?.value;
+    const failed = value !== undefined && value < 0;
+    return {
+      id: task_id,
+      label: failed ? t('monitoring.probeFailed') : undefined,
+      text:
+        value === undefined
+          ? '—'
+          : failed
+            ? '×'
+            : t('monitoring.milliseconds', { value }),
+      color: getLatencyColors(value).text,
+    };
+  });
+  const title = t('monitoring.probeHistory', { name: node.name });
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <Dialog>
+      <DialogTrigger asChild>
         <Button
+          type='button'
           variant='ghost'
           size='sm'
-          aria-label={t('probeHistory', { name: task.name, value: readout })}
-          title={t('probeHistory', { name: task.name, value: readout })}
-          className='grid h-5 w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_2.25rem] gap-1.5 px-1.5 text-xs'
+          disabled={disabled}
+          className='h-auto w-full min-w-0 flex-col items-stretch gap-1 px-1 py-1.5 text-left text-[11px] whitespace-normal'
         >
-          <span className='truncate text-left text-muted-foreground'>
-            {task.name}
-          </span>
-          <span
-            className={cn(
-              'tabular-nums',
-              latest.value < 0 && 'text-destructive',
-            )}
-          >
-            {readout}
-          </span>
-          <span className='flex h-2.5 items-end gap-px' aria-hidden>
-            {task.samples.map((sample, index) => (
+          <span className='sr-only'>{title}</span>
+          <span className='flex flex-wrap items-center gap-x-0.5 tabular-nums'>
+            {readouts.map(({ id, label, text, color }, index) => (
               <span
-                key={`${sample.recorded_at}-${index}`}
-                className={cn(
-                  'flex-1 rounded-xs',
-                  sample.value < 0 ? 'bg-destructive' : 'bg-primary/65',
+                key={id}
+                className='flex items-center gap-0.5 whitespace-nowrap'
+              >
+                {index > 0 && (
+                  <span className='text-muted-foreground' aria-hidden>
+                    ·
+                  </span>
                 )}
-                style={{
-                  height: `${sample.value < 0 ? 40 : 30 + (70 * sample.value) / peak}%`,
-                }}
-              />
+                <span className={color} aria-hidden={label ? true : undefined}>
+                  {text}
+                </span>
+                {label && <span className='sr-only'>{label}</span>}
+              </span>
+            ))}
+          </span>
+          <span className='flex flex-col gap-px' aria-hidden>
+            {tasks.map(({ task_id, samples }) => (
+              <span key={task_id} className='flex h-1 gap-px'>
+                {samples.length ? (
+                  samples.map((sample, index) => (
+                    <span
+                      key={`${sample.recorded_at}-${index}`}
+                      className={cn(
+                        'flex-1 rounded-xs',
+                        getLatencyColors(sample.value).strip,
+                      )}
+                    />
+                  ))
+                ) : (
+                  <span className='flex-1 rounded-xs bg-muted' />
+                )}
+              </span>
             ))}
           </span>
         </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align='end'
-        aria-label={task.name}
-        className='flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2'
-      >
-        <p className='text-sm font-medium break-all'>{task.name}</p>
-        <p className='text-xs text-muted-foreground'>
-          {format.dateTime(new Date(latest.recorded_at), {
-            dateStyle: 'short',
-            timeStyle: 'medium',
-          })}
-          {' · '}
-          {readout}
-        </p>
-        {task.samples.some((sample) => sample.value >= 0) ? (
-          <TrendChart
-            labels={task.samples.map((sample) =>
-              format.dateTime(new Date(sample.recorded_at), {
-                timeStyle: 'medium',
-              }),
-            )}
-            series={[
-              {
-                label: t('latency'),
-                color: 'var(--primary)',
-                values: task.samples.map((sample) =>
-                  sample.value >= 0 ? sample.value : null,
-                ),
-              },
-            ]}
-            height={110}
-            yAxisValueFormatter={(value) => t('milliseconds', { value })}
-            showSummary={false}
-            compactSummary
-          />
-        ) : null}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-export function NodeLatency({ tasks }: { tasks?: NodeMonitoringPing[] }) {
-  if (!tasks?.length) return <MissingMetric />;
-  return (
-    <div className='flex min-w-0 flex-col gap-0.5'>
-      {tasks.map((task) => (
-        <NodePingHistory key={task.task_id} task={task} />
-      ))}
-    </div>
+      </DialogTrigger>
+      <DialogContent className='min-w-0 grid-cols-[minmax(0,1fr)] p-4 sm:w-[min(72rem,calc(100%-2rem))] sm:max-w-none sm:p-6 md:max-w-none'>
+        <DialogHeader className='pr-7'>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className='sr-only'>
+            {t('ping.sectionDesc')}
+          </DialogDescription>
+        </DialogHeader>
+        <NodePingPanel nodeId={node.id} showIntro={false} />
+      </DialogContent>
+    </Dialog>
   );
 }

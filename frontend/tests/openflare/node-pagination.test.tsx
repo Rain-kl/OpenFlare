@@ -24,6 +24,7 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => ({
     listNodePage: vi.fn(),
     listNodes: vi.fn(),
     getNode: vi.fn(),
+    getPingRecords: vi.fn(),
     deleteNode: vi.fn(),
   },
 }));
@@ -207,11 +208,10 @@ it('retains the loaded page and total during navigation without leaving stale no
   );
   fireEvent.click(screen.getByRole('button', { name: 'Next' }));
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled(),
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled(),
   );
   expect(screen.getByText('Edge 1')).toBeInTheDocument();
   expect(screen.getByText('Page 1 of 3 · 101 nodes')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Details' })).toBeDisabled();
   expect(
     screen.queryByRole('link', { name: 'Details' }),
@@ -225,7 +225,7 @@ it('retains the loaded page and total during navigation without leaving stale no
   await screen.findByText('Edge 2');
   expect(screen.queryByText('Edge 1')).not.toBeInTheDocument();
   expect(screen.getByText('Page 2 of 3 · 101 nodes')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Edit' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled();
   expect(screen.getByRole('link', { name: 'Details' })).toHaveAttribute(
     'href',
     '/nodes/detail?id=2',
@@ -275,7 +275,7 @@ it('drops placeholder actions and unknown totals after a failed page request and
   await screen.findByText('Edge 1');
   fireEvent.click(screen.getByRole('button', { name: 'Next' }));
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled(),
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled(),
   );
   await act(async () => {
     pending.reject(new Error('page request failed'));
@@ -348,19 +348,44 @@ it('shows monitoring in both layouts and restores focus when closing search', as
           name: 'Tokyo',
           samples: [{ recorded_at: '2026-11-25T00:00:00Z', value: 0 }],
         },
+        {
+          task_id: 2,
+          name: 'Singapore',
+          samples: [{ recorded_at: '2026-11-25T00:00:00Z', value: 228 }],
+        },
+        {
+          task_id: 3,
+          name: 'Osaka',
+          samples: [{ recorded_at: '2026-11-25T00:00:00Z', value: 260 }],
+        },
       ],
     },
   } satisfies NodeItem;
   vi.mocked(NodeService.listNodePage).mockResolvedValue({
     page: 1,
     page_size: 50,
-    total: 1,
-    results: [monitoredNode],
+    total: 2,
+    results: [monitoredNode, { ...node(2), status: 'offline' }],
+  });
+  vi.mocked(NodeService.getPingRecords).mockResolvedValue({
+    node_id: 'edge-1',
+    hours: 1,
+    tasks: [],
+    records: [],
   });
   renderPage();
 
   await screen.findByText('Edge 1');
-  expect(screen.getByRole('table')).toBeInTheDocument();
+  expect(
+    screen.getByRole('columnheader', { name: 'Versions' }),
+  ).toBeInTheDocument();
+  const versionCell = screen.getByText('v1.0.0').closest('td');
+  expect(versionCell).toHaveTextContent('Current version');
+  expect(versionCell).toHaveTextContent('1aef2e8');
+  expect(screen.getByText('Edge 1').previousElementSibling).toHaveClass(
+    'bg-success',
+  );
+  expect(screen.getByText('Edge 2').previousElementSibling).toBeNull();
   expect(
     screen.queryByRole('textbox', { name: 'Search nodes' }),
   ).not.toBeInTheDocument();
@@ -368,11 +393,36 @@ it('shows monitoring in both layouts and restores focus when closing search', as
     'aria-valuenow',
     '0',
   );
-  expect(screen.getByText('0 ms')).toBeInTheDocument();
+  expect(screen.getByText('0ms')).toHaveClass('text-success');
+  expect(screen.getByText('228ms')).toHaveClass('text-warning');
+  expect(screen.getByText('260ms')).toHaveClass('text-destructive');
+  expect(screen.queryByText('Tokyo')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Edit' }),
+  ).not.toBeInTheDocument();
+  expect(NodeService.getPingRecords).not.toHaveBeenCalled();
+
+  fireEvent.click(
+    screen.getByRole('button', { name: /Edge 1 · Latency and packet loss/ }),
+  );
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Edge 1 · Latency and packet loss',
+  });
+  await waitFor(() =>
+    expect(NodeService.getPingRecords).toHaveBeenCalledWith(1, {
+      hours: 1,
+      max_points: 400,
+    }),
+  );
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  await waitFor(() => expect(dialog).not.toBeInTheDocument());
 
   fireEvent.click(screen.getByRole('radio', { name: 'Card view' }));
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   expect(screen.getByText('Debian 12')).toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Edit' }),
+  ).not.toBeInTheDocument();
   expect(screen.getByText('1aef2e8')).toBeInTheDocument();
   expect(screen.getByRole('progressbar', { name: 'CPU' })).toHaveAttribute(
     'aria-valuenow',
