@@ -62,7 +62,6 @@ RUN apk add --no-cache ca-certificates tzdata postgresql-client && \
 WORKDIR /app
 
 COPY --from=backend-builder /out/openflare-server ./openflare-server
-COPY docs ./docs
 
 EXPOSE 3000
 

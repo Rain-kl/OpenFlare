@@ -96,22 +96,22 @@ services:
       retries: 5
       start_period: 15s
 
-  agent:
+  edge:
     build:
       context: .
-      dockerfile: docker/Dockerfile.agent
-    container_name: openflare-agent
+      dockerfile: docker/Dockerfile.edge
+    container_name: openflare-edge
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-      - "127.0.0.1:18081:18081"
+      - "${OPENFLARE_EDGE_HTTP_PORT:-8080}:8080"
+      - "${OPENFLARE_EDGE_TLS_PORT:-8443}:8443"
     volumes:
-      - ./data/agent/:/data
+      - ./data/edge:/var/lib/openflare-edge
     environment:
-      OPENFLARE_SERVER_URL: "http://host.docker.internal:3000"
-      OPENFLARE_AGENT_TOKEN: "7c7c4c13df0f3a77866bcd8cde492610"
-      LOG_LEVEL: "debug"
+      OPENFLARE_EDGE_SERVER_URL: ${OPENFLARE_EDGE_SERVER_URL:-http://host.docker.internal:3000}
+      OPENFLARE_EDGE_TOKEN_TYPE: ${OPENFLARE_EDGE_TOKEN_TYPE:-discovery}
+      OPENFLARE_EDGE_TOKEN: ${OPENFLARE_EDGE_TOKEN:-}
+      RUST_LOG: ${OPENFLARE_EDGE_LOG_LEVEL:-info}
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -125,9 +125,9 @@ services:
     volumes:
       - ./data/relay/:/app/data
     environment:
-      OPENFLARE_SERVER_URL: http://host.docker.internal:3000
-      OPENFLARE_DISCOVERY_TOKEN: 85464eeb72c49abc430569d6b9c77f78
-      LOG_LEVEL: "debug"
+      OPENFLARE_SERVER_URL: ${OPENFLARE_SERVER_URL:-http://host.docker.internal:3000}
+      OPENFLARE_DISCOVERY_TOKEN: ${OPENFLARE_DISCOVERY_TOKEN:-}
+      LOG_LEVEL: ${RELAY_LOG_LEVEL:-info}
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -141,5 +141,5 @@ services:
     volumes:
       - ./data/flared/:/app/data
     environment:
-      OPENFLARE_SERVER_URL: "http://host.docker.internal:3000"
-      OPENFLARE_TUNNEL_TOKEN: deb0783ac1e264a9d86440169aca0f09
+      OPENFLARE_SERVER_URL: ${OPENFLARE_SERVER_URL:-http://host.docker.internal:3000}
+      OPENFLARE_TUNNEL_TOKEN: ${OPENFLARE_TUNNEL_TOKEN:-}

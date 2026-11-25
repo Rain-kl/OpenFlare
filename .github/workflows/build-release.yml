@@ -24,9 +24,8 @@ env:
   EXTRA_FILES: |
     LICENSE
     README.md
-    README_zh.md
+    README.zh-CN.md
     config.example.yaml
-    DEPLOYMENT_zh.md
 
 permissions:
   contents: write
