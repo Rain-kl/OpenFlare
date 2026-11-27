@@ -1,4 +1,5 @@
 import { GitBranch, Play, Star, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -18,13 +19,11 @@ import { DnsActionMenu } from '../components/dns-action-menu';
 
 export function SmartDNSPolicyList({
   policies,
-  onEdit,
   onSimulate,
   onSetDefault,
   onDelete,
 }: {
   policies: SmartDNSPolicy[];
-  onEdit: (policy: SmartDNSPolicy) => void;
   onSimulate: (id: number) => void;
   onSetDefault: (policy: SmartDNSPolicy) => void;
   onDelete: (policy: SmartDNSPolicy) => void;
@@ -54,9 +53,11 @@ export function SmartDNSPolicyList({
                 <Button
                   variant='link'
                   className='h-auto p-0 text-left whitespace-normal text-foreground'
-                  onClick={() => onEdit(policy)}
+                  asChild
                 >
-                  {policy.name}
+                  <Link href={`/dns/smartdns/policies/editor?id=${policy.id}`}>
+                    {policy.name}
+                  </Link>
                 </Button>
                 {policy.description && (
                   <p className='text-xs text-muted-foreground'>

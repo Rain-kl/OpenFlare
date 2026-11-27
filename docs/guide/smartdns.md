@@ -44,10 +44,11 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 
 ## 3. 编排调度策略与决策流
 
-切换至 **「调度策略」** 页签创建或编辑策略。在 **「基本设置」** 中指定策略模式、生效范围和回退机制，再进入 **「调度规则」** 配置所选算法。
+打开 **「调度策略」**，点击「新增策略」或策略名称进入独立编辑页。在「基本设置」中指定名称、匹配范围和回退方式。
 
 - **预设策略（Smart / Load Balance）**：直接调整延迟权重（`w_lat`）、负载权重（`w_load`）、地理权重（`w_geo`）与筛选条件（国家、节点标签、线路分组）。
-- **可视化 JDM 决策流**：使用流程图画布连接 `Input → Condition (Switch) → Action (Expression) → Output`，支持基于 `client.country`、`client.region`、`client.asn`、`client.ip_family`、`domain`、`qtype` 编写分支条件并实时校验编译结果。
+- **可视化流程**：在画布拖动端口连线，或在右侧属性面板选择分支与目标节点。选择条件节点后可增删和排序分支。使用「仅执行首个匹配分支」时，将空条件作为最后的默认分支。表达式可以引用 `client.country`、`client.region`、`client.asn`、`client.ip_family`、`domain` 和 `qtype`。点击「校验决策流」检查当前流程并查看生成的 JDM JSON。
+- **JDM JSON**：在「基本设置」选择 JDM JSON 模式，或从已校验流程的预览进入 JSON 编辑。
 - 点击策略行内的 **「模拟」** 可直接使用该策略，或打开页面右上角的 **「决策模拟器」** 输入域名、查询类型（`A` / `AAAA`）及模拟客户端 IP，直观查看客户端网络归属画像、JDM 命中的分支及所有候选节点的 4 阶段打分明细。
 
 ---
