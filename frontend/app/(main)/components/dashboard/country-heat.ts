@@ -94,6 +94,8 @@ export function buildCountryHeat(
   );
 }
 
+export type LatencyMetric = 'tcp_rtt' | 'request_time';
+
 export type CountryLatencyDatum = {
   name: string;
   requestCount: number;
@@ -103,13 +105,22 @@ export type CountryLatencyDatum = {
   coordinate?: Coordinate;
 };
 
+export function getCountryLatencyValue(
+  item: CountryLatencyDatum,
+  metric: LatencyMetric,
+): number {
+  return metric === 'tcp_rtt' ? item.avgTcpRttMs : item.avgRequestTimeMs;
+}
+
 export function buildCountryLatency(
   items: DashboardCountryLatency[],
+  metric: LatencyMetric = 'tcp_rtt',
 ): Map<string, CountryLatencyDatum> {
   const buckets = new Map<
     string,
     {
       requestCount: number;
+      reqTimeWeight: number;
       weightedRequestTimeMs: number;
       tcpWeight: number;
       weightedTcpRttMs: number;
@@ -120,22 +131,28 @@ export function buildCountryLatency(
     if (!item.region || item.request_count <= 0) continue;
     const name = resolveCountryName(item.region);
     if (!name) continue;
-    const current = buckets.get(name) ?? {
-      requestCount: 0,
-      weightedRequestTimeMs: 0,
-      tcpWeight: 0,
-      weightedTcpRttMs: 0,
-    };
     const avgReqMs =
-      Number.isFinite(item.avg_request_time_ms) && item.avg_request_time_ms >= 0
+      Number.isFinite(item.avg_request_time_ms) && item.avg_request_time_ms > 0
         ? item.avg_request_time_ms
         : 0;
     const avgTcpMs =
       Number.isFinite(item.avg_tcp_rtt_ms) && item.avg_tcp_rtt_ms > 0
         ? item.avg_tcp_rtt_ms
         : 0;
+    if (avgReqMs <= 0 && avgTcpMs <= 0) continue;
+
+    const current = buckets.get(name) ?? {
+      requestCount: 0,
+      reqTimeWeight: 0,
+      weightedRequestTimeMs: 0,
+      tcpWeight: 0,
+      weightedTcpRttMs: 0,
+    };
     current.requestCount += item.request_count;
-    current.weightedRequestTimeMs += avgReqMs * item.request_count;
+    if (avgReqMs > 0) {
+      current.reqTimeWeight += item.request_count;
+      current.weightedRequestTimeMs += avgReqMs * item.request_count;
+    }
     if (avgTcpMs > 0) {
       current.tcpWeight += item.request_count;
       current.weightedTcpRttMs += avgTcpMs * item.request_count;
@@ -145,23 +162,29 @@ export function buildCountryLatency(
 
   const entries: Array<[string, CountryLatencyDatum]> = [];
   for (const [name, bucket] of buckets) {
-    const centroid = countryCentroids[name];
-    entries.push([
+    const avgRequestTimeMs =
+      bucket.reqTimeWeight > 0
+        ? bucket.weightedRequestTimeMs / bucket.reqTimeWeight
+        : 0;
+    const avgTcpRttMs =
+      bucket.tcpWeight > 0 ? bucket.weightedTcpRttMs / bucket.tcpWeight : 0;
+    const datum: CountryLatencyDatum = {
       name,
-      {
-        name,
-        requestCount: bucket.requestCount,
-        avgRequestTimeMs:
-          bucket.requestCount > 0
-            ? bucket.weightedRequestTimeMs / bucket.requestCount
-            : 0,
-        avgTcpRttMs:
-          bucket.tcpWeight > 0 ? bucket.weightedTcpRttMs / bucket.tcpWeight : 0,
-        hasBoundary: boundaries.has(name),
-        coordinate: centroid ? [centroid[0], centroid[1]] : undefined,
-      },
-    ]);
+      requestCount: bucket.requestCount,
+      avgRequestTimeMs,
+      avgTcpRttMs,
+      hasBoundary: boundaries.has(name),
+      coordinate: countryCentroids[name]
+        ? [countryCentroids[name][0], countryCentroids[name][1]]
+        : undefined,
+    };
+    if (getCountryLatencyValue(datum, metric) <= 0) continue;
+    entries.push([name, datum]);
   }
-  entries.sort((a, b) => b[1].avgRequestTimeMs - a[1].avgRequestTimeMs);
+  entries.sort(
+    (a, b) =>
+      getCountryLatencyValue(b[1], metric) -
+      getCountryLatencyValue(a[1], metric),
+  );
   return new Map(entries);
 }

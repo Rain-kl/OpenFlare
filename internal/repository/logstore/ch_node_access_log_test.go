@@ -95,7 +95,7 @@ func TestCHRegionCounts_ScansAndSanitizesAverageLatencies(t *testing.T) {
 	got, err := s.RegionCounts(context.Background(), "", time.Now().UTC().Add(-24*time.Hour), 250)
 	require.NoError(t, err)
 	require.Len(t, mockConn.queries, 1)
-	assert.Contains(t, mockConn.queries[0], "avg(toFloat64(request_time_ms))")
+	assert.Contains(t, mockConn.queries[0], "avgIf(toFloat64(request_time_ms), request_time_ms > 0)")
 	assert.Contains(t, mockConn.queries[0], "avgIf(toFloat64(tcp_rtt_us), tcp_rtt_us > 0)")
 	require.Len(t, got, 2)
 	assert.Equal(t, "Japan", got[0].Region)

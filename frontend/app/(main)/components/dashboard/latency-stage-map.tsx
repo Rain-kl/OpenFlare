@@ -13,7 +13,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '@/components/layout/empty';
 import { getFormattingLocale } from '@/i18n/format';
 
-import type { CountryLatencyDatum } from './country-heat';
+import {
+  type CountryLatencyDatum,
+  getCountryLatencyValue,
+  type LatencyMetric,
+} from './country-heat';
 import { useMapPalette } from './use-map-palette';
 import { ensureWorldMapRegistered } from './world-map-registry';
 
@@ -67,8 +71,10 @@ const TIER_COLORS: Record<
 
 export function LatencyStageMap({
   countryLatency,
+  metric,
 }: {
   countryLatency: Map<string, CountryLatencyDatum>;
+  metric: LatencyMetric;
 }) {
   const tm = useTranslations('dashboard.map');
   const tl = useTranslations('dashboard.latency');
@@ -150,18 +156,39 @@ export function LatencyStageMap({
     const buildTooltipHtml = (item: CountryLatencyDatum) => {
       const lines = [
         `<div style="font-weight:600;margin-bottom:4px;">${escapeHtml(item.name)}</div>`,
-        `<div>${escapeHtml(
-          tl('avgLatencyLabel', {
-            value: formatLatencyMs(item.avgRequestTimeMs),
-          }),
-        )}</div>`,
       ];
-      if (item.avgTcpRttMs > 0) {
+      if (metric === 'tcp_rtt') {
         lines.push(
           `<div>${escapeHtml(
             tl('avgTcpRttLabel', { value: formatLatencyMs(item.avgTcpRttMs) }),
           )}</div>`,
         );
+        if (item.avgRequestTimeMs > 0) {
+          lines.push(
+            `<div>${escapeHtml(
+              tl('avgLatencyLabel', {
+                value: formatLatencyMs(item.avgRequestTimeMs),
+              }),
+            )}</div>`,
+          );
+        }
+      } else {
+        lines.push(
+          `<div>${escapeHtml(
+            tl('avgLatencyLabel', {
+              value: formatLatencyMs(item.avgRequestTimeMs),
+            }),
+          )}</div>`,
+        );
+        if (item.avgTcpRttMs > 0) {
+          lines.push(
+            `<div>${escapeHtml(
+              tl('avgTcpRttLabel', {
+                value: formatLatencyMs(item.avgTcpRttMs),
+              }),
+            )}</div>`,
+          );
+        }
       }
       lines.push(
         `<div>${escapeHtml(
@@ -176,7 +203,7 @@ export function LatencyStageMap({
     const countryRegions = [...countryLatency.values()]
       .filter((item) => item.hasBoundary)
       .map((item) => {
-        const tier = getLatencyTier(item.avgRequestTimeMs);
+        const tier = getLatencyTier(getCountryLatencyValue(item, metric));
         return {
           name: item.name,
           itemStyle: { areaColor: scheme[tier].area },
@@ -188,7 +215,7 @@ export function LatencyStageMap({
       if (item.hasBoundary || !item.coordinate) {
         return [];
       }
-      const tier = getLatencyTier(item.avgRequestTimeMs);
+      const tier = getLatencyTier(getCountryLatencyValue(item, metric));
       return [
         {
           name: item.name,
@@ -259,7 +286,7 @@ export function LatencyStageMap({
         },
       ],
     };
-  }, [computedLayoutSize, countryLatency, isDark, mapPalette, tl]);
+  }, [computedLayoutSize, countryLatency, isDark, mapPalette, metric, tl]);
 
   if (!mapReady) {
     return (

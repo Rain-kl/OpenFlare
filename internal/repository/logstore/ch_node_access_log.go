@@ -110,7 +110,7 @@ func (s *clickhouseLogStore) RegionCounts(ctx context.Context, nodeID string, si
 SELECT
 	trim(region) AS trimmed_region,
 	count() AS count,
-	avg(toFloat64(request_time_ms)) AS avg_request_time_ms,
+	if(countIf(request_time_ms > 0) > 0, avgIf(toFloat64(request_time_ms), request_time_ms > 0), 0.0) AS avg_request_time_ms,
 	if(countIf(tcp_rtt_us > 0) > 0, avgIf(toFloat64(tcp_rtt_us), tcp_rtt_us > 0), 0.0) AS avg_tcp_rtt_us
 FROM %s
 WHERE %s AND trim(region) != ''

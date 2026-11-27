@@ -308,6 +308,10 @@ describe('Security menu split, dashboard layout, and global settings', () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
 
+    expect(screen.getAllByText('18.2 ms').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('radio', { name: '请求耗时' }));
+    expect(screen.getAllByText('42.5 ms').length).toBeGreaterThan(0);
+
     await user.click(screen.getByRole('radio', { name: '3 天' }));
     await waitFor(() =>
       expect(AccessLogService.getOverview).toHaveBeenCalledWith({

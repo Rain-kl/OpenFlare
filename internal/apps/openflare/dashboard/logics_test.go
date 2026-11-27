@@ -268,6 +268,8 @@ func TestOverviewCountryLatencies(t *testing.T) {
 		{NodeID: "n1", LoggedAt: now.Add(-time.Minute), Region: "Japan", StatusCode: 200, RequestTimeMs: 40, TCPRTTUs: 12000},
 		{NodeID: "n2", LoggedAt: now.Add(-time.Minute), Region: "Japan", StatusCode: 200, RequestTimeMs: 80, TCPRTTUs: 24000},
 		{NodeID: "n1", LoggedAt: now.Add(-time.Minute), Region: "Germany", StatusCode: 200, RequestTimeMs: 220, TCPRTTUs: 0},
+		// Historical records with neither request_time_ms nor tcp_rtt_us must be excluded from CountryLatencies.
+		{NodeID: "n1", LoggedAt: now.Add(-time.Minute), Region: "Portugal", StatusCode: 200, RequestTimeMs: 0, TCPRTTUs: 0},
 	}))
 
 	view, err := buildOverviewView(ctx)

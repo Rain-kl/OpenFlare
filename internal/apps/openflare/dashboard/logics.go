@@ -344,7 +344,7 @@ func buildCountryLatencies(regions []*model.OpenFlareAccessLogRegionCount) []Cou
 			continue
 		}
 		region := strings.TrimSpace(item.Region)
-		if region == "" || item.Count <= 0 {
+		if region == "" || item.Count <= 0 || (item.AvgTCPRTTMs <= 0 && item.AvgRequestTimeMs <= 0) {
 			continue
 		}
 		out = append(out, CountryLatency{

@@ -280,7 +280,10 @@ func TestGormRegionCountsComputesAverageLatencies(t *testing.T) {
 		{ID: 2, NodeID: "n2", LoggedAt: now, RemoteAddr: "2.2.2.2", Region: "CN", RequestTimeMs: 80, TCPRTTUs: 24000},
 		// TCPRTTUs=0 should still count in RequestTimeMs avg, but be excluded from TCP RTT avg.
 		{ID: 3, NodeID: "n1", LoggedAt: now, RemoteAddr: "3.3.3.3", Region: "CN", RequestTimeMs: 60, TCPRTTUs: 0},
-		{ID: 4, NodeID: "n1", LoggedAt: now, RemoteAddr: "4.4.4.4", Region: "JP", RequestTimeMs: 25, TCPRTTUs: 0},
+		// Historical unrecorded latency (RequestTimeMs=0, TCPRTTUs=0) must not dilute RequestTimeMs avg.
+		{ID: 4, NodeID: "n1", LoggedAt: now, RemoteAddr: "3.3.3.4", Region: "CN", RequestTimeMs: 0, TCPRTTUs: 0},
+		{ID: 5, NodeID: "n1", LoggedAt: now, RemoteAddr: "4.4.4.4", Region: "JP", RequestTimeMs: 25, TCPRTTUs: 0},
+		{ID: 6, NodeID: "n1", LoggedAt: now, RemoteAddr: "5.5.5.5", Region: "PT", RequestTimeMs: 0, TCPRTTUs: 0},
 	}
 	if err := s.BatchInsertNodeAccessLogs(ctx, rows); err != nil {
 		t.Fatalf("insert: %v", err)
@@ -290,14 +293,17 @@ func TestGormRegionCountsComputesAverageLatencies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("region counts: %v", err)
 	}
-	if len(all) != 2 {
-		t.Fatalf("want 2 regions, got %+v", all)
+	if len(all) != 3 {
+		t.Fatalf("want 3 regions, got %+v", all)
 	}
-	if all[0].Region != "CN" || all[0].Count != 3 || all[0].AvgRequestTimeMs != 60 || all[0].AvgTCPRTTMs != 18 {
-		t.Fatalf("CN row = %+v, want count=3 avg_request_time_ms=60 avg_tcp_rtt_ms=18", all[0])
+	if all[0].Region != "CN" || all[0].Count != 4 || all[0].AvgRequestTimeMs != 60 || all[0].AvgTCPRTTMs != 18 {
+		t.Fatalf("CN row = %+v, want count=4 avg_request_time_ms=60 avg_tcp_rtt_ms=18", all[0])
 	}
 	if all[1].Region != "JP" || all[1].Count != 1 || all[1].AvgRequestTimeMs != 25 || all[1].AvgTCPRTTMs != 0 {
 		t.Fatalf("JP row = %+v, want count=1 avg_request_time_ms=25 avg_tcp_rtt_ms=0", all[1])
+	}
+	if all[2].Region != "PT" || all[2].Count != 1 || all[2].AvgRequestTimeMs != 0 || all[2].AvgTCPRTTMs != 0 {
+		t.Fatalf("PT row = %+v, want count=1 avg_request_time_ms=0 avg_tcp_rtt_ms=0", all[2])
 	}
 }
 

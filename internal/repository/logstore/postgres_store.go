@@ -297,7 +297,7 @@ func (s *gormLogStore) RegionCounts(ctx context.Context, nodeID string, since ti
 	}
 	var rows []row
 	q := s.db.WithContext(ctx).Model(&analyticsmodel.NodeAccessLog{}).
-		Select("trim(region) AS trimmed_region, COUNT(*) AS count, COALESCE(AVG(request_time_ms), 0) AS avg_request_time_ms, COALESCE(AVG(CASE WHEN tcp_rtt_us > 0 THEN tcp_rtt_us END), 0) AS avg_tcp_rtt_us").
+		Select("trim(region) AS trimmed_region, COUNT(*) AS count, COALESCE(AVG(CASE WHEN request_time_ms > 0 THEN request_time_ms END), 0) AS avg_request_time_ms, COALESCE(AVG(CASE WHEN tcp_rtt_us > 0 THEN tcp_rtt_us END), 0) AS avg_tcp_rtt_us").
 		Where("trim(region) <> '' AND logged_at >= ?", since)
 	// 空 nodeID 表示全节点聚合（对齐 CH 语义），仅非空时追加 node_id 过滤，
 	// 避免 `node_id = ''` 恒空导致首页来源分布无数据。
