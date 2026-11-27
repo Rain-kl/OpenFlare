@@ -24,6 +24,8 @@ type OpenFlareNode struct {
 	GeoLatitude               *float64   `json:"geo_latitude"`
 	GeoLongitude              *float64   `json:"geo_longitude"`
 	GeoManualOverride         bool       `json:"geo_manual_override" gorm:"not null;default:false"`
+	GeoSource                 string     `json:"geo_source" gorm:"column:geo_source;size:16;not null;default:''"`
+	NetworkGroup              string     `json:"network_group" gorm:"column:network_group;size:64;not null;default:''"`
 	ASN                       uint32     `json:"asn" gorm:"column:asn;not null;default:0;index:idx_of_nodes_asn"`
 	ASNOrg                    string     `json:"asn_org" gorm:"column:asn_org;size:255;not null;default:''"`
 	AccessToken               string     `json:"-" gorm:"column:access_token;size:128;index"`

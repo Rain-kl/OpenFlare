@@ -239,6 +239,8 @@ func buildNodeView(node *model.OpenFlareNode) *View {
 		GeoLatitude:               node.GeoLatitude,
 		GeoLongitude:              node.GeoLongitude,
 		GeoManualOverride:         node.GeoManualOverride,
+		GeoSource:                 strings.TrimSpace(node.GeoSource),
+		NetworkGroup:              strings.TrimSpace(node.NetworkGroup),
 		AccessToken:               node.AccessToken,
 		UpdateChannel:             strings.TrimSpace(node.UpdateChannel),
 		UpdateTag:                 strings.TrimSpace(node.UpdateTag),

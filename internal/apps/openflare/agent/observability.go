@@ -16,6 +16,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
+	pkgnetintel "github.com/Rain-kl/Wavelet/pkg/netintel"
 	"go.uber.org/zap"
 )
 
@@ -208,11 +209,19 @@ func buildNodeAccessLogRecords(ctx context.Context, nodeID string, direct []prot
 			requestTimeMs := max(item.RequestTimeMs, 0)
 			normalizedIP := normalizeAccessLogIP(item.RemoteAddr)
 			var clientASN uint32
-			var clientCountry string
+			var clientCountry, clientRegion, geoSource string
+			var clientLat, clientLon *float64
+			var geoAccuracyKm float64
+			ipFamily := pkgnetintel.DetectIPFamily(normalizedIP)
 			if normalizedIP != "" {
 				if lookup := netintel.LookupIP(normalizedIP); lookup != nil {
 					clientASN = lookup.ASN
 					clientCountry = lookup.CountryISO
+					clientRegion = lookup.RegionCode
+					clientLat = lookup.Latitude
+					clientLon = lookup.Longitude
+					geoAccuracyKm = lookup.AccuracyRadiusKm
+					geoSource = lookup.GeoSource
 				}
 			}
 			record := &model.OpenFlareAccessLog{
@@ -234,17 +243,23 @@ func buildNodeAccessLogRecords(ctx context.Context, nodeID string, direct []prot
 				TCPRTTUs:      item.TCPRTTUs,
 			}
 			if clientASN > 0 && item.TCPRTTUs > 0 {
-				netquality.RecordPassiveSample(
-					ctx,
-					nodeID,
-					clientASN,
-					clientCountry,
-					item.TCPRTTUs,
-					item.TCPMinRTTUs,
-					item.TCPRetrans,
-					item.TCPSegsOut,
-					item.TLSHandshakeMs,
-				)
+				netquality.RecordPassiveSampleInput(ctx, netquality.PassiveSampleInput{
+					NodeID:        nodeID,
+					ClientIP:      normalizedIP,
+					ClientASN:     clientASN,
+					ClientCountry: clientCountry,
+					ClientRegion:  clientRegion,
+					IPFamily:      ipFamily,
+					ClientLat:     clientLat,
+					ClientLon:     clientLon,
+					GeoAccuracyKm: geoAccuracyKm,
+					GeoSource:     geoSource,
+					TCPRTTUs:      item.TCPRTTUs,
+					TCPMinRTTUs:   item.TCPMinRTTUs,
+					TCPRetrans:    item.TCPRetrans,
+					TCPSegsOut:    item.TCPSegsOut,
+					TLSHandshake:  item.TLSHandshakeMs,
+				})
 			}
 			records = append(records, record)
 		}

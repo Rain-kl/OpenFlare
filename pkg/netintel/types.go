@@ -13,24 +13,43 @@ const (
 	RelationCustomer = "customer"
 	RelationPeer     = "peer"
 	RelationObserved = "observed"
+
+	GeoSourceManual     = "manual"
+	GeoSourceCity       = "city"
+	GeoSourceCountry    = "country"
+	GeoSourceASNCountry = "asn_country"
+	GeoSourceUnknown    = "unknown"
+
+	AnycastStatusUnknown   = "unknown"
+	AnycastStatusUnicast   = "unicast"
+	AnycastStatusConfirmed = "confirmed"
+
+	IPFamilyIPv4    = "ipv4"
+	IPFamilyIPv6    = "ipv6"
+	IPFamilyUnknown = "unknown"
 )
 
 // IPLookupResult aggregates geolocation, ASN, tag, and routing prefix metadata for an IP address.
 type IPLookupResult struct {
-	IP          string   `json:"ip"`
-	CountryISO  string   `json:"country_iso"`
-	CountryName string   `json:"country_name"`
-	CityName    string   `json:"city_name"`
-	Latitude    *float64 `json:"latitude,omitempty"`
-	Longitude   *float64 `json:"longitude,omitempty"`
-	ASN         uint32   `json:"asn"`
-	ASNName     string   `json:"asn_name"`
-	ASNClass    string   `json:"asn_class"`
-	ASNCountry  string   `json:"asn_country"`
-	ASNTags     []string `json:"asn_tags"`
-	Prefix      string   `json:"prefix"`
-	PrefixHits  int      `json:"prefix_hits"`
-	DataSources []string `json:"data_sources"`
+	IP               string   `json:"ip"`
+	ContinentCode    string   `json:"continent_code,omitempty"`
+	CountryISO       string   `json:"country_iso"`
+	CountryName      string   `json:"country_name"`
+	RegionCode       string   `json:"region_code,omitempty"`
+	CityName         string   `json:"city_name"`
+	Latitude         *float64 `json:"latitude,omitempty"`
+	Longitude        *float64 `json:"longitude,omitempty"`
+	AccuracyRadiusKm float64  `json:"accuracy_radius_km,omitempty"`
+	GeoSource        string   `json:"geo_source,omitempty"`
+	AnycastStatus    string   `json:"anycast_status,omitempty"`
+	ASN              uint32   `json:"asn"`
+	ASNName          string   `json:"asn_name"`
+	ASNClass         string   `json:"asn_class"`
+	ASNCountry       string   `json:"asn_country"`
+	ASNTags          []string `json:"asn_tags"`
+	Prefix           string   `json:"prefix"`
+	PrefixHits       int      `json:"prefix_hits"`
+	DataSources      []string `json:"data_sources"`
 }
 
 // ASNInfo describes metadata and prefix counts for an Autonomous System Number.

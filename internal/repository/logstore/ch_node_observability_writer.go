@@ -212,17 +212,35 @@ func (s *clickhouseLogStore) BatchInsertNetworkQualitySamples(ctx context.Contex
 			if capturedAt.IsZero() {
 				capturedAt = now
 			}
+			ipFamily := strings.ToLower(strings.TrimSpace(row.IPFamily))
+			if ipFamily == "" {
+				ipFamily = "unknown"
+			}
+			statsVersion := row.StatsVersion
+			if statsVersion <= 0 {
+				statsVersion = 1
+			}
 			if err := batch.Append(
 				id,
 				nodeID,
 				row.NodeASN,
 				row.ClientASN,
 				strings.TrimSpace(row.ClientCountry),
+				strings.TrimSpace(row.ClientRegion),
+				ipFamily,
+				statsVersion,
 				strings.TrimSpace(row.Source),
 				row.SampleCount,
 				row.RTTMinMs,
 				row.RTTP50Ms,
 				row.RTTP95Ms,
+				row.RTTHist,
+				row.PrefixSketch,
+				row.DistinctPrefixCount,
+				row.ClientLat,
+				row.ClientLon,
+				row.GeoAccuracyKm,
+				strings.TrimSpace(row.GeoSource),
 				row.RetransRate,
 				row.LossRate,
 				row.HopCount,

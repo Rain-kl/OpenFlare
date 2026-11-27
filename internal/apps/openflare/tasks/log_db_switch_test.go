@@ -418,9 +418,23 @@ func TestCopyAndClearNetworkQualitySamplesPreservesIDs(t *testing.T) {
 	t.Cleanup(func() { db.SetDB(nil) })
 
 	now := time.Now().UTC()
+	lat := 31.2304
+	lon := 121.4737
 	rows := []analyticsmodel.NetworkQualitySample{
-		{ID: 701, NodeID: "n1", NodeASN: 13335, ClientASN: 4134, ClientCountry: "CN", Source: "tcp_passive", SampleCount: 12, RTTMinMs: 28, RTTP50Ms: 35, RTTP95Ms: 60, CapturedAt: now, CreatedAt: now},
-		{ID: 702, NodeID: "n2", NodeASN: 174, ClientASN: 4809, ClientCountry: "CN", Source: "traceroute", SampleCount: 3, RTTMinMs: 40, RTTP50Ms: 42, RTTP95Ms: 45, HopCount: 11, CapturedAt: now, CreatedAt: now},
+		{
+			ID: 701, NodeID: "n1", NodeASN: 13335, ClientASN: 4134, ClientCountry: "CN",
+			ClientRegion: "CN-SH", IPFamily: "ipv4", StatsVersion: 2, Source: "tcp_passive",
+			SampleCount: 12, RTTMinMs: 28, RTTP50Ms: 35, RTTP95Ms: 60,
+			RTTHist: "v1:AQE=", PrefixSketch: "v1:AAECAwQFBgc=", DistinctPrefixCount: 3,
+			ClientLat: &lat, ClientLon: &lon, GeoAccuracyKm: 20, GeoSource: "city",
+			CapturedAt: now, CreatedAt: now,
+		},
+		{
+			ID: 702, NodeID: "n2", NodeASN: 174, ClientASN: 4809, ClientCountry: "CN",
+			ClientRegion: "CN-GD", IPFamily: "ipv6", StatsVersion: 2, Source: "traceroute",
+			SampleCount: 3, RTTMinMs: 40, RTTP50Ms: 42, RTTP95Ms: 45, HopCount: 11,
+			CapturedAt: now, CreatedAt: now,
+		},
 	}
 	require.NoError(t, src.Observability.BatchInsertNetworkQualitySamples(ctx, rows))
 	require.NoError(t, dst.Observability.BatchInsertNetworkQualitySamples(ctx, []analyticsmodel.NetworkQualitySample{
@@ -435,6 +449,14 @@ func TestCopyAndClearNetworkQualitySamplesPreservesIDs(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.Equal(t, uint64(701), got[0].ID)
 	assert.Equal(t, uint32(4134), got[0].ClientASN)
+	assert.Equal(t, "CN-SH", got[0].ClientRegion)
+	assert.Equal(t, "ipv4", got[0].IPFamily)
+	assert.Equal(t, int32(2), got[0].StatsVersion)
+	assert.Equal(t, "v1:AQE=", got[0].RTTHist)
+	assert.Equal(t, int32(3), got[0].DistinctPrefixCount)
+	require.NotNil(t, got[0].ClientLat)
+	assert.InDelta(t, lat, *got[0].ClientLat, 1e-6)
 	assert.Equal(t, uint64(702), got[1].ID)
+	assert.Equal(t, "ipv6", got[1].IPFamily)
 	assert.Equal(t, int32(11), got[1].HopCount)
 }

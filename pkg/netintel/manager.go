@@ -116,13 +116,17 @@ func (m *Manager) LookupIP(rawIP string) *IPLookupResult {
 		DataSources: []string{},
 	}
 
-	countryISO, countryName, cityName, lat, lon := s.mmdb.lookupGeo(stdIP)
-	res.CountryISO = countryISO
-	res.CountryName = countryName
-	res.CityName = cityName
-	res.Latitude = lat
-	res.Longitude = lon
-	if countryISO != "" {
+	geo := s.mmdb.lookupGeo(stdIP)
+	res.ContinentCode = geo.continentCode
+	res.CountryISO = geo.countryISO
+	res.CountryName = geo.countryName
+	res.RegionCode = geo.regionCode
+	res.CityName = geo.cityName
+	res.Latitude = geo.latitude
+	res.Longitude = geo.longitude
+	res.AccuracyRadiusKm = geo.accuracyRadiusKm
+	res.GeoSource = geo.geoSource
+	if geo.countryISO != "" || geo.latitude != nil {
 		res.DataSources = append(res.DataSources, "mmdb_geo")
 	}
 
@@ -157,7 +161,14 @@ func (m *Manager) LookupIP(rawIP string) *IPLookupResult {
 		if res.CountryISO == "" && res.ASNCountry != "" {
 			res.CountryISO = res.ASNCountry
 			res.CountryName = res.ASNCountry
+			if res.GeoSource == "" || res.GeoSource == GeoSourceUnknown {
+				res.GeoSource = GeoSourceASNCountry
+			}
 		}
+	}
+	res.AnycastStatus = EvaluateAnycastStatus(addr, geo.isAnycast, res.ASNTags)
+	if res.GeoSource == "" {
+		res.GeoSource = GeoSourceUnknown
 	}
 	return res
 }

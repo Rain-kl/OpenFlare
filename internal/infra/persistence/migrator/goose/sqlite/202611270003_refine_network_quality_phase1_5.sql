@@ -1,0 +1,78 @@
+-- +goose Up
+ALTER TABLE of_nodes ADD COLUMN geo_source TEXT NOT NULL DEFAULT '';
+ALTER TABLE of_nodes ADD COLUMN network_group TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE of_network_quality_samples ADD COLUMN client_region TEXT NOT NULL DEFAULT '';
+ALTER TABLE of_network_quality_samples ADD COLUMN ip_family TEXT NOT NULL DEFAULT 'unknown';
+ALTER TABLE of_network_quality_samples ADD COLUMN stats_version INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE of_network_quality_samples ADD COLUMN rtt_hist TEXT NOT NULL DEFAULT '';
+ALTER TABLE of_network_quality_samples ADD COLUMN prefix_sketch TEXT NOT NULL DEFAULT '';
+ALTER TABLE of_network_quality_samples ADD COLUMN distinct_prefix_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE of_network_quality_samples ADD COLUMN client_lat REAL;
+ALTER TABLE of_network_quality_samples ADD COLUMN client_lon REAL;
+ALTER TABLE of_network_quality_samples ADD COLUMN geo_accuracy_km REAL NOT NULL DEFAULT 0;
+ALTER TABLE of_network_quality_samples ADD COLUMN geo_source TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_of_nq_samples_node_asn_geo_time ON of_network_quality_samples (node_id, client_asn, client_country, client_region, ip_family, captured_at DESC);
+
+ALTER TABLE of_network_quality_matrix ADD COLUMN client_region TEXT NOT NULL DEFAULT '';
+ALTER TABLE of_network_quality_matrix ADD COLUMN ip_family TEXT NOT NULL DEFAULT 'unknown';
+ALTER TABLE of_network_quality_matrix ADD COLUMN aggregation_level TEXT NOT NULL DEFAULT 'country';
+ALTER TABLE of_network_quality_matrix ADD COLUMN stats_version INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE of_network_quality_matrix ADD COLUMN probe_rtt_p50_ms REAL NOT NULL DEFAULT 0;
+ALTER TABLE of_network_quality_matrix ADD COLUMN probe_loss_rate REAL NOT NULL DEFAULT 0;
+ALTER TABLE of_network_quality_matrix ADD COLUMN probe_sample_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE of_network_quality_matrix ADD COLUMN probe_proto TEXT NOT NULL DEFAULT '';
+ALTER TABLE of_network_quality_matrix ADD COLUMN probe_last_seen_at DATETIME NULL;
+ALTER TABLE of_network_quality_matrix ADD COLUMN rtt_ewma_ms REAL NOT NULL DEFAULT 0;
+ALTER TABLE of_network_quality_matrix ADD COLUMN distinct_prefix_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE of_network_quality_matrix ADD COLUMN geo_base_rtt_ms REAL NOT NULL DEFAULT 0;
+ALTER TABLE of_network_quality_matrix ADD COLUMN geo_accuracy_km REAL NOT NULL DEFAULT 0;
+ALTER TABLE of_network_quality_matrix ADD COLUMN geo_source TEXT NOT NULL DEFAULT '';
+ALTER TABLE of_network_quality_matrix ADD COLUMN geo_confidence REAL NOT NULL DEFAULT 0;
+ALTER TABLE of_network_quality_matrix ADD COLUMN measurement_source TEXT NOT NULL DEFAULT '';
+ALTER TABLE of_network_quality_matrix ADD COLUMN last_observed_at DATETIME NULL;
+DROP INDEX IF EXISTS uidx_of_nq_matrix_node_asn;
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_of_nq_matrix_node_asn_geo_v2 ON of_network_quality_matrix (node_id, client_asn, client_country, client_region, ip_family, aggregation_level);
+CREATE INDEX IF NOT EXISTS idx_of_nq_matrix_region ON of_network_quality_matrix (client_country, client_region);
+CREATE INDEX IF NOT EXISTS idx_of_nq_matrix_level_family ON of_network_quality_matrix (aggregation_level, ip_family);
+
+ALTER TABLE of_traceroute_records ADD COLUMN target_region TEXT NOT NULL DEFAULT '';
+ALTER TABLE of_traceroute_records ADD COLUMN ip_family TEXT NOT NULL DEFAULT 'unknown';
+
+-- +goose Down
+ALTER TABLE of_traceroute_records DROP COLUMN ip_family;
+ALTER TABLE of_traceroute_records DROP COLUMN target_region;
+DROP INDEX IF EXISTS idx_of_nq_matrix_level_family;
+DROP INDEX IF EXISTS idx_of_nq_matrix_region;
+DROP INDEX IF EXISTS uidx_of_nq_matrix_node_asn_geo_v2;
+ALTER TABLE of_network_quality_matrix DROP COLUMN last_observed_at;
+ALTER TABLE of_network_quality_matrix DROP COLUMN measurement_source;
+ALTER TABLE of_network_quality_matrix DROP COLUMN geo_confidence;
+ALTER TABLE of_network_quality_matrix DROP COLUMN geo_source;
+ALTER TABLE of_network_quality_matrix DROP COLUMN geo_accuracy_km;
+ALTER TABLE of_network_quality_matrix DROP COLUMN geo_base_rtt_ms;
+ALTER TABLE of_network_quality_matrix DROP COLUMN distinct_prefix_count;
+ALTER TABLE of_network_quality_matrix DROP COLUMN rtt_ewma_ms;
+ALTER TABLE of_network_quality_matrix DROP COLUMN probe_last_seen_at;
+ALTER TABLE of_network_quality_matrix DROP COLUMN probe_proto;
+ALTER TABLE of_network_quality_matrix DROP COLUMN probe_sample_count;
+ALTER TABLE of_network_quality_matrix DROP COLUMN probe_loss_rate;
+ALTER TABLE of_network_quality_matrix DROP COLUMN probe_rtt_p50_ms;
+ALTER TABLE of_network_quality_matrix DROP COLUMN stats_version;
+ALTER TABLE of_network_quality_matrix DROP COLUMN aggregation_level;
+ALTER TABLE of_network_quality_matrix DROP COLUMN ip_family;
+ALTER TABLE of_network_quality_matrix DROP COLUMN client_region;
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_of_nq_matrix_node_asn ON of_network_quality_matrix (node_id, client_asn);
+DROP INDEX IF EXISTS idx_of_nq_samples_node_asn_geo_time;
+ALTER TABLE of_network_quality_samples DROP COLUMN geo_source;
+ALTER TABLE of_network_quality_samples DROP COLUMN geo_accuracy_km;
+ALTER TABLE of_network_quality_samples DROP COLUMN client_lon;
+ALTER TABLE of_network_quality_samples DROP COLUMN client_lat;
+ALTER TABLE of_network_quality_samples DROP COLUMN distinct_prefix_count;
+ALTER TABLE of_network_quality_samples DROP COLUMN prefix_sketch;
+ALTER TABLE of_network_quality_samples DROP COLUMN rtt_hist;
+ALTER TABLE of_network_quality_samples DROP COLUMN stats_version;
+ALTER TABLE of_network_quality_samples DROP COLUMN ip_family;
+ALTER TABLE of_network_quality_samples DROP COLUMN client_region;
+ALTER TABLE of_nodes DROP COLUMN network_group;
+ALTER TABLE of_nodes DROP COLUMN geo_source;

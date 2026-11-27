@@ -269,6 +269,8 @@ func collectHeartbeatChanges(previous *model.OpenFlareNode, current *model.OpenF
 	appendIfChanged("asn", previous.ASN, current.ASN)
 	appendIfChanged("asn_org", previous.ASNOrg, current.ASNOrg)
 	appendIfChanged("geo_name", previous.GeoName, current.GeoName)
+	appendIfChanged("geo_source", previous.GeoSource, current.GeoSource)
+	appendIfChanged("network_group", previous.NetworkGroup, current.NetworkGroup)
 	appendIfChanged("version", previous.Version, current.Version)
 	appendIfChanged("ext_version", previous.ExtVersion, current.ExtVersion)
 	appendIfChanged("engine", previous.Engine, current.Engine)

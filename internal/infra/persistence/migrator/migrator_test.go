@@ -230,6 +230,34 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 			t.Errorf("Migrate() did not create %s", table)
 		}
 	}
+	for _, col := range []string{"geo_source", "network_group"} {
+		if !sqliteDB.Migrator().HasColumn("of_nodes", col) {
+			t.Errorf("Migrate() did not create of_nodes.%s", col)
+		}
+	}
+	for _, col := range []string{
+		"client_region", "ip_family", "stats_version", "rtt_hist",
+		"prefix_sketch", "distinct_prefix_count", "client_lat", "client_lon",
+		"geo_accuracy_km", "geo_source",
+	} {
+		if !sqliteDB.Migrator().HasColumn("of_network_quality_samples", col) {
+			t.Errorf("Migrate() did not create of_network_quality_samples.%s", col)
+		}
+	}
+	for _, col := range []string{
+		"client_region", "ip_family", "aggregation_level", "stats_version",
+		"probe_rtt_p50_ms", "probe_loss_rate", "probe_sample_count", "probe_proto",
+		"rtt_ewma_ms", "distinct_prefix_count", "geo_base_rtt_ms",
+		"geo_accuracy_km", "geo_source", "geo_confidence", "measurement_source",
+		"last_observed_at",
+	} {
+		if !sqliteDB.Migrator().HasColumn("of_network_quality_matrix", col) {
+			t.Errorf("Migrate() did not create of_network_quality_matrix.%s", col)
+		}
+	}
+	if !sqliteDB.Migrator().HasIndex(&model.OpenFlareNetworkQualityMatrix{}, "uidx_of_nq_matrix_node_asn_geo_v2") {
+		t.Error("Migrate() did not create uidx_of_nq_matrix_node_asn_geo_v2")
+	}
 	if !sqliteDB.Migrator().HasColumn("of_cf_connections", "authorization") {
 		t.Error("Migrate() did not create of_cf_connections.authorization")
 	}

@@ -20,15 +20,24 @@ import (
 )
 
 const (
-	colNodeID         = "node_id"
-	colClientASN      = "client_asn"
-	colTCPRTTP50Ms    = "tcp_rtt_p50_ms"
-	colTCPSampleCount = "tcp_sample_count"
-	colTraceRTTP50Ms  = "trace_rtt_p50_ms"
-	colEffectiveRTTMs = "effective_rtt_ms"
-	colConfidence     = "confidence"
-	colUpdatedAt      = "updated_at"
-	colLastSeenAt     = "last_seen_at"
+	colNodeID              = "node_id"
+	colClientASN           = "client_asn"
+	colClientCountry       = "client_country"
+	colClientRegion        = "client_region"
+	colIPFamily            = "ip_family"
+	colAggregationLevel    = "aggregation_level"
+	colTCPRTTP50Ms         = "tcp_rtt_p50_ms"
+	colTCPSampleCount      = "tcp_sample_count"
+	colProbeRTTP50Ms       = "probe_rtt_p50_ms"
+	colProbeSampleCount    = "probe_sample_count"
+	colTraceRTTP50Ms       = "trace_rtt_p50_ms"
+	colEffectiveRTTMs      = "effective_rtt_ms"
+	colRTTEWMAms           = "rtt_ewma_ms"
+	colDistinctPrefixCount = "distinct_prefix_count"
+	colConfidence          = "confidence"
+	colUpdatedAt           = "updated_at"
+	colLastObservedAt      = "last_observed_at"
+	colLastSeenAt          = "last_seen_at"
 
 	networkIntelDefaultPageSize = 20
 	networkQualityBatchSize     = 200
@@ -64,14 +73,45 @@ func ListOpenFlareNetworkQualitySamplesSince(ctx context.Context, since time.Tim
 	return s.Observability.ListNetworkQualitySamplesSince(ctx, since, limit)
 }
 
-// UpsertOpenFlareNetworkQualityMatrixBatch atomically upserts (node_id, client_asn) quality rows.
+// UpsertOpenFlareNetworkQualityMatrixBatch atomically upserts 6-tuple quality matrix rows.
 func UpsertOpenFlareNetworkQualityMatrixBatch(ctx context.Context, rows []*model.OpenFlareNetworkQualityMatrix) error {
-	if len(rows) == 0 {
-		return nil
-	}
 	conn := db.DB(ctx)
 	if conn == nil {
 		return errors.New(errDatabaseNotInitialized)
+	}
+	return upsertNetworkQualityMatrixTx(conn, rows)
+}
+
+// ReplaceOpenFlareNetworkQualityMatrixSnapshot atomically updates measured matrix rows and clears
+// legacy mixed rows (stats_version < 2), persisted predicted rows, and expired rows in a single transaction.
+func ReplaceOpenFlareNetworkQualityMatrixSnapshot(ctx context.Context, rows []*model.OpenFlareNetworkQualityMatrix, staleCutoff time.Time) (int64, error) {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return 0, errors.New(errDatabaseNotInitialized)
+	}
+	var pruned int64
+	err := conn.Transaction(func(tx *gorm.DB) error {
+		if err := upsertNetworkQualityMatrixTx(tx, rows); err != nil {
+			return err
+		}
+		res := tx.Where(
+			"data_source = ? OR stats_version < ? OR updated_at < ?",
+			model.QualityMatrixDataSourcePredicted,
+			model.NetworkQualityStatsVersionHist64,
+			staleCutoff.UTC(),
+		).Delete(&model.OpenFlareNetworkQualityMatrix{})
+		if res.Error != nil {
+			return res.Error
+		}
+		pruned = res.RowsAffected
+		return nil
+	})
+	return pruned, err
+}
+
+func upsertNetworkQualityMatrixTx(conn *gorm.DB, rows []*model.OpenFlareNetworkQualityMatrix) error {
+	if len(rows) == 0 {
+		return nil
 	}
 	filtered := make([]*model.OpenFlareNetworkQualityMatrix, 0, len(rows))
 	for _, row := range rows {
@@ -80,6 +120,16 @@ func UpsertOpenFlareNetworkQualityMatrixBatch(ctx context.Context, rows []*model
 		}
 		row.NodeID = strings.TrimSpace(row.NodeID)
 		row.ClientCountry = strings.ToUpper(strings.TrimSpace(row.ClientCountry))
+		row.ClientRegion = strings.ToUpper(strings.TrimSpace(row.ClientRegion))
+		if row.IPFamily = strings.ToLower(strings.TrimSpace(row.IPFamily)); row.IPFamily == "" {
+			row.IPFamily = "unknown"
+		}
+		if row.AggregationLevel = strings.ToLower(strings.TrimSpace(row.AggregationLevel)); row.AggregationLevel == "" {
+			row.AggregationLevel = model.QualityAggregationLevelCountry
+		}
+		if row.StatsVersion <= 0 {
+			row.StatsVersion = model.NetworkQualityStatsVersionHist64
+		}
 		row.ClientASNName = strings.TrimSpace(row.ClientASNName)
 		if strings.TrimSpace(row.TraceASPath) == "" {
 			row.TraceASPath = "[]"
@@ -93,10 +143,17 @@ func UpsertOpenFlareNetworkQualityMatrixBatch(ctx context.Context, rows []*model
 		return nil
 	}
 	return conn.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: colNodeID}, {Name: colClientASN}},
+		Columns: []clause.Column{
+			{Name: colNodeID},
+			{Name: colClientASN},
+			{Name: colClientCountry},
+			{Name: colClientRegion},
+			{Name: colIPFamily},
+			{Name: colAggregationLevel},
+		},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"node_asn",
-			"client_country",
+			"stats_version",
 			"client_asn_name",
 			colTCPRTTP50Ms,
 			"tcp_rtt_p95_ms",
@@ -104,6 +161,11 @@ func UpsertOpenFlareNetworkQualityMatrixBatch(ctx context.Context, rows []*model
 			"tcp_retrans_rate",
 			colTCPSampleCount,
 			"tcp_last_seen_at",
+			colProbeRTTP50Ms,
+			"probe_loss_rate",
+			colProbeSampleCount,
+			"probe_proto",
+			"probe_last_seen_at",
 			colTraceRTTP50Ms,
 			"trace_loss_rate",
 			"trace_hop_count",
@@ -112,9 +174,17 @@ func UpsertOpenFlareNetworkQualityMatrixBatch(ctx context.Context, rows []*model
 			"trace_last_seen_at",
 			colEffectiveRTTMs,
 			"predicted_rtt_ms",
+			colRTTEWMAms,
+			colDistinctPrefixCount,
+			"geo_base_rtt_ms",
+			"geo_accuracy_km",
+			"geo_source",
+			"geo_confidence",
+			"measurement_source",
 			"quality_score",
 			colConfidence,
 			"data_source",
+			colLastObservedAt,
 			colUpdatedAt,
 		}),
 	}).CreateInBatches(filtered, networkQualityBatchSize).Error
@@ -136,6 +206,18 @@ func ListOpenFlareNetworkQualityMatrix(ctx context.Context, query model.NetworkQ
 	if country := strings.ToUpper(strings.TrimSpace(query.ClientCountry)); country != "" {
 		q = q.Where("client_country = ?", country)
 	}
+	if region := strings.ToUpper(strings.TrimSpace(query.ClientRegion)); region != "" {
+		q = q.Where("client_region = ?", region)
+	}
+	if family := strings.ToLower(strings.TrimSpace(query.IPFamily)); family != "" {
+		q = q.Where("ip_family = ?", family)
+	}
+	if level := strings.ToLower(strings.TrimSpace(query.AggregationLevel)); level != "" {
+		q = q.Where("aggregation_level = ?", level)
+	}
+	if msrc := strings.ToLower(strings.TrimSpace(query.MeasurementSource)); msrc != "" {
+		q = q.Where("measurement_source = ?", msrc)
+	}
 	if src := strings.ToLower(strings.TrimSpace(query.DataSource)); src != "" {
 		q = q.Where("data_source = ?", src)
 	}
@@ -143,13 +225,13 @@ func ListOpenFlareNetworkQualityMatrix(ctx context.Context, query model.NetworkQ
 		escaped := "%" + util.EscapeLike(search) + "%"
 		if parsedASN, err := strconv.ParseUint(strings.TrimPrefix(strings.ToUpper(search), "AS"), 10, 32); err == nil && parsedASN > 0 {
 			q = q.Where(
-				`client_asn = ? OR node_id LIKE ? ESCAPE '\' OR client_asn_name LIKE ? ESCAPE '\' OR client_country LIKE ? ESCAPE '\'`,
-				uint32(parsedASN), escaped, escaped, escaped,
+				`client_asn = ? OR node_id LIKE ? ESCAPE '\' OR client_asn_name LIKE ? ESCAPE '\' OR client_country LIKE ? ESCAPE '\' OR client_region LIKE ? ESCAPE '\'`,
+				uint32(parsedASN), escaped, escaped, escaped, escaped,
 			)
 		} else {
 			q = q.Where(
-				`node_id LIKE ? ESCAPE '\' OR client_asn_name LIKE ? ESCAPE '\' OR client_country LIKE ? ESCAPE '\'`,
-				escaped, escaped, escaped,
+				`node_id LIKE ? ESCAPE '\' OR client_asn_name LIKE ? ESCAPE '\' OR client_country LIKE ? ESCAPE '\' OR client_region LIKE ? ESCAPE '\'`,
+				escaped, escaped, escaped, escaped,
 			)
 		}
 	}
@@ -192,12 +274,22 @@ func networkQualitySortColumn(sortBy string) string {
 		return colEffectiveRTTMs
 	case colTCPRTTP50Ms:
 		return colTCPRTTP50Ms
+	case colProbeRTTP50Ms:
+		return colProbeRTTP50Ms
 	case colTraceRTTP50Ms:
 		return colTraceRTTP50Ms
 	case colTCPSampleCount:
 		return colTCPSampleCount
+	case colProbeSampleCount:
+		return colProbeSampleCount
+	case colRTTEWMAms:
+		return colRTTEWMAms
+	case colDistinctPrefixCount:
+		return colDistinctPrefixCount
 	case colConfidence:
 		return colConfidence
+	case colLastObservedAt:
+		return colLastObservedAt
 	case colUpdatedAt:
 		return colUpdatedAt
 	case colClientASN:
@@ -205,6 +297,24 @@ func networkQualitySortColumn(sortBy string) string {
 	default:
 		return "quality_score"
 	}
+}
+
+// ListOpenFlareNetworkQualityMatrixMeasured returns measured quality matrix rows for prediction & analysis.
+func ListOpenFlareNetworkQualityMatrixMeasured(ctx context.Context) ([]*model.OpenFlareNetworkQualityMatrix, error) {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return nil, errors.New(errDatabaseNotInitialized)
+	}
+	var rows []*model.OpenFlareNetworkQualityMatrix
+	if err := conn.Where("data_source = ?", model.QualityMatrixDataSourceMeasured).
+		Order("quality_score DESC, effective_rtt_ms ASC").
+		Find(&rows).Error; err != nil {
+		if isMissingTableError(err) {
+			return []*model.OpenFlareNetworkQualityMatrix{}, nil
+		}
+		return nil, err
+	}
+	return rows, nil
 }
 
 // ListOpenFlareNetworkQualityMatrixByClientASN returns all measured/predicted node quality rows for a client ASN ordered by score.
@@ -467,6 +577,30 @@ func UpdateOpenFlareNodeASN(ctx context.Context, nodeID string, asn uint32, asnO
 		}).Error
 }
 
+// UpdateOpenFlareNodeGeoAndASN persists backfilled ASN and geolocation metadata for a node.
+func UpdateOpenFlareNodeGeoAndASN(ctx context.Context, node *model.OpenFlareNode) error {
+	if node == nil || strings.TrimSpace(node.NodeID) == "" {
+		return nil
+	}
+	conn := db.DB(ctx)
+	if conn == nil {
+		return errors.New(errDatabaseNotInitialized)
+	}
+	updates := map[string]any{
+		"asn":     node.ASN,
+		"asn_org": strings.TrimSpace(node.ASNOrg),
+	}
+	if !node.GeoManualOverride {
+		updates["geo_name"] = strings.TrimSpace(node.GeoName)
+		updates["geo_latitude"] = node.GeoLatitude
+		updates["geo_longitude"] = node.GeoLongitude
+		updates["geo_source"] = strings.TrimSpace(node.GeoSource)
+	}
+	return conn.Model(&model.OpenFlareNode{}).
+		Where("node_id = ?", strings.TrimSpace(node.NodeID)).
+		Updates(updates).Error
+}
+
 // ListOpenFlareNodesMissingASN returns nodes with non-empty IP whose ASN has not been resolved yet.
 func ListOpenFlareNodesMissingASN(ctx context.Context, limit int) ([]model.OpenFlareNode, error) {
 	conn := db.DB(ctx)
@@ -474,6 +608,24 @@ func ListOpenFlareNodesMissingASN(ctx context.Context, limit int) ([]model.OpenF
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
 	q := conn.Model(&model.OpenFlareNode{}).Where("ip <> '' AND asn = 0")
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	var nodes []model.OpenFlareNode
+	if err := q.Find(&nodes).Error; err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
+// ListOpenFlareNodesNeedingGeoOrASN returns nodes with public/non-empty IPs needing ASN or city-level geo backfill.
+func ListOpenFlareNodesNeedingGeoOrASN(ctx context.Context, limit int) ([]model.OpenFlareNode, error) {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return nil, errors.New(errDatabaseNotInitialized)
+	}
+	q := conn.Model(&model.OpenFlareNode{}).
+		Where("ip <> '' AND (asn = 0 OR (geo_manual_override = ? AND (geo_latitude IS NULL OR geo_longitude IS NULL OR geo_source <> ?)))", false, "city")
 	if limit > 0 {
 		q = q.Limit(limit)
 	}

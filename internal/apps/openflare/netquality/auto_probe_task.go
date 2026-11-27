@@ -20,6 +20,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
+	pkgnetintel "github.com/Rain-kl/Wavelet/pkg/netintel"
 	"github.com/google/uuid"
 )
 
@@ -232,6 +233,7 @@ func firstProbeablePrefixIP(asn uint32) string {
 type EnrichedTracerouteHop struct {
 	protocol.TracerouteHop
 	CountryISO string   `json:"country_iso,omitempty"`
+	RegionCode string   `json:"region_code,omitempty"`
 	CityName   string   `json:"city_name,omitempty"`
 	ASN        uint32   `json:"asn,omitempty"`
 	ASNName    string   `json:"asn_name,omitempty"`
@@ -297,22 +299,33 @@ func ingestTracerouteResult(ctx context.Context, nodeID, probeID string, tr *pro
 		prevRTT = hopRTT
 	}
 
-	if len(edges) > 0 {
-		if err := repository.UpsertOpenFlareASTopologyEdges(ctx, edges); err != nil {
-			logger.WarnF(ctx, "[NetQuality] upsert AS topology edges failed (node=%s): %v", nodeID, err)
-		}
-	}
-
 	var targetASN uint32
-	var targetCountry string
+	var targetCountry, targetRegion, geoSource string
+	var clientLat, clientLon *float64
+	var geoAccuracyKm float64
+	var anycastStatus string
 	lookupIP := strings.TrimSpace(tr.ResolvedIP)
 	if lookupIP == "" {
 		lookupIP = strings.TrimSpace(tr.Target)
 	}
+	ipFamily := pkgnetintel.DetectIPFamily(lookupIP)
 	if lookupIP != "" {
 		if res := netintel.LookupIP(lookupIP); res != nil {
 			targetASN = res.ASN
 			targetCountry = res.CountryISO
+			targetRegion = res.RegionCode
+			clientLat = res.Latitude
+			clientLon = res.Longitude
+			geoAccuracyKm = res.AccuracyRadiusKm
+			geoSource = res.GeoSource
+			anycastStatus = res.AnycastStatus
+		}
+	}
+
+	// Isolate confirmed Anycast targets from AS topology edges to prevent misleading shortcut links.
+	if len(edges) > 0 && anycastStatus != pkgnetintel.AnycastStatusConfirmed {
+		if err := repository.UpsertOpenFlareASTopologyEdges(ctx, edges); err != nil {
+			logger.WarnF(ctx, "[NetQuality] upsert AS topology edges failed (node=%s): %v", nodeID, err)
 		}
 	}
 
@@ -329,6 +342,8 @@ func ingestTracerouteResult(ctx context.Context, nodeID, probeID string, tr *pro
 		ResolvedIP:    strings.TrimSpace(tr.ResolvedIP),
 		TargetASN:     targetASN,
 		TargetCountry: targetCountry,
+		TargetRegion:  targetRegion,
+		IPFamily:      ipFamily,
 		Protocol:      strings.TrimSpace(tr.Protocol),
 		HopCount:      int(tr.HopCount),
 		Reached:       tr.Reached,
@@ -341,25 +356,40 @@ func ingestTracerouteResult(ctx context.Context, nodeID, probeID string, tr *pro
 		logger.WarnF(ctx, "[NetQuality] persist traceroute record failed (node=%s): %v", nodeID, err)
 	}
 
-	if targetASN > 0 && tr.Reached && tr.TotalRTTMs > 0 {
+	if targetASN > 0 && tr.Reached && tr.TotalRTTMs > 0 && anycastStatus != pkgnetintel.AnycastStatusConfirmed {
 		var lossRate float64
 		if len(tr.Hops) > 0 {
 			last := tr.Hops[len(tr.Hops)-1]
 			lossRate = math.Min(1.0, math.Max(0, last.LossPct/percentDivisor))
 		}
+		var hist LogHistogram64
+		hist.Add(tr.TotalRTTMs)
+		var sketch PrefixSketch
+		sketch.AddIP(lookupIP)
+
 		sample := &model.OpenFlareNetworkQualitySample{
-			NodeID:        nodeID,
-			NodeASN:       lookupCachedNodeASNs(ctx)[nodeID],
-			ClientASN:     targetASN,
-			ClientCountry: targetCountry,
-			Source:        model.NetworkQualitySourceTraceroute,
-			SampleCount:   max(1, int(tr.HopCount)),
-			RTTMinMs:      round2(tr.TotalRTTMs),
-			RTTP50Ms:      round2(tr.TotalRTTMs),
-			RTTP95Ms:      round2(tr.TotalRTTMs),
-			LossRate:      round4(lossRate),
-			HopCount:      int(tr.HopCount),
-			CapturedAt:    seenAt,
+			NodeID:              nodeID,
+			NodeASN:             lookupCachedNodeASNs(ctx)[nodeID],
+			ClientASN:           targetASN,
+			ClientCountry:       targetCountry,
+			ClientRegion:        targetRegion,
+			IPFamily:            ipFamily,
+			StatsVersion:        model.NetworkQualityStatsVersionHist64,
+			Source:              model.NetworkQualitySourceTraceroute,
+			SampleCount:         1,
+			RTTMinMs:            round2(tr.TotalRTTMs),
+			RTTP50Ms:            round2(tr.TotalRTTMs),
+			RTTP95Ms:            round2(tr.TotalRTTMs),
+			RTTHist:             hist.Encode(),
+			PrefixSketch:        sketch.Encode(),
+			DistinctPrefixCount: sketch.DistinctCount(),
+			ClientLat:           clientLat,
+			ClientLon:           clientLon,
+			GeoAccuracyKm:       geoAccuracyKm,
+			GeoSource:           geoSource,
+			LossRate:            round4(lossRate),
+			HopCount:            int(tr.HopCount),
+			CapturedAt:          seenAt,
 		}
 		if err := repository.InsertOpenFlareNetworkQualitySample(ctx, sample); err != nil {
 			logger.WarnF(ctx, "[NetQuality] insert traceroute sample failed (node=%s): %v", nodeID, err)
@@ -379,18 +409,56 @@ func ingestPingBatchResult(ctx context.Context, nodeID string, ping *protocol.Pi
 	if res == nil || res.ASN == 0 {
 		return
 	}
+	if res.AnycastStatus == pkgnetintel.AnycastStatusConfirmed {
+		return
+	}
+
+	source := model.NetworkQualitySourceICMPActive
+	if strings.EqualFold(strings.TrimSpace(ping.Protocol), "tcp") {
+		source = model.NetworkQualitySourceTCPActive
+	}
+
+	var hist LogHistogram64
+	for _, s := range ping.Samples {
+		if s.Success && s.RTTMs > 0 {
+			hist.Add(float64(s.RTTMs))
+		}
+	}
+	if hist.Count == 0 {
+		hist.Add(ping.AvgMs)
+	}
+	var sketch PrefixSketch
+	sketch.AddIP(lookupIP)
+
+	p50 := hist.Quantile(percentileMedian)
+	p95 := hist.Quantile(percentileP95)
+	if ping.P95Ms > 0 && len(ping.Samples) == 0 {
+		p50 = ping.AvgMs
+		p95 = ping.P95Ms
+	}
+
 	sample := &model.OpenFlareNetworkQualitySample{
-		NodeID:        nodeID,
-		NodeASN:       lookupCachedNodeASNs(ctx)[nodeID],
-		ClientASN:     res.ASN,
-		ClientCountry: res.CountryISO,
-		Source:        model.NetworkQualitySourceTraceroute,
-		SampleCount:   int(ping.Sent),
-		RTTMinMs:      round2(ping.MinMs),
-		RTTP50Ms:      round2(ping.AvgMs),
-		RTTP95Ms:      round2(ping.P95Ms),
-		LossRate:      round4(math.Min(1.0, math.Max(0, ping.LossRate/percentDivisor))),
-		CapturedAt:    time.Now().UTC(),
+		NodeID:              nodeID,
+		NodeASN:             lookupCachedNodeASNs(ctx)[nodeID],
+		ClientASN:           res.ASN,
+		ClientCountry:       res.CountryISO,
+		ClientRegion:        res.RegionCode,
+		IPFamily:            pkgnetintel.DetectIPFamily(lookupIP),
+		StatsVersion:        model.NetworkQualityStatsVersionHist64,
+		Source:              source,
+		SampleCount:         max(1, int(ping.Received)),
+		RTTMinMs:            round2(ping.MinMs),
+		RTTP50Ms:            round2(p50),
+		RTTP95Ms:            round2(p95),
+		RTTHist:             hist.Encode(),
+		PrefixSketch:        sketch.Encode(),
+		DistinctPrefixCount: sketch.DistinctCount(),
+		ClientLat:           res.Latitude,
+		ClientLon:           res.Longitude,
+		GeoAccuracyKm:       res.AccuracyRadiusKm,
+		GeoSource:           res.GeoSource,
+		LossRate:            round4(math.Min(1.0, math.Max(0, ping.LossRate/percentDivisor))),
+		CapturedAt:          time.Now().UTC(),
 	}
 	if err := repository.InsertOpenFlareNetworkQualitySample(ctx, sample); err != nil {
 		logger.WarnF(ctx, "[NetQuality] insert ping_batch sample failed (node=%s): %v", nodeID, err)
@@ -406,6 +474,7 @@ func EnrichTracerouteHops(hops []protocol.TracerouteHop) []EnrichedTracerouteHop
 		if ip != "" {
 			if res := netintel.LookupIP(ip); res != nil {
 				enriched.CountryISO = res.CountryISO
+				enriched.RegionCode = res.RegionCode
 				enriched.CityName = res.CityName
 				enriched.ASN = res.ASN
 				enriched.ASNName = res.ASNName

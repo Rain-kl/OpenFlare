@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package netquality aggregates passive edge TCP_INFO latency metrics and active
-// traceroute/ping probes into OpenFlare's node-to-ASN network quality matrix.
+// traceroute/ping probes into OpenFlare's node-to-network quality matrix.
 package netquality
 
 import (
 	"context"
 	"math"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,48 +19,93 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/platform/lifecycle"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
+	pkgnetintel "github.com/Rain-kl/Wavelet/pkg/netintel"
 )
 
 const (
-	passiveFlushInterval   = 60 * time.Second
-	maxPassiveBuckets      = 4096
-	maxBucketReservoir     = 256
-	maxValidTCPRTTUs       = 60_000_000 // 60s upper sanity bound
-	passiveFlushTimeout    = 10 * time.Second
-	nodeASNCacheRefresh    = 60 * time.Second
-	maxCountryCodeLen      = 16
-	initialBucketSampleCap = 16
-	percentileMedian       = 0.50
-	percentileP95          = 0.95
-	round2Scale            = 100
-	round4Scale            = 10000
-	usPerMillisecond       = 1000.0
+	passiveFlushInterval       = 60 * time.Second
+	maxPassiveBuckets          = 8192
+	passiveHighWatermark       = maxPassiveBuckets * 4 / 5
+	maxValidTCPRTTUs           = 60_000_000 // 60s upper sanity bound
+	passiveFlushTimeout        = 10 * time.Second
+	nodeASNCacheRefresh        = 60 * time.Second
+	maxCountryCodeLen          = 16
+	maxRegionCodeLen           = 32
+	percentileMedian           = 0.50
+	percentileP95              = 0.95
+	round2Scale                = 100
+	round4Scale                = 10000
+	usPerMillisecond           = 1000.0
+	minAccuracyWeightFloorKm   = 10.0
+	minGeoSourceWeightFallback = 500.0
+	defaultCityGeoAccKm        = 25.0
+	collectorWarnCooldownSec   = 60
 )
+
+// PassiveSampleInput carries enriched client metadata for one passive TCP_INFO sample.
+type PassiveSampleInput struct {
+	NodeID        string
+	ClientIP      string
+	ClientASN     uint32
+	ClientCountry string
+	ClientRegion  string
+	IPFamily      string
+	ClientLat     *float64
+	ClientLon     *float64
+	GeoAccuracyKm float64
+	GeoSource     string
+	TCPRTTUs      uint32
+	TCPMinRTTUs   uint32
+	TCPRetrans    uint32
+	TCPSegsOut    uint32
+	TLSHandshake  uint32
+}
+
+// PassiveCollectorStats exposes eviction and drop counters for observability and testing.
+type PassiveCollectorStats struct {
+	ActiveBuckets      int
+	EvictedColdBuckets uint64
+	DroppedSamples     uint64
+	EarlyFlushes       uint64
+}
 
 type passiveBucketKey struct {
 	nodeID        string
 	clientASN     uint32
 	clientCountry string
+	clientRegion  string
+	ipFamily      string
 }
 
 type passiveBucket struct {
-	sampleCount int
-	minRTTUs    uint32
-	retransSum  uint64
-	segsOutSum  uint64
-	rttMsSample []float64
-	rngState    uint64
-	capturedAt  time.Time
+	sampleCount   int
+	minRTTUs      uint32
+	retransSum    uint64
+	segsOutSum    uint64
+	hist          LogHistogram64
+	prefixes      PrefixSketch
+	centroid      pkgnetintel.SphericalCentroid
+	geoAccSum     float64
+	geoAccWeight  float64
+	geoSource     string
+	capturedAt    time.Time
+	lastUpdatedAt time.Time
 }
 
 type passiveCollector struct {
-	mu          sync.Mutex
-	buckets     map[passiveBucketKey]*passiveBucket
-	nodeASNsMu  sync.RWMutex
-	nodeASNs    map[string]uint32
-	nodeASNAt   time.Time
-	startedOnce sync.Once
-	running     atomic.Bool
+	mu                 sync.Mutex
+	buckets            map[passiveBucketKey]*passiveBucket
+	nodeASNsMu         sync.RWMutex
+	nodeASNs           map[string]uint32
+	nodeASNAt          time.Time
+	startedOnce        sync.Once
+	running            atomic.Bool
+	flushInFlight      atomic.Bool
+	flushWG            sync.WaitGroup
+	evictedColdBuckets atomic.Uint64
+	droppedSamples     atomic.Uint64
+	earlyFlushes       atomic.Uint64
+	lastWarnUnix       atomic.Int64
 }
 
 var defaultCollector = &passiveCollector{
@@ -69,8 +113,9 @@ var defaultCollector = &passiveCollector{
 	nodeASNs: make(map[string]uint32),
 }
 
-// ResetCollectorForTest clears buffered passive samples (intended for unit tests).
+// ResetCollectorForTest clears buffered passive samples and collector counters.
 func ResetCollectorForTest() {
+	defaultCollector.flushWG.Wait()
 	defaultCollector.mu.Lock()
 	defaultCollector.buckets = make(map[passiveBucketKey]*passiveBucket)
 	defaultCollector.mu.Unlock()
@@ -78,10 +123,27 @@ func ResetCollectorForTest() {
 	defaultCollector.nodeASNs = make(map[string]uint32)
 	defaultCollector.nodeASNAt = time.Time{}
 	defaultCollector.nodeASNsMu.Unlock()
+	defaultCollector.evictedColdBuckets.Store(0)
+	defaultCollector.droppedSamples.Store(0)
+	defaultCollector.earlyFlushes.Store(0)
+	defaultCollector.flushInFlight.Store(false)
+	defaultCollector.lastWarnUnix.Store(0)
 }
 
-// RecordPassiveSample ingests a single downstream TCP RTT measurement into a bounded 1-minute bucket.
-// This runs on the access-log ingestion path and is strictly non-blocking and panic-safe.
+// GetPassiveCollectorStats returns current buffered bucket count and drop/eviction counters.
+func GetPassiveCollectorStats() PassiveCollectorStats {
+	defaultCollector.mu.Lock()
+	active := len(defaultCollector.buckets)
+	defaultCollector.mu.Unlock()
+	return PassiveCollectorStats{
+		ActiveBuckets:      active,
+		EvictedColdBuckets: defaultCollector.evictedColdBuckets.Load(),
+		DroppedSamples:     defaultCollector.droppedSamples.Load(),
+		EarlyFlushes:       defaultCollector.earlyFlushes.Load(),
+	}
+}
+
+// RecordPassiveSample ingests a single downstream TCP RTT measurement using compact parameters.
 func RecordPassiveSample(
 	ctx context.Context,
 	nodeID string,
@@ -91,75 +153,194 @@ func RecordPassiveSample(
 	tcpMinRTTUs uint32,
 	retrans uint32,
 	segsOut uint32,
-	_ uint32,
+	tlsHandshake uint32,
 ) {
+	RecordPassiveSampleInput(ctx, PassiveSampleInput{
+		NodeID:        nodeID,
+		ClientASN:     clientASN,
+		ClientCountry: clientCountry,
+		TCPRTTUs:      tcpRTTUs,
+		TCPMinRTTUs:   tcpMinRTTUs,
+		TCPRetrans:    retrans,
+		TCPSegsOut:    segsOut,
+		TLSHandshake:  tlsHandshake,
+	})
+}
+
+// RecordPassiveSampleInput ingests a single downstream TCP RTT measurement into a bounded 1-minute bucket.
+// This runs on the access-log ingestion path and is strictly non-blocking and panic-safe.
+func RecordPassiveSampleInput(ctx context.Context, input PassiveSampleInput) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.ErrorF(ctx, "[NetQuality] RecordPassiveSample panic recovered: %v", r)
+			logger.ErrorF(ctx, "[NetQuality] RecordPassiveSampleInput panic recovered: %v", r)
 		}
 	}()
 
-	trimmedNode := strings.TrimSpace(nodeID)
-	if trimmedNode == "" || clientASN == 0 || tcpRTTUs == 0 || tcpRTTUs > maxValidTCPRTTUs {
+	key, effectiveMinUs, ok := normalizePassiveBucketKey(input)
+	if !ok {
 		return
 	}
-	country := strings.ToUpper(strings.TrimSpace(clientCountry))
+
+	now := time.Now().UTC()
+	bucketTime := now.Truncate(time.Minute)
+	rttMs := float64(input.TCPRTTUs) / usPerMillisecond
+
+	triggerAsyncFlush := false
+	defaultCollector.mu.Lock()
+	b, exists := defaultCollector.buckets[key]
+	if !exists {
+		b, triggerAsyncFlush = allocatePassiveBucketLocked(ctx, key, effectiveMinUs, bucketTime)
+		if b == nil {
+			defaultCollector.mu.Unlock()
+			defaultCollector.droppedSamples.Add(1)
+			warnCollectorSaturation(ctx)
+			return
+		}
+	}
+
+	applyInputToBucketLocked(b, input, effectiveMinUs, rttMs, now)
+	defaultCollector.mu.Unlock()
+
+	if triggerAsyncFlush {
+		scheduleEarlyFlush(ctx)
+	}
+}
+
+func normalizePassiveBucketKey(input PassiveSampleInput) (passiveBucketKey, uint32, bool) {
+	trimmedNode := strings.TrimSpace(input.NodeID)
+	if trimmedNode == "" || input.ClientASN == 0 || input.TCPRTTUs == 0 || input.TCPRTTUs > maxValidTCPRTTUs {
+		return passiveBucketKey{}, 0, false
+	}
+	country := strings.ToUpper(strings.TrimSpace(input.ClientCountry))
 	if len(country) > maxCountryCodeLen {
 		country = country[:maxCountryCodeLen]
 	}
-
-	effectiveMinUs := tcpRTTUs
-	if tcpMinRTTUs > 0 && tcpMinRTTUs < effectiveMinUs {
-		effectiveMinUs = tcpMinRTTUs
+	region := pkgnetintel.FormatSubdivisionCode(country, input.ClientRegion)
+	if len(region) > maxRegionCodeLen {
+		region = region[:maxRegionCodeLen]
 	}
-
-	key := passiveBucketKey{
+	ipFamily := strings.ToLower(strings.TrimSpace(input.IPFamily))
+	if ipFamily == "" {
+		ipFamily = pkgnetintel.DetectIPFamily(input.ClientIP)
+	}
+	if ipFamily == "" {
+		ipFamily = pkgnetintel.IPFamilyUnknown
+	}
+	effectiveMinUs := input.TCPRTTUs
+	if input.TCPMinRTTUs > 0 && input.TCPMinRTTUs < effectiveMinUs {
+		effectiveMinUs = input.TCPMinRTTUs
+	}
+	return passiveBucketKey{
 		nodeID:        trimmedNode,
-		clientASN:     clientASN,
+		clientASN:     input.ClientASN,
 		clientCountry: country,
-	}
+		clientRegion:  region,
+		ipFamily:      ipFamily,
+	}, effectiveMinUs, true
+}
 
-	now := time.Now().UTC().Truncate(time.Minute)
-	rttMs := float64(tcpRTTUs) / usPerMillisecond
-
-	defaultCollector.mu.Lock()
-	b, ok := defaultCollector.buckets[key]
-	if !ok {
-		if len(defaultCollector.buckets) >= maxPassiveBuckets {
-			defaultCollector.mu.Unlock()
-			return
+func allocatePassiveBucketLocked(ctx context.Context, key passiveBucketKey, effectiveMinUs uint32, bucketTime time.Time) (*passiveBucket, bool) {
+	_ = ctx
+	if len(defaultCollector.buckets) >= maxPassiveBuckets {
+		if !evictOldestColdBucketLocked(defaultCollector.buckets) {
+			return nil, false
 		}
-		b = &passiveBucket{
-			minRTTUs:    effectiveMinUs,
-			rttMsSample: make([]float64, 0, initialBucketSampleCap),
-			rngState:    uint64(clientASN) ^ uint64(tcpRTTUs) ^ 0x9e3779b97f4a7c15,
-			capturedAt:  now,
-		}
-		defaultCollector.buckets[key] = b
+		defaultCollector.evictedColdBuckets.Add(1)
 	}
+	b := &passiveBucket{
+		minRTTUs:   effectiveMinUs,
+		capturedAt: bucketTime,
+	}
+	defaultCollector.buckets[key] = b
+	return b, len(defaultCollector.buckets) >= passiveHighWatermark
+}
 
+func applyInputToBucketLocked(b *passiveBucket, input PassiveSampleInput, effectiveMinUs uint32, rttMs float64, now time.Time) {
 	b.sampleCount++
+	b.lastUpdatedAt = now
 	if effectiveMinUs < b.minRTTUs || b.minRTTUs == 0 {
 		b.minRTTUs = effectiveMinUs
 	}
-	b.retransSum += uint64(retrans)
-	b.segsOutSum += uint64(segsOut)
+	b.retransSum += uint64(input.TCPRetrans)
+	b.segsOutSum += uint64(input.TCPSegsOut)
+	b.hist.Add(rttMs)
+	if strings.TrimSpace(input.ClientIP) != "" {
+		b.prefixes.AddIP(input.ClientIP)
+	}
+	if input.ClientLat != nil && input.ClientLon != nil {
+		accKm := normalizeClientGeoAccuracy(input.GeoAccuracyKm, input.GeoSource)
+		w := 1.0 / math.Max(minAccuracyWeightFloorKm, accKm)
+		b.centroid.Add(*input.ClientLat, *input.ClientLon, w)
+		b.geoAccSum += accKm * w
+		b.geoAccWeight += w
+	}
+	if b.geoSource == "" || (b.geoSource != pkgnetintel.GeoSourceCity && input.GeoSource == pkgnetintel.GeoSourceCity) {
+		b.geoSource = strings.TrimSpace(input.GeoSource)
+	}
+}
 
-	if len(b.rttMsSample) < maxBucketReservoir {
-		b.rttMsSample = append(b.rttMsSample, rttMs)
-	} else {
-		// SplitMix64 reservoir replacement keeps memory bounded per (node, asn, country) bucket.
-		b.rngState += 0x9e3779b97f4a7c15
-		z := b.rngState
-		z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9
-		z = (z ^ (z >> 27)) * 0x94d049bb133111eb
-		z ^= z >> 31
-		slot := int(z % uint64(uint32(b.sampleCount))) //nolint:gosec // sampleCount >= 1 here
-		if slot < maxBucketReservoir {
-			b.rttMsSample[slot] = rttMs
+func normalizeClientGeoAccuracy(accKm float64, geoSource string) float64 {
+	if accKm > 0 {
+		return accKm
+	}
+	if strings.EqualFold(geoSource, pkgnetintel.GeoSourceCity) {
+		return defaultCityGeoAccKm
+	}
+	return minGeoSourceWeightFallback
+}
+
+func evictOldestColdBucketLocked(buckets map[passiveBucketKey]*passiveBucket) bool {
+	var oldestKey passiveBucketKey
+	var oldestTime time.Time
+	found := false
+	for k, b := range buckets {
+		if b == nil || b.sampleCount > 1 {
+			continue
+		}
+		ts := b.lastUpdatedAt
+		if ts.IsZero() {
+			ts = b.capturedAt
+		}
+		if !found || ts.Before(oldestTime) {
+			oldestKey = k
+			oldestTime = ts
+			found = true
 		}
 	}
-	defaultCollector.mu.Unlock()
+	if !found {
+		return false
+	}
+	delete(buckets, oldestKey)
+	return true
+}
+
+func scheduleEarlyFlush(ctx context.Context) {
+	if !defaultCollector.flushInFlight.CompareAndSwap(false, true) {
+		return
+	}
+	defaultCollector.earlyFlushes.Add(1)
+	defaultCollector.flushWG.Add(1)
+	go func() {
+		defer defaultCollector.flushWG.Done()
+		defer defaultCollector.flushInFlight.Store(false)
+		flushCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), passiveFlushTimeout)
+		defer cancel()
+		if err := FlushNow(flushCtx); err != nil {
+			logger.WarnF(flushCtx, "[NetQuality] early high-watermark passive flush failed: %v", err)
+		}
+	}()
+}
+
+func warnCollectorSaturation(ctx context.Context) {
+	nowUnix := time.Now().Unix()
+	prev := defaultCollector.lastWarnUnix.Load()
+	if nowUnix-prev < collectorWarnCooldownSec {
+		return
+	}
+	if defaultCollector.lastWarnUnix.CompareAndSwap(prev, nowUnix) {
+		logger.WarnF(ctx, "[NetQuality] passive bucket capacity (%d) saturated; evicted=%d dropped=%d",
+			maxPassiveBuckets, defaultCollector.evictedColdBuckets.Load(), defaultCollector.droppedSamples.Load())
+	}
 }
 
 // StartPassiveCollector starts the background 60-second bucket flusher and registers clean shutdown draining.
@@ -227,19 +408,30 @@ func FlushNow(ctx context.Context) error {
 	now := time.Now().UTC()
 	var firstErr error
 	for key, bucket := range drained {
-		if bucket == nil || bucket.sampleCount <= 0 || len(bucket.rttMsSample) == 0 {
+		if bucket == nil || bucket.sampleCount <= 0 || bucket.hist.Count == 0 {
 			continue
 		}
-		sort.Float64s(bucket.rttMsSample)
-		p50 := percentileSorted(bucket.rttMsSample, percentileMedian)
-		p95 := percentileSorted(bucket.rttMsSample, percentileP95)
+		p50 := bucket.hist.Quantile(percentileMedian)
+		p95 := bucket.hist.Quantile(percentileP95)
 		rttMin := float64(bucket.minRTTUs) / usPerMillisecond
-		if rttMin <= 0 || rttMin > bucket.rttMsSample[0] {
-			rttMin = bucket.rttMsSample[0]
+		if rttMin <= 0 {
+			rttMin = p50
 		}
 
 		denom := max(bucket.segsOutSum, uint64(uint32(bucket.sampleCount))) //nolint:gosec // sampleCount > 0 checked above
 		retransRate := math.Min(1.0, float64(bucket.retransSum)/float64(denom))
+
+		var clientLat, clientLon *float64
+		if lat, lon, ok := bucket.centroid.Result(); ok {
+			la := round4(lat)
+			lo := round4(lon)
+			clientLat = &la
+			clientLon = &lo
+		}
+		var geoAccuracyKm float64
+		if bucket.geoAccWeight > 0 {
+			geoAccuracyKm = round2(bucket.geoAccSum / bucket.geoAccWeight)
+		}
 
 		nodeASN := nodeASNs[key.nodeID]
 		capturedAt := bucket.capturedAt
@@ -248,19 +440,29 @@ func FlushNow(ctx context.Context) error {
 		}
 
 		record := &model.OpenFlareNetworkQualitySample{
-			NodeID:        key.nodeID,
-			NodeASN:       nodeASN,
-			ClientASN:     key.clientASN,
-			ClientCountry: key.clientCountry,
-			Source:        model.NetworkQualitySourceTCPPassive,
-			SampleCount:   bucket.sampleCount,
-			RTTMinMs:      round2(rttMin),
-			RTTP50Ms:      round2(p50),
-			RTTP95Ms:      round2(p95),
-			RetransRate:   round4(retransRate),
-			LossRate:      0,
-			HopCount:      0,
-			CapturedAt:    capturedAt,
+			NodeID:              key.nodeID,
+			NodeASN:             nodeASN,
+			ClientASN:           key.clientASN,
+			ClientCountry:       key.clientCountry,
+			ClientRegion:        key.clientRegion,
+			IPFamily:            key.ipFamily,
+			StatsVersion:        model.NetworkQualityStatsVersionHist64,
+			Source:              model.NetworkQualitySourceTCPPassive,
+			SampleCount:         bucket.sampleCount,
+			RTTMinMs:            round2(rttMin),
+			RTTP50Ms:            round2(p50),
+			RTTP95Ms:            round2(p95),
+			RTTHist:             bucket.hist.Encode(),
+			PrefixSketch:        bucket.prefixes.Encode(),
+			DistinctPrefixCount: bucket.prefixes.DistinctCount(),
+			ClientLat:           clientLat,
+			ClientLon:           clientLon,
+			GeoAccuracyKm:       geoAccuracyKm,
+			GeoSource:           bucket.geoSource,
+			RetransRate:         round4(retransRate),
+			LossRate:            0,
+			HopCount:            0,
+			CapturedAt:          capturedAt,
 		}
 		if err := repository.InsertOpenFlareNetworkQualitySample(ctx, record); err != nil && firstErr == nil {
 			firstErr = err
@@ -300,23 +502,6 @@ func lookupCachedNodeASNs(ctx context.Context) map[string]uint32 {
 	defaultCollector.nodeASNAt = time.Now()
 	defaultCollector.nodeASNsMu.Unlock()
 	return refreshed
-}
-
-func percentileSorted(sorted []float64, q float64) float64 {
-	if len(sorted) == 0 {
-		return 0
-	}
-	if len(sorted) == 1 {
-		return sorted[0]
-	}
-	idx := q * float64(len(sorted)-1)
-	lo := int(math.Floor(idx))
-	hi := int(math.Ceil(idx))
-	if lo == hi {
-		return sorted[lo]
-	}
-	frac := idx - float64(lo)
-	return sorted[lo]*(1-frac) + sorted[hi]*frac
 }
 
 func round2(v float64) float64 {

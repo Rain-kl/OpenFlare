@@ -654,27 +654,64 @@ func writeManifestAtomic(dir string, manifest *pkgnetintel.Manifest) error {
 	return nil
 }
 
-// BackfillMissingNodeASNs resolves ASN/ASNOrg for existing nodes with missing ASN metadata.
+// BackfillMissingNodeASNs resolves ASN/ASNOrg and city-level geo metadata for nodes missing ASN
+// or still relying on legacy country-centroid coordinates when geo is not manually locked.
 func BackfillMissingNodeASNs(ctx context.Context) int {
 	if db.DB(ctx) == nil {
 		return 0
 	}
-	nodes, err := repository.ListOpenFlareNodesMissingASN(ctx, maxBackfillNodesBatch)
+	nodes, err := repository.ListOpenFlareNodesNeedingGeoOrASN(ctx, maxBackfillNodesBatch)
 	if err != nil {
-		logger.WarnF(ctx, "[NetIntel] list nodes missing ASN failed: %v", err)
+		logger.WarnF(ctx, "[NetIntel] list nodes needing ASN/geo backfill failed: %v", err)
 		return 0
 	}
 	updated := 0
 	for i := range nodes {
 		node := nodes[i]
-		if !EnrichNodeASN(&node) {
+		asnChanged := EnrichNodeASN(&node)
+		geoChanged := enrichNodeCityGeo(&node)
+		if !asnChanged && !geoChanged {
 			continue
 		}
-		if err := repository.UpdateOpenFlareNodeASN(ctx, node.NodeID, node.ASN, node.ASNOrg); err != nil {
-			logger.WarnF(ctx, "[NetIntel] backfill node ASN failed for %s: %v", node.NodeID, err)
+		if err := repository.UpdateOpenFlareNodeGeoAndASN(ctx, &node); err != nil {
+			logger.WarnF(ctx, "[NetIntel] backfill node ASN/geo failed for %s: %v", node.NodeID, err)
 			continue
 		}
 		updated++
 	}
 	return updated
+}
+
+func enrichNodeCityGeo(node *model.OpenFlareNode) bool {
+	if node == nil || node.GeoManualOverride {
+		return false
+	}
+	ip := strings.TrimSpace(node.IP)
+	if ip == "" {
+		return false
+	}
+	res := LookupIP(ip)
+	if res == nil || res.GeoSource != pkgnetintel.GeoSourceCity || res.Latitude == nil || res.Longitude == nil {
+		return false
+	}
+	if node.GeoSource == pkgnetintel.GeoSourceCity &&
+		node.GeoLatitude != nil && *node.GeoLatitude == *res.Latitude &&
+		node.GeoLongitude != nil && *node.GeoLongitude == *res.Longitude {
+		return false
+	}
+	lat := *res.Latitude
+	lon := *res.Longitude
+	node.GeoLatitude = &lat
+	node.GeoLongitude = &lon
+	node.GeoSource = pkgnetintel.GeoSourceCity
+	if strings.TrimSpace(res.CityName) != "" {
+		if strings.TrimSpace(res.CountryName) != "" && !strings.EqualFold(res.CityName, res.CountryName) {
+			node.GeoName = strings.TrimSpace(res.CityName) + ", " + strings.TrimSpace(res.CountryName)
+		} else {
+			node.GeoName = strings.TrimSpace(res.CityName)
+		}
+	} else if strings.TrimSpace(res.CountryName) != "" {
+		node.GeoName = strings.TrimSpace(res.CountryName)
+	}
+	return true
 }

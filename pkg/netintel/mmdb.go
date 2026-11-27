@@ -15,6 +15,9 @@ import (
 )
 
 type mmdbGeoRecord struct {
+	Continent struct {
+		Code string `maxminddb:"code"`
+	} `maxminddb:"continent"`
 	Country struct {
 		ISOCode string            `maxminddb:"iso_code"`
 		Names   map[string]string `maxminddb:"names"`
@@ -23,14 +26,34 @@ type mmdbGeoRecord struct {
 		ISOCode string            `maxminddb:"iso_code"`
 		Names   map[string]string `maxminddb:"names"`
 	} `maxminddb:"registered_country"`
+	Subdivisions []struct {
+		ISOCode string `maxminddb:"iso_code"`
+	} `maxminddb:"subdivisions"`
 	City struct {
 		Names map[string]string `maxminddb:"names"`
 	} `maxminddb:"city"`
 	Location struct {
-		Latitude  float64 `maxminddb:"latitude"`
-		Longitude float64 `maxminddb:"longitude"`
+		Latitude       float64 `maxminddb:"latitude"`
+		Longitude      float64 `maxminddb:"longitude"`
+		AccuracyRadius uint16  `maxminddb:"accuracy_radius"`
 	} `maxminddb:"location"`
+	Traits struct {
+		IsAnycast bool `maxminddb:"is_anycast"`
+	} `maxminddb:"traits"`
 	CountryCode string `maxminddb:"country_code"`
+}
+
+type geoLookupFields struct {
+	continentCode    string
+	countryISO       string
+	countryName      string
+	regionCode       string
+	cityName         string
+	latitude         *float64
+	longitude        *float64
+	accuracyRadiusKm float64
+	geoSource        string
+	isAnycast        bool
 }
 
 type mmdbASNRecord struct {
@@ -166,26 +189,26 @@ func readAndOpenMMDB(path string) (*maxminddb.Reader, error) {
 	return reader, nil
 }
 
-func (b *mmdbBundle) lookupGeo(ip net.IP) (countryISO, countryName, cityName string, lat, lon *float64) {
+func (b *mmdbBundle) lookupGeo(ip net.IP) geoLookupFields {
 	if b == nil || ip == nil {
-		return "", "", "", nil, nil
+		return geoLookupFields{}
 	}
 	if b.city != nil {
 		var rec mmdbGeoRecord
 		if err := b.city.Lookup(ip, &rec); err == nil {
-			countryISO, countryName, cityName, lat, lon = extractGeoFields(&rec)
-			if countryISO != "" || lat != nil {
-				return countryISO, countryName, cityName, lat, lon
+			fields := extractGeoFields(&rec, true)
+			if fields.countryISO != "" || fields.latitude != nil {
+				return fields
 			}
 		}
 	}
 	if b.country != nil {
 		var rec mmdbGeoRecord
 		if err := b.country.Lookup(ip, &rec); err == nil {
-			return extractGeoFields(&rec)
+			return extractGeoFields(&rec, false)
 		}
 	}
-	return "", "", "", nil, nil
+	return geoLookupFields{}
 }
 
 func (b *mmdbBundle) lookupASN(ip net.IP) (uint32, string) {
@@ -207,27 +230,52 @@ func (b *mmdbBundle) lookupASN(ip net.IP) (uint32, string) {
 	return asn, org
 }
 
-func extractGeoFields(rec *mmdbGeoRecord) (countryISO, countryName, cityName string, lat, lon *float64) {
-	countryISO = strings.ToUpper(strings.TrimSpace(rec.Country.ISOCode))
+func extractGeoFields(rec *mmdbGeoRecord, fromCityDB bool) geoLookupFields {
+	countryISO := strings.ToUpper(strings.TrimSpace(rec.Country.ISOCode))
 	if countryISO == "" {
 		countryISO = strings.ToUpper(strings.TrimSpace(rec.RegisteredCountry.ISOCode))
 	}
 	if countryISO == "" {
 		countryISO = strings.ToUpper(strings.TrimSpace(rec.CountryCode))
 	}
-	countryName = strings.TrimSpace(rec.Country.Names["en"])
+	countryName := strings.TrimSpace(rec.Country.Names["en"])
 	if countryName == "" {
 		countryName = strings.TrimSpace(rec.RegisteredCountry.Names["en"])
 	}
 	if countryName == "" {
 		countryName = countryISO
 	}
-	cityName = strings.TrimSpace(rec.City.Names["en"])
+	regionCode := ""
+	if len(rec.Subdivisions) > 0 {
+		regionCode = FormatSubdivisionCode(countryISO, rec.Subdivisions[0].ISOCode)
+	}
+	cityName := strings.TrimSpace(rec.City.Names["en"])
+
+	var lat, lon *float64
 	if rec.Location.Latitude != 0 || rec.Location.Longitude != 0 {
 		la := rec.Location.Latitude
 		lo := rec.Location.Longitude
 		lat = &la
 		lon = &lo
 	}
-	return countryISO, countryName, cityName, lat, lon
+
+	geoSource := GeoSourceUnknown
+	if fromCityDB && lat != nil && lon != nil {
+		geoSource = GeoSourceCity
+	} else if countryISO != "" {
+		geoSource = GeoSourceCountry
+	}
+
+	return geoLookupFields{
+		continentCode:    strings.ToUpper(strings.TrimSpace(rec.Continent.Code)),
+		countryISO:       countryISO,
+		countryName:      countryName,
+		regionCode:       regionCode,
+		cityName:         cityName,
+		latitude:         lat,
+		longitude:        lon,
+		accuracyRadiusKm: float64(rec.Location.AccuracyRadius),
+		geoSource:        geoSource,
+		isAnycast:        rec.Traits.IsAnycast,
+	}
 }

@@ -1898,21 +1898,39 @@ func fromAnalyticsNodeEdgeHealths(rows []analyticsmodel.NodeEdgeHealth) []*model
 }
 
 func toAnalyticsNetworkQualitySample(record *model.OpenFlareNetworkQualitySample) analyticsmodel.NetworkQualitySample {
+	ipFamily := strings.ToLower(strings.TrimSpace(record.IPFamily))
+	if ipFamily == "" {
+		ipFamily = "unknown"
+	}
+	statsVersion := int32(record.StatsVersion) //nolint:gosec // small schema version integer
+	if statsVersion <= 0 {
+		statsVersion = int32(model.NetworkQualityStatsVersionLegacy)
+	}
 	return analyticsmodel.NetworkQualitySample{
-		ID:            record.ID,
-		NodeID:        strings.TrimSpace(record.NodeID),
-		NodeASN:       record.NodeASN,
-		ClientASN:     record.ClientASN,
-		ClientCountry: strings.TrimSpace(record.ClientCountry),
-		Source:        strings.TrimSpace(record.Source),
-		SampleCount:   clampInt32(record.SampleCount),
-		RTTMinMs:      record.RTTMinMs,
-		RTTP50Ms:      record.RTTP50Ms,
-		RTTP95Ms:      record.RTTP95Ms,
-		RetransRate:   record.RetransRate,
-		LossRate:      record.LossRate,
-		HopCount:      clampInt32(record.HopCount),
-		CapturedAt:    record.CapturedAt,
-		CreatedAt:     record.CreatedAt,
+		ID:                  record.ID,
+		NodeID:              strings.TrimSpace(record.NodeID),
+		NodeASN:             record.NodeASN,
+		ClientASN:           record.ClientASN,
+		ClientCountry:       strings.TrimSpace(record.ClientCountry),
+		ClientRegion:        strings.TrimSpace(record.ClientRegion),
+		IPFamily:            ipFamily,
+		StatsVersion:        statsVersion,
+		Source:              strings.TrimSpace(record.Source),
+		SampleCount:         clampInt32(record.SampleCount),
+		RTTMinMs:            record.RTTMinMs,
+		RTTP50Ms:            record.RTTP50Ms,
+		RTTP95Ms:            record.RTTP95Ms,
+		RTTHist:             record.RTTHist,
+		PrefixSketch:        record.PrefixSketch,
+		DistinctPrefixCount: clampInt32(record.DistinctPrefixCount),
+		ClientLat:           record.ClientLat,
+		ClientLon:           record.ClientLon,
+		GeoAccuracyKm:       record.GeoAccuracyKm,
+		GeoSource:           strings.TrimSpace(record.GeoSource),
+		RetransRate:         record.RetransRate,
+		LossRate:            record.LossRate,
+		HopCount:            clampInt32(record.HopCount),
+		CapturedAt:          record.CapturedAt,
+		CreatedAt:           record.CreatedAt,
 	}
 }

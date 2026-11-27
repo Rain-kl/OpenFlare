@@ -11,6 +11,7 @@ import (
 	"time"
 
 	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
+	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netintel"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/observability"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/ping"
@@ -18,6 +19,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
+	pkgnetintel "github.com/Rain-kl/Wavelet/pkg/netintel"
 	"gorm.io/gorm"
 )
 
@@ -40,6 +42,7 @@ type Input struct {
 	GeoLatitude       *float64 `json:"geo_latitude"`
 	GeoLongitude      *float64 `json:"geo_longitude"`
 	GeoManualOverride bool     `json:"geo_manual_override"`
+	NetworkGroup      string   `json:"network_group"`
 	NodeType          string   `json:"node_type"`
 }
 
@@ -82,6 +85,8 @@ type View struct {
 	GeoLatitude               *float64        `json:"geo_latitude"`
 	GeoLongitude              *float64        `json:"geo_longitude"`
 	GeoManualOverride         bool            `json:"geo_manual_override"`
+	GeoSource                 string          `json:"geo_source"`
+	NetworkGroup              string          `json:"network_group"`
 	AccessToken               string          `json:"access_token"`
 	AutoUpdateEnabled         bool            `json:"auto_update_enabled"`
 	EdgeUpdateSupported       bool            `json:"edge_update_supported"`
@@ -173,6 +178,10 @@ func CreateNode(ctx context.Context, input Input) (*View, error) {
 		return nil, errors.New(errNodeNameRequired)
 	}
 	ipManualOverride := resolveNodeIPManualOverride(input, nil, ip)
+	geoSource := ""
+	if geoManualOverride {
+		geoSource = pkgnetintel.GeoSourceManual
+	}
 	node := &model.OpenFlareNode{
 		Name:              name,
 		IP:                ip,
@@ -181,6 +190,8 @@ func CreateNode(ctx context.Context, input Input) (*View, error) {
 		GeoLatitude:       geoLatitude,
 		GeoLongitude:      geoLongitude,
 		GeoManualOverride: geoManualOverride,
+		GeoSource:         geoSource,
+		NetworkGroup:      normalizeNodeNetworkGroup(input.NetworkGroup),
 		Version:           "",
 		ExtVersion:        "",
 		Status:            nodeStatusPending,
@@ -198,6 +209,9 @@ func CreateNode(ctx context.Context, input Input) (*View, error) {
 	}
 	if node.NodeType == "edge_node" {
 		node.Engine = enginePingora
+	}
+	if !geoManualOverride && ip != "" {
+		ofgeoip.ApplyNodeGeoFromIP(ctx, node, ip)
 	}
 	netintel.EnrichNodeASN(node)
 	if err = repository.CreateOpenFlareNode(ctx, node); err != nil {
@@ -237,8 +251,18 @@ func UpdateNode(ctx context.Context, id uint, input Input) (*View, error) {
 	node.GeoLatitude = geoLatitude
 	node.GeoLongitude = geoLongitude
 	node.GeoManualOverride = geoManualOverride
+	if geoManualOverride {
+		node.GeoSource = pkgnetintel.GeoSourceManual
+	} else {
+		ofgeoip.ApplyNodeGeoFromIP(ctx, node, node.IP)
+	}
+	node.NetworkGroup = normalizeNodeNetworkGroup(input.NetworkGroup)
 	node.AutoUpdateEnabled = input.AutoUpdateEnabled
-	fields := []string{"name", "ip", "ip_manual_override", "asn", "asn_org", "geo_name", "geo_latitude", "geo_longitude", "geo_manual_override", "auto_update_enabled"}
+	fields := []string{
+		"name", "ip", "ip_manual_override", "asn", "asn_org",
+		"geo_name", "geo_latitude", "geo_longitude", "geo_manual_override",
+		"geo_source", "network_group", "auto_update_enabled",
+	}
 	if err = repository.UpdateOpenFlareNodeFields(ctx, node, fields...); err != nil {
 		return nil, err
 	}
@@ -248,6 +272,15 @@ func UpdateNode(ctx context.Context, id uint, input Input) (*View, error) {
 		}
 	}
 	return buildNodeView(node), nil
+}
+
+func normalizeNodeNetworkGroup(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	const maxNetworkGroupLen = 64
+	if len(trimmed) > maxNetworkGroupLen {
+		return trimmed[:maxNetworkGroupLen]
+	}
+	return trimmed
 }
 
 // DeleteNode removes a node by id.

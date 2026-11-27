@@ -6,6 +6,8 @@ package netintel
 import (
 	"bytes"
 	"compress/gzip"
+	"math"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -124,5 +126,66 @@ func TestCAIDABzip2ParsingAndPath(t *testing.T) {
 	hops, path, ok := mgr.EstimateASPath(4134, 13335, nil)
 	if !ok || hops != 2 || len(path) != 3 {
 		t.Fatalf("unexpected CAIDA path: ok=%v hops=%d path=%v", ok, hops, path)
+	}
+}
+
+func TestGeoMathSphericalCentroidAndAnycastClassification(t *testing.T) {
+	// Antimeridian average of +179 and -179 must land near +/-180, NOT 0!
+	var c SphericalCentroid
+	c.Add(10, 179, 1)
+	c.Add(10, -179, 1)
+	lat, lon, ok := c.Result()
+	if !ok {
+		t.Fatal("expected valid spherical centroid")
+	}
+	if math.Abs(lat-10) > 0.1 || math.Abs(math.Abs(lon)-180) > 0.1 {
+		t.Fatalf("unexpected antimeridian centroid: lat=%f lon=%f", lat, lon)
+	}
+
+	// Distance & fiber base RTT sanity check (~1400km Beijing->Shanghai -> ~1050-1100km -> ~10.5ms)
+	dist := DistanceKm(39.9042, 116.4074, 31.2304, 121.4737)
+	if dist < 1000 || dist > 1150 {
+		t.Fatalf("unexpected BJ-SH distance: %f", dist)
+	}
+	if rtt := GeoBaseRTTMs(dist); rtt < 10 || rtt > 12 {
+		t.Fatalf("unexpected BJ-SH base RTT: %f", rtt)
+	}
+
+	if got := FormatSubdivisionCode("cn", "gd"); got != "CN-GD" {
+		t.Fatalf("FormatSubdivisionCode = %q, want CN-GD", got)
+	}
+	if got := NormalizeMatrixRegion("CN", "44"); got != "CN-44" {
+		t.Fatalf("NormalizeMatrixRegion(CN) = %q, want CN-44", got)
+	}
+	if got := NormalizeMatrixRegion("SG", "01"); got != "" {
+		t.Fatalf("NormalizeMatrixRegion(SG) = %q, want empty", got)
+	}
+	if DetectIPFamily("203.0.113.1:443") != IPFamilyIPv4 || DetectIPFamily("[2606:4700::1]:443") != IPFamilyIPv6 {
+		t.Fatalf("unexpected IP family detection")
+	}
+	if EvaluateAnycastStatus(netip.MustParseAddr("1.1.1.1"), false, nil) != AnycastStatusConfirmed {
+		t.Fatalf("expected 1.1.1.1 confirmed anycast")
+	}
+	if EvaluateAnycastStatus(netip.MustParseAddr("203.0.113.5"), false, []string{"anycast"}) != AnycastStatusUnknown {
+		t.Fatalf("expected ASN-tag-only anycast to be unknown")
+	}
+	if EvaluateAnycastStatus(netip.MustParseAddr("203.0.113.5"), false, []string{"eyeball"}) != AnycastStatusUnicast {
+		t.Fatalf("expected eyeball IP to be unicast")
+	}
+
+	var rec mmdbGeoRecord
+	rec.Continent.Code = "as"
+	rec.Country.ISOCode = "cn"
+	rec.Country.Names = map[string]string{"en": "China"}
+	rec.Subdivisions = []struct {
+		ISOCode string `maxminddb:"iso_code"`
+	}{{ISOCode: "gd"}}
+	rec.City.Names = map[string]string{"en": "Shenzhen"}
+	rec.Location.Latitude = 22.5431
+	rec.Location.Longitude = 114.0579
+	rec.Location.AccuracyRadius = 20
+	fields := extractGeoFields(&rec, true)
+	if fields.continentCode != "AS" || fields.regionCode != "CN-GD" || fields.geoSource != GeoSourceCity || fields.accuracyRadiusKm != 20 {
+		t.Fatalf("unexpected extracted MMDB fields: %+v", fields)
 	}
 }
