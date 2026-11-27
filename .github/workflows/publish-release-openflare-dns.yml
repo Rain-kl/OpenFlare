@@ -1,0 +1,106 @@
+name: Publish OpenFlare DNS Release
+run-name: Publish SmartDNS archives from build #${{ github.event.workflow_run.run_number }}
+
+on:
+  workflow_run:
+    workflows: [Build OpenFlare DNS]
+    types: [completed]
+
+concurrency:
+  group: dns-release-publish-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.event == 'workflow_dispatch' && github.event.workflow_run.id || 'push' }}
+  cancel-in-progress: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'canary' }}
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.path == '.github/workflows/build-release-openflare-dns.yml' &&
+      (github.event.workflow_run.event == 'workflow_dispatch' ||
+        (github.event.workflow_run.event == 'push' &&
+          (github.event.workflow_run.head_branch == 'canary' ||
+           startsWith(github.event.workflow_run.head_branch, 'dns-v'))))
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check build artifacts
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count="$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/artifacts" --jq '[.artifacts[] | select(.name == "dns-build-info")] | length')"
+          echo "has_build_info=$([[ "$count" -gt 0 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.has_build_info == 'true'
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/dns-build-info
+
+      - uses: ./.github/actions/dns-build-info
+        if: steps.check.outputs.has_build_info == 'true'
+        id: dns
+        with:
+          token: ${{ github.token }}
+
+      - name: Checkout release source
+        if: steps.check.outputs.has_build_info == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.dns.outputs.source_sha }}
+          path: dns-source
+          persist-credentials: false
+          sparse-checkout: |
+            LICENSE
+            scripts/install-openflare-dns.sh
+            scripts/update-openflare-dns.sh
+            scripts/uninstall-openflare-dns.sh
+            scripts/fetch-netintel-dbs.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download SmartDNS binaries
+        if: steps.check.outputs.has_build_info == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dns-binary-*
+          path: artifacts
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Package release archives
+        if: steps.check.outputs.has_build_info == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.dns.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            name="openflare-dns_${VERSION}_linux_${arch}"
+            staging="dist/$name"
+            mkdir -p "$staging/scripts"
+            install -m 0755 "artifacts/dns-binary-${arch}/openflare-dns" "$staging/openflare-dns"
+            cp dns-source/LICENSE "$staging/"
+            cp dns-source/scripts/{install,update,uninstall}-openflare-dns.sh \
+              dns-source/scripts/fetch-netintel-dbs.sh "$staging/scripts/"
+            printf '%s\n' "$VERSION" > "$staging/VERSION"
+            (cd "$staging" && sha256sum openflare-dns > SHA256SUMS)
+            tar -C dist -czf "dist/${name}.tar.gz" "$name"
+          done
+
+      - name: Publish release
+        if: steps.check.outputs.has_build_info == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.dns.outputs.version }}
+          target_commitish: ${{ steps.dns.outputs.source_sha }}
+          prerelease: ${{ steps.dns.outputs.prerelease }}
+          make_latest: "false"
+          name: OpenFlare DNS ${{ steps.dns.outputs.version }}
+          fail_on_unmatched_files: true
+          files: |
+            dist/openflare-dns_${{ steps.dns.outputs.version }}_linux_amd64.tar.gz
+            dist/openflare-dns_${{ steps.dns.outputs.version }}_linux_arm64.tar.gz

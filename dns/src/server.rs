@@ -17,8 +17,11 @@ use hickory_server::net::runtime::Time;
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use hickory_server::zone_handler::MessageResponseBuilder;
 use reqwest::Client;
+use serde::Serialize;
 use socket2::{Domain, Protocol as SockProtocol, Socket, Type};
+use std::fs;
 use std::net::{IpAddr, SocketAddr};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -114,14 +117,18 @@ impl RequestHandler for SmartDnsHandler {
         self.metrics.queries_total.fetch_add(1, Ordering::Relaxed);
 
         let Ok(info) = request.request_info() else {
-            self.metrics.queries_servfail.fetch_add(1, Ordering::Relaxed);
+            self.metrics
+                .queries_servfail
+                .fetch_add(1, Ordering::Relaxed);
             return self
                 .send_status_response(request, response_handle, ResponseCode::FormErr, None)
                 .await;
         };
 
         if info.metadata.op_code != OpCode::Query {
-            self.metrics.queries_servfail.fetch_add(1, Ordering::Relaxed);
+            self.metrics
+                .queries_servfail
+                .fetch_add(1, Ordering::Relaxed);
             return self
                 .send_status_response(request, response_handle, ResponseCode::NotImp, None)
                 .await;
@@ -149,7 +156,9 @@ impl RequestHandler for SmartDnsHandler {
 
         let snap = self.store.guard();
         if snap.raw.version == 0 && snap.policies.is_empty() {
-            self.metrics.queries_servfail.fetch_add(1, Ordering::Relaxed);
+            self.metrics
+                .queries_servfail
+                .fetch_add(1, Ordering::Relaxed);
             let out = self
                 .send_status_response(
                     request,
@@ -196,7 +205,9 @@ impl RequestHandler for SmartDnsHandler {
         let clean_qname = normalize_domain(&info.query.name().to_string());
 
         if !is_authoritative_query(&snap.raw, &clean_qname) {
-            self.metrics.queries_nxdomain.fetch_add(1, Ordering::Relaxed);
+            self.metrics
+                .queries_nxdomain
+                .fetch_add(1, Ordering::Relaxed);
             let out = self
                 .send_status_response(
                     request,
@@ -288,7 +299,9 @@ impl RequestHandler for SmartDnsHandler {
         };
 
         let Some(policy) = match_policy(&snap.raw, &snap.policies, &clean_qname) else {
-            self.metrics.queries_nxdomain.fetch_add(1, Ordering::Relaxed);
+            self.metrics
+                .queries_nxdomain
+                .fetch_add(1, Ordering::Relaxed);
             let soa: Vec<Record> = build_soa_record(&clean_qname, &snap.raw)
                 .into_iter()
                 .collect();
@@ -374,7 +387,9 @@ impl RequestHandler for SmartDnsHandler {
             }
             Err(err) => {
                 warn!("SmartDNS evaluation error for {}: {}", clean_qname, err);
-                self.metrics.queries_servfail.fetch_add(1, Ordering::Relaxed);
+                self.metrics
+                    .queries_servfail
+                    .fetch_add(1, Ordering::Relaxed);
                 let out = self
                     .send_status_response(
                         request,
@@ -430,7 +445,9 @@ fn extract_client_and_reply_edns(request: &Request) -> (IpAddr, Option<Edns>) {
         let src_prefix = ecs.source_prefix();
         if src_prefix == 0 {
             let reply_ecs = ClientSubnet::new(ecs.addr(), 0, 0);
-            reply_edns.options_mut().insert(EdnsOption::Subnet(reply_ecs));
+            reply_edns
+                .options_mut()
+                .insert(EdnsOption::Subnet(reply_ecs));
         } else {
             client_ip = ecs.addr();
             let scope_prefix = match ecs.addr() {
@@ -438,7 +455,9 @@ fn extract_client_and_reply_edns(request: &Request) -> (IpAddr, Option<Edns>) {
                 IpAddr::V6(_) => 48,
             };
             let reply_ecs = ClientSubnet::new(ecs.addr(), src_prefix, scope_prefix);
-            reply_edns.options_mut().insert(EdnsOption::Subnet(reply_ecs));
+            reply_edns
+                .options_mut()
+                .insert(EdnsOption::Subnet(reply_ecs));
         }
     }
 
@@ -474,10 +493,9 @@ fn is_authoritative_query(env: &SnapshotEnvelope, clean_qname: &str) -> bool {
     // If no delegation domain is configured, fall back to allowing domain queries only when
     // policies exist without restriction.
     deleg.is_empty()
-        && env
-            .policies
-            .iter()
-            .any(|p| p.is_default || p.scope_type.eq_ignore_ascii_case("all") || p.scope_type.is_empty())
+        && env.policies.iter().any(|p| {
+            p.is_default || p.scope_type.eq_ignore_ascii_case("all") || p.scope_type.is_empty()
+        })
 }
 
 fn parse_fqdn(raw: &str) -> Option<Name> {
@@ -509,7 +527,9 @@ fn build_soa_record(clean_qname: &str, env: &SnapshotEnvelope) -> Option<Record>
     Some(Record::from_rdata(
         owner,
         min_ttl,
-        RData::SOA(rdata::SOA::new(mname, rname, serial, 300, 60, 604800, min_ttl)),
+        RData::SOA(rdata::SOA::new(
+            mname, rname, serial, 300, 60, 604800, min_ttl,
+        )),
     ))
 }
 
@@ -617,13 +637,21 @@ pub async fn run_serve(args: ServeArgs) -> Result<()> {
     server.register_listener(tcp_listener, Duration::from_secs(5), 32);
 
     info!(
-        "openflare-dns listening on {} (udp_workers={}, rrl={}/{}qps)",
-        listen_addr, udp_count, args.rrl_qps, args.rrl_burst
+        "openflare-dns listening on {} (udp_workers={}, rrl={}/{}qps, version={})",
+        listen_addr,
+        udp_count,
+        args.rrl_qps,
+        args.rrl_burst,
+        crate::config::DNS_VERSION
     );
+
+    let _ready_guard = write_ready_file(&args.cache_dir, listen_addr)
+        .map_err(|err| warn!("failed to write SmartDNS ready file: {}", err))
+        .ok();
 
     let shutdown = server.shutdown_token().clone();
     tokio::spawn(async move {
-        let _ = tokio::signal::ctrl_c().await;
+        wait_for_shutdown_signal().await;
         info!("received shutdown signal, stopping openflare-dns");
         shutdown.cancel();
     });
@@ -633,4 +661,75 @@ pub async fn run_serve(args: ServeArgs) -> Result<()> {
         .await
         .context("DNS server exited with error")?;
     Ok(())
+}
+
+const READY_FILE_NAME: &str = "ready.json";
+
+#[derive(Serialize)]
+struct ReadyPayload<'a> {
+    pid: u32,
+    binary_version: &'a str,
+    listen: String,
+}
+
+pub struct ReadyFileGuard {
+    path: PathBuf,
+}
+
+impl ReadyFileGuard {
+    #[cfg(test)]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for ReadyFileGuard {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
+pub fn write_ready_file(
+    cache_dir: &str,
+    listen_addr: SocketAddr,
+) -> Result<Option<ReadyFileGuard>> {
+    let trimmed = cache_dir.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    let dir = Path::new(trimmed);
+    fs::create_dir_all(dir).with_context(|| format!("create cache dir {:?}", dir))?;
+    let path = dir.join(READY_FILE_NAME);
+    let tmp = dir.join("ready.json.tmp");
+    let payload = ReadyPayload {
+        pid: std::process::id(),
+        binary_version: crate::config::DNS_VERSION,
+        listen: listen_addr.to_string(),
+    };
+    let bytes = serde_json::to_vec(&payload)?;
+    fs::write(&tmp, bytes).with_context(|| format!("write temp ready file {:?}", tmp))?;
+    fs::rename(&tmp, &path).with_context(|| format!("rename ready file {:?}", path))?;
+    Ok(Some(ReadyFileGuard { path }))
+}
+
+async fn wait_for_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        let mut sigterm = signal(SignalKind::terminate()).ok();
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = async {
+                if let Some(ref mut term) = sigterm {
+                    term.recv().await;
+                } else {
+                    std::future::pending::<()>().await;
+                }
+            } => {}
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }

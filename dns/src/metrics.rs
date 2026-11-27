@@ -121,7 +121,7 @@ impl DnsMetrics {
         };
 
         HeartbeatRequest {
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: crate::config::DNS_VERSION.to_string(),
             public_addr: public_addr.to_string(),
             listen_addr: listen_addr.to_string(),
             snapshot_version,

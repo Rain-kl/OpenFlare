@@ -129,7 +129,10 @@ func buildInstallCommand(inst *model.OpenFlareDNSInstance) string {
 	if listen == "" {
 		listen = defaultDNSListenAddr
 	}
-	return fmt.Sprintf("openflare-dns serve --controller-url <CONTROLLER_URL> --instance-id %s --token %s --listen %s", inst.InstanceID, inst.AccessToken, listen)
+	return fmt.Sprintf(
+		"curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-dns.sh -o install-openflare-dns.sh && sudo bash install-openflare-dns.sh --controller-url <CONTROLLER_URL> --token-type instance --token %s --instance-id %s --listen %s",
+		inst.AccessToken, inst.InstanceID, listen,
+	)
 }
 
 func computeInstanceStatus(inst *model.OpenFlareDNSInstance, now time.Time) string {

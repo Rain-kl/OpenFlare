@@ -53,7 +53,14 @@ mod tests {
     use std::time::{Duration, Instant};
     use tokio::net::UdpSocket;
 
-    fn test_node(id: &str, ipv4: &str, ipv6: &str, country: &str, cpu: f64, quarantined: bool) -> SnapshotNode {
+    fn test_node(
+        id: &str,
+        ipv4: &str,
+        ipv6: &str,
+        country: &str,
+        cpu: f64,
+        quarantined: bool,
+    ) -> SnapshotNode {
         SnapshotNode {
             node_id: id.to_string(),
             name: id.to_string(),
@@ -225,15 +232,16 @@ mod tests {
         .await
         .expect("fallback select ok");
         assert_eq!(res_hot.answers.len(), 1);
-        assert_eq!(res_hot.answers[0].ip, IpAddr::V4(Ipv4Addr::new(203, 0, 113, 99)));
+        assert_eq!(
+            res_hot.answers[0].ip,
+            IpAddr::V4(Ipv4Addr::new(203, 0, 113, 99))
+        );
     }
 
     #[test]
     fn offline_snapshot_disk_persistence() {
-        let dir = std::env::temp_dir().join(format!(
-            "openflare-dns-snap-test-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("openflare-dns-snap-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let store1 = SnapshotStore::new(dir.to_str());
         let env: SnapshotEnvelope = build_bench_snapshot();
@@ -477,5 +485,75 @@ mod tests {
         assert_eq!(reply_refused.metadata.response_code, ResponseCode::Refused);
 
         server.shutdown_gracefully().await.unwrap();
+    }
+
+    #[test]
+    fn token_file_identity_and_ready_file_lifecycle() {
+        use crate::config::{DNS_VERSION, ServeArgs};
+        use crate::control::{
+            BootstrapToken, PersistedIdentity, load_saved_identity, resolve_bootstrap_token,
+            save_identity,
+        };
+        use crate::server::write_ready_file;
+
+        let dir =
+            std::env::temp_dir().join(format!("openflare-dns-state-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let tok_file = dir.join("bootstrap-token");
+        std::fs::write(&tok_file, "  secret-token-value\n").unwrap();
+
+        let mut args = ServeArgs {
+            controller_url: "https://panel.example.com".to_string(),
+            token: None,
+            discovery_token: None,
+            token_file: Some(tok_file.to_string_lossy().to_string()),
+            token_type: "discovery".to_string(),
+            instance_id: None,
+            name: "test".to_string(),
+            listen: "127.0.0.1:5353".to_string(),
+            public_addr: String::new(),
+            geoip_dir: String::new(),
+            cache_dir: dir.to_string_lossy().to_string(),
+            workers: 1,
+            rrl_qps: 1000,
+            rrl_burst: 2000,
+            snapshot_interval_secs: 10,
+        };
+        assert_eq!(
+            resolve_bootstrap_token(&args).unwrap(),
+            BootstrapToken::Discovery("secret-token-value".to_string())
+        );
+
+        args.token_type = "instance".to_string();
+        assert_eq!(
+            resolve_bootstrap_token(&args).unwrap(),
+            BootstrapToken::Instance("secret-token-value".to_string())
+        );
+
+        args.token_type = "invalid".to_string();
+        assert!(resolve_bootstrap_token(&args).is_err());
+
+        let id = PersistedIdentity {
+            instance_id: "dns-abc123".to_string(),
+            access_token: "tok-xyz".to_string(),
+        };
+        save_identity(&args.cache_dir, &id).unwrap();
+        assert_eq!(load_saved_identity(&args.cache_dir), Some(id));
+
+        let ready_path = dir.join("ready.json");
+        {
+            let guard = write_ready_file(&args.cache_dir, "127.0.0.1:5353".parse().unwrap())
+                .unwrap()
+                .unwrap();
+            assert_eq!(guard.path(), ready_path.as_path());
+            let body = std::fs::read_to_string(&ready_path).unwrap();
+            assert!(body.contains(DNS_VERSION));
+            assert!(body.contains(&std::process::id().to_string()));
+        }
+        assert!(!ready_path.exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

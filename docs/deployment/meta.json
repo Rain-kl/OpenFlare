@@ -8,6 +8,7 @@
     "server",
     "agent",
     "openflare-edge",
+    "openflare-dns",
     "---隧道基础设施---",
     "relay",
     "openflared",

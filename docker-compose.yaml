@@ -145,3 +145,24 @@ services:
     environment:
       OPENFLARE_SERVER_URL: ${OPENFLARE_SERVER_URL:-http://host.docker.internal:3000}
       OPENFLARE_TUNNEL_TOKEN: ${OPENFLARE_TUNNEL_TOKEN:-}
+
+  dns:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dns
+    container_name: openflare-dns
+    restart: unless-stopped
+    ports:
+      - "${OPENFLARE_DNS_PORT:-53}:5353/udp"
+      - "${OPENFLARE_DNS_PORT:-53}:5353/tcp"
+    volumes:
+      - ./data/smartdns:/var/lib/openflare-dns
+    environment:
+      OPENFLARE_DNS_CONTROLLER_URL: ${OPENFLARE_DNS_CONTROLLER_URL:-http://host.docker.internal:3000}
+      OPENFLARE_DNS_DISCOVERY_TOKEN: ${OPENFLARE_DNS_DISCOVERY_TOKEN:-}
+      OPENFLARE_DNS_TOKEN: ${OPENFLARE_DNS_TOKEN:-}
+      OPENFLARE_DNS_PUBLIC_ADDR: ${OPENFLARE_DNS_PUBLIC_ADDR:-}
+      OPENFLARE_DNS_NAME: ${OPENFLARE_DNS_NAME:-Standalone SmartDNS}
+      RUST_LOG: ${OPENFLARE_DNS_LOG_LEVEL:-info,hickory_server=warn}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

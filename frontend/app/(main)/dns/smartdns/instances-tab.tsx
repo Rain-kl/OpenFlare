@@ -54,6 +54,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   SmartDNSService,
   smartdnsQueryKey,
@@ -61,6 +62,11 @@ import {
 } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 import { getErrorMessage } from '../../websites/components/website-utils';
+import {
+  buildSmartDNSDockerCommand,
+  buildSmartDNSInstallCommand,
+  type SmartDNSReleaseChannel,
+} from './install-command';
 
 export function SmartDNSInstancesTab() {
   const t = useTranslations('smartdns.instances');
@@ -75,6 +81,8 @@ export function SmartDNSInstancesTab() {
   const [geoName, setGeoName] = useState('');
 
   const [secretView, setSecretView] = useState<SmartDNSInstance | null>(null);
+  const [deployChannel, setDeployChannel] =
+    useState<SmartDNSReleaseChannel>('stable');
   const [quarantineTarget, setQuarantineTarget] =
     useState<SmartDNSInstance | null>(null);
   const [quarantineReason, setQuarantineReason] = useState('');
@@ -203,8 +211,43 @@ export function SmartDNSInstancesTab() {
     typeof window !== 'undefined'
       ? window.location.origin
       : 'https://controller.example.com';
-  const discoveryCommand = discoveryToken
-    ? `openflare-dns serve --controller-url ${originUrl} --discovery-token ${discoveryToken} --listen 0.0.0.0:53`
+  const discoveryScriptCommand = discoveryToken
+    ? buildSmartDNSInstallCommand({
+        controllerUrl: originUrl,
+        token: discoveryToken,
+        tokenType: 'discovery',
+        channel: deployChannel,
+      })
+    : '';
+  const discoveryDockerCommand = discoveryToken
+    ? buildSmartDNSDockerCommand({
+        controllerUrl: originUrl,
+        token: discoveryToken,
+        tokenType: 'discovery',
+        channel: deployChannel,
+      })
+    : '';
+
+  const instanceScriptCommand = secretView?.access_token
+    ? buildSmartDNSInstallCommand({
+        controllerUrl: originUrl,
+        token: secretView.access_token,
+        tokenType: 'instance',
+        instanceId: secretView.instance_id,
+        listenAddr: secretView.listen_addr,
+        publicAddr: secretView.public_addr,
+        channel: deployChannel,
+      })
+    : '';
+  const instanceDockerCommand = secretView?.access_token
+    ? buildSmartDNSDockerCommand({
+        controllerUrl: originUrl,
+        token: secretView.access_token,
+        tokenType: 'instance',
+        instanceId: secretView.instance_id,
+        publicAddr: secretView.public_addr,
+        channel: deployChannel,
+      })
     : '';
 
   return (
@@ -215,15 +258,33 @@ export function SmartDNSInstancesTab() {
             <CardTitle className='text-base'>{t('discoveryTitle')}</CardTitle>
             <CardDescription>{t('discoveryDesc')}</CardDescription>
           </div>
-          <Button
-            variant='outline'
-            size='sm'
-            disabled={rotateDiscoveryMutation.isPending}
-            onClick={() => rotateDiscoveryMutation.mutate()}
-          >
-            <RefreshCw data-icon='inline-start' />
-            {t('rotateDiscovery')}
-          </Button>
+          <div className='flex flex-wrap items-center gap-2'>
+            <div className='flex items-center gap-1'>
+              <Button
+                variant={deployChannel === 'stable' ? 'default' : 'outline'}
+                size='sm'
+                onClick={() => setDeployChannel('stable')}
+              >
+                {t('channelStable')}
+              </Button>
+              <Button
+                variant={deployChannel === 'canary' ? 'default' : 'outline'}
+                size='sm'
+                onClick={() => setDeployChannel('canary')}
+              >
+                {t('channelCanary')}
+              </Button>
+            </div>
+            <Button
+              variant='outline'
+              size='sm'
+              disabled={rotateDiscoveryMutation.isPending}
+              onClick={() => rotateDiscoveryMutation.mutate()}
+            >
+              <RefreshCw data-icon='inline-start' />
+              {t('rotateDiscovery')}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className='space-y-3'>
           <div className='flex flex-wrap items-center gap-2'>
@@ -242,20 +303,47 @@ export function SmartDNSInstancesTab() {
               {t('copyToken')}
             </Button>
           </div>
-          {discoveryCommand ? (
-            <div className='flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed bg-muted/40 p-3'>
-              <code className='break-all font-mono text-xs'>
-                {discoveryCommand}
-              </code>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={() => copyText(discoveryCommand, t('copied'))}
-              >
-                <Copy data-icon='inline-start' />
-                {t('copyCommand')}
-              </Button>
-            </div>
+          {discoveryScriptCommand ? (
+            <Tabs defaultValue='script' className='space-y-2'>
+              <TabsList>
+                <TabsTrigger value='script'>{t('deployScriptTab')}</TabsTrigger>
+                <TabsTrigger value='docker'>{t('deployDockerTab')}</TabsTrigger>
+              </TabsList>
+              <TabsContent value='script'>
+                <div className='flex flex-wrap items-start justify-between gap-2 rounded-lg border border-dashed bg-muted/40 p-3'>
+                  <pre className='overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs'>
+                    {discoveryScriptCommand}
+                  </pre>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() =>
+                      copyText(discoveryScriptCommand, t('copied'))
+                    }
+                  >
+                    <Copy data-icon='inline-start' />
+                    {t('copyCommand')}
+                  </Button>
+                </div>
+              </TabsContent>
+              <TabsContent value='docker'>
+                <div className='flex flex-wrap items-start justify-between gap-2 rounded-lg border border-dashed bg-muted/40 p-3'>
+                  <pre className='overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs'>
+                    {discoveryDockerCommand}
+                  </pre>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() =>
+                      copyText(discoveryDockerCommand, t('copied'))
+                    }
+                  >
+                    <Copy data-icon='inline-start' />
+                    {t('copyCommand')}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           ) : null}
         </CardContent>
       </Card>
@@ -522,23 +610,78 @@ export function SmartDNSInstancesTab() {
                   </Button>
                 </div>
               </div>
-              {secretView.install_command ? (
-                <div className='space-y-1.5'>
-                  <Label>{t('installCommandLabel')}</Label>
-                  <div className='flex items-start justify-between gap-2 rounded-lg border border-dashed bg-muted/40 p-3'>
-                    <code className='break-all font-mono text-xs'>
-                      {secretView.install_command}
-                    </code>
-                    <Button
-                      variant='outline'
-                      size='icon-sm'
-                      onClick={() =>
-                        copyText(secretView.install_command ?? '', t('copied'))
-                      }
-                    >
-                      <Copy />
-                    </Button>
+              {instanceScriptCommand || secretView.install_command ? (
+                <div className='space-y-2'>
+                  <div className='flex flex-wrap items-center justify-between gap-2'>
+                    <Label>{t('installCommandLabel')}</Label>
+                    <div className='flex items-center gap-1'>
+                      <Button
+                        variant={
+                          deployChannel === 'stable' ? 'default' : 'outline'
+                        }
+                        size='sm'
+                        onClick={() => setDeployChannel('stable')}
+                      >
+                        {t('channelStable')}
+                      </Button>
+                      <Button
+                        variant={
+                          deployChannel === 'canary' ? 'default' : 'outline'
+                        }
+                        size='sm'
+                        onClick={() => setDeployChannel('canary')}
+                      >
+                        {t('channelCanary')}
+                      </Button>
+                    </div>
                   </div>
+                  <Tabs defaultValue='script' className='space-y-2'>
+                    <TabsList>
+                      <TabsTrigger value='script'>
+                        {t('deployScriptTab')}
+                      </TabsTrigger>
+                      <TabsTrigger value='docker'>
+                        {t('deployDockerTab')}
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value='script'>
+                      <div className='flex items-start justify-between gap-2 rounded-lg border border-dashed bg-muted/40 p-3'>
+                        <pre className='overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs'>
+                          {instanceScriptCommand || secretView.install_command}
+                        </pre>
+                        <Button
+                          variant='outline'
+                          size='icon-sm'
+                          onClick={() =>
+                            copyText(
+                              instanceScriptCommand ||
+                                secretView.install_command ||
+                                '',
+                              t('copied'),
+                            )
+                          }
+                        >
+                          <Copy />
+                        </Button>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value='docker'>
+                      <div className='flex items-start justify-between gap-2 rounded-lg border border-dashed bg-muted/40 p-3'>
+                        <pre className='overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs'>
+                          {instanceDockerCommand}
+                        </pre>
+                        <Button
+                          variant='outline'
+                          size='icon-sm'
+                          onClick={() =>
+                            copyText(instanceDockerCommand, t('copied'))
+                          }
+                        >
+                          <Copy />
+                        </Button>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
               ) : null}
             </div>

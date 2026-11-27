@@ -39,8 +39,8 @@ jobs:
           # Fetch all tags from remote to ensure full synchronization
           git fetch --tags --force
 
-          # Get all local/remote git tags starting with 'v', 'edge-v', or 'tunnel-v'
-          mapfile -t GIT_TAGS < <(git tag --list 'v*' 'edge-v*' 'tunnel-v*' | sort -V)
+          # Get all local/remote git tags starting with 'v', 'edge-v', 'tunnel-v', or 'dns-v'
+          mapfile -t GIT_TAGS < <(git tag --list 'v*' 'edge-v*' 'tunnel-v*' 'dns-v*' | sort -V)
 
           # Get all GitHub releases (tags associated with releases)
           mapfile -t GH_RELEASES < <(gh release list --limit 1000 --json tagName --jq '.[].tagName' 2>/dev/null || true)
@@ -58,7 +58,7 @@ jobs:
 
           echo "=== Phase 1: Checking and cleaning Git tags ==="
           for TAG in "${GIT_TAGS[@]}"; do
-            if [[ "$TAG" =~ ^(edge-|tunnel-)?v[0-9]+(\.[0-9]+)*$ ]]; then
+            if [[ "$TAG" =~ ^(edge-|tunnel-|dns-)?v[0-9]+(\.[0-9]+)*$ ]]; then
               # Formal release tag
               if ! contains_element "$TAG" "${GH_RELEASES[@]}"; then
                 echo "Delete formal tag not bound to any GitHub release: $TAG"

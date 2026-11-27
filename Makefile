@@ -75,7 +75,7 @@ test-tunnel:
 
 build-dns:
 	@echo "==> Building openflare-dns version=$(VERSION)..."
-	cargo build --manifest-path dns/Cargo.toml --release --locked
+	OPENFLARE_DNS_VERSION="$(VERSION)" cargo build --manifest-path dns/Cargo.toml --release --locked
 	install -D -m 0755 dns/target/release/openflare-dns bin/openflare-dns
 
 test-dns:

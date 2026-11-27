@@ -1,0 +1,48 @@
+# syntax=docker/dockerfile:1.7
+FROM rust:1.95-alpine3.23 AS builder
+
+WORKDIR /build/dns
+RUN apk add --no-cache build-base ca-certificates cmake git perl pkgconf
+COPY dns/Cargo.toml dns/Cargo.lock ./
+COPY dns/src/ src/
+ARG VERSION=dev
+ARG TARGETARCH
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,id=dns-musl-cargo-target-${TARGETARCH},target=/target \
+    ver="${VERSION#dns-v}"; \
+    OPENFLARE_DNS_VERSION="$ver" CARGO_PROFILE_RELEASE_STRIP=symbols \
+    CARGO_TARGET_DIR=/target cargo build --locked --release \
+    && install -D -m 0755 /target/release/openflare-dns /out/openflare-dns \
+    && elf="$(readelf --program-headers --dynamic --wide /out/openflare-dns)" \
+    && ! printf '%s\n' "$elf" | grep -E 'INTERP|\(NEEDED\)'
+
+FROM alpine:3.23 AS runtime
+
+RUN apk add --no-cache ca-certificates \
+    && test -s /etc/ssl/certs/ca-certificates.crt \
+    && addgroup -S -g 10001 openflare-dns \
+    && adduser -S -D -H -u 10001 -G openflare-dns -s /sbin/nologin openflare-dns \
+    && install -d -m 0750 -o openflare-dns -g openflare-dns /var/lib/openflare-dns /var/lib/openflare-dns/geoip
+
+COPY --chmod=0755 docker/entrypoints/dns-entrypoint.sh /usr/local/bin/dns-entrypoint
+COPY --from=builder /out/openflare-dns /usr/local/bin/openflare-dns
+RUN apk add --no-cache --virtual .cap-deps libcap-setcap \
+    && setcap cap_net_bind_service+ep /usr/local/bin/openflare-dns \
+    && apk del .cap-deps
+
+ARG VERSION=dev
+ARG SOURCE_URL=https://github.com/Rain-kl/OpenFlare
+LABEL org.opencontainers.image.source=$SOURCE_URL \
+      org.opencontainers.image.version=$VERSION
+
+ENV OPENFLARE_DNS_CACHE_DIR=/var/lib/openflare-dns \
+    OPENFLARE_DNS_GEOIP_DIR=/var/lib/openflare-dns/geoip \
+    OPENFLARE_DNS_LISTEN=0.0.0.0:5353
+
+VOLUME ["/var/lib/openflare-dns"]
+EXPOSE 5353/udp 5353/tcp
+USER 10001:10001
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=10s --start-period=30s --timeout=3s CMD test -s "${OPENFLARE_DNS_CACHE_DIR:-/var/lib/openflare-dns}/ready.json"
+ENTRYPOINT ["/usr/local/bin/dns-entrypoint"]

@@ -37,3 +37,4 @@ internal/router/root/dist/
 edge/target/
 shared/probe/target/
 tunnel/target/
+dns/target/

@@ -25,18 +25,19 @@ OpenFlare SmartDNS（Phase 2）结合控制面实时感知的网络质量矩阵�
    - **默认 TTL** 与 **快照同步周期**。
 3. 在托管域名的上级 DNS（如 Cloudflare）完成 `NS` 委派记录与对应胶水 `A/AAAA` 记录配置后，点击 **「验证 NS 委派解析」** 确认公网解析生效。
 4. 切换至 **「权威实例」** 页签：
-   - 复制全局 **Discovery Token** 或一键启动命令在目标服务器启动独立 Rust 实例；
-   - 或预注册实例并轮换专属 `Access Token`。示例启动命令：
+   - 可直接在页面中选择发布通道（**正式版** / **Canary 预览版**）以及部署方式（**Linux 一键脚本** / **Docker**），复制控制面生成的 Discovery 模式命令或预注册实例后的专属凭证命令在目标节点运行；
+   - Linux 主机也支持在安装或升级命令末尾附加 `canary` 参数（或 `--channel canary`）切换至 Canary 预览通道，例如：
 
 ```bash
-openflare-dns serve \
-  --controller-url https://panel.example.com \
-  --discovery-token <DISCOVERY_TOKEN> \
-  --public-addr 203.0.113.53 \
-  --listen 0.0.0.0:53 \
-  --geoip-dir data/netintel \
-  --cache-dir data/smartdns
+curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/install-openflare-dns.sh -o install-openflare-dns.sh && \
+  sudo bash install-openflare-dns.sh \
+    --controller-url https://panel.example.com \
+    --discovery-token <DISCOVERY_TOKEN> \
+    --public-addr 203.0.113.53 \
+    --listen 0.0.0.0:53
 ```
+
+   - 使用容器化部署时，可通过标准 Docker 镜像 `ghcr.io/rain-kl/openflare-dns:latest`（或 `:canary`），或在项目根目录通过 `docker compose up -d dns` 启动独立 `dns` 服务。详细端口映射、环境变量与系统权限说明请查看 [SmartDNS 部署文档](../deployment/openflare-dns.md)。
 
 ---
 

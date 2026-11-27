@@ -27,6 +27,7 @@ sidebar: false
   - 上线 **SmartDNS 控制台（`/dns/smartdns`）**：提供集群 QPS/P50-P99/L1 缓存命中率监控看板、委派域名配置与公网 NS 委派验证、独立 Rust 实例注册与隔离管理、基于 `@xyflow/react` 的可视化 JDM 调度规则编辑器，以及支持 EDNS0 ECS 模拟的 4 阶段打分决策模拟器。
   - 新增 **Cloudflare `smartdns` 指向模式**：指向分组支持选择 SmartDNS 策略并在委派域名下生成 CNAME 目标，成员记录强制保持仅 DNS 模式以确保访客真实子网直达 SmartDNS 权威节点，策略与路由变更自动通过 WebSocket（`dns:snapshot_changed`）与 ETag HTTP 快照热分发至解析节点。
   - 新增独立高性能 Rust 权威 DNS 服务端 `dns/`（`openflare-dns`），集成 `hickory-server`、`zen-engine`、`SO_REUSEPORT` 多队列监听、`moka` 分片 L1 缓存与 RRL 限流、`last-snapshot.bin` 离线灾备，以及控制面内嵌 `embedded_go` 兜底引擎，并通过 `qualityapi` 隔离契约消费网络质量预测数据。
+  - 完善 `openflare-dns` 交付与运维体系：新增测试、正式版（`dns-v*`）与 `canary` 预览版构建发布及 Multi-Arch Docker 镜像 GitHub Actions 工作流；新增 Linux 一键安装/升级/卸载脚本（支持 `canary` 参数、GeoIP 库拉取与 `systemd` 权限隔离）、基于 Alpine 的静态 `Dockerfile.dns` 与 `docker-compose.yaml` `dns` 服务；控制台实例页同步提供正式版/Canary 通道与 Linux 脚本/Docker 一键部署命令生成。
 
 - 新增 **网络情报与网络工具** 基础设施（为后续智能 DNS 调度提供测量与拓扑底座）：
   - 在控制面「网络工具」分组上线 **多点 Ping / TCPing**、**多点路由追踪（Traceroute）**、**ASN 与 IP 情报查询**（含 `Origins → Upstreams → Tier 1 ISPs` 上游路由接线拓扑图）、**DNS 与 EDNS0 ECS 诊断查询** 以及 **网络质量矩阵与情报数据集状态** 五个控制台页面。

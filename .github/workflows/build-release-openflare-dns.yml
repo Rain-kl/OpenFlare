@@ -1,0 +1,192 @@
+name: Build OpenFlare DNS
+
+on:
+  push:
+    branches: [main, canary]
+    tags: ["dns-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Existing DNS release tag (e.g. dns-v0.1.0); leave empty for canary prerelease"
+        required: false
+        type: string
+
+concurrency:
+  group: dns-build-${{ github.ref }}-${{ inputs.version || 'push' }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_MANIFEST: dns/Cargo.toml
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      build: ${{ steps.version.outputs.build }}
+      publish: ${{ steps.version.outputs.publish }}
+      version: ${{ steps.version.outputs.version }}
+      source_sha: ${{ steps.version.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - name: Resolve build metadata
+        id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
+            if git diff --quiet "$BEFORE" "$source_sha" -- \
+              dns/Cargo.toml dns/Cargo.lock dns/.cargo \
+              .cargo rust-toolchain rust-toolchain.toml dns/rust-toolchain.toml \
+              .github/workflows/build-release-openflare-dns.yml; then
+              exit 0
+            fi
+            printf 'build=true\npublish=false\nsource_sha=%s\n' "$source_sha" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          stable_pattern='^dns-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          channel=
+          input_version="${INPUT_VERSION//[[:space:]]/}"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -z "$input_version" ]]; then
+            channel=canary
+            version="$(git tag --points-at HEAD --list "dns-v*-canary.${GITHUB_RUN_NUMBER}")"
+            if [[ -z "$version" ]]; then
+              stable="$(git tag --merged HEAD --sort=-version:refname --list 'dns-v*' |
+                awk -v pattern="$stable_pattern" '$0 ~ pattern && !found++')"
+              if [[ "$stable" =~ $stable_pattern ]]; then
+                base="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))"
+              else
+                base="$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' "$CARGO_MANIFEST")"
+              fi
+              version="dns-v${base}-canary.${GITHUB_RUN_NUMBER}"
+            fi
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            version="$input_version"
+          elif [[ "$GITHUB_REF" == refs/heads/canary ]]; then
+            if [[ -n "${BEFORE:-}" && "$BEFORE" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              if git diff --quiet "$BEFORE" "$source_sha" -- dns/ docker/Dockerfile.dns docker/entrypoints/dns-entrypoint.sh scripts/install-openflare-dns.sh scripts/update-openflare-dns.sh scripts/uninstall-openflare-dns.sh; then
+                echo "No changes under dns/ between $BEFORE and $source_sha; skipping DNS canary build."
+                exit 0
+              fi
+            fi
+            channel=canary
+            version="$(git tag --points-at HEAD --list "dns-v*-canary.${GITHUB_RUN_NUMBER}")"
+            if [[ -z "$version" ]]; then
+              stable="$(git tag --merged HEAD --sort=-version:refname --list 'dns-v*' |
+                awk -v pattern="$stable_pattern" '$0 ~ pattern && !found++')"
+              if [[ "$stable" =~ $stable_pattern ]]; then
+                base="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))"
+              else
+                base="$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' "$CARGO_MANIFEST")"
+              fi
+              version="dns-v${base}-canary.${GITHUB_RUN_NUMBER}"
+            fi
+          else
+            version="$GITHUB_REF_NAME"
+          fi
+
+          [[ "$version" =~ ^dns-v[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "invalid DNS version: $version" >&2
+            exit 1
+          }
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -n "$input_version" ]]; then
+            source_sha="$(git rev-parse --verify "refs/tags/${version}^{commit}")"
+          elif [[ "$version" =~ $stable_pattern ]]; then
+            channel=latest
+          fi
+          docker=false
+          if git cat-file -e "${source_sha}:docker/Dockerfile.dns" 2>/dev/null; then
+            docker=true
+          fi
+          jq -n --arg version "$version" --arg source_sha "$source_sha" \
+            --arg channel "$channel" --argjson docker "$docker" \
+            '{version: $version, source_sha: $source_sha, channel: $channel, docker: $docker}' \
+            > dns-build.json
+          printf 'build=true\npublish=true\nversion=%s\nsource_sha=%s\n' "$version" "$source_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Upload publish metadata
+        if: steps.version.outputs.publish == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dns-build-info
+          path: dns-build.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+
+  build:
+    name: Build SmartDNS ${{ matrix.arch }}
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache release dependencies
+        id: cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: dns
+          shared-key: openflare-dns-release-${{ matrix.target }}
+          cache-bin: false
+          save-if: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
+
+      - name: Compile SmartDNS binary
+        if: needs.prepare.outputs.publish == 'true' || steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          version="${VERSION:-dev}"
+          export OPENFLARE_DNS_VERSION="${version#dns-v}"
+          cargo build --locked --release --manifest-path "$CARGO_MANIFEST" --target "$TARGET"
+          binary="dns/target/${TARGET}/release/openflare-dns"
+          actual_version="$("$binary" --version)"
+          [[ "$actual_version" == "openflare-dns $OPENFLARE_DNS_VERSION" ]] || {
+            echo "unexpected binary version: $actual_version" >&2
+            exit 1
+          }
+          install -D -m 0755 "$binary" dist/openflare-dns
+
+      - name: Upload SmartDNS binary
+        if: needs.prepare.outputs.publish == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dns-binary-${{ matrix.arch }}
+          path: dist/openflare-dns
+          if-no-files-found: error
+          compression-level: 1
+          retention-days: 7
+          overwrite: true
