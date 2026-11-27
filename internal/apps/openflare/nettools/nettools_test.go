@@ -24,6 +24,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/internal/testhelper"
+	pkggeoip "github.com/Rain-kl/Wavelet/pkg/geoip"
 	pkgnetintel "github.com/Rain-kl/Wavelet/pkg/netintel"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -493,4 +494,81 @@ func TestProbeTargetCRUDAndSSRFValidation(t *testing.T) {
 	statesAfter, err := repository.ListOpenFlareProbeTargetStates(ctx, "edge-test-pt", []uint{createResp.Data.ID})
 	require.NoError(t, err)
 	require.Empty(t, statesAfter)
+}
+
+func TestPredictQualityMatrixCoLocatedZeroGeoPriorAndUnknownGeo(t *testing.T) {
+	cleanup := setupNetToolsTestEnv(t)
+	defer cleanup()
+	netquality.ResetPredictorCacheForTest()
+	defer netquality.ResetPredictorCacheForTest()
+
+	usLat, usLon, ok := pkggeoip.CountryCentroidByISO("US")
+	require.True(t, ok)
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+	require.NoError(t, repository.CreateOpenFlareNode(ctx, &model.OpenFlareNode{
+		NodeID:           "edge-us-colocated",
+		Name:             "Edge US Co-located",
+		IP:               "1.1.1.1",
+		ASN:              13335,
+		GeoLatitude:      &usLat,
+		GeoLongitude:     &usLon,
+		GeoSource:        pkgnetintel.GeoSourceCountry,
+		Status:           "online",
+		NodeType:         "edge_node",
+		LastSeenAt:       &now,
+		AccessToken:      "tok-us-colocated",
+		CapabilitiesJSON: "[]",
+	}))
+	require.NoError(t, repository.CreateOpenFlareNode(ctx, &model.OpenFlareNode{
+		NodeID:           "edge-no-geo",
+		Name:             "Edge No Geo",
+		IP:               "2.2.2.2",
+		ASN:              174,
+		Status:           "online",
+		NodeType:         "edge_node",
+		LastSeenAt:       &now,
+		AccessToken:      "tok-no-geo",
+		CapabilitiesJSON: "[]",
+	}))
+
+	r := testhelper.NewTestGinEngine()
+	group := r.Group("/api/v1/d/network-tools")
+	group.POST("/quality-matrix/predict", PredictQualityMatrixHandler)
+
+	body, _ := json.Marshal(QualityPredictInput{
+		TargetASN:     174,
+		TargetCountry: "US",
+		IPFamily:      pkgnetintel.IPFamilyIPv4,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/d/network-tools/quality-matrix/predict", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var resp struct {
+		Data QualityPredictResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.Len(t, resp.Data.Nodes, 2)
+
+	colocated := resp.Data.Nodes[0]
+	require.Equal(t, "edge-us-colocated", colocated.NodeID)
+	require.Equal(t, netquality.PredictionMethodGeoPrior, colocated.PredictionMethod)
+	require.Equal(t, model.MeasurementSourceNone, colocated.MeasurementSource)
+	require.True(t, colocated.GeoBaseKnown)
+	require.Equal(t, 0.0, colocated.GeoBaseRTTMs)
+	require.InDelta(t, 8.0, colocated.EffectiveRTTMs, 0.01)
+	require.InDelta(t, 10.0, colocated.RTTP95Ms, 0.01)
+
+	noGeo := resp.Data.Nodes[1]
+	require.Equal(t, "edge-no-geo", noGeo.NodeID)
+	require.Equal(t, netquality.PredictionMethodGeoPrior, noGeo.PredictionMethod)
+	require.Equal(t, model.MeasurementSourceNone, noGeo.MeasurementSource)
+	require.False(t, noGeo.GeoBaseKnown)
+	require.Equal(t, 0.0, noGeo.GeoBaseRTTMs)
+	require.InDelta(t, 120.0, noGeo.EffectiveRTTMs, 0.01)
+	require.InDelta(t, 120.0, noGeo.RTTP95Ms, 0.01)
 }

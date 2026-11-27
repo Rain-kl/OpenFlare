@@ -2279,6 +2279,7 @@ export interface NetToolsNodeASPathComparison {
   measurement_source?: string;
   prediction_method?: string;
   geo_base_rtt_ms?: number;
+  geo_base_known?: boolean;
   sample_count?: number;
   distinct_prefixes?: number;
   last_observed_at?: string | null;
@@ -2323,6 +2324,7 @@ export interface NetToolsNodeQualityPrediction {
   measurement_source: string;
   prediction_method: string;
   geo_base_rtt_ms: number;
+  geo_base_known?: boolean;
   sample_count: number;
   distinct_prefixes: number;
   last_observed_at?: string | null;

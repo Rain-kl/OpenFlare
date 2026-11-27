@@ -28260,6 +28260,9 @@ const docTemplate = `{
                 "effective_rtt_ms": {
                     "type": "number"
                 },
+                "geo_base_known": {
+                    "type": "boolean"
+                },
                 "geo_base_rtt_ms": {
                     "type": "number"
                 },
@@ -28336,6 +28339,9 @@ const docTemplate = `{
                 },
                 "effective_rtt_ms": {
                     "type": "number"
+                },
+                "geo_base_known": {
+                    "type": "boolean"
                 },
                 "geo_base_rtt_ms": {
                     "type": "number"

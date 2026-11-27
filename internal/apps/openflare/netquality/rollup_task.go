@@ -702,12 +702,16 @@ func computeGeoBaselineForRow(acc *pairAccum, node model.OpenFlareNode) (baseRTT
 	baseRTTMs = pkgnetintel.GeoBaseRTTMs(distKm)
 	nodeGeoSource := resolveNodeGeoSource(node)
 	nodeConf := pkgnetintel.GeoLocationConfidence(nodeGeoSource, defaultCityAccuracyKm)
-	clientConf := pkgnetintel.GeoLocationConfidence(geoSource, accuracyKm)
+	effectiveGeoSource := strings.TrimSpace(geoSource)
+	if effectiveGeoSource == "" || strings.EqualFold(effectiveGeoSource, pkgnetintel.GeoSourceUnknown) {
+		effectiveGeoSource = pkgnetintel.GeoSourceCountry
+	}
+	clientConf := pkgnetintel.GeoLocationConfidence(effectiveGeoSource, accuracyKm)
 	return baseRTTMs, accuracyKm, geoSource, math.Min(nodeConf, clientConf)
 }
 
 func resolveNodeGeoSource(node model.OpenFlareNode) string {
-	if s := strings.TrimSpace(node.GeoSource); s != "" {
+	if s := strings.TrimSpace(node.GeoSource); s != "" && !strings.EqualFold(s, pkgnetintel.GeoSourceUnknown) {
 		return s
 	}
 	if node.GeoManualOverride {

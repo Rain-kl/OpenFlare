@@ -463,6 +463,294 @@ func evaluateTemporalSplitScenario(now time.Time, nodes []model.OpenFlareNode, a
 	return buildScenarioMetrics("temporal_split", errs, legacyErrs, regrets, legacyRegrets, len(regrets), len(regrets)), obs
 }
 
+func TestPredictorSameCityGeoPriorAndUnknownGeoDistinction(t *testing.T) {
+	now := time.Now().UTC()
+	laxLat, laxLon := 34.0522, -118.2437
+	sjcLat, sjcLon := 37.3382, -121.8863
+	tyoLat, tyoLon := 35.6762, 139.6503
+
+	nodes := []model.OpenFlareNode{
+		{NodeID: "us-dmit-lax", ASN: 906, GeoLatitude: &laxLat, GeoLongitude: &laxLon, GeoSource: pkgnetintel.GeoSourceCity},
+		{NodeID: "us-oci-sjc", ASN: 31898, GeoLatitude: &sjcLat, GeoLongitude: &sjcLon, GeoSource: pkgnetintel.GeoSourceCity},
+		{NodeID: "jp-nb-tyo", ASN: 2914, GeoLatitude: &tyoLat, GeoLongitude: &tyoLon, GeoSource: pkgnetintel.GeoSourceCity},
+		{NodeID: "unknown-geo", ASN: 64500},
+	}
+
+	p := NewPredictor(now, nodes, nil, nil, nil)
+	queryFor := func(nodeID string) PredictQuery {
+		return PredictQuery{
+			NodeID:        nodeID,
+			ClientASN:     906,
+			ClientCountry: "US",
+			ClientRegion:  "US-CA",
+			IPFamily:      pkgnetintel.IPFamilyIPv4,
+			ClientLat:     &laxLat,
+			ClientLon:     &laxLon,
+			GeoAccuracyKm: 25,
+			GeoSource:     pkgnetintel.GeoSourceCity,
+		}
+	}
+
+	resLAX := p.Predict(queryFor("us-dmit-lax"))
+	require.Equal(t, PredictionMethodGeoPrior, resLAX.PredictionMethod)
+	require.Equal(t, model.MeasurementSourceNone, resLAX.MeasurementSource)
+	require.True(t, resLAX.GeoBaseKnown)
+	require.Equal(t, 0.0, resLAX.GeoBaseRTTMs)
+	require.InDelta(t, 8.0, resLAX.RTTMs, 0.01)
+	require.InDelta(t, 10.0, resLAX.RTTP95Ms, 0.01)
+	require.Greater(t, resLAX.Confidence, geoPriorUnknownConf)
+
+	resSJC := p.Predict(queryFor("us-oci-sjc"))
+	resTYO := p.Predict(queryFor("jp-nb-tyo"))
+	require.True(t, resSJC.GeoBaseKnown)
+	require.Greater(t, resSJC.GeoBaseRTTMs, 0.0)
+	require.Greater(t, ComputeQualityScore(resLAX), ComputeQualityScore(resSJC))
+	require.Greater(t, ComputeQualityScore(resSJC), ComputeQualityScore(resTYO))
+
+	resUnknown := p.Predict(queryFor("unknown-geo"))
+	require.Equal(t, PredictionMethodGeoPrior, resUnknown.PredictionMethod)
+	require.Equal(t, model.MeasurementSourceNone, resUnknown.MeasurementSource)
+	require.False(t, resUnknown.GeoBaseKnown)
+	require.Equal(t, 0.0, resUnknown.GeoBaseRTTMs)
+	require.InDelta(t, unknownGeoPriorMs, resUnknown.RTTMs, 0.01)
+	require.InDelta(t, unknownGeoPriorMs, resUnknown.RTTP95Ms, 0.01)
+	require.InDelta(t, geoPriorUnknownConf, resUnknown.Confidence, 0.0001)
+}
+
+func TestPredictorSameCityL3InferredUpstreamAndZeroGeoCandidate(t *testing.T) {
+	now := time.Now().UTC()
+	obsAt := now.Add(-15 * time.Minute)
+	laxLat, laxLon := 34.0522, -118.2437
+	sjcLat, sjcLon := 37.3382, -121.8863
+
+	// Case 1: Co-located target (targetGeoBase == 0, geoKnown == true) must still enter L3 inferred_upstream.
+	nodes := []model.OpenFlareNode{
+		{NodeID: "edge-lax", ASN: 906, GeoLatitude: &laxLat, GeoLongitude: &laxLon, GeoSource: pkgnetintel.GeoSourceCity},
+	}
+	measuredRows := []*model.OpenFlareNetworkQualityMatrix{
+		{
+			NodeID:            "edge-lax",
+			NodeASN:           906,
+			ClientASN:         174,
+			ClientCountry:     "US",
+			ClientRegion:      "US-CA",
+			IPFamily:          pkgnetintel.IPFamilyIPv4,
+			AggregationLevel:  model.QualityAggregationLevelRegion,
+			StatsVersion:      model.NetworkQualityStatsVersionHist64,
+			EffectiveRTTMs:    14.8,
+			GeoBaseRTTMs:      4.8,
+			GeoConfidence:     0.95,
+			MeasurementSource: model.NetworkQualitySourceTCPPassive,
+			Confidence:        0.90,
+			TCPSampleCount:    20,
+			DataSource:        model.QualityMatrixDataSourceMeasured,
+			LastObservedAt:    &obsAt,
+		},
+	}
+	pSameCity := NewPredictor(now, nodes, measuredRows, nil, nil)
+	resSameCity := pSameCity.Predict(PredictQuery{
+		NodeID:        "edge-lax",
+		ClientASN:     906,
+		ClientCountry: "US",
+		ClientRegion:  "US-CA",
+		IPFamily:      pkgnetintel.IPFamilyIPv4,
+		ClientLat:     &laxLat,
+		ClientLon:     &laxLon,
+		GeoAccuracyKm: 25,
+		GeoSource:     pkgnetintel.GeoSourceCity,
+	})
+	require.Equal(t, PredictionMethodInferredUpstream, resSameCity.PredictionMethod)
+	require.Equal(t, model.MeasurementSourceNone, resSameCity.MeasurementSource)
+	require.True(t, resSameCity.GeoBaseKnown)
+	require.Equal(t, 0.0, resSameCity.GeoBaseRTTMs)
+	require.Less(t, resSameCity.RTTMs, 20.0)
+
+	// Case 2: Distant target when node's only measured row is a co-located 0ms row (GeoConfidence > 0) must use L3.
+	colocatedMeasured := []*model.OpenFlareNetworkQualityMatrix{
+		{
+			NodeID:            "edge-lax",
+			NodeASN:           906,
+			ClientASN:         174,
+			ClientCountry:     "US",
+			ClientRegion:      "US-CA",
+			IPFamily:          pkgnetintel.IPFamilyIPv4,
+			AggregationLevel:  model.QualityAggregationLevelRegion,
+			StatsVersion:      model.NetworkQualityStatsVersionHist64,
+			EffectiveRTTMs:    10.0,
+			GeoBaseRTTMs:      0,
+			GeoConfidence:     0.95,
+			MeasurementSource: model.NetworkQualitySourceTCPPassive,
+			Confidence:        0.90,
+			TCPSampleCount:    20,
+			DataSource:        model.QualityMatrixDataSourceMeasured,
+			LastObservedAt:    &obsAt,
+		},
+	}
+	pZeroCand := NewPredictor(now, nodes, colocatedMeasured, nil, nil)
+	resDistant := pZeroCand.Predict(PredictQuery{
+		NodeID:        "edge-lax",
+		ClientASN:     906,
+		ClientCountry: "US",
+		ClientRegion:  "US-CA",
+		IPFamily:      pkgnetintel.IPFamilyIPv4,
+		ClientLat:     &sjcLat,
+		ClientLon:     &sjcLon,
+		GeoAccuracyKm: 25,
+		GeoSource:     pkgnetintel.GeoSourceCity,
+	})
+	require.Equal(t, PredictionMethodInferredUpstream, resDistant.PredictionMethod)
+	require.Equal(t, model.MeasurementSourceNone, resDistant.MeasurementSource)
+	require.True(t, resDistant.GeoBaseKnown)
+	require.Greater(t, resDistant.GeoBaseRTTMs, 0.0)
+
+	// Case 3: Legacy row with unknown geo (GeoBaseRTTMs == 0 and GeoConfidence == 0) must be filtered out of L3.
+	legacyUnknownGeo := []*model.OpenFlareNetworkQualityMatrix{
+		{
+			NodeID:            "edge-lax",
+			NodeASN:           906,
+			ClientASN:         174,
+			ClientCountry:     "US",
+			ClientRegion:      "US-CA",
+			IPFamily:          pkgnetintel.IPFamilyIPv4,
+			AggregationLevel:  model.QualityAggregationLevelRegion,
+			StatsVersion:      model.NetworkQualityStatsVersionHist64,
+			EffectiveRTTMs:    25.0,
+			GeoBaseRTTMs:      0,
+			GeoConfidence:     0,
+			MeasurementSource: model.NetworkQualitySourceTCPPassive,
+			Confidence:        0.90,
+			TCPSampleCount:    20,
+			DataSource:        model.QualityMatrixDataSourceMeasured,
+			LastObservedAt:    &obsAt,
+		},
+	}
+	pLegacy := NewPredictor(now, nodes, legacyUnknownGeo, nil, nil)
+	resLegacy := pLegacy.Predict(PredictQuery{
+		NodeID:        "edge-lax",
+		ClientASN:     906,
+		ClientCountry: "US",
+		ClientRegion:  "US-CA",
+		IPFamily:      pkgnetintel.IPFamilyIPv4,
+		ClientLat:     &sjcLat,
+		ClientLon:     &sjcLon,
+		GeoAccuracyKm: 25,
+		GeoSource:     pkgnetintel.GeoSourceCity,
+	})
+	require.Equal(t, PredictionMethodGeoPrior, resLegacy.PredictionMethod)
+	require.Equal(t, model.MeasurementSourceNone, resLegacy.MeasurementSource)
+	require.True(t, resLegacy.GeoBaseKnown)
+}
+
+func TestPredictorL4SimilarNodeResetsMeasurementSourceAndZeroGeoBase(t *testing.T) {
+	now := time.Now().UTC()
+	obsAt := now.Add(-10 * time.Minute)
+	laxLat, laxLon := 34.0522, -118.2437
+	sibLat, sibLon := 34.0600, -118.2500
+
+	nodes := []model.OpenFlareNode{
+		{NodeID: "edge-lax-cold", ASN: 906, NetworkGroup: "cn2-gia", GeoLatitude: &laxLat, GeoLongitude: &laxLon, GeoSource: pkgnetintel.GeoSourceCity},
+		{NodeID: "edge-lax-warm", ASN: 906, NetworkGroup: "cn2-gia", GeoLatitude: &sibLat, GeoLongitude: &sibLon, GeoSource: pkgnetintel.GeoSourceCity},
+	}
+	rows := []*model.OpenFlareNetworkQualityMatrix{
+		{
+			NodeID:            "edge-lax-warm",
+			NodeASN:           906,
+			ClientASN:         906,
+			ClientCountry:     "US",
+			ClientRegion:      "US-CA",
+			IPFamily:          pkgnetintel.IPFamilyIPv4,
+			AggregationLevel:  model.QualityAggregationLevelRegion,
+			StatsVersion:      model.NetworkQualityStatsVersionHist64,
+			TCPRTTP50Ms:       12.0,
+			TCPRTTP95Ms:       16.0,
+			TCPSampleCount:    15,
+			TCPLastSeenAt:     &obsAt,
+			EffectiveRTTMs:    12.0,
+			GeoBaseRTTMs:      0.01,
+			GeoConfidence:     0.95,
+			MeasurementSource: model.NetworkQualitySourceTCPPassive,
+			Confidence:        0.90,
+			DataSource:        model.QualityMatrixDataSourceMeasured,
+			LastObservedAt:    &obsAt,
+		},
+	}
+
+	p := NewPredictor(now, nodes, rows, nil, nil)
+	res := p.Predict(PredictQuery{
+		NodeID:        "edge-lax-cold",
+		ClientASN:     906,
+		ClientCountry: "US",
+		ClientRegion:  "US-CA",
+		IPFamily:      pkgnetintel.IPFamilyIPv4,
+		ClientLat:     &laxLat,
+		ClientLon:     &laxLon,
+		GeoAccuracyKm: 25,
+		GeoSource:     pkgnetintel.GeoSourceCity,
+	})
+	require.Equal(t, PredictionMethodSimilarNode, res.PredictionMethod)
+	require.Equal(t, model.MeasurementSourceNone, res.MeasurementSource)
+	require.True(t, res.GeoBaseKnown)
+	require.Equal(t, 0.0, res.GeoBaseRTTMs)
+	require.InDelta(t, 12.0, res.RTTMs, 0.01)
+}
+
+func TestPredictorCacheSeparatesDifferentCitiesInSameRegion(t *testing.T) {
+	ResetPredictorCacheForTest()
+	defer ResetPredictorCacheForTest()
+
+	now := time.Now().UTC()
+	laxLat, laxLon := 34.0522, -118.2437
+	sjcLat, sjcLon := 37.3382, -121.8863
+
+	nodes := []model.OpenFlareNode{
+		{NodeID: "edge-lax", ASN: 906, GeoLatitude: &laxLat, GeoLongitude: &laxLon, GeoSource: pkgnetintel.GeoSourceCity},
+	}
+	p := NewPredictor(now, nodes, nil, nil, nil)
+	p.useCache = true
+
+	resLAX := p.Predict(PredictQuery{
+		NodeID:        "edge-lax",
+		ClientASN:     906,
+		ClientCountry: "US",
+		ClientRegion:  "US-CA",
+		IPFamily:      pkgnetintel.IPFamilyIPv4,
+		ClientLat:     &laxLat,
+		ClientLon:     &laxLon,
+		GeoAccuracyKm: 25,
+		GeoSource:     pkgnetintel.GeoSourceCity,
+	})
+	resSJC := p.Predict(PredictQuery{
+		NodeID:        "edge-lax",
+		ClientASN:     906,
+		ClientCountry: "US",
+		ClientRegion:  "US-CA",
+		IPFamily:      pkgnetintel.IPFamilyIPv4,
+		ClientLat:     &sjcLat,
+		ClientLon:     &sjcLon,
+		GeoAccuracyKm: 25,
+		GeoSource:     pkgnetintel.GeoSourceCity,
+	})
+	resCentroid := p.Predict(PredictQuery{
+		NodeID:        "edge-lax",
+		ClientASN:     906,
+		ClientCountry: "US",
+		ClientRegion:  "US-CA",
+		IPFamily:      pkgnetintel.IPFamilyIPv4,
+	})
+
+	require.True(t, resLAX.GeoBaseKnown)
+	require.Equal(t, 0.0, resLAX.GeoBaseRTTMs)
+	require.InDelta(t, 8.0, resLAX.RTTMs, 0.01)
+
+	require.True(t, resSJC.GeoBaseKnown)
+	require.Greater(t, resSJC.GeoBaseRTTMs, 4.0)
+	require.Greater(t, resSJC.RTTMs, resLAX.RTTMs)
+
+	require.True(t, resCentroid.GeoBaseKnown)
+	require.Greater(t, resCentroid.GeoBaseRTTMs, resSJC.GeoBaseRTTMs)
+	require.Greater(t, resCentroid.RTTMs, resSJC.RTTMs)
+}
+
 func buildScenarioMetrics(name string, errs, legacyErrs, regrets, legacyRegrets []float64, top1, within5 int) evalScenarioMetrics {
 	mean := func(xs []float64) float64 {
 		if len(xs) == 0 {

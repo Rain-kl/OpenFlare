@@ -67,8 +67,8 @@ const (
 	maxResolvedHostnameIPs = 4
 	ipNeighborsLimit       = 100
 	asnNeighborsLimit      = 150
-	usPerCentisecond = 10.0
-	centisPerSecond  = 100.0
+	usPerCentisecond       = 10.0
+	centisPerSecond        = 100.0
 )
 
 // PingDispatchInput requests a multi-node batch Ping/TCPing/HTTP probe.
@@ -228,30 +228,9 @@ type ASPathHopNode struct {
 
 // NodeASPathComparison scores how each edge node reaches target_asn.
 type NodeASPathComparison struct {
-	NodeID                string          `json:"node_id"`
-	NodeName              string          `json:"node_name"`
-	NodeIP                string          `json:"node_ip"`
-	NodeGeo               string          `json:"node_geo"`
-	NodeASN               uint32          `json:"node_asn"`
-	NodeASNName           string          `json:"node_asn_name"`
-	NetworkGroup          string          `json:"network_group,omitempty"`
-	GeoSource             string          `json:"geo_source,omitempty"`
-	ASHops                int             `json:"as_hops"`
-	Path                  []ASPathHopNode `json:"path"`
-	EffectiveRTTMs        float64         `json:"effective_rtt_ms"`
-	RTTP95Ms              float64         `json:"rtt_p95_ms"`
-	CandidateDispersionMs float64         `json:"candidate_dispersion_ms"`
-	PredictionErrorMs     *float64        `json:"prediction_error_ms,omitempty"`
-	QualityScore          float64         `json:"quality_score"`
-	Confidence            float64         `json:"confidence"`
-	MeasurementSource     string          `json:"measurement_source"`
-	PredictionMethod      string          `json:"prediction_method"`
-	GeoBaseRTTMs          float64         `json:"geo_base_rtt_ms"`
-	SampleCount           uint64          `json:"sample_count"`
-	DistinctPrefixes      uint32          `json:"distinct_prefixes"`
-	LastObservedAt        *time.Time      `json:"last_observed_at,omitempty"`
-	AnycastIsolated       bool            `json:"anycast_isolated,omitempty"`
-	DataSource            string          `json:"data_source"`
+	NodeQualityPrediction
+	ASHops int             `json:"as_hops"`
+	Path   []ASPathHopNode `json:"path"`
 }
 
 // ASPathResponse compares edge node paths toward the requested target ASN.
@@ -294,6 +273,7 @@ type NodeQualityPrediction struct {
 	MeasurementSource     string     `json:"measurement_source"`
 	PredictionMethod      string     `json:"prediction_method"`
 	GeoBaseRTTMs          float64    `json:"geo_base_rtt_ms"`
+	GeoBaseKnown          bool       `json:"geo_base_known,omitempty"`
 	SampleCount           uint64     `json:"sample_count"`
 	DistinctPrefixes      uint32     `json:"distinct_prefixes"`
 	LastObservedAt        *time.Time `json:"last_observed_at,omitempty"`
@@ -964,6 +944,34 @@ func buildPredictQueryForNode(nodeID string, target resolvedTargetQuery) netqual
 	}
 }
 
+func buildNodeQualityPrediction(n model.OpenFlareNode, res netquality.PredictionResult) NodeQualityPrediction {
+	return NodeQualityPrediction{
+		NodeID:                n.NodeID,
+		NodeName:              n.Name,
+		NodeIP:                n.IP,
+		NodeGeo:               n.GeoName,
+		NodeASN:               n.ASN,
+		NodeASNName:           n.ASNOrg,
+		NetworkGroup:          n.NetworkGroup,
+		GeoSource:             n.GeoSource,
+		EffectiveRTTMs:        res.RTTMs,
+		RTTP95Ms:              res.RTTP95Ms,
+		CandidateDispersionMs: res.CandidateDispersionMs,
+		PredictionErrorMs:     res.ErrorMs,
+		QualityScore:          netquality.ComputeQualityScore(res),
+		Confidence:            res.Confidence,
+		MeasurementSource:     res.MeasurementSource,
+		PredictionMethod:      res.PredictionMethod,
+		GeoBaseRTTMs:          res.GeoBaseRTTMs,
+		GeoBaseKnown:          res.GeoBaseKnown,
+		SampleCount:           res.SampleCount,
+		DistinctPrefixes:      res.DistinctPrefixes,
+		LastObservedAt:        res.LastObservedAt,
+		AnycastIsolated:       res.AnycastIsolated,
+		DataSource:            predictionDataSource(res.PredictionMethod),
+	}
+}
+
 func buildASPathComparisonItem(
 	n model.OpenFlareNode,
 	target resolvedTargetQuery,
@@ -976,28 +984,7 @@ func buildASPathComparisonItem(
 	}
 	predRes := predictor.Predict(buildPredictQueryForNode(n.NodeID, target))
 	item := NodeASPathComparison{
-		NodeID:                n.NodeID,
-		NodeName:              n.Name,
-		NodeIP:                n.IP,
-		NodeGeo:               n.GeoName,
-		NodeASN:               n.ASN,
-		NodeASNName:           n.ASNOrg,
-		NetworkGroup:          n.NetworkGroup,
-		GeoSource:             n.GeoSource,
-		EffectiveRTTMs:        predRes.RTTMs,
-		RTTP95Ms:              predRes.RTTP95Ms,
-		CandidateDispersionMs: predRes.CandidateDispersionMs,
-		PredictionErrorMs:     predRes.ErrorMs,
-		QualityScore:          netquality.ComputeQualityScore(predRes),
-		Confidence:            predRes.Confidence,
-		MeasurementSource:     predRes.MeasurementSource,
-		PredictionMethod:      predRes.PredictionMethod,
-		GeoBaseRTTMs:          predRes.GeoBaseRTTMs,
-		SampleCount:           predRes.SampleCount,
-		DistinctPrefixes:      predRes.DistinctPrefixes,
-		LastObservedAt:        predRes.LastObservedAt,
-		AnycastIsolated:       predRes.AnycastIsolated,
-		DataSource:            predictionDataSource(predRes.PredictionMethod),
+		NodeQualityPrediction: buildNodeQualityPrediction(n, predRes),
 	}
 	if m := matrixByNode[n.NodeID]; m != nil {
 		var recordedPath []uint32
@@ -1125,30 +1112,7 @@ func PredictQualityMatrix(ctx context.Context, input QualityPredictInput) (*Qual
 			netintel.EnrichNodeASN(&n)
 		}
 		res := predictor.Predict(buildPredictQueryForNode(n.NodeID, resolved))
-		out = append(out, NodeQualityPrediction{
-			NodeID:                n.NodeID,
-			NodeName:              n.Name,
-			NodeIP:                n.IP,
-			NodeGeo:               n.GeoName,
-			NodeASN:               n.ASN,
-			NodeASNName:           n.ASNOrg,
-			NetworkGroup:          n.NetworkGroup,
-			GeoSource:             n.GeoSource,
-			EffectiveRTTMs:        res.RTTMs,
-			RTTP95Ms:              res.RTTP95Ms,
-			CandidateDispersionMs: res.CandidateDispersionMs,
-			PredictionErrorMs:     res.ErrorMs,
-			QualityScore:          netquality.ComputeQualityScore(res),
-			Confidence:            res.Confidence,
-			MeasurementSource:     res.MeasurementSource,
-			PredictionMethod:      res.PredictionMethod,
-			GeoBaseRTTMs:          res.GeoBaseRTTMs,
-			SampleCount:           res.SampleCount,
-			DistinctPrefixes:      res.DistinctPrefixes,
-			LastObservedAt:        res.LastObservedAt,
-			AnycastIsolated:       res.AnycastIsolated,
-			DataSource:            predictionDataSource(res.PredictionMethod),
-		})
+		out = append(out, buildNodeQualityPrediction(n, res))
 	}
 
 	sort.Slice(out, func(i, j int) bool {

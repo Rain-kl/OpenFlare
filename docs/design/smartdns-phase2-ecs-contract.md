@@ -57,6 +57,8 @@ score := netquality.ComputeQualityScore(res)
 | `Confidence` | `float64` | 归一化置信度 `[0.05, 0.99]`。随样本时效、直方图版本（V2）、前缀多样性与地理精度衰减。 |
 | `MeasurementSource` | `string` | 实测物理信号来源（`tcp_passive`、`tcp_active`、`icmp_active`、`traceroute`、`none`）。L3～L5 推断一律为 `none`。 |
 | `PredictionMethod` | `string` | 预测命中的级别（`exact_region` → `country_rollup` → `inferred_upstream` → `similar_node` → `geo_prior`）。 |
+| `GeoBaseRTTMs` | `float64` | 节点到目标网络的物理光纤基线延迟（`2d / 200` ms）。当节点与目标同城或同中心点时合法值为 `0`，需配合 `GeoBaseKnown` 判定坐标是否有效。 |
+| `GeoBaseKnown` | `bool` | 地理基线是否基于有效节点与客户端/质心坐标计算。`true` 且 `GeoBaseRTTMs == 0` 表示同城/同位置 0 km 节点；`false` 表示坐标缺失（L5 回退 `120 ms` 未知先验）。 |
 | `AnycastIsolated` | `bool` | 当目标/锚点被标注为 `confirmed` Anycast 时为 `true`，明确阻断跨区域或基于局部观测的错误迁移。 |
 
 > **关键契约**：`score := netquality.ComputeQualityScore(res)` 已在内部评分时将 `0.25 * CandidateDispersionMs` 计入等效开销（但不篡改 `res.RTTMs`），规则引擎若直接使用 `RTTMs` 与 `CandidateDispersionMs` 进行自定义加权评分，不应重复叠加相同离散度惩罚。
@@ -79,7 +81,7 @@ score := netquality.ComputeQualityScore(res)
 
 - **锁无关热切换与缓存失效**：
   - `of_netquality_rollup` 每次原子提交新矩阵快照并递增 `netquality.CurrentRollupGeneration()`，同步调用 `prediction_cache.InvalidateAll()`。
-  - 预测缓存键为 `(generation, node_id, client_asn, client_country, client_region, ip_family)`，TTL 5 分钟、有界容量 4096 条；对于 `AnycastStatus == 'confirmed'` 查询自动旁路 L3 推断缓存污染。
+  - 预测缓存键为 `(generation, node_id, client_asn, client_country, client_region, ip_family, has_coords, lat_bucket, lon_bucket, geo_source)`（其中 `lat_bucket` / `lon_bucket` 按 `0.2°` 量化，避免同国家同省区不同城市共享缓存），TTL 5 分钟、有界容量 4096 条；对于 `AnycastStatus == 'confirmed'` 查询自动旁路 L3 推断缓存污染。
 - **延迟与内存预算**：
   - 权威 DNS 数据面读取预测结果原则上基于内存 `Predictor` 快照，禁止在每条 DNS 查询协程中同步执行 SQL 查询；
   - 由后台定时器或订阅信号按 `CurrentRollupGeneration()` 变化异步刷新进程内 `Predictor` 实例（实测目标：缓存命中 `< 50 µs`，未命中全 5 级推断 `< 5 ms`）。

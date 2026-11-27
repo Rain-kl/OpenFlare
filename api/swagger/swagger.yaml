@@ -2371,6 +2371,8 @@ definitions:
         type: integer
       effective_rtt_ms:
         type: number
+      geo_base_known:
+        type: boolean
       geo_base_rtt_ms:
         type: number
       geo_source:
@@ -2422,6 +2424,8 @@ definitions:
         type: integer
       effective_rtt_ms:
         type: number
+      geo_base_known:
+        type: boolean
       geo_base_rtt_ms:
         type: number
       geo_source:

@@ -28253,6 +28253,9 @@
                 "effective_rtt_ms": {
                     "type": "number"
                 },
+                "geo_base_known": {
+                    "type": "boolean"
+                },
                 "geo_base_rtt_ms": {
                     "type": "number"
                 },
@@ -28329,6 +28332,9 @@
                 },
                 "effective_rtt_ms": {
                     "type": "number"
+                },
+                "geo_base_known": {
+                    "type": "boolean"
                 },
                 "geo_base_rtt_ms": {
                     "type": "number"

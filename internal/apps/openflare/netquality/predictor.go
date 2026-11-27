@@ -84,17 +84,18 @@ const (
 	minPredictedRTTMs      = 1.0
 	qualityDispersionShare = 0.25
 
-	predictionCacheMaxSize  = 4096
-	predictionCacheTTL      = 5 * time.Minute
-	minCalibratedSamples    = 10
-	calibrationDecileCount  = 10.0
+	predictionCacheMaxSize    = 4096
+	predictionCacheTTL        = 5 * time.Minute
+	predictionCacheCoordScale = 5.0
+	minCalibratedSamples      = 10
+	calibrationDecileCount    = 10.0
 	calibrationMaxConfClamped = 0.99
-	calibrationP80Quantile  = 0.80
-	calibrationMethodWide   = -1
-	quartileLower           = 0.25
-	quartileMedian          = 0.50
-	quartileUpper           = 0.75
-	topologyEdgeQueryLimit  = 10000
+	calibrationP80Quantile    = 0.80
+	calibrationMethodWide     = -1
+	quartileLower             = 0.25
+	quartileMedian            = 0.50
+	quartileUpper             = 0.75
+	topologyEdgeQueryLimit    = 10000
 )
 
 // PredictQuery specifies a client network target to evaluate against an edge node.
@@ -121,6 +122,7 @@ type PredictionResult struct {
 	MeasurementSource     string     `json:"measurement_source"`
 	PredictionMethod      string     `json:"prediction_method"`
 	GeoBaseRTTMs          float64    `json:"geo_base_rtt_ms"`
+	GeoBaseKnown          bool       `json:"geo_base_known,omitempty"`
 	SampleCount           uint64     `json:"sample_count"`
 	DistinctPrefixes      uint32     `json:"distinct_prefixes"`
 	LastObservedAt        *time.Time `json:"last_observed_at,omitempty"`
@@ -235,6 +237,39 @@ type predictionCacheKey struct {
 	clientCountry string
 	clientRegion  string
 	ipFamily      string
+	hasCoords     bool
+	latBucket     int
+	lonBucket     int
+	geoSource     string
+}
+
+func buildPredictionCacheKey(generation uint64, q PredictQuery) predictionCacheKey {
+	ck := predictionCacheKey{
+		generation:    generation,
+		nodeID:        q.NodeID,
+		clientASN:     q.ClientASN,
+		clientCountry: q.ClientCountry,
+		clientRegion:  q.ClientRegion,
+		ipFamily:      q.IPFamily,
+	}
+	if q.ClientLat != nil && q.ClientLon != nil && isValidCoord(*q.ClientLat, *q.ClientLon) {
+		ck.hasCoords = true
+		ck.latBucket = int(math.Round(*q.ClientLat * predictionCacheCoordScale))
+		ck.lonBucket = int(math.Round(*q.ClientLon * predictionCacheCoordScale))
+		ck.geoSource = strings.ToLower(strings.TrimSpace(q.GeoSource))
+	}
+	return ck
+}
+
+func isValidCoord(lat, lon float64) bool {
+	return !math.IsNaN(lat) && !math.IsInf(lat, 0) && !math.IsNaN(lon) && !math.IsInf(lon, 0)
+}
+
+func hasKnownRowGeoBase(row *model.OpenFlareNetworkQualityMatrix) bool {
+	if row == nil || row.GeoBaseRTTMs < 0 {
+		return false
+	}
+	return row.GeoBaseRTTMs > 0 || row.GeoConfidence > 0
 }
 
 type cachedPrediction struct {
@@ -379,14 +414,7 @@ func (p *Predictor) Predict(query PredictQuery) PredictionResult {
 	}
 
 	if p.useCache && norm.AnycastStatus != pkgnetintel.AnycastStatusConfirmed {
-		ck := predictionCacheKey{
-			generation:    p.generation,
-			nodeID:        norm.NodeID,
-			clientASN:     norm.ClientASN,
-			clientCountry: norm.ClientCountry,
-			clientRegion:  norm.ClientRegion,
-			ipFamily:      norm.IPFamily,
-		}
+		ck := buildPredictionCacheKey(p.generation, norm)
 		if cached, ok := predictionCache.GetIfPresent(ck); ok && p.now.Before(cached.expiresAt) {
 			return cached.result
 		}
@@ -398,12 +426,12 @@ func (p *Predictor) Predict(query PredictQuery) PredictionResult {
 }
 
 func (p *Predictor) predictUncached(q PredictQuery, allowSibling bool) PredictionResult {
-	targetGeoBase, geoConf := p.computeTargetGeoBase(q)
+	targetGeoBase, geoConf, geoKnown := p.computeTargetGeoBase(q)
 
 	// Level 1: exact (node_id, client_asn, client_country, client_region, ip_family, 'region')
 	if q.ClientASN > 0 && q.ClientRegion != "" {
 		if row := p.lookupDirectRow(q.NodeID, q.ClientASN, q.ClientCountry, q.ClientRegion, q.IPFamily, model.QualityAggregationLevelRegion); row != nil {
-			if res, ok := p.buildDirectPrediction(row, targetGeoBase, PredictionMethodExactRegion, directRegionMinSamples); ok {
+			if res, ok := p.buildDirectPrediction(row, targetGeoBase, geoKnown, PredictionMethodExactRegion, directRegionMinSamples); ok {
 				return p.attachError(res)
 			}
 		}
@@ -412,26 +440,26 @@ func (p *Predictor) predictUncached(q PredictQuery, allowSibling bool) Predictio
 	// Level 2: country-level aggregate (node_id, client_asn, client_country, "", ip_family, 'country')
 	if q.ClientASN > 0 {
 		if row := p.lookupDirectRow(q.NodeID, q.ClientASN, q.ClientCountry, "", q.IPFamily, model.QualityAggregationLevelCountry); row != nil {
-			if res, ok := p.buildDirectPrediction(row, targetGeoBase, PredictionMethodCountryRollup, directCountryMinSample); ok {
+			if res, ok := p.buildDirectPrediction(row, targetGeoBase, geoKnown, PredictionMethodCountryRollup, directCountryMinSample); ok {
 				return p.attachError(res)
 			}
 		}
 	}
 
 	// Level 3: same-node similar network residual transfer
-	if res, ok := p.predictInferredUpstream(q, targetGeoBase); ok {
+	if res, ok := p.predictInferredUpstream(q, targetGeoBase, geoKnown); ok {
 		return p.attachError(res)
 	}
 
 	// Level 4: sibling node cold-start reference (only when current node has sparse measurements)
 	if allowSibling && len(p.rowsByNode[q.NodeID]) <= siblingMaxSparseRows {
-		if res, ok := p.predictFromSimilarNode(q, targetGeoBase); ok {
+		if res, ok := p.predictFromSimilarNode(q, targetGeoBase, geoKnown); ok {
 			return p.attachError(res)
 		}
 	}
 
 	// Level 5: geographic propagation baseline prior
-	return p.attachError(buildGeoPriorPrediction(targetGeoBase, geoConf, q.AnycastStatus == pkgnetintel.AnycastStatusConfirmed))
+	return p.attachError(buildGeoPriorPrediction(targetGeoBase, geoConf, geoKnown, q.AnycastStatus == pkgnetintel.AnycastStatusConfirmed))
 }
 
 func (p *Predictor) normalizeQuery(q PredictQuery) PredictQuery {
@@ -469,6 +497,7 @@ func (p *Predictor) lookupDirectRow(nodeID string, asn uint32, country, region, 
 func (p *Predictor) buildDirectPrediction(
 	row *model.OpenFlareNetworkQualityMatrix,
 	targetGeoBase float64,
+	geoKnown bool,
 	method string,
 	minSamples int,
 ) (PredictionResult, bool) {
@@ -485,8 +514,10 @@ func (p *Predictor) buildDirectPrediction(
 	}
 
 	geoBase := row.GeoBaseRTTMs
-	if targetGeoBase > 0 {
+	geoBaseKnown := hasKnownRowGeoBase(row)
+	if geoKnown {
 		geoBase = targetGeoBase
+		geoBaseKnown = true
 	}
 	conf := row.Confidence
 	if conf <= 0 {
@@ -506,6 +537,7 @@ func (p *Predictor) buildDirectPrediction(
 		MeasurementSource: src,
 		PredictionMethod:  method,
 		GeoBaseRTTMs:      round2(geoBase),
+		GeoBaseKnown:      geoBaseKnown,
 		SampleCount:       sampleCnt,
 		DistinctPrefixes:  uint32(max(0, row.DistinctPrefixCount)), //nolint:gosec // clamped >= 0
 		LastObservedAt:    obsAt,
@@ -559,20 +591,18 @@ func activeSourceName(proto string) string {
 type weightedCandidate struct {
 	extra  float64
 	weight float64
-	source string
 	row    *model.OpenFlareNetworkQualityMatrix
 }
 
-func (p *Predictor) predictInferredUpstream(q PredictQuery, targetGeoBase float64) (PredictionResult, bool) {
+func (p *Predictor) predictInferredUpstream(q PredictQuery, targetGeoBase float64, geoKnown bool) (PredictionResult, bool) {
 	rows := p.rowsByNode[q.NodeID]
-	if len(rows) == 0 || targetGeoBase <= 0 {
+	if len(rows) == 0 || !geoKnown || targetGeoBase < 0 {
 		return PredictionResult{}, false
 	}
 
 	targetProf := p.getASProfile(q.ClientASN)
 	candidates := make([]weightedCandidate, 0, len(rows))
 	var totalWeight float64
-	sourceWeights := make(map[string]float64)
 	var latestObs *time.Time
 	var totalSamples uint64
 
@@ -583,7 +613,6 @@ func (p *Predictor) predictInferredUpstream(q PredictQuery, targetGeoBase float6
 		}
 		candidates = append(candidates, cand)
 		totalWeight += cand.weight
-		sourceWeights[cand.source] += cand.weight
 		totalSamples += uint64(max(1, row.TCPSampleCount+row.ProbeSampleCount+row.TraceSampleCount)) //nolint:gosec // >= 1
 		latestObs = maxTimePtr(latestObs, obs)
 	}
@@ -598,7 +627,6 @@ func (p *Predictor) predictInferredUpstream(q PredictQuery, targetGeoBase float6
 	alpha := totalWeight / (totalWeight + inferredShrinkageLambda)
 	finalRTT := math.Max(minPredictedRTTMs, alpha*inferredRTT+(1.0-alpha)*priorRTT)
 
-	dominantSource := pickDominantSource(sourceWeights)
 	conf := inferredBaseConfidence + inferredConfWeightSpan*alpha*(1.0/(1.0+iqrExtra/inferredDispersionScaleMs))
 	conf = math.Max(inferredMinConfidence, math.Min(inferredMaxConfidence, conf))
 
@@ -607,9 +635,10 @@ func (p *Predictor) predictInferredUpstream(q PredictQuery, targetGeoBase float6
 		RTTP95Ms:              round2(finalRTT + inferredP95SpreadWeight*iqrExtra),
 		CandidateDispersionMs: round2(iqrExtra),
 		Confidence:            round4(conf),
-		MeasurementSource:     dominantSource,
+		MeasurementSource:     model.MeasurementSourceNone,
 		PredictionMethod:      PredictionMethodInferredUpstream,
 		GeoBaseRTTMs:          round2(targetGeoBase),
+		GeoBaseKnown:          true,
 		SampleCount:           totalSamples,
 		LastObservedAt:        latestObs,
 		AnycastIsolated:       q.AnycastStatus == pkgnetintel.AnycastStatusConfirmed,
@@ -621,7 +650,7 @@ func (p *Predictor) scoreCandidateRow(
 	targetProf pkgnetintel.ASUpstreamProfile,
 	row *model.OpenFlareNetworkQualityMatrix,
 ) (weightedCandidate, time.Time, bool) {
-	if row == nil || row.EffectiveRTTMs <= 0 || row.GeoBaseRTTMs <= 0 {
+	if row == nil || row.EffectiveRTTMs <= 0 || !hasKnownRowGeoBase(row) {
 		return weightedCandidate{}, time.Time{}, false
 	}
 	if row.AggregationLevel == model.QualityAggregationLevelRegion && q.ClientCountry != row.ClientCountry {
@@ -656,21 +685,8 @@ func (p *Predictor) scoreCandidateRow(
 	return weightedCandidate{
 		extra:  extra,
 		weight: w,
-		source: row.MeasurementSource,
 		row:    row,
 	}, obsTime, true
-}
-
-func pickDominantSource(sourceWeights map[string]float64) string {
-	dominant := model.NetworkQualitySourceTCPPassive
-	best := -1.0
-	for src, w := range sourceWeights {
-		if w > best {
-			best = w
-			dominant = src
-		}
-	}
-	return dominant
 }
 
 func computeCandidateGeoWeight(q PredictQuery, row *model.OpenFlareNetworkQualityMatrix, negativeResidual bool) float64 {
@@ -680,7 +696,7 @@ func computeCandidateGeoWeight(q PredictQuery, row *model.OpenFlareNetworkQualit
 		w = geoWeightSameRegion
 	case q.ClientCountry != "" && strings.EqualFold(q.ClientCountry, row.ClientCountry):
 		w = geoWeightSameCountry
-	case q.ClientCountry != "" && row.ClientCountry != "" && math.Abs(row.GeoBaseRTTMs) > 0:
+	case q.ClientCountry != "" && row.ClientCountry != "" && hasKnownRowGeoBase(row):
 		w = geoWeightRegional
 	default:
 		w = geoWeightCrossRegion
@@ -706,7 +722,7 @@ func (p *Predictor) computeCandidateNetWeight(targetASN uint32, targetProf pkgne
 	return netSimBaseWeight + netSimSpanWeight*sim.Score
 }
 
-func (p *Predictor) predictFromSimilarNode(q PredictQuery, targetGeoBase float64) (PredictionResult, bool) {
+func (p *Predictor) predictFromSimilarNode(q PredictQuery, targetGeoBase float64, geoKnown bool) (PredictionResult, bool) {
 	curProf, ok := p.nodeProfiles[q.NodeID]
 	if !ok || curProf.GeoLatitude == nil || curProf.GeoLongitude == nil {
 		return PredictionResult{}, false
@@ -750,15 +766,17 @@ func (p *Predictor) predictFromSimilarNode(q PredictQuery, targetGeoBase float64
 		return PredictionResult{}, false
 	}
 	res.PredictionMethod = PredictionMethodSimilarNode
+	res.MeasurementSource = model.MeasurementSourceNone
 	res.Confidence = round4(math.Max(minSampleConfidence, res.Confidence*siblingConfMultiplier*siblings[0].weight))
-	if targetGeoBase > 0 {
+	if geoKnown {
 		res.GeoBaseRTTMs = round2(targetGeoBase)
+		res.GeoBaseKnown = true
 	}
 	return res, true
 }
 
-func buildGeoPriorPrediction(targetGeoBase, geoConf float64, anycastIsolated bool) PredictionResult {
-	if targetGeoBase <= 0 {
+func buildGeoPriorPrediction(targetGeoBase, geoConf float64, geoKnown, anycastIsolated bool) PredictionResult {
+	if !geoKnown || targetGeoBase < 0 {
 		return PredictionResult{
 			RTTMs:             unknownGeoPriorMs,
 			RTTP95Ms:          unknownGeoPriorMs,
@@ -766,6 +784,7 @@ func buildGeoPriorPrediction(targetGeoBase, geoConf float64, anycastIsolated boo
 			MeasurementSource: model.MeasurementSourceNone,
 			PredictionMethod:  PredictionMethodGeoPrior,
 			GeoBaseRTTMs:      0,
+			GeoBaseKnown:      false,
 			AnycastIsolated:   anycastIsolated,
 		}
 	}
@@ -778,28 +797,29 @@ func buildGeoPriorPrediction(targetGeoBase, geoConf float64, anycastIsolated boo
 		MeasurementSource: model.MeasurementSourceNone,
 		PredictionMethod:  PredictionMethodGeoPrior,
 		GeoBaseRTTMs:      round2(targetGeoBase),
+		GeoBaseKnown:      true,
 		AnycastIsolated:   anycastIsolated,
 	}
 }
 
-func (p *Predictor) computeTargetGeoBase(q PredictQuery) (float64, float64) {
+func (p *Predictor) computeTargetGeoBase(q PredictQuery) (baseRTT, geoConf float64, geoKnown bool) {
 	node, ok := p.nodes[q.NodeID]
-	if !ok || node.GeoLatitude == nil || node.GeoLongitude == nil {
-		return 0, 0
+	if !ok || node.GeoLatitude == nil || node.GeoLongitude == nil || !isValidCoord(*node.GeoLatitude, *node.GeoLongitude) {
+		return 0, 0, false
 	}
 	cLat, cLon, cSource, cAccKm := resolveTargetGeoCoords(q)
-	if cLat == nil || cLon == nil {
-		return 0, 0
+	if cLat == nil || cLon == nil || !isValidCoord(*cLat, *cLon) {
+		return 0, 0, false
 	}
 	distKm := pkgnetintel.DistanceKm(*node.GeoLatitude, *node.GeoLongitude, *cLat, *cLon)
-	baseRTT := pkgnetintel.GeoBaseRTTMs(distKm)
+	baseRTT = pkgnetintel.GeoBaseRTTMs(distKm)
 	nodeConf := pkgnetintel.GeoLocationConfidence(resolveNodeGeoSource(node), defaultCityAccuracyKm)
 	clientConf := pkgnetintel.GeoLocationConfidence(cSource, cAccKm)
-	return baseRTT, math.Min(nodeConf, clientConf)
+	return baseRTT, math.Min(nodeConf, clientConf), true
 }
 
 func resolveTargetGeoCoords(q PredictQuery) (lat, lon *float64, geoSource string, accKm float64) {
-	if q.ClientLat != nil && q.ClientLon != nil {
+	if q.ClientLat != nil && q.ClientLon != nil && isValidCoord(*q.ClientLat, *q.ClientLon) {
 		return q.ClientLat, q.ClientLon, q.GeoSource, q.GeoAccuracyKm
 	}
 	if q.ClientCountry != "" {
