@@ -7,6 +7,7 @@
     "architecture",
     "zone-design",
     "cloudflare-pointing",
+    "smartdns-design",
     "smartdns-phase2-ecs-contract",
     "---边缘引擎与节点---",
     "pingora-edge-design",

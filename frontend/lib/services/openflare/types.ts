@@ -20,6 +20,10 @@ export interface NodeItem {
   asn?: number;
   asn_org?: string;
   network_group?: string;
+  capacity_bandwidth_mbps?: number;
+  capacity_connections?: number;
+  capacity_weight?: number;
+  tags?: NodeTagSummary[];
   geo_name: string;
   geo_source?: string;
   geo_latitude?: number | null;
@@ -135,6 +139,10 @@ export interface NodeMutationPayload {
   ip_manual_override: boolean;
   auto_update_enabled: boolean;
   network_group?: string;
+  capacity_bandwidth_mbps?: number;
+  capacity_connections?: number;
+  capacity_weight?: number;
+  tags?: NodeTagBindingInput[];
   geo_name: string;
   geo_latitude?: number | null;
   geo_longitude?: number | null;
@@ -1515,9 +1523,12 @@ export interface CloudflareNodeOption {
 export interface CloudflareGroup {
   id: number;
   name: string;
-  target_mode: 'node' | 'custom';
+  target_mode: 'node' | 'custom' | 'smartdns';
   record_type: 'CNAME' | 'A' | 'AAAA';
   record_content: string;
+  smartdns_policy_id?: number | null;
+  smartdns_policy_name?: string;
+  smartdns_target_host?: string;
   primary_node: CloudflareNodeOption;
   backup_node: CloudflareNodeOption | null;
   active_node: CloudflareNodeOption;
@@ -1532,9 +1543,11 @@ export interface CloudflareGroup {
 
 export interface CloudflareGroupPayload {
   name: string;
-  target_mode: 'node' | 'custom';
+  target_mode: 'node' | 'custom' | 'smartdns';
   record_type: 'CNAME' | 'A' | 'AAAA';
   record_content: string;
+  smartdns_policy_id?: number | null;
+  smartdns_target_host?: string;
   primary_node_id: number;
   backup_node_id: number | null;
   /** 省略时保留旧调用方行为；1 表示自动，手动为 60..86400 秒。 */
@@ -2567,4 +2580,353 @@ export interface NetToolsASNUpstreamGraphResponse {
   edges: NetToolsASUpstreamEdge[];
   cached: boolean;
   generated_at: string;
+}
+
+export type NodeTagColor =
+  | 'slate'
+  | 'gray'
+  | 'zinc'
+  | 'neutral'
+  | 'stone'
+  | 'red'
+  | 'orange'
+  | 'amber'
+  | 'yellow'
+  | 'lime'
+  | 'green'
+  | 'emerald'
+  | 'teal'
+  | 'cyan'
+  | 'sky'
+  | 'blue'
+  | 'indigo'
+  | 'violet'
+  | 'purple'
+  | 'fuchsia'
+  | 'pink'
+  | 'rose';
+
+export interface NodeTagSummary {
+  tag_id: number;
+  slug: string;
+  name: string;
+  color: string;
+  default_weight: number;
+  weight_override?: number | null;
+  effective_weight: number;
+}
+
+export interface NodeTagBindingInput {
+  slug: string;
+  weight_override?: number | null;
+}
+
+export interface NodeTagItem {
+  id: number;
+  name: string;
+  slug: string;
+  color: string;
+  description: string;
+  default_weight: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NodeTagInput {
+  name: string;
+  slug: string;
+  color: string;
+  description: string;
+  default_weight: number | null;
+}
+
+export type SmartDNSOverviewWindow = '1h' | '6h' | '24h' | '7d';
+
+export interface SmartDNSOverviewSeriesPoint {
+  timestamp: string;
+  qps: number;
+  latency_p50_ms: number;
+  latency_p95_ms: number;
+  latency_p99_ms: number;
+  cache_hit_ratio: number;
+  queries_total: number;
+  queries_error: number;
+}
+
+export interface SmartDNSOverview {
+  enabled: boolean;
+  delegation_domain: string;
+  total_instances: number;
+  online_instances: number;
+  total_qps: number;
+  avg_p50_ms: number;
+  avg_p95_ms: number;
+  avg_p99_ms: number;
+  avg_cache_hit_ratio: number;
+  active_policies: number;
+  managed_domains: number;
+  snapshot_version: number;
+  snapshot_etag: string;
+  window: SmartDNSOverviewWindow | string;
+  series: SmartDNSOverviewSeriesPoint[];
+}
+
+export interface SmartDNSSettings {
+  enabled: boolean;
+  delegation_domain: string;
+  ns_hosts: string[];
+  default_ttl: number;
+  snapshot_interval_seconds: number;
+  update_repo: string;
+  discovery_token: string;
+}
+
+export interface SmartDNSSettingsInput {
+  enabled?: boolean;
+  delegation_domain?: string;
+  ns_hosts?: string[];
+  default_ttl?: number;
+  snapshot_interval_seconds?: number;
+  update_repo?: string;
+}
+
+export interface SmartDNSDelegationVerifyResult {
+  delegation_domain: string;
+  configured_ns_hosts: string[];
+  observed_ns_records: string[];
+  matched_ns_hosts: string[];
+  missing_ns_hosts: string[];
+  verified: boolean;
+  checked_at: string;
+  error?: string;
+}
+
+export interface SmartDNSDiscoveryToken {
+  discovery_token: string;
+}
+
+export interface SmartDNSInstance {
+  id: number;
+  instance_id: string;
+  name: string;
+  mode: string;
+  public_addr: string;
+  listen_addr: string;
+  geo_name: string;
+  geo_latitude?: number | null;
+  geo_longitude?: number | null;
+  version: string;
+  status: string;
+  connected: boolean;
+  snapshot_version: number;
+  snapshot_etag: string;
+  qps: number;
+  p50_ms: number;
+  p95_ms: number;
+  p99_ms: number;
+  success_total: number;
+  error_total: number;
+  cache_hit_ratio: number;
+  cpu_usage_percent: number;
+  memory_usage_percent: number;
+  last_seen_at?: string | null;
+  last_error: string;
+  quarantined_at?: string | null;
+  quarantine_reason: string;
+  access_token?: string;
+  install_command?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SmartDNSInstanceInput {
+  name: string;
+  public_addr: string;
+  listen_addr: string;
+  geo_name: string;
+  geo_latitude?: number | null;
+  geo_longitude?: number | null;
+}
+
+export interface SmartDNSQuarantineInput {
+  reason: string;
+}
+
+export interface SmartDNSPolicyWeights {
+  latency: number;
+  load: number;
+  geo: number;
+}
+
+export interface SmartDNSPolicyFilters {
+  node_ids: string[];
+  countries: string[];
+  tags: string[];
+  network_groups: string[];
+}
+
+export interface SmartDNSFlowSwitchCase {
+  id: string;
+  label: string;
+  condition: string;
+}
+
+export interface SmartDNSFlowNodeData {
+  hit_policy?: string;
+  cases?: SmartDNSFlowSwitchCase[];
+  mode?: string;
+  weights?: SmartDNSPolicyWeights;
+  use_tag_weights?: boolean;
+  filters?: SmartDNSPolicyFilters;
+  max_answers?: number;
+  ttl?: number;
+}
+
+export interface SmartDNSFlowNode {
+  id: string;
+  type: 'input' | 'condition' | 'action' | 'output' | string;
+  label: string;
+  position: XYPosition;
+  data: SmartDNSFlowNodeData;
+}
+
+export interface SmartDNSFlowEdge {
+  id: string;
+  source: string;
+  source_handle?: string;
+  target: string;
+}
+
+export interface SmartDNSFlowGraph {
+  nodes: SmartDNSFlowNode[];
+  edges: SmartDNSFlowEdge[];
+}
+
+export interface SmartDNSPolicyConfig {
+  mode: string;
+  weights: SmartDNSPolicyWeights;
+  use_tag_weights: boolean;
+  filters: SmartDNSPolicyFilters;
+  max_answers?: number;
+  ttl?: number;
+  graph?: SmartDNSFlowGraph | null;
+}
+
+export interface SmartDNSPolicy {
+  id: number;
+  name: string;
+  description: string;
+  scope_type: 'all' | 'domains' | string;
+  scope_domains: string[];
+  strategy_type: 'smart' | 'load_balance' | 'custom_jdm' | string;
+  priority: number;
+  ttl: number;
+  max_answers: number;
+  enabled: boolean;
+  is_default: boolean;
+  fallback_strategy: string;
+  fallback_node_ids: string[];
+  config: SmartDNSPolicyConfig;
+  jdm_json: string;
+  revision: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SmartDNSPolicyInput {
+  name: string;
+  description: string;
+  scope_type: string;
+  scope_domains: string[];
+  strategy_type: string;
+  priority: number;
+  ttl: number;
+  max_answers: number;
+  enabled?: boolean;
+  is_default?: boolean;
+  fallback_strategy: string;
+  fallback_node_ids: string[];
+  config: SmartDNSPolicyConfig;
+  jdm_json: string;
+}
+
+export interface SmartDNSPolicyValidateInput {
+  strategy_type: string;
+  config: SmartDNSPolicyConfig;
+  jdm_json: string;
+}
+
+export interface SmartDNSPolicyValidateResult {
+  valid: boolean;
+  compiled_jdm: string;
+}
+
+export interface SmartDNSSimulateInput {
+  domain: string;
+  qtype: 'A' | 'AAAA' | string;
+  client_ip: string;
+  policy_id?: number;
+}
+
+export interface SmartDNSSimulatorClientContext {
+  client_ip: string;
+  client_prefix: string;
+  ip_family: string;
+  asn: number;
+  asn_name?: string;
+  country_iso: string;
+  region_code?: string;
+  city_name?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  geo_accuracy_km: number;
+  geo_source: string;
+  anycast_status?: string;
+}
+
+export interface SmartDNSSelectedAnswer {
+  node_id: string;
+  name: string;
+  ip: string;
+  score: number;
+}
+
+export interface SmartDNSCandidateTrace {
+  node_id: string;
+  name: string;
+  ip: string;
+  eligible: boolean;
+  overloaded: boolean;
+  selected: boolean;
+  exclusion_reason?: string;
+  source_tier?: string;
+  effective_rtt_ms: number;
+  loss_rate: number;
+  load_index: number;
+  latency_score: number;
+  load_score: number;
+  geo_score: number;
+  tag_multiplier: number;
+  final_score: number;
+}
+
+export interface SmartDNSSelectionResult {
+  policy_id: number;
+  policy_name: string;
+  mode: string;
+  ttl: number;
+  fallback_used: boolean;
+  fallback_reason?: string;
+  hysteresis_applied: boolean;
+  matched_nodes: string[];
+  matched_conditions: string[];
+  answers: SmartDNSSelectedAnswer[];
+  candidates: SmartDNSCandidateTrace[];
+}
+
+export interface SmartDNSSimulateResult {
+  domain: string;
+  qtype: string;
+  client: SmartDNSSimulatorClientContext;
+  selection: SmartDNSSelectionResult;
 }

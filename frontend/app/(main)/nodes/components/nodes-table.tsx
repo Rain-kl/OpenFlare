@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Eye, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -123,6 +124,27 @@ function NodeIdentity({ node }: { node: NodeItem }) {
         <p className='truncate text-xs text-muted-foreground' title={system}>
           {system}
         </p>
+      )}
+      {node.tags && node.tags.length > 0 && (
+        <div className='flex flex-wrap gap-1 pt-0.5'>
+          {node.tags.slice(0, 3).map((tag) => (
+            <Badge
+              key={tag.slug}
+              variant='outline'
+              className='px-1.5 py-0 text-[10px] font-normal'
+            >
+              {tag.name}
+            </Badge>
+          ))}
+          {node.tags.length > 3 && (
+            <Badge
+              variant='secondary'
+              className='px-1.5 py-0 text-[10px] font-normal'
+            >
+              +{node.tags.length - 3}
+            </Badge>
+          )}
+        </div>
       )}
     </div>
   );

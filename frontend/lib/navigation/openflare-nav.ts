@@ -3,6 +3,7 @@ import {
   FileText,
   Gauge,
   Globe,
+  Globe2,
   LayoutDashboard,
   Network,
   Radar,
@@ -86,12 +87,6 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
   items: [
     { titleKey: 'websites', url: '/websites', childUrls: ['/websites/detail'] },
     { titleKey: 'certificates', url: '/certificates' },
-    { titleKey: 'dnsAccounts', url: '/dns-accounts' },
-    {
-      titleKey: 'cloudflare',
-      url: '/cloudflare',
-      childUrls: ['/cloudflare/settings'],
-    },
     { titleKey: 'origins', url: '/origins', childUrls: ['/origins/detail'] },
     {
       titleKey: 'responses',
@@ -103,6 +98,26 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
         '/responses/offline/preview',
       ],
     },
+  ],
+};
+
+/** DNS 解析管理折叠组 */
+export const openflareDNSNavGroup: OpenFlareNavGroup = {
+  titleKey: 'dns',
+  icon: Globe2,
+  items: [
+    {
+      titleKey: 'dnsResolve',
+      url: '/cloudflare',
+      childUrls: ['/cloudflare/groups'],
+    },
+    { titleKey: 'dnsAccounts', url: '/dns-accounts' },
+    {
+      titleKey: 'dnsSettings',
+      url: '/dns/settings',
+      childUrls: ['/cloudflare/settings'],
+    },
+    { titleKey: 'smartDns', url: '/dns/smartdns' },
   ],
 };
 
@@ -129,6 +144,7 @@ export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
     childUrls: ['/proxy-routes/detail'],
   },
   { kind: 'group', ...openflareWebsiteNavGroup },
+  { kind: 'group', ...openflareDNSNavGroup },
   { kind: 'group', ...openflareSecurityNavGroup },
   {
     kind: 'item',
@@ -168,9 +184,15 @@ export const openflareNavItems: OpenFlareNavItem[] = openflareSidebarNav
 export const openflareWebsiteSubNav = [
   { titleKey: 'websites', url: '/websites' },
   { titleKey: 'certificates', url: '/certificates' },
-  { titleKey: 'dnsAccounts', url: '/dns-accounts' },
-  { titleKey: 'cloudflare', url: '/cloudflare' },
   { titleKey: 'responses', url: '/responses' },
+] as const;
+
+/** DNS 模块页内二级导航 */
+export const openflareDNSSubNav = [
+  { titleKey: 'dnsResolve', url: '/cloudflare' },
+  { titleKey: 'dnsAccounts', url: '/dns-accounts' },
+  { titleKey: 'dnsSettings', url: '/dns/settings' },
+  { titleKey: 'smartDns', url: '/dns/smartdns' },
 ] as const;
 
 const nonConsoleRoutePrefixes = [

@@ -21,6 +21,13 @@ sidebar: false
 
 ### ✨ 新功能
 
+- 新增 **SmartDNS Phase 2 智能权威解析系统**：
+  - 在控制面重构侧栏「DNS」分组（合并「DNS 解析」「DNS 账号」「连接设置」「SmartDNS」），原 `/cloudflare/settings` 页面自动重定向至 `/dns/settings`。
+  - 在「节点管理」中新增全局路由标签管理（`/api/v1/d/node-tags`）、单节点带宽/并发连接上限、容量基准权重与标签绑定配置。
+  - 上线 **SmartDNS 控制台（`/dns/smartdns`）**：提供集群 QPS/P50-P99/L1 缓存命中率监控看板、委派域名配置与公网 NS 委派验证、独立 Rust 实例注册与隔离管理、基于 `@xyflow/react` 的可视化 JDM 调度规则编辑器，以及支持 EDNS0 ECS 模拟的 4 阶段打分决策模拟器。
+  - 新增 **Cloudflare `smartdns` 指向模式**：指向分组支持选择 SmartDNS 策略并在委派域名下生成 CNAME 目标，成员记录强制保持仅 DNS 模式以确保访客真实子网直达 SmartDNS 权威节点，策略与路由变更自动通过 WebSocket（`dns:snapshot_changed`）与 ETag HTTP 快照热分发至解析节点。
+  - 新增独立高性能 Rust 权威 DNS 服务端 `dns/`（`openflare-dns`），集成 `hickory-server`、`zen-engine`、`SO_REUSEPORT` 多队列监听、`moka` 分片 L1 缓存与 RRL 限流、`last-snapshot.bin` 离线灾备，以及控制面内嵌 `embedded_go` 兜底引擎，并通过 `qualityapi` 隔离契约消费网络质量预测数据。
+
 - 新增 **网络情报与网络工具** 基础设施（为后续智能 DNS 调度提供测量与拓扑底座）：
   - 在控制面「网络工具」分组上线 **多点 Ping / TCPing**、**多点路由追踪（Traceroute）**、**ASN 与 IP 情报查询**（含 `Origins → Upstreams → Tier 1 ISPs` 上游路由接线拓扑图）、**DNS 与 EDNS0 ECS 诊断查询** 以及 **网络质量矩阵与情报数据集状态** 五个控制台页面。
   - Edge 边缘端将主动网络探测隔离至独立子进程 `openflare-edge probe-worker` 执行（集成 `trippy-core` 多轮路由追踪、复用 `openflare-probe` 批量 Ping/TCPing 与 EDNS0 ECS DNS 探针，并与反向代理主线程及进程崩溃完全隔离）；同步在 `Dockerfile.edge`（`cap_net_raw+p`）、`docker-compose.yaml`、控制台 Docker 部署命令（`--cap-add=NET_RAW`）、`install-openflare-edge.sh`/`update-openflare-edge.sh` 与探测子进程能力提升链路中完整保障 `CAP_NET_RAW` 权限。

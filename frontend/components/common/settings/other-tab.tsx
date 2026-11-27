@@ -21,6 +21,7 @@ import {
   Route,
   Server,
   Globe,
+  Globe2,
   ScrollText,
   Gauge,
 } from 'lucide-react';
@@ -103,6 +104,24 @@ const MENU_GROUPS: MenuGroup[] = [
         labelKey: 'dnsAccounts',
         descKey: 'descDnsAccounts',
         icon: Settings,
+      },
+      {
+        path: '/cloudflare',
+        labelKey: 'dnsResolve',
+        descKey: 'descDnsResolve',
+        icon: Globe2,
+      },
+      {
+        path: '/dns/settings',
+        labelKey: 'dnsSettings',
+        descKey: 'descDnsSettings',
+        icon: SlidersHorizontal,
+      },
+      {
+        path: '/dns/smartdns',
+        labelKey: 'smartDns',
+        descKey: 'descSmartDns',
+        icon: Globe2,
       },
       {
         path: '/origins',

@@ -43,10 +43,15 @@ import {
   CloudflareService,
   cloudflareQueryKey,
   NodeService,
+  SmartDNSService,
+  smartdnsQueryKey,
   type CloudflareGroup,
   type CloudflareGroupPayload,
+  type SmartDNSPolicy,
 } from '@/lib/services/openflare';
 import { getErrorMessage } from '../websites/components/website-utils';
+
+const emptySmartDNSPolicies: SmartDNSPolicy[] = [];
 
 export default function CloudflarePage() {
   const t = useTranslations('cloudflare');
@@ -67,6 +72,11 @@ export default function CloudflarePage() {
   const nodesQuery = useQuery({
     queryKey: ['openflare', 'nodes'],
     queryFn: () => NodeService.listNodes(),
+  });
+  const smartdnsPoliciesQuery = useQuery({
+    queryKey: [...smartdnsQueryKey, 'policies'],
+    queryFn: () => SmartDNSService.listPolicies(),
+    enabled: createOpen,
   });
 
   const invalidate = async () =>
@@ -114,7 +124,7 @@ export default function CloudflarePage() {
         </div>
         <div className='flex items-center gap-2'>
           <Button asChild variant='outline' size='sm'>
-            <Link href='/cloudflare/settings'>
+            <Link href='/dns/settings'>
               <Settings data-icon='inline-start' />
               {t('connectionSettings')}
             </Link>
@@ -143,7 +153,7 @@ export default function CloudflarePage() {
           <AlertDescription className='flex flex-col items-start gap-3'>
             <span>{t('notReadyDesc')}</span>
             <Button asChild size='sm'>
-              <Link href='/cloudflare/settings'>{t('configure')}</Link>
+              <Link href='/dns/settings'>{t('configure')}</Link>
             </Button>
           </AlertDescription>
         </Alert>
@@ -182,12 +192,22 @@ export default function CloudflarePage() {
                     <div>
                       <CardTitle className='text-base'>{group.name}</CardTitle>
                       <CardDescription>
-                        {group.target_mode === 'custom'
-                          ? t('customTargetSummary', {
-                              type: group.record_type,
-                              content: group.record_content,
+                        {group.target_mode === 'smartdns'
+                          ? t('smartdnsTargetSummary', {
+                              policy:
+                                group.smartdns_policy_name ||
+                                `#${group.smartdns_policy_id ?? '-'}`,
+                              host:
+                                group.smartdns_target_host ||
+                                group.record_content ||
+                                t('smartdnsAutoHost'),
                             })
-                          : `${group.active_node.name} · ${group.active_node.ip}`}
+                          : group.target_mode === 'custom'
+                            ? t('customTargetSummary', {
+                                type: group.record_type,
+                                content: group.record_content,
+                              })
+                            : `${group.active_node.name} · ${group.active_node.ip}`}
                       </CardDescription>
                     </div>
                     <Badge variant={group.enabled ? 'default' : 'secondary'}>
@@ -197,12 +217,16 @@ export default function CloudflarePage() {
                 </CardHeader>
                 <CardContent className='flex flex-col gap-4'>
                   <p className='text-sm text-muted-foreground'>
-                    {t('memberSummary', {
-                      count: group.member_count,
-                      proxy: group.default_proxied
-                        ? t('proxyOn')
-                        : t('proxyOff'),
-                    })}
+                    {group.target_mode === 'smartdns'
+                      ? t('smartdnsDnsOnlySummary', {
+                          count: group.member_count,
+                        })
+                      : t('memberSummary', {
+                          count: group.member_count,
+                          proxy: group.default_proxied
+                            ? t('proxyOn')
+                            : t('proxyOff'),
+                        })}
                   </p>
                   <div className='flex flex-wrap gap-2'>
                     <Button asChild size='sm'>
@@ -241,6 +265,7 @@ export default function CloudflarePage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         nodes={nodesQuery.data ?? []}
+        smartdnsPolicies={smartdnsPoliciesQuery.data ?? emptySmartDNSPolicies}
         pending={createMutation.isPending}
         onSubmit={(payload) => createMutation.mutate(payload)}
       />

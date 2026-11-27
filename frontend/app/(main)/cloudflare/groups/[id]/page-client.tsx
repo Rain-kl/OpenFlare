@@ -53,9 +53,14 @@ import {
   CloudflareService,
   cloudflareQueryKey,
   NodeService,
+  SmartDNSService,
+  smartdnsQueryKey,
   type CloudflareGroupPayload,
   type CloudflareMember,
+  type SmartDNSPolicy,
 } from '@/lib/services/openflare';
+
+const emptySmartDNSPolicies: SmartDNSPolicy[] = [];
 import { getErrorMessage } from '../../../websites/components/website-utils';
 import { GroupDialog } from '../../components/group-dialog';
 import { MemberAddDialog } from '../../components/member-add-dialog';
@@ -105,6 +110,11 @@ export function CloudflareGroupDetailPageClient() {
   const groupsQuery = useQuery({
     queryKey: [...cloudflareQueryKey, 'groups'],
     queryFn: () => CloudflareService.listGroups(),
+  });
+  const smartdnsPoliciesQuery = useQuery({
+    queryKey: [...smartdnsQueryKey, 'policies'],
+    queryFn: () => SmartDNSService.listPolicies(),
+    enabled: editOpen,
   });
   const invalidate = async () =>
     queryClient.invalidateQueries({ queryKey: cloudflareQueryKey });
@@ -337,15 +347,25 @@ export function CloudflareGroupDetailPageClient() {
         <CardHeader>
           <CardTitle className='text-base'>{t('currentPoint')}</CardTitle>
           <CardDescription>
-            {group.target_mode === 'custom'
-              ? t('customTargetSummary', {
-                  type: group.record_type,
-                  content: group.record_content,
+            {group.target_mode === 'smartdns'
+              ? t('smartdnsTargetSummary', {
+                  policy:
+                    group.smartdns_policy_name ||
+                    `#${group.smartdns_policy_id ?? '-'}`,
+                  host:
+                    group.smartdns_target_host ||
+                    group.record_content ||
+                    t('smartdnsAutoHost'),
                 })
-              : t('activeNode', {
-                  name: group.active_node.name,
-                  ip: group.active_node.ip,
-                })}
+              : group.target_mode === 'custom'
+                ? t('customTargetSummary', {
+                    type: group.record_type,
+                    content: group.record_content,
+                  })
+                : t('activeNode', {
+                    name: group.active_node.name,
+                    ip: group.active_node.ip,
+                  })}
           </CardDescription>
         </CardHeader>
         <CardContent className='flex flex-wrap gap-2'>
@@ -366,9 +386,11 @@ export function CloudflareGroupDetailPageClient() {
           ) : null}
           <Badge variant='outline'>
             {t(
-              group.target_mode === 'custom'
-                ? 'customTargetMode'
-                : 'nodeTargetMode',
+              group.target_mode === 'smartdns'
+                ? 'smartdnsTargetMode'
+                : group.target_mode === 'custom'
+                  ? 'customTargetMode'
+                  : 'nodeTargetMode',
             )}
           </Badge>
           <Badge variant='outline'>
@@ -390,19 +412,21 @@ export function CloudflareGroupDetailPageClient() {
               <Badge variant='secondary' className='text-xs'>
                 {t('selectedCount', { count: selectedMembers.length })}
               </Badge>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={() =>
-                  batchEnableProxyMutation.mutate(
-                    selectedMembers.map((member) => member.id),
-                  )
-                }
-                disabled={batchEnableProxyMutation.isPending}
-              >
-                <CloudCog data-icon='inline-start' />
-                {t('batchEnableProxy')}
-              </Button>
+              {group.target_mode !== 'smartdns' ? (
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() =>
+                    batchEnableProxyMutation.mutate(
+                      selectedMembers.map((member) => member.id),
+                    )
+                  }
+                  disabled={batchEnableProxyMutation.isPending}
+                >
+                  <CloudCog data-icon='inline-start' />
+                  {t('batchEnableProxy')}
+                </Button>
+              ) : null}
               <Button
                 variant='outline'
                 size='sm'
@@ -519,7 +543,17 @@ export function CloudflareGroupDetailPageClient() {
                     </TableCell>
                     <TableCell>
                       <Switch
-                        checked={member.proxied}
+                        checked={
+                          group.target_mode === 'smartdns'
+                            ? false
+                            : member.proxied
+                        }
+                        disabled={group.target_mode === 'smartdns'}
+                        title={
+                          group.target_mode === 'smartdns'
+                            ? t('smartdnsProxyLocked')
+                            : undefined
+                        }
                         onCheckedChange={(proxied) =>
                           proxiedMutation.mutate({
                             memberID: member.id,
@@ -572,6 +606,7 @@ export function CloudflareGroupDetailPageClient() {
         onOpenChange={setEditOpen}
         group={group}
         nodes={nodesQuery.data ?? []}
+        smartdnsPolicies={smartdnsPoliciesQuery.data ?? emptySmartDNSPolicies}
         pending={updateGroupMutation.isPending}
         onSubmit={(payload) => updateGroupMutation.mutate(payload)}
       />
@@ -579,7 +614,10 @@ export function CloudflareGroupDetailPageClient() {
         open={addOpen}
         onOpenChange={setAddOpen}
         domains={domainsQuery.data ?? []}
-        defaultProxied={group.default_proxied}
+        defaultProxied={
+          group.target_mode === 'smartdns' ? false : group.default_proxied
+        }
+        forceDnsOnly={group.target_mode === 'smartdns'}
         pending={addMutation.isPending}
         onSubmit={(domainIDs, proxied) =>
           addMutation.mutate({ domainIDs, proxied })

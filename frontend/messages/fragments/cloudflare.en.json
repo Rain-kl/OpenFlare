@@ -7,9 +7,28 @@
       "ttlAuto": "Auto",
       "ttlManual": "Manual",
       "ttlSeconds": "TTL (seconds)",
-      "ttlHint": "Changes apply to all DNS-only (gray-cloud) members in this group; proxied (orange-cloud) members always use Auto (currently about 300 seconds).",
-      "ttlError": "Enter a whole number of seconds between 60 and 86400."
+      "ttlHint": "Changes apply to all DNS-only members in this group; Cloudflare-proxied members always use Auto TTL (currently about 300 seconds).",
+      "ttlError": "Enter a whole number of seconds between 60 and 86400.",
+      "smartdnsTarget": "SmartDNS",
+      "smartdnsPolicy": "SmartDNS Policy",
+      "smartdnsPolicyPlaceholder": "Select a SmartDNS policy",
+      "smartdnsNoPolicies": "No SmartDNS policies exist yet. Create one under DNS -> SmartDNS first.",
+      "smartdnsTargetHost": "CNAME Target Hostname",
+      "smartdnsHostPlaceholder": "Leave blank to auto-generate under the delegation domain",
+      "smartdnsHostHint": "Optional. Enter a target hostname or leave blank to auto-assign; members sync as DNS-only CNAME records.",
+      "smartdnsProxyDisabledHint": "SmartDNS pointing groups use DNS-only CNAME resolution; Cloudflare proxy cannot be enabled."
     },
+    "memberDialog": {
+      "smartdnsDnsOnlyHint": "This group uses SmartDNS resolution; Cloudflare proxy is disabled for all members."
+    },
+    "settings": {
+      "redirecting": "Redirecting to DNS connection settings..."
+    },
+    "smartdnsTargetSummary": "SmartDNS policy “{policy}” → CNAME {host}",
+    "smartdnsAutoHost": "Auto-assigned host",
+    "smartdnsDnsOnlySummary": "{count} members · DNS-only (SmartDNS CNAME)",
+    "smartdnsTargetMode": "SmartDNS",
+    "smartdnsProxyLocked": "Cloudflare proxy is disabled for SmartDNS groups",
     "move": "Move",
     "batchMove": "Batch Move",
     "batchRemove": "Batch Delete",

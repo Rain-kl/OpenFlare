@@ -7,9 +7,28 @@
       "ttlAuto": "自动",
       "ttlManual": "手动",
       "ttlSeconds": "TTL（秒）",
-      "ttlHint": "修改将应用于分组内所有仅 DNS（灰云）成员；开启代理（橙云）的成员始终自动。自动模式下当前约为 300 秒。",
-      "ttlError": "请输入 60 至 86400 之间的整数秒数。"
+      "ttlHint": "修改将应用于分组内所有仅 DNS 成员；开启 Cloudflare 代理的成员始终自动。自动模式下当前约为 300 秒。",
+      "ttlError": "请输入 60 至 86400 之间的整数秒数。",
+      "smartdnsTarget": "SmartDNS 调度",
+      "smartdnsPolicy": "SmartDNS 调度策略",
+      "smartdnsPolicyPlaceholder": "选择 SmartDNS 调度策略",
+      "smartdnsNoPolicies": "尚未配置 SmartDNS 调度策略，请先在「DNS → SmartDNS」中创建。",
+      "smartdnsTargetHost": "CNAME 目标主机名",
+      "smartdnsHostPlaceholder": "留空将自动在委派域名下生成子域",
+      "smartdnsHostHint": "可选。填写合法子域名或留空由系统自动生成；成员将以仅 DNS 的 CNAME 方式指向该主机。",
+      "smartdnsProxyDisabledHint": "SmartDNS 调度分组必须以仅 DNS 的 CNAME 记录解析，不支持开启 Cloudflare 代理。"
     },
+    "memberDialog": {
+      "smartdnsDnsOnlyHint": "当前分组使用 SmartDNS 调度模式，域名成员将强制关闭 Cloudflare 代理。"
+    },
+    "settings": {
+      "redirecting": "正在前往 DNS → 连接设置..."
+    },
+    "smartdnsTargetSummary": "SmartDNS 策略「{policy}」→ CNAME {host}",
+    "smartdnsAutoHost": "自动生成目标主机",
+    "smartdnsDnsOnlySummary": "成员 {count} 个 · 仅 DNS（SmartDNS CNAME 模式）",
+    "smartdnsTargetMode": "SmartDNS 调度",
+    "smartdnsProxyLocked": "SmartDNS 调度分组强制关闭 Cloudflare 代理",
     "move": "移动",
     "batchMove": "批量移动",
     "batchRemove": "批量删除",

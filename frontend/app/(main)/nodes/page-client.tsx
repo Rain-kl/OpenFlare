@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FileText, Plus, Server } from 'lucide-react';
+import { FileText, Plus, Server, Tags } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
@@ -32,6 +32,7 @@ import type {
 import { NodeService } from '@/lib/services/openflare';
 
 import { NodeEditorDialog } from './components/node-editor-dialog';
+import { NodeTagsDialog } from './components/node-tags-dialog';
 import { NodesTable, type NodeListView } from './components/nodes-table';
 import {
   NodeListControls,
@@ -51,6 +52,7 @@ function NodesPage() {
   const tc = useTranslations('common');
   const queryClient = useQueryClient();
   const [editorOpen, setEditorOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<NodeItem | null>(null);
   const [page, setPage] = useState(1);
   const [view, setView] = useState<NodeListView>('list');
@@ -155,6 +157,15 @@ function NodesPage() {
           </h1>
         </div>
         <div className='flex items-center gap-2'>
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={() => setTagsOpen(true)}
+          >
+            <Tags data-icon='inline-start' />
+            {t('manageTags')}
+          </Button>
           <Button variant='outline' size='icon-sm' asChild>
             <Link
               href='/apply-logs'
@@ -261,6 +272,8 @@ function NodesPage() {
           await createMutation.mutateAsync(payload);
         }}
       />
+
+      <NodeTagsDialog open={tagsOpen} onOpenChange={setTagsOpen} />
 
       <AlertDialog
         open={Boolean(deleteTarget)}

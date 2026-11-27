@@ -30,6 +30,9 @@
       "websites": "Domains",
       "certificates": "TLS Certificates",
       "dnsAccounts": "DNS Accounts",
+      "dnsResolve": "DNS Resolution",
+      "dnsSettings": "Connection Settings",
+      "smartDns": "SmartDNS",
       "cloudflare": "Cloudflare",
       "origins": "Origins",
       "responses": "Response Pages",
@@ -49,7 +52,8 @@
       "nodes": "Nodes",
       "networkTools": "Network Tools",
       "security": "Security",
-      "websites": "Websites"
+      "websites": "Websites",
+      "dns": "DNS"
     },
     "user": {
       "adminRole": "Administrator",
@@ -117,6 +121,9 @@
         "websitesDesc": "Manage hosted domains, certificate bindings, and listeners",
         "certificatesDesc": "Issue and manage SSL/TLS certificates with auto-renewal",
         "dnsAccountsDesc": "Configure DNS provider credentials for certificate issuance and records",
+        "dnsResolveDesc": "Manage Cloudflare DNS pointing groups for edge nodes and SmartDNS CNAMEs",
+        "dnsSettingsDesc": "Configure Cloudflare credentials and verify connection readiness",
+        "smartDnsDesc": "Manage SmartDNS delegation, authoritative instances, JDM flows, and decision simulator",
         "originsDesc": "Manage reverse-proxy backends and load-balancing groups",
         "responsesDesc": "Configure origin error pages and offline fallback contact pages",
         "wafDesc": "Configure Web Application Firewall rules to block malicious requests",

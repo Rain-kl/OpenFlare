@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +21,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import type { NodeItem, NodeMutationPayload } from '@/lib/services/openflare';
+import type {
+  NodeItem,
+  NodeMutationPayload,
+  NodeTagBindingInput,
+} from '@/lib/services/openflare';
+import { NodeTagService, nodeTagQueryKey } from '@/lib/services/openflare';
 
 function buildNodeSchema(t: (key: string) => string) {
   return z
@@ -29,6 +37,9 @@ function buildNodeSchema(t: (key: string) => string) {
       ip_manual_override: z.boolean(),
       auto_update_enabled: z.boolean(),
       network_group: z.string().max(64),
+      capacity_bandwidth_mbps: z.string(),
+      capacity_connections: z.string(),
+      capacity_weight: z.string(),
       geo_manual_override: z.boolean(),
       geo_name: z.string(),
       geo_latitude: z.string(),
@@ -54,6 +65,9 @@ const defaultForm: NodeFormValues = {
   ip_manual_override: false,
   auto_update_enabled: false,
   network_group: '',
+  capacity_bandwidth_mbps: '0',
+  capacity_connections: '0',
+  capacity_weight: '100',
   geo_manual_override: false,
   geo_name: '',
   geo_latitude: '',
@@ -70,6 +84,9 @@ function buildFormValues(node?: NodeItem | null): NodeFormValues {
     ip_manual_override: node.ip_manual_override,
     auto_update_enabled: node.auto_update_enabled,
     network_group: node.network_group ?? '',
+    capacity_bandwidth_mbps: String(node.capacity_bandwidth_mbps ?? 0),
+    capacity_connections: String(node.capacity_connections ?? 0),
+    capacity_weight: String(node.capacity_weight ?? 100),
     geo_manual_override: node.geo_manual_override,
     geo_name: node.geo_name,
     geo_latitude:
@@ -83,7 +100,26 @@ function buildFormValues(node?: NodeItem | null): NodeFormValues {
   };
 }
 
-function toPayload(form: NodeFormValues): NodeMutationPayload {
+function parseNonNegInt(raw: string, fallback: number): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : fallback;
+}
+
+function toPayload(
+  form: NodeFormValues,
+  tagState: Record<string, string | undefined>,
+): NodeMutationPayload {
+  const tags: NodeTagBindingInput[] = Object.entries(tagState)
+    .filter(([, override]) => override !== undefined)
+    .map(([slug, override]) => {
+      const trimmed = (override ?? '').trim();
+      if (!trimmed) return { slug };
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) && parsed > 0
+        ? { slug, weight_override: parsed }
+        : { slug };
+    });
+
   return {
     node_type: form.node_type,
     name: form.name.trim(),
@@ -91,6 +127,10 @@ function toPayload(form: NodeFormValues): NodeMutationPayload {
     ip_manual_override: form.ip_manual_override,
     auto_update_enabled: form.auto_update_enabled,
     network_group: form.network_group.trim().toLowerCase(),
+    capacity_bandwidth_mbps: parseNonNegInt(form.capacity_bandwidth_mbps, 0),
+    capacity_connections: parseNonNegInt(form.capacity_connections, 0),
+    capacity_weight: parseNonNegInt(form.capacity_weight, 100),
+    tags,
     geo_manual_override: form.geo_manual_override,
     geo_name: form.geo_manual_override ? form.geo_name.trim() : '',
     geo_latitude:
@@ -119,27 +159,44 @@ export function NodeEditorDialog({
 }) {
   const t = useTranslations('nodes');
   const tc = useTranslations('common');
+  const nodeSchema = buildNodeSchema(t);
   const form = useForm<NodeFormValues>({
-    resolver: zodResolver(buildNodeSchema(t)),
-    defaultValues: defaultForm,
+    resolver: zodResolver(nodeSchema),
+    defaultValues: buildFormValues(node),
+  });
+  const [tagState, setTagState] = useState<Record<string, string | undefined>>(
+    {},
+  );
+
+  const tagsQuery = useQuery({
+    queryKey: nodeTagQueryKey,
+    queryFn: () => NodeTagService.list(),
+    enabled: open,
   });
 
   useEffect(() => {
-    if (open) {
-      form.reset(buildFormValues(node));
+    if (!open) return;
+    form.reset(buildFormValues(node));
+    const initialTags: Record<string, string | undefined> = {};
+    for (const item of node?.tags ?? []) {
+      initialTags[item.slug] =
+        item.weight_override !== undefined && item.weight_override !== null
+          ? String(item.weight_override)
+          : '';
     }
-  }, [form, open, node]);
+    setTagState(initialTags);
+  }, [form, node, open]);
 
   const ipManualOverride = form.watch('ip_manual_override');
   const geoManualOverride = form.watch('geo_manual_override');
 
-  const handleSubmit = form.handleSubmit(async (values) => {
-    await onSubmit(toPayload(values));
-  });
+  const submitForm = async (values: NodeFormValues) => {
+    await onSubmit(toPayload(values, tagState));
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className='sm:max-w-lg'>
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <DialogContent className='max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>
             {node ? t('editor.editTitle') : t('editor.createTitle')}
@@ -148,8 +205,9 @@ export function NodeEditorDialog({
         </DialogHeader>
 
         <form
-          onSubmit={(event) => void handleSubmit(event)}
           className='space-y-4'
+          onSubmit={form.handleSubmit(submitForm)}
+          noValidate
         >
           <div className='space-y-2'>
             <Label htmlFor='node-name'>{t('editor.name')}</Label>
@@ -191,6 +249,106 @@ export function NodeEditorDialog({
             <p className='text-xs text-muted-foreground'>
               {t('editor.networkGroupDesc')}
             </p>
+          </div>
+
+          <div className='grid gap-3 sm:grid-cols-3'>
+            <div className='space-y-1.5'>
+              <Label htmlFor='node-cap-bw'>{t('editor.capBandwidth')}</Label>
+              <Input
+                id='node-cap-bw'
+                type='number'
+                min={0}
+                step={100}
+                {...form.register('capacity_bandwidth_mbps')}
+              />
+            </div>
+            <div className='space-y-1.5'>
+              <Label htmlFor='node-cap-conn'>{t('editor.capConns')}</Label>
+              <Input
+                id='node-cap-conn'
+                type='number'
+                min={0}
+                step={1000}
+                {...form.register('capacity_connections')}
+              />
+            </div>
+            <div className='space-y-1.5'>
+              <Label htmlFor='node-cap-weight'>{t('editor.capWeight')}</Label>
+              <Input
+                id='node-cap-weight'
+                type='number'
+                min={0}
+                step={10}
+                {...form.register('capacity_weight')}
+              />
+            </div>
+          </div>
+
+          <div className='space-y-2 rounded-lg border border-dashed p-3'>
+            <div>
+              <p className='text-sm font-medium'>{t('editor.routingTags')}</p>
+              <p className='text-xs text-muted-foreground'>
+                {t('editor.routingTagsDesc')}
+              </p>
+            </div>
+            {(tagsQuery.data ?? []).length === 0 ? (
+              <p className='text-xs text-muted-foreground'>
+                {t('editor.noRoutingTags')}
+              </p>
+            ) : (
+              <div className='space-y-2'>
+                {(tagsQuery.data ?? []).map((tag) => {
+                  const selected = tagState[tag.slug] !== undefined;
+                  return (
+                    <div
+                      key={tag.id}
+                      className='flex items-center justify-between gap-2 rounded-md border border-dashed px-2.5 py-1.5'
+                    >
+                      <label className='flex cursor-pointer items-center gap-2 text-sm'>
+                        <Checkbox
+                          checked={selected}
+                          onCheckedChange={(checked) => {
+                            setTagState((prev) => {
+                              const next = { ...prev };
+                              if (checked) {
+                                next[tag.slug] = prev[tag.slug] ?? '';
+                              } else {
+                                delete next[tag.slug];
+                              }
+                              return next;
+                            });
+                          }}
+                        />
+                        <span>{tag.name}</span>
+                        <Badge
+                          variant='outline'
+                          className='font-mono text-[10px]'
+                        >
+                          {tag.slug}
+                        </Badge>
+                      </label>
+                      {selected ? (
+                        <Input
+                          type='number'
+                          step='0.1'
+                          min='0.01'
+                          max='100'
+                          className='h-7 w-28 text-xs'
+                          placeholder={String(tag.default_weight)}
+                          value={tagState[tag.slug] ?? ''}
+                          onChange={(e) =>
+                            setTagState((prev) => ({
+                              ...prev,
+                              [tag.slug]: e.target.value,
+                            }))
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className='flex items-center justify-between rounded-lg border px-3 py-2'>

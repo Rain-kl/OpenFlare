@@ -1,6 +1,8 @@
 export { OpenFlareBaseService } from './base.service';
 
 export { NodeService } from './node.service';
+export { NodeTagService, nodeTagQueryKey } from './node-tag.service';
+export { SmartDNSService, smartdnsQueryKey } from './smartdns.service';
 export { NetworkToolsService } from './network-tools.service';
 export { PingService } from './ping.service';
 export { ExecService } from './exec.service';
@@ -245,6 +247,39 @@ export type {
   NetToolsTracerouteProtocol,
   NetToolsTracerouteResult,
   NetToolsTriggerSyncResponse,
+  NodeTagBindingInput,
+  NodeTagColor,
+  NodeTagInput,
+  NodeTagItem,
+  NodeTagSummary,
+  SmartDNSCandidateTrace,
+  SmartDNSDelegationVerifyResult,
+  SmartDNSDiscoveryToken,
+  SmartDNSFlowEdge,
+  SmartDNSFlowGraph,
+  SmartDNSFlowNode,
+  SmartDNSFlowNodeData,
+  SmartDNSFlowSwitchCase,
+  SmartDNSInstance,
+  SmartDNSInstanceInput,
+  SmartDNSOverview,
+  SmartDNSOverviewSeriesPoint,
+  SmartDNSOverviewWindow,
+  SmartDNSPolicy,
+  SmartDNSPolicyConfig,
+  SmartDNSPolicyFilters,
+  SmartDNSPolicyInput,
+  SmartDNSPolicyValidateInput,
+  SmartDNSPolicyValidateResult,
+  SmartDNSPolicyWeights,
+  SmartDNSQuarantineInput,
+  SmartDNSSelectedAnswer,
+  SmartDNSSelectionResult,
+  SmartDNSSettings,
+  SmartDNSSettingsInput,
+  SmartDNSSimulateInput,
+  SmartDNSSimulateResult,
+  SmartDNSSimulatorClientContext,
 } from './types';
 
 import { AccessLogService } from './access-log.service';
@@ -253,6 +288,8 @@ import { DashboardService } from './dashboard.service';
 import { DnsAccountService } from './dns-account.service';
 import { NetworkToolsService } from './network-tools.service';
 import { NodeService } from './node.service';
+import { NodeTagService } from './node-tag.service';
+import { SmartDNSService } from './smartdns.service';
 import { PingService } from './ping.service';
 import { ExecService } from './exec.service';
 import { TunnelService } from './tunnel.service';
@@ -288,6 +325,8 @@ export const openflareServices = {
   uptimeKuma: UptimeKumaService,
   status: StatusService,
   cloudflare: CloudflareService,
+  nodeTag: NodeTagService,
+  smartDns: SmartDNSService,
 } as const;
 
 export * from './performance';

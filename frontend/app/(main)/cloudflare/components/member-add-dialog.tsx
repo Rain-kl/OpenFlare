@@ -63,6 +63,7 @@ export function MemberAddDialog({
   onOpenChange,
   domains,
   defaultProxied,
+  forceDnsOnly = false,
   pending,
   onSubmit,
 }: {
@@ -70,6 +71,7 @@ export function MemberAddDialog({
   onOpenChange: (open: boolean) => void;
   domains: CloudflareAvailableDomain[];
   defaultProxied: boolean;
+  forceDnsOnly?: boolean;
   pending: boolean;
   onSubmit: (zoneDomainIDs: number[], proxied: boolean) => void;
 }) {
@@ -353,14 +355,23 @@ export function MemberAddDialog({
               )}
             </div>
           </Field>
-          <Field orientation='horizontal'>
-            <FieldLabel htmlFor='cf-member-proxied'>{t('proxied')}</FieldLabel>
-            <Switch
-              id='cf-member-proxied'
-              checked={proxied}
-              disabled={pending}
-              onCheckedChange={setProxied}
-            />
+          <Field>
+            <div className='flex items-center justify-between gap-2'>
+              <FieldLabel htmlFor='cf-member-proxied'>
+                {t('proxied')}
+              </FieldLabel>
+              <Switch
+                id='cf-member-proxied'
+                checked={forceDnsOnly ? false : proxied}
+                disabled={pending || forceDnsOnly}
+                onCheckedChange={setProxied}
+              />
+            </div>
+            {forceDnsOnly ? (
+              <p className='text-xs text-muted-foreground'>
+                {t('smartdnsDnsOnlyHint')}
+              </p>
+            ) : null}
           </Field>
         </FieldGroup>
         <DialogFooter>
@@ -376,7 +387,7 @@ export function MemberAddDialog({
             onClick={() =>
               onSubmit(
                 [...selectedIDs].sort((a, b) => a - b),
-                proxied,
+                forceDnsOnly ? false : proxied,
               )
             }
           >

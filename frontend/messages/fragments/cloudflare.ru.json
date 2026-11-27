@@ -7,9 +7,28 @@
       "ttlAuto": "Авто",
       "ttlManual": "Вручную",
       "ttlSeconds": "TTL (секунды)",
-      "ttlHint": "Изменения применяются ко всем участникам группы в режиме «только DNS» (серое облако); для проксируемых записей (оранжевое облако) TTL всегда автоматический (сейчас около 300 секунд).",
-      "ttlError": "Введите целое число секунд от 60 до 86400."
+      "ttlHint": "Изменения применяются ко всем участникам в режиме «только DNS»; для проксируемых через Cloudflare записей TTL всегда автоматический (около 300 секунд).",
+      "ttlError": "Введите целое число секунд от 60 до 86400.",
+      "smartdnsTarget": "SmartDNS",
+      "smartdnsPolicy": "Политика SmartDNS",
+      "smartdnsPolicyPlaceholder": "Выберите политику SmartDNS",
+      "smartdnsNoPolicies": "Политики SmartDNS ещё не созданы. Сначала создайте политику в разделе DNS -> SmartDNS.",
+      "smartdnsTargetHost": "Целевое имя CNAME",
+      "smartdnsHostPlaceholder": "Оставьте пустым для автогенерации в домене делегирования",
+      "smartdnsHostHint": "Необязательно. Укажите целевое имя или оставьте пустым для автоматического назначения; участники используют CNAME только для DNS.",
+      "smartdnsProxyDisabledHint": "Группы SmartDNS используют CNAME только для DNS; проксирование Cloudflare отключено."
     },
+    "memberDialog": {
+      "smartdnsDnsOnlyHint": "Эта группа использует маршрутизацию SmartDNS; проксирование Cloudflare отключено."
+    },
+    "settings": {
+      "redirecting": "Перенаправление к настройкам подключения DNS..."
+    },
+    "smartdnsTargetSummary": "Политика SmartDNS «{policy}» → CNAME {host}",
+    "smartdnsAutoHost": "Автоматический хост",
+    "smartdnsDnsOnlySummary": "Участников: {count} · только DNS (SmartDNS CNAME)",
+    "smartdnsTargetMode": "SmartDNS",
+    "smartdnsProxyLocked": "Проксирование Cloudflare отключено для групп SmartDNS",
     "move": "Переместить",
     "batchMove": "Пакетное перемещение",
     "batchRemove": "Пакетное удаление",

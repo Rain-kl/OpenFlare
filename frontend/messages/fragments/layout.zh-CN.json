@@ -29,7 +29,10 @@
       "proxyRoutes": "规则管理",
       "websites": "域名列表",
       "certificates": "TLS证书",
-      "dnsAccounts": "DNS账号",
+      "dnsAccounts": "DNS 账号",
+      "dnsResolve": "DNS 解析",
+      "dnsSettings": "连接设置",
+      "smartDns": "SmartDNS",
       "cloudflare": "Cloudflare",
       "origins": "源站地址",
       "responses": "响应页面",
@@ -49,7 +52,8 @@
       "nodes": "节点管理",
       "networkTools": "网络工具",
       "security": "安全性",
-      "websites": "网站管理"
+      "websites": "网站管理",
+      "dns": "DNS 管理"
     },
     "user": {
       "adminRole": "系统管理员",
@@ -117,6 +121,9 @@
         "websitesDesc": "管理托管域名及证书绑定与监听配置",
         "certificatesDesc": "申请与管理 SSL/TLS 证书，支持自动续期",
         "dnsAccountsDesc": "配置 DNS 服务商 API 凭证以自动申请证书及管理解析",
+        "dnsResolveDesc": "管理面向 Cloudflare 的边缘节点指向、自定义记录与 SmartDNS 分组",
+        "dnsSettingsDesc": "配置 DNS 指向所用的 Cloudflare 连接凭据与接入状态",
+        "smartDnsDesc": "配置 SmartDNS 权威委派、独立实例、JDM 调度策略与决策模拟器",
         "originsDesc": "管理反向代理的目标后端服务器与负载均衡组",
         "responsesDesc": "配置源站错误页与离线联系页",
         "wafDesc": "配置 Web 应用防火墙规则，阻断恶意请求",

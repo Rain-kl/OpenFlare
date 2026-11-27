@@ -34,13 +34,17 @@ import type {
   CloudflareGroup,
   CloudflareGroupPayload,
   NodeItem,
+  SmartDNSPolicy,
 } from '@/lib/services/openflare';
+
+const emptySmartDNSPolicies: SmartDNSPolicy[] = [];
 
 export function GroupDialog({
   open,
   onOpenChange,
   group,
   nodes,
+  smartdnsPolicies = emptySmartDNSPolicies,
   pending,
   onSubmit,
 }: {
@@ -48,6 +52,7 @@ export function GroupDialog({
   onOpenChange: (open: boolean) => void;
   group?: CloudflareGroup | null;
   nodes: NodeItem[];
+  smartdnsPolicies?: SmartDNSPolicy[];
   pending: boolean;
   onSubmit: (payload: CloudflareGroupPayload) => void;
 }) {
@@ -63,9 +68,13 @@ export function GroupDialog({
     AAAA: t('recordContentPlaceholder.AAAA'),
   };
   const [name, setName] = useState('');
-  const [targetMode, setTargetMode] = useState<'node' | 'custom'>('node');
+  const [targetMode, setTargetMode] = useState<'node' | 'custom' | 'smartdns'>(
+    'node',
+  );
   const [recordType, setRecordType] = useState<'CNAME' | 'A' | 'AAAA'>('A');
   const [recordContent, setRecordContent] = useState('');
+  const [smartdnsPolicyID, setSmartdnsPolicyID] = useState('');
+  const [smartdnsTargetHost, setSmartdnsTargetHost] = useState('');
   const [primaryNodeID, setPrimaryNodeID] = useState('');
   const [backupNodeID, setBackupNodeID] = useState('none');
   const [defaultProxied, setDefaultProxied] = useState(true);
@@ -80,25 +89,73 @@ export function GroupDialog({
   useEffect(() => {
     if (!open) return;
     setName(group?.name ?? '');
-    setTargetMode(group?.target_mode === 'custom' ? 'custom' : 'node');
+    const mode =
+      group?.target_mode === 'smartdns'
+        ? 'smartdns'
+        : group?.target_mode === 'custom'
+          ? 'custom'
+          : 'node';
+    setTargetMode(mode);
     setRecordType(group?.record_type ?? 'A');
     setRecordContent(group?.record_content ?? '');
+    const defaultPolicy =
+      smartdnsPolicies.find((p) => p.is_default) ?? smartdnsPolicies[0];
+    setSmartdnsPolicyID(
+      group?.smartdns_policy_id
+        ? String(group.smartdns_policy_id)
+        : defaultPolicy
+          ? String(defaultPolicy.id)
+          : '',
+    );
+    setSmartdnsTargetHost(
+      group?.smartdns_target_host ??
+        (mode === 'smartdns' ? (group?.record_content ?? '') : ''),
+    );
     setPrimaryNodeID(
-      group?.target_mode !== 'custom' && group
+      group?.target_mode === 'node' && group
         ? String(group.primary_node.id)
         : '',
     );
     setBackupNodeID(
-      group?.target_mode !== 'custom' && group?.backup_node
+      group?.target_mode === 'node' && group?.backup_node
         ? String(group.backup_node.id)
         : 'none',
     );
-    setDefaultProxied(group?.default_proxied ?? true);
+    setDefaultProxied(
+      mode === 'smartdns' ? false : (group?.default_proxied ?? true),
+    );
     setEnabled(group?.enabled ?? true);
     const groupTTL = group ? (group.ttl ?? 300) : 1;
     setTtlMode(groupTTL === 1 ? 'auto' : 'manual');
     setManualTTL(String(groupTTL === 1 ? 300 : groupTTL));
+    // Intentionally omit smartdnsPolicies so lazy fetch never resets user-edited fields.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [group, open]);
+
+  useEffect(() => {
+    if (
+      open &&
+      targetMode === 'smartdns' &&
+      !smartdnsPolicyID &&
+      smartdnsPolicies.length > 0
+    ) {
+      const def =
+        smartdnsPolicies.find((p) => p.is_default) ?? smartdnsPolicies[0];
+      setSmartdnsPolicyID(String(def.id));
+    }
+  }, [open, smartdnsPolicies, smartdnsPolicyID, targetMode]);
+
+  const effectiveDefaultProxied =
+    targetMode === 'smartdns' ? false : defaultProxied;
+  const submitDisabled =
+    pending ||
+    invalidTTL ||
+    !name.trim() ||
+    (targetMode === 'node'
+      ? !primaryNodeID
+      : targetMode === 'custom'
+        ? !recordContent.trim()
+        : !smartdnsPolicyID);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -123,10 +180,24 @@ export function GroupDialog({
               variant='outline'
               value={targetMode}
               aria-labelledby='cf-target-mode-label'
-              className='grid w-full grid-cols-2'
+              className='grid w-full grid-cols-3'
               onValueChange={(value) => {
-                if (value === 'node' || value === 'custom') {
+                if (
+                  value === 'node' ||
+                  value === 'custom' ||
+                  value === 'smartdns'
+                ) {
                   setTargetMode(value);
+                  if (value === 'smartdns') {
+                    setDefaultProxied(false);
+                    setRecordType('CNAME');
+                    if (!smartdnsPolicyID && smartdnsPolicies.length > 0) {
+                      const def =
+                        smartdnsPolicies.find((p) => p.is_default) ??
+                        smartdnsPolicies[0];
+                      setSmartdnsPolicyID(String(def.id));
+                    }
+                  }
                 }
               }}
             >
@@ -135,6 +206,9 @@ export function GroupDialog({
               </ToggleGroupItem>
               <ToggleGroupItem value='custom' className='w-full'>
                 {t('customTarget')}
+              </ToggleGroupItem>
+              <ToggleGroupItem value='smartdns' className='w-full'>
+                {t('smartdnsTarget')}
               </ToggleGroupItem>
             </ToggleGroup>
           </Field>
@@ -184,7 +258,7 @@ export function GroupDialog({
                 </Select>
               </Field>
             </>
-          ) : (
+          ) : targetMode === 'custom' ? (
             <>
               <Field>
                 <FieldLabel htmlFor='cf-record-type'>
@@ -221,6 +295,48 @@ export function GroupDialog({
                 <p className='text-sm text-muted-foreground'>
                   {t('recordContentHint')}
                 </p>
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field>
+                <FieldLabel htmlFor='cf-smartdns-policy'>
+                  {t('smartdnsPolicy')}
+                </FieldLabel>
+                <Select
+                  value={smartdnsPolicyID}
+                  onValueChange={setSmartdnsPolicyID}
+                >
+                  <SelectTrigger id='cf-smartdns-policy' className='w-full'>
+                    <SelectValue placeholder={t('smartdnsPolicyPlaceholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {smartdnsPolicies.map((policy) => (
+                        <SelectItem key={policy.id} value={String(policy.id)}>
+                          {policy.name} ({policy.strategy_type})
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                {smartdnsPolicies.length === 0 ? (
+                  <FieldDescription>{t('smartdnsNoPolicies')}</FieldDescription>
+                ) : null}
+              </Field>
+              <Field>
+                <FieldLabel htmlFor='cf-smartdns-host'>
+                  {t('smartdnsTargetHost')}
+                </FieldLabel>
+                <Input
+                  id='cf-smartdns-host'
+                  value={smartdnsTargetHost}
+                  placeholder={t('smartdnsHostPlaceholder')}
+                  onChange={(event) =>
+                    setSmartdnsTargetHost(event.target.value)
+                  }
+                />
+                <FieldDescription>{t('smartdnsHostHint')}</FieldDescription>
               </Field>
             </>
           )}
@@ -272,15 +388,23 @@ export function GroupDialog({
               )}
             </Field>
           )}
-          <Field orientation='horizontal'>
-            <FieldLabel htmlFor='cf-default-proxied'>
-              {t('defaultProxied')}
-            </FieldLabel>
-            <Switch
-              id='cf-default-proxied'
-              checked={defaultProxied}
-              onCheckedChange={setDefaultProxied}
-            />
+          <Field>
+            <div className='flex items-center justify-between gap-2'>
+              <FieldLabel htmlFor='cf-default-proxied'>
+                {t('defaultProxied')}
+              </FieldLabel>
+              <Switch
+                id='cf-default-proxied'
+                checked={effectiveDefaultProxied}
+                disabled={targetMode === 'smartdns'}
+                onCheckedChange={setDefaultProxied}
+              />
+            </div>
+            {targetMode === 'smartdns' ? (
+              <FieldDescription>
+                {t('smartdnsProxyDisabledHint')}
+              </FieldDescription>
+            ) : null}
           </Field>
           <Field orientation='horizontal'>
             <FieldLabel htmlFor='cf-enabled'>{t('enableSync')}</FieldLabel>
@@ -296,26 +420,30 @@ export function GroupDialog({
             {tCommon('cancel')}
           </Button>
           <Button
-            disabled={
-              pending ||
-              invalidTTL ||
-              !name.trim() ||
-              (targetMode === 'node' ? !primaryNodeID : !recordContent.trim())
-            }
+            disabled={submitDisabled}
             onClick={() => {
               if (invalidTTL) return;
               onSubmit({
                 name: name.trim(),
                 target_mode: targetMode,
-                record_type: recordType,
-                record_content: recordContent.trim(),
+                record_type: targetMode === 'smartdns' ? 'CNAME' : recordType,
+                record_content:
+                  targetMode === 'smartdns'
+                    ? smartdnsTargetHost.trim()
+                    : recordContent.trim(),
+                smartdns_policy_id:
+                  targetMode === 'smartdns' && smartdnsPolicyID
+                    ? Number(smartdnsPolicyID)
+                    : null,
+                smartdns_target_host:
+                  targetMode === 'smartdns' ? smartdnsTargetHost.trim() : '',
                 primary_node_id:
                   targetMode === 'node' ? Number(primaryNodeID) : 0,
                 backup_node_id:
                   targetMode === 'node' && backupNodeID !== 'none'
                     ? Number(backupNodeID)
                     : null,
-                default_proxied: defaultProxied,
+                default_proxied: effectiveDefaultProxied,
                 ttl,
                 enabled,
               });

@@ -12,6 +12,7 @@
     "certificates",
     "performance-policies",
     "zone-domain-migration",
+    "smartdns",
     "---边缘安全防护---",
     "waf-usage",
     "pow-usage",
