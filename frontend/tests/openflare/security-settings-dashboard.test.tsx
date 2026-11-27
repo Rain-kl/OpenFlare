@@ -120,6 +120,14 @@ const dashboardFixture: DashboardOverview = {
     status_codes: [{ key: '2xx', value: 995 }],
     top_domains: [{ key: 'example.com', value: 900 }],
   },
+  country_latencies: [
+    {
+      region: 'CN',
+      request_count: 600,
+      avg_request_time_ms: 42.5,
+      avg_tcp_rtt_ms: 18.2,
+    },
+  ],
   trends: {
     traffic_24h: [
       {
@@ -267,6 +275,7 @@ describe('Security menu split, dashboard layout, and global settings', () => {
     const user = userEvent.setup();
     renderWithProviders(<OpenFlareDashboardPage />);
 
+    const latencyView = await screen.findByText('全球延迟视图');
     const reqTrend = await screen.findByText('24 小时请求趋势');
     const pressure = await screen.findByText('请求压力');
     const topDomain = await screen.findByText('Top Domain');
@@ -274,6 +283,10 @@ describe('Security menu split, dashboard layout, and global settings', () => {
     const topIpRps = await screen.findByText('平均 RPS 最高 IP');
     const capacityTrend = await screen.findByText('24 小时业务流量与容量趋势');
 
+    expect(
+      latencyView.compareDocumentPosition(reqTrend) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(
       reqTrend.compareDocumentPosition(pressure) &
         Node.DOCUMENT_POSITION_FOLLOWING,

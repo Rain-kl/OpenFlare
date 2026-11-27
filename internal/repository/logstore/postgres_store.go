@@ -37,7 +37,17 @@ const (
 	sortColumnRemoteAddr = "remote_addr"
 	sortColumnHost       = "host"
 	sortColumnPath       = "path"
+
+	latencyRoundScale    = 100.0  // 延迟均值保留两位小数
+	microsecondsPerMilli = 1000.0 // tcp_rtt_us (µs) 换算为 ms
 )
+
+func sanitizeNonNegativeFloat(v float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) || v <= 0 {
+		return 0
+	}
+	return math.Round(v*latencyRoundScale) / latencyRoundScale
+}
 
 // gormLogStore 是 PG/SQLite 共用的 GORM 日志存储实现。
 type gormLogStore struct {
@@ -280,24 +290,31 @@ func (s *gormLogStore) NodeAggregates(ctx context.Context, query model.OpenFlare
 
 func (s *gormLogStore) RegionCounts(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareAccessLogRegionCount, error) {
 	type row struct {
-		Region string
-		Count  int64
+		Region           string  `gorm:"column:trimmed_region"`
+		Count            int64   `gorm:"column:count"`
+		AvgRequestTimeMs float64 `gorm:"column:avg_request_time_ms"`
+		AvgTCPRTTUs      float64 `gorm:"column:avg_tcp_rtt_us"`
 	}
 	var rows []row
 	q := s.db.WithContext(ctx).Model(&analyticsmodel.NodeAccessLog{}).
-		Select("region, COUNT(*) AS count").
+		Select("trim(region) AS trimmed_region, COUNT(*) AS count, COALESCE(AVG(request_time_ms), 0) AS avg_request_time_ms, COALESCE(AVG(CASE WHEN tcp_rtt_us > 0 THEN tcp_rtt_us END), 0) AS avg_tcp_rtt_us").
 		Where("trim(region) <> '' AND logged_at >= ?", since)
 	// 空 nodeID 表示全节点聚合（对齐 CH 语义），仅非空时追加 node_id 过滤，
 	// 避免 `node_id = ''` 恒空导致首页来源分布无数据。
 	if nodeID = strings.TrimSpace(nodeID); nodeID != "" {
 		q = q.Where("node_id = ?", nodeID)
 	}
-	if err := q.Group("region").Order("count DESC").Limit(limitOr(limit, defaultTopN)).Scan(&rows).Error; err != nil {
+	if err := q.Group("trim(region)").Order("count DESC, trimmed_region ASC").Limit(limitOr(limit, defaultTopN)).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := make([]*model.OpenFlareAccessLogRegionCount, len(rows))
 	for i, r := range rows {
-		out[i] = &model.OpenFlareAccessLogRegionCount{Region: r.Region, Count: r.Count}
+		out[i] = &model.OpenFlareAccessLogRegionCount{
+			Region:           r.Region,
+			Count:            r.Count,
+			AvgRequestTimeMs: sanitizeNonNegativeFloat(r.AvgRequestTimeMs),
+			AvgTCPRTTMs:      sanitizeNonNegativeFloat(r.AvgTCPRTTUs / microsecondsPerMilli),
+		}
 	}
 	return out, nil
 }

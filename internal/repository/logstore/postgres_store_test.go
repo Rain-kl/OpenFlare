@@ -269,6 +269,38 @@ func TestGormRegionCountsEmptyNodeIDAggregatesAll(t *testing.T) {
 	}
 }
 
+func TestGormRegionCountsComputesAverageLatencies(t *testing.T) {
+	ResetForTest()
+	SetConfigReader(func(_ context.Context, _ string) (string, error) { return "", nil })
+	s := newTestGormStore(t)
+	ctx := context.Background()
+	now := time.Now()
+	rows := []analyticsmodel.NodeAccessLog{
+		{ID: 1, NodeID: "n1", LoggedAt: now, RemoteAddr: "1.1.1.1", Region: " CN ", RequestTimeMs: 40, TCPRTTUs: 12000},
+		{ID: 2, NodeID: "n2", LoggedAt: now, RemoteAddr: "2.2.2.2", Region: "CN", RequestTimeMs: 80, TCPRTTUs: 24000},
+		// TCPRTTUs=0 should still count in RequestTimeMs avg, but be excluded from TCP RTT avg.
+		{ID: 3, NodeID: "n1", LoggedAt: now, RemoteAddr: "3.3.3.3", Region: "CN", RequestTimeMs: 60, TCPRTTUs: 0},
+		{ID: 4, NodeID: "n1", LoggedAt: now, RemoteAddr: "4.4.4.4", Region: "JP", RequestTimeMs: 25, TCPRTTUs: 0},
+	}
+	if err := s.BatchInsertNodeAccessLogs(ctx, rows); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	all, err := s.RegionCounts(ctx, "", now.Add(-time.Hour), 0)
+	if err != nil {
+		t.Fatalf("region counts: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("want 2 regions, got %+v", all)
+	}
+	if all[0].Region != "CN" || all[0].Count != 3 || all[0].AvgRequestTimeMs != 60 || all[0].AvgTCPRTTMs != 18 {
+		t.Fatalf("CN row = %+v, want count=3 avg_request_time_ms=60 avg_tcp_rtt_ms=18", all[0])
+	}
+	if all[1].Region != "JP" || all[1].Count != 1 || all[1].AvgRequestTimeMs != 25 || all[1].AvgTCPRTTMs != 0 {
+		t.Fatalf("JP row = %+v, want count=1 avg_request_time_ms=25 avg_tcp_rtt_ms=0", all[1])
+	}
+}
+
 // testGormStoreSeq 保证每个测试获得独立的共享内存库（cache=shared 下同名 DSN 会复用同一库，
 // 导致跨测试 id 冲突）。
 var testGormStoreSeq int64

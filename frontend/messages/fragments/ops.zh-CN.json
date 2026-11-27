@@ -79,6 +79,35 @@
       "status4xx": "4xx 请求",
       "status5xx": "5xx 请求"
     },
+    "latency": {
+      "title": "全球延迟视图",
+      "description": "按来源国家统计最近 24 小时平均请求耗时与客户端 TCP RTT 地理分布。",
+      "legendFast": "< 100 ms",
+      "legendModerate": "100–300 ms",
+      "legendSlow": "300–800 ms",
+      "legendCritical": "≥ 800 ms",
+      "mapTitle": "国家平均延迟分布（2D）",
+      "mapHint": "悬停国家查看平均延迟与样本数",
+      "noLatencyOverlay": "最近 24 小时暂无国家来源延迟数据",
+      "countryRanking": "国家平均延迟排行",
+      "sortSlowest": "高延迟优先",
+      "sortFastest": "低延迟优先",
+      "noData": "暂无国家延迟数据",
+      "requestsCount": "{count} 次请求",
+      "avgLatencyLabel": "平均访问延迟：{value}",
+      "avgTcpRttLabel": "平均 TCP RTT：{value}",
+      "tcpRttShort": "TCP RTT {value}",
+      "summary": {
+        "avgLatency": "全球平均延迟",
+        "avgLatencyHint": "加权统计 · {count} 次请求",
+        "fastestRegion": "最低延迟国家",
+        "slowestRegion": "最高延迟国家",
+        "coveredRegions": "覆盖国家 / 地区",
+        "tcpRttHint": "加权 TCP RTT {value}",
+        "windowHint": "最近 24 小时样本",
+        "noRegionHint": "暂无样本数据"
+      }
+    },
     "capacityTrend": {
       "title": "24 小时容量趋势",
       "description": "按小时聚合 CPU 与内存使用率，用于评估整体资源容量是否持续处于高负载状态。",

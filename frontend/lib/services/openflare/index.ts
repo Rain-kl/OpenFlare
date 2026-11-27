@@ -68,6 +68,8 @@ export type {
   ProxyRoutePoWConfig,
   ProxyRouteZoneDomain,
   ReleaseChannel,
+  CompactDashboardCountryLatency,
+  DashboardCountryLatency,
   DashboardOverview,
   DashboardNodeHealth,
   DashboardSummary,

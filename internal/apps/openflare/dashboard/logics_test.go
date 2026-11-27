@@ -31,7 +31,15 @@ func setupDashboardTestDB(t *testing.T) func() {
 
 	db.SetDB(sqliteDB)
 	testhelper.SetupLogStoresForTest(t)
+	overviewCache.mu.Lock()
+	overviewCache.payload = nil
+	overviewCache.expiresAt = time.Time{}
+	overviewCache.mu.Unlock()
 	return func() {
+		overviewCache.mu.Lock()
+		overviewCache.payload = nil
+		overviewCache.expiresAt = time.Time{}
+		overviewCache.mu.Unlock()
 		db.SetDB(nil)
 	}
 }
@@ -249,4 +257,38 @@ func TestTrafficDistributionsRespectNodeScope(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []observability.DistributionItem{{Key: "200", Value: 2}, {Key: "404", Value: 1}}, overview.Distributions.StatusCodes)
 	assert.Equal(t, []observability.DistributionItem{{Key: "app.example.com", Value: 2}, {Key: "other.example.com", Value: 1}}, overview.Distributions.TopDomains)
+}
+
+func TestOverviewCountryLatencies(t *testing.T) {
+	t.Cleanup(setupDashboardTestDB(t))
+	ctx := t.Context()
+	now := time.Now().UTC()
+
+	require.NoError(t, repository.InsertOpenFlareAccessLogsBatch(ctx, []*model.OpenFlareAccessLog{
+		{NodeID: "n1", LoggedAt: now.Add(-time.Minute), Region: "Japan", StatusCode: 200, RequestTimeMs: 40, TCPRTTUs: 12000},
+		{NodeID: "n2", LoggedAt: now.Add(-time.Minute), Region: "Japan", StatusCode: 200, RequestTimeMs: 80, TCPRTTUs: 24000},
+		{NodeID: "n1", LoggedAt: now.Add(-time.Minute), Region: "Germany", StatusCode: 200, RequestTimeMs: 220, TCPRTTUs: 0},
+	}))
+
+	view, err := buildOverviewView(ctx)
+	require.NoError(t, err)
+	require.Len(t, view.CountryLatencies, 2)
+	assert.Equal(t, CountryLatency{
+		Region:           "Japan",
+		RequestCount:     2,
+		AvgRequestTimeMs: 60,
+		AvgTCPRTTMs:      18,
+	}, view.CountryLatencies[0])
+	assert.Equal(t, CountryLatency{
+		Region:           "Germany",
+		RequestCount:     1,
+		AvgRequestTimeMs: 220,
+		AvgTCPRTTMs:      0,
+	}, view.CountryLatencies[1])
+
+	payload, err := GetOverview(ctx)
+	require.NoError(t, err)
+	require.Len(t, payload.CountryLatencies, 2)
+	assert.Equal(t, []any{"Japan", int64(2), float64(60), float64(18)}, payload.CountryLatencies[0])
+	assert.Equal(t, []any{"Germany", int64(1), float64(220), float64(0)}, payload.CountryLatencies[1])
 }

@@ -79,6 +79,35 @@
       "status4xx": "4xx requests",
       "status5xx": "5xx requests"
     },
+    "latency": {
+      "title": "Global latency view",
+      "description": "24-hour average request duration and client TCP RTT distribution by source country.",
+      "legendFast": "< 100 ms",
+      "legendModerate": "100–300 ms",
+      "legendSlow": "300–800 ms",
+      "legendCritical": "≥ 800 ms",
+      "mapTitle": "Country latency map (2D)",
+      "mapHint": "Hover a country to inspect average latency and sample count",
+      "noLatencyOverlay": "No country latency samples recorded in the last 24 hours",
+      "countryRanking": "Country average latency",
+      "sortSlowest": "Highest",
+      "sortFastest": "Lowest",
+      "noData": "No country latency data",
+      "requestsCount": "{count} requests",
+      "avgLatencyLabel": "Avg request latency: {value}",
+      "avgTcpRttLabel": "Avg TCP RTT: {value}",
+      "tcpRttShort": "TCP RTT {value}",
+      "summary": {
+        "avgLatency": "Global avg latency",
+        "avgLatencyHint": "Weighted · {count} requests",
+        "fastestRegion": "Lowest latency country",
+        "slowestRegion": "Highest latency country",
+        "coveredRegions": "Covered countries / regions",
+        "tcpRttHint": "Weighted TCP RTT {value}",
+        "windowHint": "Last 24-hour window",
+        "noRegionHint": "No samples recorded"
+      }
+    },
     "capacityTrend": {
       "title": "24-hour capacity trend",
       "description": "Hourly CPU and memory usage to see whether cluster capacity stays tight.",

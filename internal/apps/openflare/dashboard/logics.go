@@ -6,6 +6,7 @@ package dashboard
 import (
 	"context"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -63,26 +64,36 @@ type NodeHealth struct {
 	UniqueVisitorCount  int64    `json:"unique_visitor_count"`
 }
 
+// CountryLatency aggregates 24h request volume and average latency for a source region/country.
+type CountryLatency struct {
+	Region           string  `json:"region"`
+	RequestCount     int64   `json:"request_count"`
+	AvgRequestTimeMs float64 `json:"avg_request_time_ms"`
+	AvgTCPRTTMs      float64 `json:"avg_tcp_rtt_ms"`
+}
+
 // OverviewView is the expanded dashboard overview payload.
 type OverviewView struct {
-	GeneratedAt   time.Time                          `json:"generated_at"`
-	Summary       Summary                            `json:"summary"`
-	Traffic       Traffic                            `json:"traffic"`
-	Capacity      Capacity                           `json:"capacity"`
-	Distributions observability.TrafficDistributions `json:"distributions"`
-	Trends        observability.NodeTrends           `json:"trends"`
-	Nodes         []NodeHealth                       `json:"nodes"`
+	GeneratedAt      time.Time                          `json:"generated_at"`
+	Summary          Summary                            `json:"summary"`
+	Traffic          Traffic                            `json:"traffic"`
+	Capacity         Capacity                           `json:"capacity"`
+	Distributions    observability.TrafficDistributions `json:"distributions"`
+	CountryLatencies []CountryLatency                   `json:"country_latencies"`
+	Trends           observability.NodeTrends           `json:"trends"`
+	Nodes            []NodeHealth                       `json:"nodes"`
 }
 
 // OverviewPayload is the compact legacy dashboard overview response.
 type OverviewPayload struct {
-	GeneratedAt   any                  `json:"generated_at"`
-	Summary       Summary              `json:"summary"`
-	Traffic       Traffic              `json:"traffic"`
-	Capacity      Capacity             `json:"capacity"`
-	Distributions distributionsPayload `json:"distributions"`
-	Trends        trendsPayload        `json:"trends"`
-	Nodes         [][]any              `json:"nodes"`
+	GeneratedAt      any                  `json:"generated_at"`
+	Summary          Summary              `json:"summary"`
+	Traffic          Traffic              `json:"traffic"`
+	Capacity         Capacity             `json:"capacity"`
+	Distributions    distributionsPayload `json:"distributions"`
+	CountryLatencies [][]any              `json:"country_latencies"`
+	Trends           trendsPayload        `json:"trends"`
+	Nodes            [][]any              `json:"nodes"`
 }
 
 type distributionsPayload struct {
@@ -129,7 +140,7 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 	if err != nil {
 		return nil, err
 	}
-	accessLogRegions, err := repository.ListOpenFlareAccessLogRegionCounts(ctx, "", since, dashboardDistributionLimit)
+	accessLogRegions, err := repository.ListOpenFlareAccessLogRegionCounts(ctx, "", since, dashboardCountryLatencyLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +156,8 @@ func buildOverviewView(ctx context.Context) (*OverviewView, error) {
 		Distributions: observability.BuildTrafficDistributionsFromAccessLogs(
 			ctx, "", since, now, dashboardDistributionLimit, accessLogRegions,
 		),
-		Trends: observability.BuildNodeTrends(ctx, now, "", snapshots),
+		CountryLatencies: buildCountryLatencies(accessLogRegions),
+		Trends:           observability.BuildNodeTrends(ctx, now, "", snapshots),
 	}
 
 	// Global traffic summary uses true window uniqExact for UV (not sum of hourly uniques).
@@ -294,6 +306,7 @@ func compressOverview(view *OverviewView) *OverviewPayload {
 				TopDomains:      [][]any{},
 				SourceCountries: [][]any{},
 			},
+			CountryLatencies: [][]any{},
 			Trends: trendsPayload{
 				Traffic24h:  [][]any{},
 				Capacity24h: [][]any{},
@@ -313,6 +326,7 @@ func compressOverview(view *OverviewView) *OverviewPayload {
 			TopDomains:      compressDistributionItems(view.Distributions.TopDomains),
 			SourceCountries: compressDistributionItems(view.Distributions.SourceCountries),
 		},
+		CountryLatencies: compressCountryLatencies(view.CountryLatencies),
 		Trends: trendsPayload{
 			Traffic24h:  compressTrafficTrendPoints(view.Trends.Traffic24h),
 			Capacity24h: compressCapacityTrendPoints(view.Trends.Capacity24h),
@@ -321,6 +335,40 @@ func compressOverview(view *OverviewView) *OverviewPayload {
 		},
 		Nodes: compressDashboardNodes(view.Nodes),
 	}
+}
+
+func buildCountryLatencies(regions []*model.OpenFlareAccessLogRegionCount) []CountryLatency {
+	out := make([]CountryLatency, 0, len(regions))
+	for _, item := range regions {
+		if item == nil {
+			continue
+		}
+		region := strings.TrimSpace(item.Region)
+		if region == "" || item.Count <= 0 {
+			continue
+		}
+		out = append(out, CountryLatency{
+			Region:           region,
+			RequestCount:     item.Count,
+			AvgRequestTimeMs: item.AvgRequestTimeMs,
+			AvgTCPRTTMs:      item.AvgTCPRTTMs,
+		})
+	}
+	return out
+}
+
+func compressCountryLatencies(items []CountryLatency) [][]any {
+	rows := make([][]any, 0, len(items))
+	for _, item := range items {
+		// Compact layout: [0] region, [1] request_count, [2] avg_request_time_ms, [3] avg_tcp_rtt_ms
+		rows = append(rows, []any{
+			item.Region,
+			item.RequestCount,
+			item.AvgRequestTimeMs,
+			item.AvgTCPRTTMs,
+		})
+	}
+	return rows
 }
 
 func compressDistributionItems(items []observability.DistributionItem) [][]any {

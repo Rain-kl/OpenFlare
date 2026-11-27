@@ -26,6 +26,7 @@ sidebar: false
   - Edge 边缘端将主动网络探测隔离至独立子进程 `openflare-edge probe-worker` 执行（集成 `trippy-core` 多轮路由追踪、复用 `openflare-probe` 批量 Ping/TCPing 与 EDNS0 ECS DNS 探针，并与反向代理主线程及进程崩溃完全隔离）；同步在 `Dockerfile.edge`（`cap_net_raw+p`）、`docker-compose.yaml`、控制台 Docker 部署命令（`--cap-add=NET_RAW`）、`install-openflare-edge.sh`/`update-openflare-edge.sh` 与探测子进程能力提升链路中完整保障 `CAP_NET_RAW` 权限。
   - Edge 访问日志链路在有界队列富余时轻量采集内核 `TCP_INFO`（RTT/MinRTT/重传）与 TLS 握手耗时；服务端结合 `bgp.tools` 与 GeoIP 数据库无锁识别访客 `client_asn`，通过 1 分钟有界分桶及 6 小时衰减融合任务（`of_netquality_rollup`）生成 `节点 × 访客 ASN` 网络质量矩阵与 `of_as_topology_edges` AS 拓扑边表。
   - 访问日志接口与「访问日志 → 日志明细」列表及详情弹窗新增展示每条请求的耗时（`request_time_ms`）与客户端 TCP RTT（`tcp_rtt_us`）。
+  - 数据看板在「24 小时请求趋势」上方新增 **全球延迟视图（2D）** 卡片，按来源国家聚合展示最近 24 小时平均访问延迟、客户端 TCP RTT 与国家延迟排行。
   - 新增构建与定时增量同步任务 `of_netintel_sync`（支持 GeoLite2/sapics 与 `bgp.tools`，默认关闭 CAIDA 并仅在运行期配置 `netintel_caida_enabled=true` 时按需拉取）。
 
 ### ⚡️ 优化与改进

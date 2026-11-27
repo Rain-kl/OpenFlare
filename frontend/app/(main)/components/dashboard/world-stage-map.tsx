@@ -27,7 +27,7 @@ import {
   getOpenrestyStatusLabel,
 } from '../../nodes/components/node-utils';
 import countryCentroidsJson from './data/country-centroids.json';
-import worldGeoJson from './data/world-geo.json';
+import { ensureWorldMapRegistered } from './world-map-registry';
 
 echarts.use([GeoComponent, TooltipComponent, ScatterChart, CanvasRenderer]);
 
@@ -45,21 +45,6 @@ const fallbackCoordinates = [
 ] as const;
 
 type Tone = 'healthy' | 'warning' | 'danger';
-
-type WorldGeoJson = {
-  type: string;
-  features?: WorldFeature[];
-};
-
-type WorldFeature = {
-  properties?: {
-    name?: string;
-  };
-  geometry?: {
-    type?: 'Polygon' | 'MultiPolygon';
-    coordinates?: number[][][] | number[][][][];
-  };
-};
 
 type MapNodeDatum = {
   id: number;
@@ -85,9 +70,6 @@ type MapNodeDatum = {
     };
   };
 };
-
-let worldMapRegistrationAttempted = false;
-let worldMapRegistrationSucceeded = false;
 
 function buildNodeDetailHref(id?: number | null) {
   if (!id) {
@@ -205,49 +187,6 @@ function getNodeCoordinates(node: DashboardNodeHealth, index: number) {
     ] as [number, number],
     derivedFromGeo: false,
   };
-}
-
-function ensureWorldMapRegistered() {
-  if (worldMapRegistrationSucceeded || echarts.getMap('world')) {
-    worldMapRegistrationSucceeded = true;
-    return true;
-  }
-
-  if (worldMapRegistrationAttempted) {
-    return false;
-  }
-
-  worldMapRegistrationAttempted = true;
-
-  try {
-    const geoJson = worldGeoJson as WorldGeoJson;
-
-    if (
-      geoJson.type !== 'FeatureCollection' ||
-      !Array.isArray(geoJson.features)
-    ) {
-      throw new Error('invalid world geojson payload');
-    }
-
-    echarts.registerMap(
-      'world',
-      geoJson as unknown as Parameters<typeof echarts.registerMap>[1],
-    );
-
-    if (!echarts.getMap('world')) {
-      throw new Error('world map registration failed');
-    }
-
-    worldMapRegistrationSucceeded = true;
-    return true;
-  } catch (error) {
-    const registrationError =
-      error instanceof Error
-        ? error
-        : new Error('unknown world map registration error');
-    console.error('Failed to register ECharts world map', registrationError);
-    return false;
-  }
 }
 
 function FlatWorldMap({

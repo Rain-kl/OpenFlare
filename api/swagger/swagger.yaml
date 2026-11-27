@@ -1899,6 +1899,11 @@ definitions:
     properties:
       capacity:
         $ref: '#/definitions/apps_openflare_dashboard.Capacity'
+      country_latencies:
+        items:
+          items: {}
+          type: array
+        type: array
       distributions:
         $ref: '#/definitions/apps_openflare_dashboard.distributionsPayload'
       generated_at: {}

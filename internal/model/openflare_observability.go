@@ -71,10 +71,12 @@ func (OpenFlareAccessLog) TableName() string {
 	return "of_node_access_logs"
 }
 
-// OpenFlareAccessLogRegionCount aggregates access log regions.
+// OpenFlareAccessLogRegionCount aggregates access log regions and latency.
 type OpenFlareAccessLogRegionCount struct {
-	Region string `json:"region"`
-	Count  int64  `json:"count"`
+	Region           string  `json:"region"`
+	Count            int64   `json:"count"`
+	AvgRequestTimeMs float64 `json:"avg_request_time_ms"`
+	AvgTCPRTTMs      float64 `json:"avg_tcp_rtt_ms"`
 }
 
 // OpenFlareHealthEvent stores node health alert events.

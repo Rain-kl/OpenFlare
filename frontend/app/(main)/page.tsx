@@ -19,6 +19,7 @@ import {
   StatusCodeDistributionChart,
   TopDomainChart,
 } from './components/dashboard/distribution-rank-charts';
+import { LatencyStage } from './components/dashboard/latency-stage';
 import { NodeHealthTable } from './components/dashboard/node-health-table';
 import { RatePressureChart } from './components/dashboard/rate-pressure-chart';
 import { RateRankCards } from './components/dashboard/rate-rank-cards';
@@ -84,6 +85,8 @@ export default function OpenFlareDashboardPage() {
             nodes={overview.nodes}
             sourceCountries={overview.distributions.source_countries}
           />
+
+          <LatencyStage countryLatencies={overview.country_latencies} />
 
           <div className='grid gap-6'>
             <TrafficTrendChart points={overview.trends.traffic_24h} />

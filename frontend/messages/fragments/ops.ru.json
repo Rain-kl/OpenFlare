@@ -79,6 +79,35 @@
       "status4xx": "4xx запросов",
       "status5xx": "5xx запросов"
     },
+    "latency": {
+      "title": "Глобальная задержка",
+      "description": "Распределение среднего времени запроса и клиентского TCP RTT по странам за 24 часа.",
+      "legendFast": "< 100 ms",
+      "legendModerate": "100–300 ms",
+      "legendSlow": "300–800 ms",
+      "legendCritical": "≥ 800 ms",
+      "mapTitle": "Карта задержек по странам (2D)",
+      "mapHint": "Наведите на страну для просмотра средней задержки и числа запросов",
+      "noLatencyOverlay": "За последние 24 часа нет данных о задержках по странам",
+      "countryRanking": "Задержка по странам",
+      "sortSlowest": "Выше",
+      "sortFastest": "Ниже",
+      "noData": "Нет данных о задержках",
+      "requestsCount": "Запросов: {count}",
+      "avgLatencyLabel": "Средняя задержка: {value}",
+      "avgTcpRttLabel": "Средний TCP RTT: {value}",
+      "tcpRttShort": "TCP RTT {value}",
+      "summary": {
+        "avgLatency": "Средняя задержка",
+        "avgLatencyHint": "Взвешенно · запросов: {count}",
+        "fastestRegion": "Минимальная задержка",
+        "slowestRegion": "Максимальная задержка",
+        "coveredRegions": "Страны и регионы",
+        "tcpRttHint": "Взвешенный TCP RTT {value}",
+        "windowHint": "Окно за последние 24 часа",
+        "noRegionHint": "Нет данных выборки"
+      }
+    },
     "capacityTrend": {
       "title": "Использование ресурсов за 24 часа",
       "description": "Средняя загрузка CPU и использование памяти по часам для оценки доступных ресурсов кластера.",

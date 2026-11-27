@@ -17,6 +17,7 @@ const (
 	nodeStatusPending = "pending"
 
 	dashboardDistributionLimit       = 8
+	dashboardCountryLatencyLimit     = 250
 	dashboardOverviewSnapshotLimit   = 500
 	highCPUUsagePercentThreshold     = 80
 	highMemoryUsagePercentThreshold  = 85

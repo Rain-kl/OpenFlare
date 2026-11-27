@@ -27118,6 +27118,13 @@ const docTemplate = `{
                 "capacity": {
                     "$ref": "#/definitions/apps_openflare_dashboard.Capacity"
                 },
+                "country_latencies": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
                 "distributions": {
                     "$ref": "#/definitions/apps_openflare_dashboard.distributionsPayload"
                 },

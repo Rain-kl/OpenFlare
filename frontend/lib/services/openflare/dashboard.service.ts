@@ -1,12 +1,14 @@
 import { OpenFlareBaseService } from './base.service';
 import type {
   CompactCapacityTrendPoint,
+  CompactDashboardCountryLatency,
   CompactDashboardNodeHealth,
   CompactDiskIOTrendPoint,
   CompactDistributionItem,
   CompactNetworkTrendPoint,
   CompactTrafficTrendPoint,
   DashboardCapacity,
+  DashboardCountryLatency,
   DashboardNodeHealth,
   DashboardOverview,
   DashboardOverviewCompact,
@@ -22,6 +24,12 @@ function arrayOrEmpty<T>(value: T[] | null | undefined) {
 function isCompactDistributionItem(
   value: DistributionItem | CompactDistributionItem,
 ): value is CompactDistributionItem {
+  return Array.isArray(value);
+}
+
+function isCompactCountryLatency(
+  value: DashboardCountryLatency | CompactDashboardCountryLatency,
+): value is CompactDashboardCountryLatency {
   return Array.isArray(value);
 }
 
@@ -70,6 +78,29 @@ function normalizeDistributionItems(
     isCompactDistributionItem(item)
       ? { key: String(item[0] ?? ''), value: Number(item[1] ?? 0) }
       : item,
+  );
+}
+
+function normalizeCountryLatencies(
+  items:
+    | Array<DashboardCountryLatency | CompactDashboardCountryLatency>
+    | null
+    | undefined,
+): DashboardCountryLatency[] {
+  return arrayOrEmpty(items).map((item) =>
+    isCompactCountryLatency(item)
+      ? {
+          region: String(item[0] ?? ''),
+          request_count: Number(item[1] ?? 0),
+          avg_request_time_ms: Number(item[2] ?? 0),
+          avg_tcp_rtt_ms: Number(item[3] ?? 0),
+        }
+      : {
+          region: String(item.region ?? ''),
+          request_count: Number(item.request_count ?? 0),
+          avg_request_time_ms: Number(item.avg_request_time_ms ?? 0),
+          avg_tcp_rtt_ms: Number(item.avg_tcp_rtt_ms ?? 0),
+        },
   );
 }
 
@@ -230,6 +261,7 @@ function normalizeDashboardOverview(
         overview.distributions?.top_domains,
       ),
     },
+    country_latencies: normalizeCountryLatencies(overview.country_latencies),
     trends: {
       traffic_24h: normalizeTrafficTrendPoints(overview.trends?.traffic_24h),
       capacity_24h: normalizeCapacityTrendPoints(overview.trends?.capacity_24h),

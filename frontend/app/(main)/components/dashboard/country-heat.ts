@@ -1,4 +1,7 @@
-import type { DistributionItem } from '@/lib/services/openflare';
+import type {
+  DashboardCountryLatency,
+  DistributionItem,
+} from '@/lib/services/openflare';
 import centroids from './data/country-centroids.json';
 import world from './data/world-geo.json';
 
@@ -89,4 +92,76 @@ export function buildCountryHeat(
       ];
     }),
   );
+}
+
+export type CountryLatencyDatum = {
+  name: string;
+  requestCount: number;
+  avgRequestTimeMs: number;
+  avgTcpRttMs: number;
+  hasBoundary: boolean;
+  coordinate?: Coordinate;
+};
+
+export function buildCountryLatency(
+  items: DashboardCountryLatency[],
+): Map<string, CountryLatencyDatum> {
+  const buckets = new Map<
+    string,
+    {
+      requestCount: number;
+      weightedRequestTimeMs: number;
+      tcpWeight: number;
+      weightedTcpRttMs: number;
+    }
+  >();
+
+  for (const item of items) {
+    if (!item.region || item.request_count <= 0) continue;
+    const name = resolveCountryName(item.region);
+    if (!name) continue;
+    const current = buckets.get(name) ?? {
+      requestCount: 0,
+      weightedRequestTimeMs: 0,
+      tcpWeight: 0,
+      weightedTcpRttMs: 0,
+    };
+    const avgReqMs =
+      Number.isFinite(item.avg_request_time_ms) && item.avg_request_time_ms >= 0
+        ? item.avg_request_time_ms
+        : 0;
+    const avgTcpMs =
+      Number.isFinite(item.avg_tcp_rtt_ms) && item.avg_tcp_rtt_ms > 0
+        ? item.avg_tcp_rtt_ms
+        : 0;
+    current.requestCount += item.request_count;
+    current.weightedRequestTimeMs += avgReqMs * item.request_count;
+    if (avgTcpMs > 0) {
+      current.tcpWeight += item.request_count;
+      current.weightedTcpRttMs += avgTcpMs * item.request_count;
+    }
+    buckets.set(name, current);
+  }
+
+  const entries: Array<[string, CountryLatencyDatum]> = [];
+  for (const [name, bucket] of buckets) {
+    const centroid = countryCentroids[name];
+    entries.push([
+      name,
+      {
+        name,
+        requestCount: bucket.requestCount,
+        avgRequestTimeMs:
+          bucket.requestCount > 0
+            ? bucket.weightedRequestTimeMs / bucket.requestCount
+            : 0,
+        avgTcpRttMs:
+          bucket.tcpWeight > 0 ? bucket.weightedTcpRttMs / bucket.tcpWeight : 0,
+        hasBoundary: boundaries.has(name),
+        coordinate: centroid ? [centroid[0], centroid[1]] : undefined,
+      },
+    ]);
+  }
+  entries.sort((a, b) => b[1].avgRequestTimeMs - a[1].avgRequestTimeMs);
+  return new Map(entries);
 }

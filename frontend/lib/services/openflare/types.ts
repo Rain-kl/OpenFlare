@@ -1321,6 +1321,15 @@ export interface TrafficDistributions {
   source_countries: DistributionItem[];
 }
 
+export interface DashboardCountryLatency {
+  region: string;
+  request_count: number;
+  avg_request_time_ms: number;
+  avg_tcp_rtt_ms: number;
+}
+
+export type CompactDashboardCountryLatency = [string, number, number, number];
+
 export interface DashboardTrends {
   traffic_24h: TrafficTrendPoint[];
   capacity_24h: CapacityTrendPoint[];
@@ -1354,6 +1363,7 @@ export interface DashboardOverview {
   traffic: DashboardTraffic;
   capacity: DashboardCapacity;
   distributions: TrafficDistributions;
+  country_latencies: DashboardCountryLatency[];
   trends: DashboardTrends;
   nodes: DashboardNodeHealth[];
 }
@@ -1401,6 +1411,9 @@ export interface DashboardOverviewCompact {
     top_domains: CompactDistributionItem[];
     source_countries: CompactDistributionItem[];
   };
+  country_latencies?: Array<
+    DashboardCountryLatency | CompactDashboardCountryLatency
+  >;
   trends: {
     traffic_24h: CompactTrafficTrendPoint[];
     capacity_24h: CompactCapacityTrendPoint[];
