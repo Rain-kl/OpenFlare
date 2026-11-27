@@ -36,6 +36,20 @@ const (
 	TracerouteTriggerManual = "manual"
 	// TracerouteTriggerAuto marks background scheduled traceroute runs.
 	TracerouteTriggerAuto = "auto"
+
+	// ProbeTargetTypeAnchor classifies global public DNS/network reachability anchor targets.
+	ProbeTargetTypeAnchor = "public_anchor"
+	// ProbeTargetTypeCustomerISP classifies explicit ISP/region targets representative of customer networks.
+	ProbeTargetTypeCustomerISP = "customer_isp"
+	// ProbeTargetTypeManual classifies operator-configured arbitrary public targets.
+	ProbeTargetTypeManual = "manual"
+
+	// ProbeProtoICMP probes targets using ICMP echo.
+	ProbeProtoICMP = "icmp"
+	// ProbeProtoTCP probes targets using TCP SYN/connect handshake timing.
+	ProbeProtoTCP = "tcp"
+	// ProbeProtoTraceroute probes targets with full hop-by-hop trippy traceroute.
+	ProbeProtoTraceroute = "traceroute"
 )
 
 // OpenFlareNetworkQualitySample represents a single aggregated quality observation stored in logstore.
@@ -194,4 +208,61 @@ type TracerouteRecordQuery struct {
 	Target      string
 	TriggerType string
 	TargetASN   uint32
+}
+
+// OpenFlareProbeTarget stores a managed, SSRF-validated active probe target.
+type OpenFlareProbeTarget struct {
+	ID            uint      `json:"id" gorm:"primaryKey;autoIncrement"`
+	Name          string    `json:"name" gorm:"column:name;size:128;not null;default:''"`
+	IP            string    `json:"ip" gorm:"column:ip;size:64;not null;uniqueIndex:uidx_of_probe_targets_ip_proto_port"`
+	IPFamily      string    `json:"ip_family" gorm:"column:ip_family;size:8;not null;default:'ipv4'"`
+	ProbeProto    string    `json:"probe_proto" gorm:"column:probe_proto;size:16;not null;default:'icmp';uniqueIndex:uidx_of_probe_targets_ip_proto_port"`
+	Port          int       `json:"port" gorm:"column:port;not null;default:0;uniqueIndex:uidx_of_probe_targets_ip_proto_port"`
+	ASN           uint32    `json:"asn" gorm:"column:asn;not null;default:0;index:idx_of_probe_targets_asn_enabled"`
+	Country       string    `json:"country" gorm:"column:country;size:16;not null;default:'';index:idx_of_probe_targets_geo"`
+	Region        string    `json:"region" gorm:"column:region;size:32;not null;default:'';index:idx_of_probe_targets_geo"`
+	TargetType    string    `json:"target_type" gorm:"column:target_type;size:16;not null;default:'public_anchor'"`
+	AnycastStatus string    `json:"anycast_status" gorm:"column:anycast_status;size:16;not null;default:'unknown'"`
+	Enabled       bool      `json:"enabled" gorm:"column:enabled;not null;default:true;index:idx_of_probe_targets_asn_enabled"`
+	Notes         string    `json:"notes" gorm:"column:notes;size:255;not null;default:''"`
+	CreatedAt     time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt     time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// TableName returns the GORM table name.
+func (OpenFlareProbeTarget) TableName() string {
+	return "of_probe_targets"
+}
+
+// OpenFlareProbeTargetState tracks per-node probe dispatch cooldown and failure backoff for one target.
+type OpenFlareProbeTargetState struct {
+	ID                  uint       `json:"id" gorm:"primaryKey;autoIncrement"`
+	NodeID              string     `json:"node_id" gorm:"column:node_id;size:64;not null;uniqueIndex:uidx_of_probe_target_states_node_target"`
+	TargetID            uint       `json:"target_id" gorm:"column:target_id;not null;uniqueIndex:uidx_of_probe_target_states_node_target;index:idx_of_probe_target_states_next_probe"`
+	ConsecutiveFailures int        `json:"consecutive_failures" gorm:"column:consecutive_failures;not null;default:0"`
+	LastProbedAt        *time.Time `json:"last_probed_at" gorm:"column:last_probed_at"`
+	LastSuccessAt       *time.Time `json:"last_success_at" gorm:"column:last_success_at"`
+	NextProbeAt         *time.Time `json:"next_probe_at" gorm:"column:next_probe_at;index:idx_of_probe_target_states_next_probe"`
+	LastError           string     `json:"last_error" gorm:"column:last_error;type:text;not null;default:''"`
+	LastRTTMs           float64    `json:"last_rtt_ms" gorm:"column:last_rtt_ms;not null;default:0"`
+	CreatedAt           time.Time  `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt           time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// TableName returns the GORM table name.
+func (OpenFlareProbeTargetState) TableName() string {
+	return "of_probe_target_states"
+}
+
+// ProbeTargetQuery filters paginated active probe targets.
+type ProbeTargetQuery struct {
+	Page          int
+	PageSize      int
+	ASN           uint32
+	Country       string
+	IPFamily      string
+	TargetType    string
+	AnycastStatus string
+	Enabled       *bool
+	Search        string
 }

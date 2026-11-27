@@ -299,3 +299,24 @@ func ValidateDNSRecordType(raw string) (string, error) {
 	}
 	return upper, nil
 }
+
+// ValidatePublicIPAddress validates a literal public IPv4/IPv6 probe target against SSRF policies.
+// Returns the canonical IP string and detected IP family ("ipv4" or "ipv6").
+func ValidatePublicIPAddress(raw string) (string, string, error) {
+	cleaned := stripBrackets(strings.TrimSpace(raw))
+	if cleaned == "" {
+		return "", "", errors.New(errProbeTargetIPInvalid)
+	}
+	addr, err := netip.ParseAddr(cleaned)
+	if err != nil {
+		return "", "", errors.New(errProbeTargetIPInvalid)
+	}
+	addr = addr.Unmap()
+	if isBlockedAddr(addr) {
+		return "", "", errors.New(errTargetPrivateBlocked)
+	}
+	if addr.Is4() {
+		return addr.String(), "ipv4", nil
+	}
+	return addr.String(), "ipv6", nil
+}

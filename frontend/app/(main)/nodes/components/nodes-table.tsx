@@ -92,7 +92,9 @@ function NodeIdentity({ node }: { node: NodeItem }) {
     ? t('ipLine', { ip: node.ip }) +
       (node.ip_manual_override ? t('lockedSuffix') : '')
     : '';
-  const description = [node.geo_name, ip].filter(Boolean).join(' · ');
+  const description = [node.network_group, node.geo_name, ip]
+    .filter(Boolean)
+    .join(' · ');
   const system = node.monitoring?.system;
 
   return (

@@ -2497,6 +2497,131 @@ definitions:
       traceroute:
         $ref: '#/definitions/apps_openflare_nettools.EnrichedTracerouteResult'
     type: object
+  apps_openflare_nettools.ProbeTargetInput:
+    properties:
+      anycast_status:
+        type: string
+      asn:
+        type: integer
+      country:
+        type: string
+      enabled:
+        type: boolean
+      ip:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      port:
+        type: integer
+      probe_proto:
+        type: string
+      region:
+        type: string
+      target_type:
+        type: string
+    type: object
+  apps_openflare_nettools.ProbeTargetItem:
+    properties:
+      anycast_status:
+        type: string
+      asn:
+        type: integer
+      country:
+        type: string
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      ip:
+        type: string
+      ip_family:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      port:
+        type: integer
+      probe_proto:
+        type: string
+      region:
+        type: string
+      states:
+        items:
+          $ref: '#/definitions/apps_openflare_nettools.ProbeTargetNodeStateItem'
+        type: array
+      target_type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  apps_openflare_nettools.ProbeTargetNodeStateItem:
+    properties:
+      consecutive_failures:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_error:
+        type: string
+      last_probed_at:
+        type: string
+      last_rtt_ms:
+        type: number
+      last_success_at:
+        type: string
+      next_probe_at:
+        type: string
+      node_geo:
+        type: string
+      node_id:
+        type: string
+      node_name:
+        type: string
+      node_status:
+        type: string
+      target_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  apps_openflare_nettools.ProbeTargetPage:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/apps_openflare_nettools.ProbeTargetItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  apps_openflare_nettools.ProbeTargetUpdateInput:
+    properties:
+      anycast_status:
+        type: string
+      asn:
+        type: integer
+      country:
+        type: string
+      enabled:
+        type: boolean
+      name:
+        type: string
+      notes:
+        type: string
+      port:
+        type: integer
+      probe_proto:
+        type: string
+      region:
+        type: string
+      target_type:
+        type: string
+    type: object
   apps_openflare_nettools.ProbeTaskState:
     properties:
       completed_nodes:
@@ -7611,6 +7736,39 @@ definitions:
         type: string
       weight:
         type: integer
+    type: object
+  model.OpenFlareProbeTarget:
+    properties:
+      anycast_status:
+        type: string
+      asn:
+        type: integer
+      country:
+        type: string
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      ip:
+        type: string
+      ip_family:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      port:
+        type: integer
+      probe_proto:
+        type: string
+      region:
+        type: string
+      target_type:
+        type: string
+      updated_at:
+        type: string
     type: object
   model.OpenFlareWAFWhitelistEntry:
     properties:
@@ -15590,6 +15748,209 @@ paths:
       security:
       - SessionCookie: []
       summary: 多点 Ping / TCPing 探测
+      tags:
+      - openflare-network-tools
+  /api/v1/d/network-tools/probe-targets:
+    get:
+      description: 列出 of_probe_targets 探测靶点及其按节点维度（of_probe_target_states）的连续失败次数、退避截止时间与最近成功延迟
+      parameters:
+      - description: 目标 ASN
+        in: query
+        name: asn
+        type: integer
+      - description: 国家/地区 ISO 编码
+        in: query
+        name: country
+        type: string
+      - description: IP 地址族（ipv4 或 ipv6）
+        in: query
+        name: ip_family
+        type: string
+      - description: 靶点类型（public_anchor、customer_isp、manual）
+        in: query
+        name: target_type
+        type: string
+      - description: Anycast 状态（unknown、unicast、confirmed）
+        in: query
+        name: anycast_status
+        type: string
+      - description: 是否启用
+        in: query
+        name: enabled
+        type: boolean
+      - description: 关键词搜索
+        in: query
+        name: search
+        type: string
+      - description: 页码
+        in: query
+        name: p
+        type: integer
+      - description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 受控探测靶点列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_nettools.ProbeTargetPage'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 分页查询受控主动探测靶点
+      tags:
+      - openflare-network-tools
+    post:
+      consumes:
+      - application/json
+      description: 执行公网 IP 与 SSRF 校验并保存受控探测靶点（禁止私网、回环、CGNAT 及内部地址）
+      parameters:
+      - description: 探测靶点配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_nettools.ProbeTargetInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已创建的探测靶点
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.OpenFlareProbeTarget'
+              type: object
+        "400":
+          description: 参数错误或 SSRF 校验失败
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 新增受控主动探测靶点
+      tags:
+      - openflare-network-tools
+  /api/v1/d/network-tools/probe-targets/{id}:
+    delete:
+      description: 删除指定探测靶点及其关联的节点探测退避状态
+      parameters:
+      - description: 靶点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 删除受控主动探测靶点
+      tags:
+      - openflare-network-tools
+    put:
+      consumes:
+      - application/json
+      description: 修改探测靶点名称、协议、端口、Anycast 标注或启停状态
+      parameters:
+      - description: 靶点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 靶点更新参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apps_openflare_nettools.ProbeTargetUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的探测靶点
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.OpenFlareProbeTarget'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: 更新受控主动探测靶点
       tags:
       - openflare-network-tools
   /api/v1/d/network-tools/quality-matrix:

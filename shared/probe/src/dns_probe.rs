@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{lookup_host, TcpStream, UdpSocket};
+use tokio::net::{TcpStream, UdpSocket};
 
 const DEFAULT_DNS_TIMEOUT_MS: u64 = 5_000;
 const MIN_DNS_TIMEOUT_MS: u64 = 500;
@@ -41,8 +41,15 @@ struct ParsedECS {
 }
 
 /// Executes an RFC 1035 DNS lookup against the specified resolver with optional EDNS0 Client Subnet.
-/// Automatically falls back from UDP to TCP when the response sets `TC=1`.
+/// Automatically falls back from UDP to TCP when the response sets `TC=1`, enforcing SSRF validation.
 pub async fn execute_dns_query(req: &DnsQueryRequest) -> DnsQueryResult {
+    execute_dns_query_with_policy(req, true).await
+}
+
+pub(crate) async fn execute_dns_query_with_policy(
+    req: &DnsQueryRequest,
+    enforce_safety: bool,
+) -> DnsQueryResult {
     let domain = req.domain.trim().trim_end_matches('.');
     let record_type = normalize_qtype_name(&req.record_type);
     let resolver_input = if req.resolver.trim().is_empty() {
@@ -69,7 +76,12 @@ pub async fn execute_dns_query(req: &DnsQueryRequest) -> DnsQueryResult {
         );
     };
 
-    let ecs = match req.ecs_subnet.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+    let ecs = match req
+        .ecs_subnet
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         Some(raw) => match parse_ecs_subnet(raw) {
             Ok(parsed) => Some(parsed),
             Err(err) => return dns_error(domain, &record_type, resolver_input, err),
@@ -77,7 +89,7 @@ pub async fn execute_dns_query(req: &DnsQueryRequest) -> DnsQueryResult {
         None => None,
     };
 
-    let resolver_addr = match resolve_dns_server_addr(resolver_input).await {
+    let resolver_addr = match resolve_dns_server_addr(resolver_input, enforce_safety).await {
         Ok(addr) => addr,
         Err(err) => return dns_error(domain, &record_type, resolver_input, err),
     };
@@ -148,12 +160,18 @@ pub async fn execute_dns_query(req: &DnsQueryRequest) -> DnsQueryResult {
     parsed
 }
 
-async fn resolve_dns_server_addr(raw: &str) -> Result<SocketAddr, String> {
+async fn resolve_dns_server_addr(raw: &str, enforce_safety: bool) -> Result<SocketAddr, String> {
     let trimmed = raw.trim();
     if let Ok(sock) = SocketAddr::from_str(trimmed) {
+        if enforce_safety {
+            crate::safety::validate_target_ip(sock.ip())?;
+        }
         return Ok(sock);
     }
     if let Ok(ip) = IpAddr::from_str(trimmed) {
+        if enforce_safety {
+            crate::safety::validate_target_ip(ip)?;
+        }
         return Ok(SocketAddr::new(ip, 53));
     }
     let (host, port) = if trimmed.contains(':') {
@@ -164,7 +182,10 @@ async fn resolve_dns_server_addr(raw: &str) -> Result<SocketAddr, String> {
     if host.is_empty() {
         return Err("DNS resolver host cannot be empty".to_owned());
     }
-    let mut addrs = lookup_host((host.as_str(), port))
+    if enforce_safety {
+        return crate::safety::resolve_public_socket_addr(&host, port).await;
+    }
+    let mut addrs = tokio::net::lookup_host((host.as_str(), port))
         .await
         .map_err(|err| format!("failed to resolve DNS server {trimmed}: {err}"))?;
     addrs
@@ -189,8 +210,9 @@ async fn query_udp(addr: SocketAddr, packet: &[u8]) -> Result<Vec<u8>, std::io::
 
 async fn query_tcp(addr: SocketAddr, packet: &[u8]) -> Result<Vec<u8>, std::io::Error> {
     let mut stream = TcpStream::connect(addr).await?;
-    let len = u16::try_from(packet.len())
-        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "DNS packet too large"))?;
+    let len = u16::try_from(packet.len()).map_err(|_| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "DNS packet too large")
+    })?;
     stream.write_all(&len.to_be_bytes()).await?;
     stream.write_all(packet).await?;
     stream.flush().await?;
@@ -422,7 +444,11 @@ fn parse_dns_response(
         }
         let value = decode_rdata(buf, rtype, rdata_start, rdata_end)?;
         records.push(DnsRecord {
-            name: if name.is_empty() { ".".to_owned() } else { name },
+            name: if name.is_empty() {
+                ".".to_owned()
+            } else {
+                name
+            },
             record_type: qtype_to_str(rtype),
             ttl,
             value,
@@ -498,7 +524,9 @@ fn read_name(packet: &[u8], start: usize) -> Result<(String, usize), String> {
 fn decode_rdata(packet: &[u8], rtype: u16, start: usize, end: usize) -> Result<String, String> {
     let slice = &packet[start..end];
     match rtype {
-        TYPE_A if slice.len() == 4 => Ok(Ipv4Addr::new(slice[0], slice[1], slice[2], slice[3]).to_string()),
+        TYPE_A if slice.len() == 4 => {
+            Ok(Ipv4Addr::new(slice[0], slice[1], slice[2], slice[3]).to_string())
+        }
         TYPE_AAAA if slice.len() == 16 => {
             let mut octets = [0u8; 16];
             octets.copy_from_slice(slice);
@@ -506,7 +534,11 @@ fn decode_rdata(packet: &[u8], rtype: u16, start: usize, end: usize) -> Result<S
         }
         TYPE_NS | TYPE_CNAME | TYPE_PTR => {
             let (target, _) = read_name(packet, start)?;
-            Ok(if target.is_empty() { ".".to_owned() } else { target })
+            Ok(if target.is_empty() {
+                ".".to_owned()
+            } else {
+                target
+            })
         }
         TYPE_MX if slice.len() >= 3 => {
             let pref = u16::from_be_bytes([slice[0], slice[1]]);
@@ -602,7 +634,7 @@ mod tests {
         let pkt = build_dns_query(0x1234, "edge.openflare.cc", TYPE_A, Some(ecs)).expect("pkt");
         assert_eq!(u16::from_be_bytes([pkt[0], pkt[1]]), 0x1234);
         assert_eq!(u16::from_be_bytes([pkt[10], pkt[11]]), 1); // ARCOUNT=1
-        // Verify ECS option code 0x0008 and masked bytes [223, 5, 5] are present in OPT RDATA.
+                                                               // Verify ECS option code 0x0008 and masked bytes [223, 5, 5] are present in OPT RDATA.
         assert!(pkt.windows(5).any(|w| w == [0x00, 0x08, 0x00, 0x07, 0x00]));
         assert!(pkt.windows(3).any(|w| w == [223, 5, 5]));
     }
@@ -680,13 +712,16 @@ mod tests {
             stream.write_all(&ok_resp).await.unwrap();
         });
 
-        let result = execute_dns_query(&DnsQueryRequest {
-            domain: "openflare.cc".into(),
-            record_type: "A".into(),
-            resolver: addr.to_string(),
-            ecs_subnet: Some("198.51.100.0/24".into()),
-            timeout_ms: Some(3000),
-        })
+        let result = execute_dns_query_with_policy(
+            &DnsQueryRequest {
+                domain: "openflare.cc".into(),
+                record_type: "A".into(),
+                resolver: addr.to_string(),
+                ecs_subnet: Some("198.51.100.0/24".into()),
+                timeout_ms: Some(3000),
+            },
+            false,
+        )
         .await;
         server_task.await.unwrap();
 
@@ -694,5 +729,24 @@ mod tests {
         assert!(result.error.is_none());
         assert_eq!(result.records.len(), 1);
         assert_eq!(result.records[0].value, "198.51.100.7");
+    }
+
+    #[tokio::test]
+    async fn ssrf_blocks_private_dns_resolver() {
+        for resolver in ["127.0.0.1:53", "169.254.169.254:53", "100.64.0.1:53"] {
+            let res = execute_dns_query(&DnsQueryRequest {
+                domain: "example.com".into(),
+                record_type: "A".into(),
+                resolver: resolver.into(),
+                ecs_subnet: None,
+                timeout_ms: Some(500),
+            })
+            .await;
+            assert!(
+                res.error.as_deref().is_some_and(|e| e.contains("SSRF")),
+                "expected SSRF error for resolver {resolver}, got {:?}",
+                res.error
+            );
+        }
     }
 }

@@ -137,6 +137,7 @@
         "asHops": "Шаги AS",
         "asPath": "Оценочный / измеренный путь AS",
         "effectiveRtt": "Эффективный RTT",
+        "predictionMethod": "Уровень прогноза",
         "qualityScore": "Оценка качества",
         "source": "Источник"
       },
@@ -207,27 +208,118 @@
     },
     "quality": {
       "title": "Матрица качества сети и базы данных",
-      "description": "Объединение пассивного TCP RTT рукопожатий и активной трассировки в единую матрицу оценки качества пограничных узлов для клиентских ASN.",
+      "description": "Просмотр точной матрицы качества по странам, регионам и семействам IP, моделирование 5-уровневого прогноза задержки и управление целями зондирования.",
       "tabs": {
         "matrix": "Матрица качества",
+        "targets": "Цели зондирования",
         "datasets": "Базы данных и синхронизация"
       },
       "filters": {
         "searchPlaceholder": "Поиск по ID узла, ASN, организации или стране...",
+        "countryPlaceholder": "Страна (CN)",
+        "regionPlaceholder": "Регион (CN-GD)",
+        "ipFamilyAll": "Все семейства IP",
+        "levelAll": "Все уровни",
+        "levelRegion": "Регион (детализация)",
+        "levelCountry": "Страна",
+        "measureAll": "Все источники замеров",
+        "measureTcpPassive": "Пассивный TCP",
+        "measureTcpActive": "Активный TCPing",
+        "measureIcmpActive": "Активный ICMP",
+        "measureTraceroute": "Трассировка",
         "sourceAll": "Все источники",
-        "sourceMeasured": "Измерено (measured)",
-        "sourcePredicted": "Оценка (predicted)"
+        "sourceMeasured": "Измерено",
+        "sourcePredicted": "Прогноз"
+      },
+      "predictor": {
+        "title": "Моделирование 5-уровневого прогноза задержки",
+        "description": "Укажите IP, ASN, страну/регион и семейство IP клиента для расчёта прогнозируемого RTT, разброса кандидатов, ошибки калибровки и рейтинга узлов.",
+        "targetIpPlaceholder": "IP клиента (необяз.)",
+        "targetAsnPlaceholder": "ASN клиента (напр. 4134)",
+        "targetCountryPlaceholder": "Страна (напр. CN)",
+        "targetRegionPlaceholder": "Регион (напр. CN-GD)",
+        "run": "Рассчитать прогноз",
+        "anycastIsolatedBadge": "Изоляция Anycast",
+        "dispersionError": "Разброс {dispersion} мс · Калибр. ошибка {error}",
+        "methods": {
+          "exact_region": "L1 Точный регион",
+          "country_rollup": "L2 Уровень страны",
+          "inferred_upstream": "L3 Перенос по апстриму",
+          "similar_node": "L4 Схожий узел",
+          "geo_prior": "L5 Гео-базис"
+        }
+      },
+      "sources": {
+        "tcp_passive": "Пассивный TCP",
+        "tcp_active": "Активный TCPing",
+        "icmp_active": "Активный ICMP",
+        "traceroute": "Трассировка",
+        "none": "Нет замеров"
       },
       "columns": {
         "node": "Пограничный узел",
-        "clientAsn": "Клиентский ASN",
-        "effectiveRtt": "Эффективный RTT",
-        "tcpStats": "Пассивный TCP (P50 / P95 / Повт.)",
-        "traceStats": "Трассировка (RTT / Потери / Шаги)",
-        "score": "Оценка",
-        "confidence": "Достоверность",
-        "source": "Источник",
-        "updatedAt": "Обновлено"
+        "clientNetwork": "Сеть / Гео / IP клиента",
+        "predictionMethod": "Уровень прогноза",
+        "effectiveRtt": "Эффективный RTT (P50 / P95)",
+        "tcpStats": "Пассивный TCP (P50 / P95 / Кол-во)",
+        "activeStats": "Активный зонд / Трассировка",
+        "scoreConfidence": "Оценка / Достоверность",
+        "source": "Замер / Статус",
+        "updatedAt": "Время замера",
+        "prefixes": "Префиксов: {count}",
+        "geoBase": "Гео-база {value} мс"
+      },
+      "targets": {
+        "addButton": "Добавить цель",
+        "editTitle": "Редактировать цель зондирования",
+        "createTitle": "Добавить цель зондирования",
+        "formDesc": "Принимаются только проверенные публичные адреса IPv4 и IPv6; защита SSRF действует на уровне управления и пограничных узлов.",
+        "searchPlaceholder": "Поиск по названию, IP, стране или региону...",
+        "filterTypeAll": "Все типы целей",
+        "types": {
+          "public_anchor": "Публичный якорь",
+          "customer_isp": "Сеть клиента (ISP)",
+          "manual": "Вручную"
+        },
+        "anycast": {
+          "unknown": "Неизвестно",
+          "unicast": "Unicast",
+          "confirmed": "Подтверждённый Anycast"
+        },
+        "columns": {
+          "target": "Цель / Примечание",
+          "endpoint": "IP / Семейство / Протокол",
+          "networkGeo": "ASN / Геолокация",
+          "classification": "Тип / Статус Anycast",
+          "nodeStates": "Состояние по узлам и бэкофф",
+          "enabled": "Активно",
+          "actions": "Действия"
+        },
+        "form": {
+          "name": "Название цели",
+          "namePlaceholder": "напр. Шлюз ChinaNet Guangdong",
+          "ip": "Публичный IP цели",
+          "ipPlaceholder": "напр. 202.96.128.86",
+          "ssrfHint": "Частные, локальные, CGNAT и зарезервированные диапазоны блокируются.",
+          "proto": "Протокол",
+          "port": "Порт",
+          "targetType": "Тип цели",
+          "anycastStatus": "Статус Anycast",
+          "asn": "ASN",
+          "country": "Код страны ISO",
+          "region": "Код региона",
+          "notes": "Примечания",
+          "enabled": "Разрешить автоматическое зондирование этой цели"
+        },
+        "createSuccess": "Цель зондирования создана.",
+        "updateSuccess": "Цель зондирования обновлена.",
+        "deleteSuccess": "Цель зондирования удалена.",
+        "deleteConfirmTitle": "Удаление цели зондирования",
+        "deleteConfirmDesc": "Подтвердите удаление цели «{target}» и всех связанных состояний бэкоффа узлов.",
+        "noStates": "Состояния отсутствуют",
+        "stateFailures": "Сбоев: {count}",
+        "stateHealthy": "Норма ({rtt} мс)",
+        "stateBackoffUntil": "Пауза до {time}"
       },
       "datasets": {
         "dataDir": "Каталог: {dir}",

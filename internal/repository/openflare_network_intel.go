@@ -38,12 +38,19 @@ const (
 	colUpdatedAt           = "updated_at"
 	colLastObservedAt      = "last_observed_at"
 	colLastSeenAt          = "last_seen_at"
+	colLastProbedAt        = "last_probed_at"
+	colNextProbeAt         = "next_probe_at"
+	colLastError           = "last_error"
 
 	networkIntelDefaultPageSize = 20
 	networkQualityBatchSize     = 200
 	networkQualityMaxPageSize   = 200
 	asTopologyMaxEdgeLimit      = 200
 	tracerouteMaxPageSize       = 100
+	probeTargetDefaultPageSize  = 20
+	probeTargetMaxPageSize      = 200
+	maxProbeErrorLen            = 512
+	maxBackoffExponentShift     = 10
 )
 
 // ObservedASEdge describes a newly observed AS-to-AS hop measurement to merge into of_as_topology_edges.
@@ -634,4 +641,355 @@ func ListOpenFlareNodesNeedingGeoOrASN(ctx context.Context, limit int) ([]model.
 		return nil, err
 	}
 	return nodes, nil
+}
+
+// ListOpenFlareProbeTargets returns paginated managed probe targets matching filter criteria.
+func ListOpenFlareProbeTargets(ctx context.Context, query model.ProbeTargetQuery) ([]*model.OpenFlareProbeTarget, int64, error) {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return nil, 0, errors.New(errDatabaseNotInitialized)
+	}
+	page := max(1, query.Page)
+	pageSize := query.PageSize
+	if pageSize <= 0 {
+		pageSize = probeTargetDefaultPageSize
+	}
+	if pageSize > probeTargetMaxPageSize {
+		pageSize = probeTargetMaxPageSize
+	}
+
+	q := applyProbeTargetFilters(conn.Model(&model.OpenFlareProbeTarget{}), query)
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		if isMissingTableError(err) {
+			return []*model.OpenFlareProbeTarget{}, 0, nil
+		}
+		return nil, 0, err
+	}
+	var rows []*model.OpenFlareProbeTarget
+	if err := q.Order("enabled DESC, target_type ASC, id ASC").
+		Limit(pageSize).
+		Offset((page - 1) * pageSize).
+		Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	return rows, total, nil
+}
+
+func applyProbeTargetFilters(q *gorm.DB, query model.ProbeTargetQuery) *gorm.DB {
+	if query.ASN > 0 {
+		q = q.Where("asn = ?", query.ASN)
+	}
+	if c := strings.ToUpper(strings.TrimSpace(query.Country)); c != "" {
+		q = q.Where("country = ?", c)
+	}
+	if fam := strings.ToLower(strings.TrimSpace(query.IPFamily)); fam != "" {
+		q = q.Where("ip_family = ?", fam)
+	}
+	if tt := strings.ToLower(strings.TrimSpace(query.TargetType)); tt != "" {
+		q = q.Where("target_type = ?", tt)
+	}
+	if ac := strings.ToLower(strings.TrimSpace(query.AnycastStatus)); ac != "" {
+		q = q.Where("anycast_status = ?", ac)
+	}
+	if query.Enabled != nil {
+		q = q.Where("enabled = ?", *query.Enabled)
+	}
+	if s := strings.TrimSpace(query.Search); s != "" {
+		like := "%" + s + "%"
+		q = q.Where("(name LIKE ? OR ip LIKE ? OR notes LIKE ? OR country LIKE ? OR region LIKE ? OR CAST(asn AS TEXT) LIKE ?)", like, like, like, like, like, like)
+	}
+	return q
+}
+
+// ListEnabledOpenFlareProbeTargets lists all enabled probe targets for scheduler evaluation.
+func ListEnabledOpenFlareProbeTargets(ctx context.Context) ([]*model.OpenFlareProbeTarget, error) {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return nil, errors.New(errDatabaseNotInitialized)
+	}
+	var rows []*model.OpenFlareProbeTarget
+	if err := conn.Where("enabled = ?", true).Order("id ASC").Find(&rows).Error; err != nil {
+		if isMissingTableError(err) {
+			return []*model.OpenFlareProbeTarget{}, nil
+		}
+		return nil, err
+	}
+	return rows, nil
+}
+
+// GetOpenFlareProbeTargetByID returns a single probe target by primary key.
+func GetOpenFlareProbeTargetByID(ctx context.Context, id uint) (*model.OpenFlareProbeTarget, error) {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return nil, errors.New(errDatabaseNotInitialized)
+	}
+	var row model.OpenFlareProbeTarget
+	if err := conn.First(&row, id).Error; err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
+// GetOpenFlareProbeTargetByEndpoint finds a probe target matching (ip, probe_proto, port).
+func GetOpenFlareProbeTargetByEndpoint(ctx context.Context, ip, proto string, port int) (*model.OpenFlareProbeTarget, error) {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return nil, errors.New(errDatabaseNotInitialized)
+	}
+	var row model.OpenFlareProbeTarget
+	if err := conn.Where("ip = ? AND probe_proto = ? AND port = ?", strings.TrimSpace(ip), strings.ToLower(strings.TrimSpace(proto)), port).First(&row).Error; err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
+// CreateOpenFlareProbeTarget inserts a validated active probe target.
+func CreateOpenFlareProbeTarget(ctx context.Context, target *model.OpenFlareProbeTarget) error {
+	if target == nil {
+		return nil
+	}
+	conn := db.DB(ctx)
+	if conn == nil {
+		return errors.New(errDatabaseNotInitialized)
+	}
+	return conn.Create(target).Error
+}
+
+// UpdateOpenFlareProbeTarget updates a managed probe target's metadata and scheduling state.
+func UpdateOpenFlareProbeTarget(ctx context.Context, target *model.OpenFlareProbeTarget) error {
+	if target == nil || target.ID == 0 {
+		return nil
+	}
+	conn := db.DB(ctx)
+	if conn == nil {
+		return errors.New(errDatabaseNotInitialized)
+	}
+	return conn.Save(target).Error
+}
+
+// DeleteOpenFlareProbeTarget deletes a probe target and its per-node state records inside a transaction.
+func DeleteOpenFlareProbeTarget(ctx context.Context, targetID uint) error {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return errors.New(errDatabaseNotInitialized)
+	}
+	return conn.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("target_id = ?", targetID).Delete(&model.OpenFlareProbeTargetState{}).Error; err != nil {
+			if !isMissingTableError(err) {
+				return err
+			}
+		}
+		res := tx.Delete(&model.OpenFlareProbeTarget{}, targetID)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
+	})
+}
+
+// ListOpenFlareProbeTargetStates loads per-node backoff and last-seen state rows filtered by optional node/target IDs.
+func ListOpenFlareProbeTargetStates(ctx context.Context, nodeID string, targetIDs []uint) ([]*model.OpenFlareProbeTargetState, error) {
+	conn := db.DB(ctx)
+	if conn == nil {
+		return nil, errors.New(errDatabaseNotInitialized)
+	}
+	q := conn.Model(&model.OpenFlareProbeTargetState{})
+	if trimmed := strings.TrimSpace(nodeID); trimmed != "" {
+		q = q.Where("node_id = ?", trimmed)
+	}
+	if len(targetIDs) > 0 {
+		q = q.Where("target_id IN ?", targetIDs)
+	}
+	var rows []*model.OpenFlareProbeTargetState
+	if err := q.Order("target_id ASC, node_id ASC").Find(&rows).Error; err != nil {
+		if isMissingTableError(err) {
+			return []*model.OpenFlareProbeTargetState{}, nil
+		}
+		return nil, err
+	}
+	return rows, nil
+}
+
+// MarkOpenFlareProbeDispatched updates last_probed_at and in-flight cooldown next_probe_at for (node_id, target_id).
+func MarkOpenFlareProbeDispatched(ctx context.Context, nodeID string, targetID uint, probedAt, nextProbeAt time.Time) error {
+	trimmedNode := strings.TrimSpace(nodeID)
+	if trimmedNode == "" || targetID == 0 {
+		return nil
+	}
+	conn := db.DB(ctx)
+	if conn == nil {
+		return errors.New(errDatabaseNotInitialized)
+	}
+	pAt := probedAt.UTC()
+	nAt := nextProbeAt.UTC()
+	return conn.Transaction(func(tx *gorm.DB) error {
+		var existing model.OpenFlareProbeTargetState
+		err := tx.Where("node_id = ? AND target_id = ?", trimmedNode, targetID).First(&existing).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return tx.Create(&model.OpenFlareProbeTargetState{
+				NodeID:       trimmedNode,
+				TargetID:     targetID,
+				LastProbedAt: &pAt,
+				NextProbeAt:  &nAt,
+			}).Error
+		}
+		if err != nil {
+			return err
+		}
+		updates := map[string]any{
+			colLastProbedAt: &pAt,
+			colUpdatedAt:    pAt,
+		}
+		if existing.NextProbeAt == nil || existing.NextProbeAt.Before(nAt) {
+			updates[colNextProbeAt] = &nAt
+		}
+		return tx.Model(&existing).Updates(updates).Error
+	})
+}
+
+// RecordOpenFlareProbeTargetOutcome updates exponential backoff state on failure or resets failure count on success.
+func RecordOpenFlareProbeTargetOutcome(
+	ctx context.Context,
+	targetID uint,
+	nodeID string,
+	ip string,
+	proto string,
+	port int,
+	success bool,
+	rttMs float64,
+	errMsg string,
+	now time.Time,
+	baseBackoff time.Duration,
+	maxBackoff time.Duration,
+) error {
+	trimmedNode := strings.TrimSpace(nodeID)
+	if trimmedNode == "" {
+		return nil
+	}
+	conn := db.DB(ctx)
+	if conn == nil {
+		return errors.New(errDatabaseNotInitialized)
+	}
+
+	return conn.Transaction(func(tx *gorm.DB) error {
+		ids, err := resolveOutcomeTargetIDsTx(tx, targetID, ip, proto, port)
+		if err != nil || len(ids) == 0 {
+			return err
+		}
+		ts := now.UTC()
+		cleanErr := strings.TrimSpace(errMsg)
+		if len(cleanErr) > maxProbeErrorLen {
+			cleanErr = cleanErr[:maxProbeErrorLen]
+		}
+		for _, id := range ids {
+			if err := upsertProbeTargetOutcomeTx(tx, trimmedNode, id, success, rttMs, cleanErr, ts, baseBackoff, maxBackoff); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func resolveOutcomeTargetIDsTx(tx *gorm.DB, targetID uint, ip, proto string, port int) ([]uint, error) {
+	if targetID > 0 {
+		return []uint{targetID}, nil
+	}
+	cleanIP := strings.TrimSpace(ip)
+	if cleanIP == "" {
+		return nil, nil
+	}
+	cleanProto := strings.ToLower(strings.TrimSpace(proto))
+	q := tx.Model(&model.OpenFlareProbeTarget{}).Where("ip = ?", cleanIP)
+	if cleanProto != "" {
+		if cleanProto == model.ProbeProtoICMP {
+			q = q.Where("probe_proto IN ?", []string{model.ProbeProtoICMP, model.ProbeProtoTraceroute})
+		} else {
+			q = q.Where("probe_proto IN ?", []string{cleanProto, model.ProbeProtoTraceroute})
+		}
+	}
+	if port > 0 {
+		q = q.Where("port IN ?", []int{0, port})
+	}
+	var ids []uint
+	if err := q.Pluck("id", &ids).Error; err != nil {
+		if isMissingTableError(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return ids, nil
+}
+
+func upsertProbeTargetOutcomeTx(
+	tx *gorm.DB,
+	nodeID string,
+	targetID uint,
+	success bool,
+	rttMs float64,
+	cleanErr string,
+	ts time.Time,
+	baseBackoff time.Duration,
+	maxBackoff time.Duration,
+) error {
+	var state model.OpenFlareProbeTargetState
+	err := tx.Where("node_id = ? AND target_id = ?", nodeID, targetID).First(&state).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		nextState := model.OpenFlareProbeTargetState{
+			NodeID:       nodeID,
+			TargetID:     targetID,
+			LastProbedAt: &ts,
+		}
+		if success {
+			nextState.LastSuccessAt = &ts
+			nextState.LastRTTMs = rttMs
+		} else {
+			nextState.ConsecutiveFailures = 1
+			nextState.LastError = cleanErr
+			nextAt := ts.Add(computeProbeBackoff(1, baseBackoff, maxBackoff))
+			nextState.NextProbeAt = &nextAt
+		}
+		return tx.Create(&nextState).Error
+	}
+
+	if success {
+		return tx.Model(&state).Updates(map[string]any{
+			"consecutive_failures": 0,
+			colLastProbedAt:        &ts,
+			"last_success_at":      &ts,
+			colNextProbeAt:         nil,
+			colLastError:           "",
+			"last_rtt_ms":          rttMs,
+			colUpdatedAt:           ts,
+		}).Error
+	}
+
+	failures := state.ConsecutiveFailures + 1
+	nextAt := ts.Add(computeProbeBackoff(failures, baseBackoff, maxBackoff))
+	return tx.Model(&state).Updates(map[string]any{
+		"consecutive_failures": failures,
+		colLastProbedAt:        &ts,
+		colNextProbeAt:         &nextAt,
+		colLastError:           cleanErr,
+		colUpdatedAt:           ts,
+	}).Error
+}
+
+func computeProbeBackoff(failures int, baseBackoff, maxBackoff time.Duration) time.Duration {
+	if baseBackoff <= 0 {
+		return 0
+	}
+	shift := max(0, min(failures-1, maxBackoffExponentShift))
+	d := baseBackoff << shift
+	if maxBackoff > 0 && d > maxBackoff {
+		return maxBackoff
+	}
+	return d
 }

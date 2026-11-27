@@ -19,7 +19,9 @@ export interface NodeItem {
   ip_manual_override: boolean;
   asn?: number;
   asn_org?: string;
+  network_group?: string;
   geo_name: string;
+  geo_source?: string;
   geo_latitude?: number | null;
   geo_longitude?: number | null;
   geo_manual_override: boolean;
@@ -132,6 +134,7 @@ export interface NodeMutationPayload {
   ip: string;
   ip_manual_override: boolean;
   auto_update_enabled: boolean;
+  network_group?: string;
   geo_name: string;
   geo_latitude?: number | null;
   geo_longitude?: number | null;
@@ -2168,11 +2171,16 @@ export interface NetToolsTracerouteHistoryPage {
 
 export interface NetToolsIPLookupResult {
   ip: string;
+  continent_code?: string;
   country_iso: string;
   country_name: string;
+  region_code?: string;
   city_name: string;
   latitude?: number | null;
   longitude?: number | null;
+  accuracy_radius_km?: number;
+  geo_source?: string;
+  anycast_status?: string;
   asn: number;
   asn_name: string;
   asn_class: string;
@@ -2238,6 +2246,9 @@ export interface NetToolsASNPrefixesResponse {
 export interface NetToolsASPathInput {
   target_asn?: number;
   target_ip?: string;
+  target_country?: string;
+  target_region?: string;
+  ip_family?: string;
   node_ids?: string[];
 }
 
@@ -2255,18 +2266,80 @@ export interface NetToolsNodeASPathComparison {
   node_geo: string;
   node_asn: number;
   node_asn_name: string;
+  network_group?: string;
+  geo_source?: string;
   as_hops: number;
   path: NetToolsASPathHopNode[];
   effective_rtt_ms: number;
+  rtt_p95_ms?: number;
+  candidate_dispersion_ms?: number;
+  prediction_error_ms?: number | null;
   quality_score: number;
   confidence: number;
+  measurement_source?: string;
+  prediction_method?: string;
+  geo_base_rtt_ms?: number;
+  sample_count?: number;
+  distinct_prefixes?: number;
+  last_observed_at?: string | null;
+  anycast_isolated?: boolean;
   data_source: string;
 }
 
 export interface NetToolsASPathResponse {
   target_asn: number;
   target_asn_info?: NetToolsASNInfo;
+  target_country?: string;
+  target_region?: string;
+  ip_family?: string;
   nodes: NetToolsNodeASPathComparison[];
+  attribution: string;
+}
+
+export interface NetToolsQualityPredictInput {
+  target_ip?: string;
+  target_asn?: number;
+  target_country?: string;
+  target_region?: string;
+  ip_family?: string;
+  node_ids?: string[];
+}
+
+export interface NetToolsNodeQualityPrediction {
+  node_id: string;
+  node_name: string;
+  node_ip: string;
+  node_geo: string;
+  node_asn: number;
+  node_asn_name: string;
+  network_group?: string;
+  geo_source?: string;
+  effective_rtt_ms: number;
+  rtt_p95_ms: number;
+  candidate_dispersion_ms: number;
+  prediction_error_ms?: number | null;
+  quality_score: number;
+  confidence: number;
+  measurement_source: string;
+  prediction_method: string;
+  geo_base_rtt_ms: number;
+  sample_count: number;
+  distinct_prefixes: number;
+  last_observed_at?: string | null;
+  anycast_isolated?: boolean;
+  data_source: string;
+}
+
+export interface NetToolsQualityPredictResponse {
+  target_ip?: string;
+  target_asn: number;
+  target_asn_info?: NetToolsASNInfo;
+  target_country?: string;
+  target_region?: string;
+  ip_family: string;
+  anycast_status?: string;
+  geo_source?: string;
+  nodes: NetToolsNodeQualityPrediction[];
   attribution: string;
 }
 
@@ -2277,8 +2350,14 @@ export interface NetToolsQualityMatrixItem {
   node_name: string;
   node_geo: string;
   node_status: string;
+  node_network_group?: string;
+  node_geo_source?: string;
   client_asn: number;
   client_country: string;
+  client_region?: string;
+  ip_family?: string;
+  aggregation_level?: string;
+  stats_version?: number;
   client_asn_name: string;
   tcp_rtt_p50_ms: number;
   tcp_rtt_p95_ms: number;
@@ -2286,6 +2365,11 @@ export interface NetToolsQualityMatrixItem {
   tcp_retrans_rate: number;
   tcp_sample_count: number;
   tcp_last_seen_at?: string | null;
+  probe_rtt_p50_ms?: number;
+  probe_loss_rate?: number;
+  probe_sample_count?: number;
+  probe_proto?: string;
+  probe_last_seen_at?: string | null;
   trace_rtt_p50_ms: number;
   trace_loss_rate: number;
   trace_hop_count: number;
@@ -2294,9 +2378,17 @@ export interface NetToolsQualityMatrixItem {
   trace_last_seen_at?: string | null;
   effective_rtt_ms: number;
   predicted_rtt_ms: number;
+  rtt_ewma_ms?: number;
+  distinct_prefix_count?: number;
+  geo_base_rtt_ms?: number;
+  geo_accuracy_km?: number;
+  geo_source?: string;
+  geo_confidence?: number;
+  measurement_source?: string;
   quality_score: number;
   confidence: number;
   data_source: 'measured' | 'predicted' | string;
+  last_observed_at?: string | null;
   updated_at: string;
 }
 
@@ -2306,6 +2398,10 @@ export interface NetToolsQualityMatrixQuery {
   node_id?: string;
   client_asn?: number;
   client_country?: string;
+  client_region?: string;
+  ip_family?: string;
+  aggregation_level?: string;
+  measurement_source?: string;
   data_source?: string;
   search?: string;
   sort_by?: string;
@@ -2315,6 +2411,85 @@ export interface NetToolsQualityMatrixQuery {
 export interface NetToolsQualityMatrixPage {
   total: number;
   results: NetToolsQualityMatrixItem[];
+}
+
+export interface NetToolsProbeTargetNodeState {
+  id: number;
+  node_id: string;
+  node_name: string;
+  node_geo: string;
+  node_status: string;
+  target_id: number;
+  consecutive_failures: number;
+  last_probed_at?: string | null;
+  last_success_at?: string | null;
+  next_probe_at?: string | null;
+  last_error: string;
+  last_rtt_ms: number;
+  updated_at: string;
+}
+
+export interface NetToolsProbeTarget {
+  id: number;
+  name: string;
+  ip: string;
+  ip_family: string;
+  probe_proto: 'icmp' | 'tcp' | 'traceroute' | string;
+  port: number;
+  asn: number;
+  country: string;
+  region: string;
+  target_type: 'public_anchor' | 'customer_isp' | 'manual' | string;
+  anycast_status: 'unknown' | 'unicast' | 'confirmed' | string;
+  enabled: boolean;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+  states: NetToolsProbeTargetNodeState[];
+}
+
+export interface NetToolsProbeTargetPage {
+  total: number;
+  results: NetToolsProbeTarget[];
+}
+
+export interface NetToolsProbeTargetQuery {
+  p?: number;
+  page_size?: number;
+  asn?: number;
+  country?: string;
+  ip_family?: string;
+  target_type?: string;
+  anycast_status?: string;
+  enabled?: boolean;
+  search?: string;
+}
+
+export interface NetToolsProbeTargetInput {
+  name?: string;
+  ip: string;
+  probe_proto?: 'icmp' | 'tcp' | 'traceroute' | string;
+  port?: number;
+  asn?: number;
+  country?: string;
+  region?: string;
+  target_type?: 'public_anchor' | 'customer_isp' | 'manual' | string;
+  anycast_status?: 'unknown' | 'unicast' | 'confirmed' | string;
+  enabled?: boolean;
+  notes?: string;
+}
+
+export interface NetToolsProbeTargetUpdateInput {
+  name?: string;
+  probe_proto?: 'icmp' | 'tcp' | 'traceroute' | string;
+  port?: number;
+  asn?: number;
+  country?: string;
+  region?: string;
+  target_type?: 'public_anchor' | 'customer_isp' | 'manual' | string;
+  anycast_status?: 'unknown' | 'unicast' | 'confirmed' | string;
+  enabled?: boolean;
+  notes?: string;
 }
 
 export interface NetToolsDatasetStatus {

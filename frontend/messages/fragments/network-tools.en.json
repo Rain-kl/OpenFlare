@@ -137,6 +137,7 @@
         "asHops": "AS Hops",
         "asPath": "Estimated / Measured AS Path",
         "effectiveRtt": "Effective RTT",
+        "predictionMethod": "Prediction Level",
         "qualityScore": "Quality Score",
         "source": "Source"
       },
@@ -207,27 +208,118 @@
     },
     "quality": {
       "title": "Network Quality Matrix & Datasets",
-      "description": "Monitor the fused node-by-ASN quality matrix combining passive TCP handshake RTT and active traceroute signals, alongside intelligence dataset health.",
+      "description": "Inspect the country/region/IP-family precision quality matrix and simulate the five-level latency predictor alongside controlled probe targets.",
       "tabs": {
         "matrix": "Quality Matrix",
+        "targets": "Probe Targets",
         "datasets": "Datasets & Sync"
       },
       "filters": {
         "searchPlaceholder": "Search node ID, ASN, organization, or country...",
+        "countryPlaceholder": "Country (CN)",
+        "regionPlaceholder": "Region (CN-GD)",
+        "ipFamilyAll": "All IP Families",
+        "levelAll": "All Levels",
+        "levelRegion": "Region (drilldown)",
+        "levelCountry": "Country",
+        "measureAll": "All Measurements",
+        "measureTcpPassive": "Passive TCP",
+        "measureTcpActive": "Active TCPing",
+        "measureIcmpActive": "Active ICMP",
+        "measureTraceroute": "Traceroute",
         "sourceAll": "All Sources",
-        "sourceMeasured": "Measured (passive + active)",
-        "sourcePredicted": "Predicted (AS graph / geo)"
+        "sourceMeasured": "Measured",
+        "sourcePredicted": "Predicted"
+      },
+      "predictor": {
+        "title": "Five-Level Latency Prediction Simulator",
+        "description": "Evaluate client IP, ASN, country/region, and IP family to inspect predicted RTT, candidate dispersion, calibrated error, and edge node ranking.",
+        "targetIpPlaceholder": "Client IP (optional)",
+        "targetAsnPlaceholder": "Client ASN (e.g. 4134)",
+        "targetCountryPlaceholder": "Country (e.g. CN)",
+        "targetRegionPlaceholder": "Region (e.g. CN-GD)",
+        "run": "Predict Quality",
+        "anycastIsolatedBadge": "Anycast Isolated",
+        "dispersionError": "Dispersion {dispersion} ms · Calibrated error {error}",
+        "methods": {
+          "exact_region": "L1 Exact Region",
+          "country_rollup": "L2 Country Rollup",
+          "inferred_upstream": "L3 Inferred Upstream",
+          "similar_node": "L4 Similar Node",
+          "geo_prior": "L5 Geo Prior"
+        }
+      },
+      "sources": {
+        "tcp_passive": "Passive TCP",
+        "tcp_active": "Active TCPing",
+        "icmp_active": "Active ICMP",
+        "traceroute": "Traceroute",
+        "none": "None"
       },
       "columns": {
         "node": "Edge Node",
-        "clientAsn": "Client ASN",
-        "effectiveRtt": "Effective RTT",
-        "tcpStats": "Passive TCP (P50 / P95 / Retrans)",
-        "traceStats": "Traceroute (RTT / Loss / Hops)",
-        "score": "Score",
-        "confidence": "Confidence",
-        "source": "Source",
-        "updatedAt": "Updated"
+        "clientNetwork": "Client ASN / Geo / Family",
+        "predictionMethod": "Prediction Level",
+        "effectiveRtt": "Effective RTT (P50 / P95)",
+        "tcpStats": "Passive TCP (P50 / P95 / Count)",
+        "activeStats": "Active Probe / Traceroute",
+        "scoreConfidence": "Score / Confidence",
+        "source": "Measurement / Status",
+        "updatedAt": "Observed At",
+        "prefixes": "{count} prefixes",
+        "geoBase": "Geo baseline {value} ms"
+      },
+      "targets": {
+        "addButton": "Add Probe Target",
+        "editTitle": "Edit Probe Target",
+        "createTitle": "Add Probe Target",
+        "formDesc": "Only validated public IPv4 and IPv6 addresses are accepted; both the control plane and edge workers enforce SSRF restrictions.",
+        "searchPlaceholder": "Search target name, IP, country, or region...",
+        "filterTypeAll": "All Target Types",
+        "types": {
+          "public_anchor": "Public Anchor",
+          "customer_isp": "Customer ISP",
+          "manual": "Manual"
+        },
+        "anycast": {
+          "unknown": "Unknown",
+          "unicast": "Unicast",
+          "confirmed": "Confirmed Anycast"
+        },
+        "columns": {
+          "target": "Target / Notes",
+          "endpoint": "IP / Family / Protocol",
+          "networkGeo": "ASN / Location",
+          "classification": "Type / Anycast Status",
+          "nodeStates": "Per-Node State & Backoff",
+          "enabled": "Enabled",
+          "actions": "Actions"
+        },
+        "form": {
+          "name": "Target Name",
+          "namePlaceholder": "e.g. ChinaNet Guangdong Gateway",
+          "ip": "Public Target IP",
+          "ipPlaceholder": "e.g. 202.96.128.86",
+          "ssrfHint": "Private, loopback, link-local, CGNAT, and benchmark networks are rejected.",
+          "proto": "Protocol",
+          "port": "Port",
+          "targetType": "Target Type",
+          "anycastStatus": "Anycast Status",
+          "asn": "ASN",
+          "country": "Country ISO",
+          "region": "Region Code",
+          "notes": "Notes",
+          "enabled": "Allow automated probe scheduling for this target"
+        },
+        "createSuccess": "Probe target created.",
+        "updateSuccess": "Probe target updated.",
+        "deleteSuccess": "Probe target deleted.",
+        "deleteConfirmTitle": "Delete Probe Target",
+        "deleteConfirmDesc": "Confirm removal of probe target \"{target}\" and all associated per-node backoff state records.",
+        "noStates": "No probe states yet",
+        "stateFailures": "{count} failures",
+        "stateHealthy": "Healthy ({rtt} ms)",
+        "stateBackoffUntil": "Backoff until {time}"
       },
       "datasets": {
         "dataDir": "Directory: {dir}",

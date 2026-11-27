@@ -1,5 +1,5 @@
-use crate::net_probe::{execute_net_probe, format_rfc3339_now};
-use crate::ping::{execute_ping, PingOptions};
+use crate::net_probe::{execute_net_probe, execute_net_probe_with_policy, format_rfc3339_now};
+use crate::ping::{execute_ping, execute_ping_with_policy, PingOptions};
 use crate::types::{
     NetProbeRequest, NetProbeResult, PingRequest, PingResult, WorkerRequest, WorkerResponse,
 };
@@ -55,11 +55,24 @@ fn acquire_probe_raw_socket_privilege() {
     }
 }
 
-/// Testable core loop taking explicit `Read`/`Write` IPC streams.
+/// Testable core loop taking explicit `Read`/`Write` IPC streams (always enforcing SSRF guard).
 pub fn run_probe_worker_with_io<R, W>(
     reader: R,
     writer: W,
     config: ProbeWorkerConfig,
+) -> Result<(), String>
+where
+    R: Read + Send + 'static,
+    W: Write + Send + 'static,
+{
+    run_probe_worker_with_io_and_policy(reader, writer, config, true)
+}
+
+fn run_probe_worker_with_io_and_policy<R, W>(
+    reader: R,
+    writer: W,
+    config: ProbeWorkerConfig,
+    enforce_safety: bool,
 ) -> Result<(), String>
 where
     R: Read + Send + 'static,
@@ -127,6 +140,7 @@ where
 
     runtime.block_on(async move {
         let http_client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
             .timeout(Duration::from_secs(15))
             .user_agent(&config.user_agent)
             .build()
@@ -158,6 +172,7 @@ where
                         outbound_tx.clone(),
                         Arc::clone(&inflight),
                         config.max_task_timeout,
+                        enforce_safety,
                     );
                 }
                 _ = idle_tick.tick() => {
@@ -195,6 +210,7 @@ fn dispatch_worker_request(
     outbound_tx: mpsc::Sender<String>,
     inflight: Arc<AtomicUsize>,
     max_task_timeout: Duration,
+    enforce_safety: bool,
 ) {
     inflight.fetch_add(1, Ordering::AcqRel);
     tokio::spawn(async move {
@@ -210,6 +226,7 @@ fn dispatch_worker_request(
                     ping_options,
                     ping_limiter,
                     max_task_timeout,
+                    enforce_safety,
                 )
                 .await;
                 send_response(
@@ -231,6 +248,7 @@ fn dispatch_worker_request(
                     ping_options,
                     net_limiter,
                     max_task_timeout,
+                    enforce_safety,
                 )
                 .await;
                 send_response(
@@ -260,6 +278,7 @@ async fn run_isolated_ping(
     ping_options: PingOptions,
     limiter: Arc<Semaphore>,
     max_timeout: Duration,
+    enforce_safety: bool,
 ) -> PingResult {
     let Ok(_permit) = limiter.try_acquire_owned() else {
         return PingResult {
@@ -271,10 +290,14 @@ async fn run_isolated_ping(
     };
     let req_clone = req.clone();
     let handle = tokio::spawn(async move {
-        tokio::time::timeout(
-            max_timeout,
-            execute_ping(&req_clone, http_client.as_ref(), &ping_options),
-        )
+        tokio::time::timeout(max_timeout, async {
+            if enforce_safety {
+                execute_ping(&req_clone, http_client.as_ref(), &ping_options).await
+            } else {
+                execute_ping_with_policy(&req_clone, http_client.as_ref(), &ping_options, false)
+                    .await
+            }
+        })
         .await
     });
     match handle.await {
@@ -294,19 +317,26 @@ async fn run_isolated_net_probe(
     ping_options: PingOptions,
     limiter: Arc<Semaphore>,
     max_timeout: Duration,
+    enforce_safety: bool,
 ) -> NetProbeResult {
     let Ok(_permit) = limiter.try_acquire_owned() else {
-        return failed_net_probe(
-            &req,
-            "node net probe concurrency limit reached".to_owned(),
-        );
+        return failed_net_probe(&req, "node net probe concurrency limit reached".to_owned());
     };
     let req_clone = req.clone();
     let handle = tokio::spawn(async move {
-        tokio::time::timeout(
-            max_timeout,
-            execute_net_probe(&req_clone, http_client.as_ref(), &ping_options),
-        )
+        tokio::time::timeout(max_timeout, async {
+            if enforce_safety {
+                execute_net_probe(&req_clone, http_client.as_ref(), &ping_options).await
+            } else {
+                execute_net_probe_with_policy(
+                    &req_clone,
+                    http_client.as_ref(),
+                    &ping_options,
+                    false,
+                )
+                .await
+            }
+        })
         .await
     });
     match handle.await {
@@ -442,13 +472,14 @@ mod tests {
 
         let writer = SharedBuf::default();
         let reader_cursor = std::io::Cursor::new(input.into_bytes());
-        run_probe_worker_with_io(
+        run_probe_worker_with_io_and_policy(
             reader_cursor,
             writer.clone(),
             ProbeWorkerConfig {
                 idle_timeout: Duration::from_secs(10),
                 ..ProbeWorkerConfig::default()
             },
+            false,
         )
         .expect("worker");
 
@@ -464,6 +495,52 @@ mod tests {
         assert!(lines
             .iter()
             .any(|r| matches!(r, WorkerResponse::NetProbe { request_id, payload } if request_id == "np1" && payload.ping.as_ref().is_some_and(|p| p.received == 1))));
+    }
+
+    #[test]
+    fn worker_blocks_ssrf_targets_under_default_policy() {
+        let req = WorkerRequest::NetProbe {
+            request_id: "ssrf-1".into(),
+            payload: NetProbeRequest {
+                probe_id: "ssrf-1".into(),
+                kind: "ping_batch".into(),
+                ping: Some(crate::types::PingBatchRequest {
+                    protocol: "tcp".into(),
+                    target: "169.254.169.254".into(),
+                    port: Some(80),
+                    count: 1,
+                    interval_ms: 50,
+                    timeout_ms: Some(500),
+                }),
+                traceroute: None,
+                dns: None,
+            },
+        };
+        let mut input = serde_json::to_string(&req).unwrap();
+        input.push('\n');
+        let writer = SharedBuf::default();
+        run_probe_worker_with_io(
+            std::io::Cursor::new(input.into_bytes()),
+            writer.clone(),
+            ProbeWorkerConfig {
+                idle_timeout: Duration::from_secs(5),
+                ..ProbeWorkerConfig::default()
+            },
+        )
+        .expect("worker");
+
+        let output = writer.contents();
+        let lines: Vec<WorkerResponse> = output
+            .lines()
+            .map(|l| serde_json::from_str::<WorkerResponse>(l).expect("valid json line"))
+            .collect();
+        assert_eq!(lines.len(), 1);
+        assert!(matches!(
+            &lines[0],
+            WorkerResponse::NetProbe { request_id, payload }
+                if request_id == "ssrf-1"
+                    && payload.error.as_deref().is_some_and(|e| e.contains("SSRF"))
+        ));
     }
 
     #[derive(Clone, Default)]

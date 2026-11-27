@@ -28,6 +28,7 @@ function buildNodeSchema(t: (key: string) => string) {
       ip: z.string(),
       ip_manual_override: z.boolean(),
       auto_update_enabled: z.boolean(),
+      network_group: z.string().max(64),
       geo_manual_override: z.boolean(),
       geo_name: z.string(),
       geo_latitude: z.string(),
@@ -52,6 +53,7 @@ const defaultForm: NodeFormValues = {
   ip: '',
   ip_manual_override: false,
   auto_update_enabled: false,
+  network_group: '',
   geo_manual_override: false,
   geo_name: '',
   geo_latitude: '',
@@ -67,6 +69,7 @@ function buildFormValues(node?: NodeItem | null): NodeFormValues {
     ip: node.ip,
     ip_manual_override: node.ip_manual_override,
     auto_update_enabled: node.auto_update_enabled,
+    network_group: node.network_group ?? '',
     geo_manual_override: node.geo_manual_override,
     geo_name: node.geo_name,
     geo_latitude:
@@ -87,6 +90,7 @@ function toPayload(form: NodeFormValues): NodeMutationPayload {
     ip: form.ip.trim(),
     ip_manual_override: form.ip_manual_override,
     auto_update_enabled: form.auto_update_enabled,
+    network_group: form.network_group.trim().toLowerCase(),
     geo_manual_override: form.geo_manual_override,
     geo_name: form.geo_manual_override ? form.geo_name.trim() : '',
     geo_latitude:
@@ -173,6 +177,20 @@ export function NodeEditorDialog({
                 {form.formState.errors.ip.message}
               </p>
             ) : null}
+          </div>
+
+          <div className='space-y-2'>
+            <Label htmlFor='node-network-group'>
+              {t('editor.networkGroup')}
+            </Label>
+            <Input
+              id='node-network-group'
+              placeholder={t('editor.networkGroupPlaceholder')}
+              {...form.register('network_group')}
+            />
+            <p className='text-xs text-muted-foreground'>
+              {t('editor.networkGroupDesc')}
+            </p>
           </div>
 
           <div className='flex items-center justify-between rounded-lg border px-3 py-2'>

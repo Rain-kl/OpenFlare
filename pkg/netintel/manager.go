@@ -146,31 +146,36 @@ func (m *Manager) LookupIP(rawIP string) *IPLookupResult {
 		res.DataSources = append(res.DataSources, "mmdb_asn")
 	}
 
-	if res.ASN > 0 {
-		if meta, ok := s.bgp.asns[res.ASN]; ok {
-			res.ASNName = meta.Name
-			res.ASNClass = meta.Class
-			res.ASNCountry = meta.Country
-		}
-		if res.ASNName == "" {
-			res.ASNName = mmdbOrg
-		}
-		if tags := s.bgp.tags[res.ASN]; len(tags) > 0 {
-			res.ASNTags = append([]string(nil), tags...)
-		}
-		if res.CountryISO == "" && res.ASNCountry != "" {
-			res.CountryISO = res.ASNCountry
-			res.CountryName = res.ASNCountry
-			if res.GeoSource == "" || res.GeoSource == GeoSourceUnknown {
-				res.GeoSource = GeoSourceASNCountry
-			}
-		}
-	}
+	populateASNMetadata(s, res, mmdbOrg)
 	res.AnycastStatus = EvaluateAnycastStatus(addr, geo.isAnycast, res.ASNTags)
 	if res.GeoSource == "" {
 		res.GeoSource = GeoSourceUnknown
 	}
 	return res
+}
+
+func populateASNMetadata(s *Snapshot, res *IPLookupResult, mmdbOrg string) {
+	if res.ASN == 0 {
+		return
+	}
+	if meta, ok := s.bgp.asns[res.ASN]; ok {
+		res.ASNName = meta.Name
+		res.ASNClass = meta.Class
+		res.ASNCountry = meta.Country
+	}
+	if res.ASNName == "" {
+		res.ASNName = mmdbOrg
+	}
+	if tags := s.bgp.tags[res.ASN]; len(tags) > 0 {
+		res.ASNTags = append([]string(nil), tags...)
+	}
+	if res.CountryISO == "" && res.ASNCountry != "" {
+		res.CountryISO = res.ASNCountry
+		res.CountryName = res.ASNCountry
+		if res.GeoSource == "" || res.GeoSource == GeoSourceUnknown {
+			res.GeoSource = GeoSourceASNCountry
+		}
+	}
 }
 
 // LookupASN returns metadata and summary statistics for asn.

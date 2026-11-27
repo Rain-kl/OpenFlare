@@ -50,6 +50,8 @@ func setupNetToolsTestEnv(t *testing.T) func() {
 		&model.OpenFlareNetworkQualityMatrix{},
 		&model.OpenFlareASTopologyEdge{},
 		&model.OpenFlareTracerouteRecord{},
+		&model.OpenFlareProbeTarget{},
+		&model.OpenFlareProbeTargetState{},
 	))
 	db.SetDB(sqliteDB)
 	testhelper.SetupLogStoresForTest(t)
@@ -388,4 +390,107 @@ func TestPredictQualityMatrixAndASPathWithRegionAndIPFamily(t *testing.T) {
 	require.Equal(t, int64(1), listPayload.Data.Total)
 	require.Equal(t, "CN-GD", listPayload.Data.Results[0].ClientRegion)
 	require.Equal(t, "cn2-gia", listPayload.Data.Results[0].NodeNetworkGroup)
+}
+
+func TestProbeTargetCRUDAndSSRFValidation(t *testing.T) {
+	cleanup := setupNetToolsTestEnv(t)
+	defer cleanup()
+
+	r := testhelper.NewTestGinEngine()
+	group := r.Group("/api/v1/d/network-tools")
+	group.GET("/probe-targets", ListProbeTargetsHandler)
+	group.POST("/probe-targets", CreateProbeTargetHandler)
+	group.PUT("/probe-targets/:id", UpdateProbeTargetHandler)
+	group.DELETE("/probe-targets/:id", DeleteProbeTargetHandler)
+
+	// 1. SSRF validation blocks private, loopback, link-local, CGNAT, and benchmark IPs.
+	for _, blocked := range []string{"127.0.0.1", "10.0.0.1", "169.254.169.254", "100.64.0.1", "198.18.0.1", "fe80::1"} {
+		payload, _ := json.Marshal(ProbeTargetInput{
+			Name:       "Blocked",
+			IP:         blocked,
+			ProbeProto: model.ProbeProtoICMP,
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/d/network-tools/probe-targets", bytes.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		require.Equal(t, http.StatusBadRequest, w.Code, "expected SSRF rejection for %s", blocked)
+	}
+
+	// 2. Create public ISP TCP target -> succeeds and auto-enriches ASN/country/ip_family.
+	createBody, _ := json.Marshal(ProbeTargetInput{
+		Name:       "CT Guangdong Gateway",
+		IP:         "3.3.3.3",
+		ProbeProto: model.ProbeProtoTCP,
+		Port:       443,
+		Country:    "CN",
+		Region:     "GD",
+		TargetType: model.ProbeTargetTypeCustomerISP,
+	})
+	cReq := httptest.NewRequest(http.MethodPost, "/api/v1/d/network-tools/probe-targets", bytes.NewReader(createBody))
+	cReq.Header.Set("Content-Type", "application/json")
+	cW := httptest.NewRecorder()
+	r.ServeHTTP(cW, cReq)
+	require.Equal(t, http.StatusOK, cW.Code)
+
+	var createResp struct {
+		Data model.OpenFlareProbeTarget `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(cW.Body.Bytes(), &createResp))
+	require.NotZero(t, createResp.Data.ID)
+	require.Equal(t, pkgnetintel.IPFamilyIPv4, createResp.Data.IPFamily)
+	require.Equal(t, "CN-GD", createResp.Data.Region)
+	require.Equal(t, uint32(4134), createResp.Data.ASN)
+
+	// 3. Duplicate (ip, probe_proto, port) rejected.
+	dupReq := httptest.NewRequest(http.MethodPost, "/api/v1/d/network-tools/probe-targets", bytes.NewReader(createBody))
+	dupReq.Header.Set("Content-Type", "application/json")
+	dupW := httptest.NewRecorder()
+	r.ServeHTTP(dupW, dupReq)
+	require.Equal(t, http.StatusBadRequest, dupW.Code)
+
+	// 4. Add a node backoff state row and verify GET /probe-targets joins state metadata.
+	ctx := context.Background()
+	now := time.Now().UTC()
+	require.NoError(t, repository.CreateOpenFlareNode(ctx, &model.OpenFlareNode{
+		NodeID: "edge-test-pt", Name: "PT Edge", IP: "1.1.1.1", GeoName: "HK", Status: "online", NodeType: "edge_node", AccessToken: "tok-pt", CapabilitiesJSON: "[]",
+	}))
+	require.NoError(t, repository.RecordOpenFlareProbeTargetOutcome(
+		ctx, createResp.Data.ID, "edge-test-pt", "3.3.3.3", "tcp", 443, false, 0, "dial timeout", now, 15*time.Minute, 24*time.Hour,
+	))
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/d/network-tools/probe-targets?target_type=customer_isp", nil)
+	listW := httptest.NewRecorder()
+	r.ServeHTTP(listW, listReq)
+	require.Equal(t, http.StatusOK, listW.Code)
+	var listResp struct {
+		Data ProbeTargetPage `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(listW.Body.Bytes(), &listResp))
+	require.EqualValues(t, 1, listResp.Data.Total)
+	require.Len(t, listResp.Data.Results[0].States, 1)
+	require.Equal(t, 1, listResp.Data.Results[0].States[0].ConsecutiveFailures)
+	require.Equal(t, "PT Edge", listResp.Data.Results[0].States[0].NodeName)
+
+	// 5. Update enablement & anycast status, then delete cleanly.
+	disabled := false
+	confirmed := pkgnetintel.AnycastStatusConfirmed
+	updBody, _ := json.Marshal(ProbeTargetUpdateInput{
+		Enabled:       &disabled,
+		AnycastStatus: &confirmed,
+	})
+	uReq := httptest.NewRequest(http.MethodPut, "/api/v1/d/network-tools/probe-targets/1", bytes.NewReader(updBody))
+	uReq.Header.Set("Content-Type", "application/json")
+	uW := httptest.NewRecorder()
+	r.ServeHTTP(uW, uReq)
+	require.Equal(t, http.StatusOK, uW.Code)
+
+	dReq := httptest.NewRequest(http.MethodDelete, "/api/v1/d/network-tools/probe-targets/1", nil)
+	dW := httptest.NewRecorder()
+	r.ServeHTTP(dW, dReq)
+	require.Equal(t, http.StatusOK, dW.Code)
+
+	statesAfter, err := repository.ListOpenFlareProbeTargetStates(ctx, "edge-test-pt", []uint{createResp.Data.ID})
+	require.NoError(t, err)
+	require.Empty(t, statesAfter)
 }

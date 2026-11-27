@@ -519,6 +519,63 @@ func RunRollup(ctx context.Context) (*RollupSummary, error) {
 	}, nil
 }
 
+func selectPrimaryProbeMetric(
+	acc *pairAccum,
+	tcpActiveP50, tcpActiveLoss, icmpActiveP50, icmpActiveLoss, traceP50, traceLoss float64,
+) (rttP50, loss float64, samples int, proto string, lastSeen *time.Time) {
+	switch {
+	case acc.tcpActiveSamples > 0 && tcpActiveP50 > 0:
+		return tcpActiveP50, tcpActiveLoss, acc.tcpActiveSamples, probeProtoTCP, acc.tcpActiveLastSeenAt
+	case acc.icmpActiveSamples > 0 && icmpActiveP50 > 0:
+		return icmpActiveP50, icmpActiveLoss, acc.icmpActiveSamples, probeProtoICMP, acc.icmpActiveLastSeenAt
+	case acc.traceSamples > 0 && traceP50 > 0:
+		return traceP50, traceLoss, acc.traceSamples, model.NetworkQualitySourceTraceroute, acc.traceLastSeenAt
+	default:
+		return 0, 0, 0, "", nil
+	}
+}
+
+func selectEffectiveLatencySource(
+	tcpP50, tcpRetrans, tcpActiveP50, tcpActiveLoss, icmpActiveP50, icmpActiveLoss, traceP50, traceLoss float64,
+) (effectiveRTT float64, measurementSource string, primaryLoss float64) {
+	switch {
+	case tcpP50 > 0:
+		return tcpP50, model.NetworkQualitySourceTCPPassive, tcpRetrans
+	case tcpActiveP50 > 0:
+		return tcpActiveP50, model.NetworkQualitySourceTCPActive, tcpActiveLoss
+	case icmpActiveP50 > 0:
+		return icmpActiveP50, model.NetworkQualitySourceICMPActive, icmpActiveLoss
+	case traceP50 > 0:
+		return traceP50, model.NetworkQualitySourceTraceroute, traceLoss
+	default:
+		return 0, model.MeasurementSourceNone, 0
+	}
+}
+
+func computeRowConfidenceAndScore(
+	totalSamples, distinctPrefixes, statsVersion int,
+	effectiveRTT, tcpP50, tcpP95, tcpRetrans, primaryLoss float64,
+	measurementSource string,
+) (confidence, qualityScore float64) {
+	sampleFactor := 1.0 - math.Exp(-float64(totalSamples)/confidenceHalfSamples)
+	prefixFactor := 1.0
+	if distinctPrefixes > 0 {
+		prefixFactor = math.Min(1.0, prefixConfidenceBase+prefixConfidenceSpan*(1.0-math.Exp(-float64(distinctPrefixes)/prefixConfidenceHalf)))
+	}
+	confidence = math.Max(minSampleConfidence, math.Min(maxSampleConfidence, sampleFactor*prefixFactor))
+	if statsVersion < model.NetworkQualityStatsVersionHist64 {
+		confidence = math.Min(confidence, legacyMaxConfidence)
+	}
+
+	scoredRTT := effectiveRTT
+	if tcpP95 > tcpP50 && tcpP50 > 0 && measurementSource == model.NetworkQualitySourceTCPPassive {
+		scoredRTT += 0.35 * (tcpP95 - tcpP50)
+	}
+	lossPenalty := math.Min(maxLossPenaltyRatio, tcpRetrans*tcpRetransPenaltyFactor+primaryLoss*probeLossPenaltyFactor)
+	qualityScore = math.Max(minQualityScore, (maxQualityScore/(1.0+scoredRTT/qualityScoreRTTScale))*(1.0-lossPenalty))
+	return confidence, qualityScore
+}
+
 func finalizeMeasuredRow(
 	acc *pairAccum,
 	node model.OpenFlareNode,
@@ -544,77 +601,30 @@ func finalizeMeasuredRow(
 		traceHops = int(math.Round(acc.traceHopSum / acc.traceWeightSum))
 	}
 
-	// Separate active probe metrics from passive TCP; prefer tcp_active > icmp_active > traceroute.
-	var probeRTTP50, probeLoss float64
-	var probeSamples int
-	var probeProto string
-	var probeLastSeen *time.Time
-	switch {
-	case acc.tcpActiveSamples > 0 && tcpActiveP50 > 0:
-		probeRTTP50 = tcpActiveP50
-		probeLoss = tcpActiveLoss
-		probeSamples = acc.tcpActiveSamples
-		probeProto = probeProtoTCP
-		probeLastSeen = acc.tcpActiveLastSeenAt
-	case acc.icmpActiveSamples > 0 && icmpActiveP50 > 0:
-		probeRTTP50 = icmpActiveP50
-		probeLoss = icmpActiveLoss
-		probeSamples = acc.icmpActiveSamples
-		probeProto = probeProtoICMP
-		probeLastSeen = acc.icmpActiveLastSeenAt
-	case acc.traceSamples > 0 && traceP50 > 0:
-		probeRTTP50 = traceP50
-		probeLoss = traceLoss
-		probeSamples = acc.traceSamples
-		probeProto = model.NetworkQualitySourceTraceroute
-		probeLastSeen = acc.traceLastSeenAt
-	}
-
-	// Strict source precedence without blind 1.0:0.7 cross-protocol averaging.
-	var effectiveRTT float64
-	var measurementSource string
-	var primaryLoss float64
-	switch {
-	case tcpP50 > 0:
-		effectiveRTT = tcpP50
-		measurementSource = model.NetworkQualitySourceTCPPassive
-		primaryLoss = tcpRetrans
-	case tcpActiveP50 > 0:
-		effectiveRTT = tcpActiveP50
-		measurementSource = model.NetworkQualitySourceTCPActive
-		primaryLoss = tcpActiveLoss
-	case icmpActiveP50 > 0:
-		effectiveRTT = icmpActiveP50
-		measurementSource = model.NetworkQualitySourceICMPActive
-		primaryLoss = icmpActiveLoss
-	case traceP50 > 0:
-		effectiveRTT = traceP50
-		measurementSource = model.NetworkQualitySourceTraceroute
-		primaryLoss = traceLoss
-	default:
-		measurementSource = model.MeasurementSourceNone
-	}
+	probeRTTP50, probeLoss, probeSamples, probeProto, probeLastSeen := selectPrimaryProbeMetric(
+		acc, tcpActiveP50, tcpActiveLoss, icmpActiveP50, icmpActiveLoss, traceP50, traceLoss,
+	)
+	effectiveRTT, measurementSource, primaryLoss := selectEffectiveLatencySource(
+		tcpP50, tcpRetrans, tcpActiveP50, tcpActiveLoss, icmpActiveP50, icmpActiveLoss, traceP50, traceLoss,
+	)
 
 	rttEWMA := computeOrderedEWMA(acc.ewmaPoints, measurementSource)
 	if rttEWMA <= 0 {
 		rttEWMA = effectiveRTT
 	}
 
-	asnInfo := netintel.LookupASN(acc.clientASN)
 	asnName := ""
-	if asnInfo != nil {
+	if asnInfo := netintel.LookupASN(acc.clientASN); asnInfo != nil {
 		asnName = asnInfo.Name
 	}
 	nodeASN := acc.nodeASN
 	if nodeASN == 0 {
 		nodeASN = node.ASN
 	}
-
 	asPathJSON := acc.traceASPathJSON
 	if strings.TrimSpace(asPathJSON) == "" {
 		asPathJSON = "[]"
 	}
-
 	distinctPrefixes := acc.prefixSketch.DistinctCount()
 	if distinctPrefixes == 0 && acc.legacyMaxPfx > 0 {
 		distinctPrefixes = acc.legacyMaxPfx
@@ -627,25 +637,11 @@ func finalizeMeasuredRow(
 	if acc.hasV2Hist {
 		statsVersion = model.NetworkQualityStatsVersionHist64
 	}
-
 	totalSamples := acc.tcpSamples + acc.tcpActiveSamples + acc.icmpActiveSamples + acc.traceSamples
-	sampleFactor := 1.0 - math.Exp(-float64(totalSamples)/confidenceHalfSamples)
-	prefixFactor := 1.0
-	if distinctPrefixes > 0 {
-		prefixFactor = math.Min(1.0, prefixConfidenceBase+prefixConfidenceSpan*(1.0-math.Exp(-float64(distinctPrefixes)/prefixConfidenceHalf)))
-	}
-	confidence := math.Max(minSampleConfidence, math.Min(maxSampleConfidence, sampleFactor*prefixFactor))
-	if statsVersion < model.NetworkQualityStatsVersionHist64 {
-		confidence = math.Min(confidence, legacyMaxConfidence)
-	}
-
-	// QualityScore is used for ranking/UI display; EffectiveRTTMs itself remains pure unpenalized RTT.
-	scoredRTT := effectiveRTT
-	if tcpP95 > tcpP50 && tcpP50 > 0 && measurementSource == model.NetworkQualitySourceTCPPassive {
-		scoredRTT += 0.35 * (tcpP95 - tcpP50)
-	}
-	lossPenalty := math.Min(maxLossPenaltyRatio, tcpRetrans*tcpRetransPenaltyFactor+primaryLoss*probeLossPenaltyFactor)
-	qualityScore := math.Max(minQualityScore, (maxQualityScore/(1.0+scoredRTT/qualityScoreRTTScale))*(1.0-lossPenalty))
+	confidence, qualityScore := computeRowConfidenceAndScore(
+		totalSamples, distinctPrefixes, statsVersion,
+		effectiveRTT, tcpP50, tcpP95, tcpRetrans, primaryLoss, measurementSource,
+	)
 
 	return &model.OpenFlareNetworkQualityMatrix{
 		NodeID:              acc.nodeID,

@@ -116,7 +116,19 @@ export function NetworkToolsAsnPageClient() {
 
   const pathMutation = useMutation({
     mutationFn: (targetAsn: number) =>
-      NetworkToolsService.traceASPath({ target_asn: targetAsn }),
+      NetworkToolsService.traceASPath({
+        target_asn: targetAsn,
+        target_ip: submitted?.kind === 'ip' ? submitted.query : undefined,
+        target_country:
+          submitted?.kind === 'ip'
+            ? ipQuery.data?.primary?.country_iso || undefined
+            : undefined,
+        target_region:
+          submitted?.kind === 'ip'
+            ? ipQuery.data?.primary?.region_code || undefined
+            : undefined,
+        ip_family: family === 'all' ? undefined : family,
+      }),
     onError: (err) =>
       toast.error(getNetToolsErrorMessage(err, t('common.error'))),
   });
@@ -369,6 +381,7 @@ export function NetworkToolsAsnPageClient() {
                       <TableHead>{t('asn.columns.asHops')}</TableHead>
                       <TableHead>{t('asn.columns.asPath')}</TableHead>
                       <TableHead>{t('asn.columns.effectiveRtt')}</TableHead>
+                      <TableHead>{t('asn.columns.predictionMethod')}</TableHead>
                       <TableHead>{t('asn.columns.qualityScore')}</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -376,9 +389,20 @@ export function NetworkToolsAsnPageClient() {
                     {pathMutation.data.nodes.map((row) => (
                       <TableRow key={row.node_id}>
                         <TableCell>
-                          <div className='font-medium'>{row.node_name}</div>
+                          <div className='flex flex-wrap items-center gap-1.5 font-medium'>
+                            <span>{row.node_name}</span>
+                            {row.network_group ? (
+                              <Badge
+                                variant='secondary'
+                                className='font-mono text-[11px]'
+                              >
+                                {row.network_group}
+                              </Badge>
+                            ) : null}
+                          </div>
                           <div className='text-xs text-muted-foreground'>
                             {row.node_geo || row.node_ip}
+                            {row.geo_source ? ` · ${row.geo_source}` : ''}
                           </div>
                         </TableCell>
                         <TableCell className='font-mono text-xs'>
@@ -400,12 +424,35 @@ export function NetworkToolsAsnPageClient() {
                             {row.path.length === 0 ? '—' : null}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          {row.effective_rtt_ms > 0
-                            ? t('common.msUnit', {
+                        <TableCell className='font-mono text-xs'>
+                          {row.effective_rtt_ms > 0 ? (
+                            <div>
+                              {t('common.msUnit', {
                                 value: formatNetToolsMs(row.effective_rtt_ms),
-                              })
-                            : '—'}
+                              })}
+                              {row.rtt_p95_ms ? (
+                                <span className='text-muted-foreground'>
+                                  {' '}
+                                  / P95 {formatNetToolsMs(row.rtt_p95_ms)} ms
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : (
+                            '—'
+                          )}
+                        </TableCell>
+                        <TableCell className='text-xs'>
+                          <div className='flex flex-wrap items-center gap-1'>
+                            <Badge variant='outline'>
+                              {row.prediction_method || row.data_source || '—'}
+                            </Badge>
+                            {row.measurement_source &&
+                            row.measurement_source !== 'none' ? (
+                              <Badge variant='secondary'>
+                                {row.measurement_source}
+                              </Badge>
+                            ) : null}
+                          </div>
                         </TableCell>
                         <TableCell className='font-semibold'>
                           {row.quality_score > 0

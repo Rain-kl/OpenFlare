@@ -8,8 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"net/netip"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netintel"
@@ -25,28 +26,76 @@ import (
 )
 
 const (
-	// NetQualityProbeTask is the Asynq task name for periodic automated edge traceroutes.
+	// NetQualityProbeTask is the Asynq task name for periodic automated edge active probes.
 	NetQualityProbeTask = "openflare:netquality_probe"
 	// TaskTypeNetQualityProbe is the admin task type for automated network quality probing.
 	TaskTypeNetQualityProbe = "of_netquality_probe"
 
-	autoProbeIDPrefix          = "auto-"
-	maxAutoProbeTargetsPerNode = 5
-	autoProbeTimeoutMs         = uint64(1500)
-	autoProbeMaxHops           = uint8(24)
-	autoProbeProbesPerHop      = uint8(2)
-	autoProbeMatrixLookback    = 25
-	prefixCandidateLimit       = 5
-	percentDivisor             = 100.0
+	autoProbeIDPrefix               = "auto-"
+	autoProbeGlobalDispatchBudget   = 24
+	autoProbeMaxTargetsPerNode      = 4
+	autoProbeMaxNodesPerTarget      = 4
+	autoProbeMaxPacketCostPerNode   = 120
+	autoProbeTraceroutePacketCost   = 48
+	autoProbePingPacketCost         = 4
+	autoProbeTimeoutMs              = uint64(1500)
+	autoProbePingCount              = uint8(4)
+	autoProbePingIntervalMs         = uint64(200)
+	autoProbeMaxHops                = uint8(24)
+	autoProbeProbesPerHop           = uint8(2)
+	autoProbeBackoffBase            = 15 * time.Minute
+	autoProbeBackoffMax             = 24 * time.Hour
+	autoProbeMinCooldown            = 20 * time.Minute
+	autoProbeFreshSkipAge           = 2 * time.Hour
+	autoProbeFreshMinConfidence     = 0.85
+	autoProbeExploreStaleAge        = 6 * time.Hour
+	autoProbeExploreBonus           = 1.35
+	autoProbeNeverProbedStaleFactor = 2.0
+	autoProbeStaleBaseFactor        = 0.5
+	autoProbeStaleHalfHours         = 12.0
+	autoProbeMinUncertainty         = 0.15
+	autoProbeDispersionScaleMs      = 50.0
+	autoProbeMaxUncertainty         = 2.5
+	autoProbeOptimalConfFloor       = 0.72
+	percentDivisor                  = 100.0
+	maxTrackedAutoProbeIDs          = 2048
 )
 
-var anchorProbeTargets = []struct {
-	asn uint32
-	ip  string
-}{
-	{asn: 13335, ip: "1.1.1.1"},
-	{asn: 15169, ip: "8.8.8.8"},
-	{asn: 19281, ip: "9.9.9.9"},
+type autoProbeTargetMeta struct {
+	targetID      uint
+	anycastStatus string
+	port          int
+}
+
+var (
+	autoProbeMetaMu          sync.Mutex
+	autoProbeDispatchTargets = make(map[string]autoProbeTargetMeta)
+	dispatchNetProbeFn       = websocket.DispatchNetProbeTask
+)
+
+func recordAutoProbeMeta(probeID string, meta autoProbeTargetMeta) {
+	autoProbeMetaMu.Lock()
+	defer autoProbeMetaMu.Unlock()
+	if len(autoProbeDispatchTargets) >= maxTrackedAutoProbeIDs {
+		autoProbeDispatchTargets = make(map[string]autoProbeTargetMeta)
+	}
+	autoProbeDispatchTargets[probeID] = meta
+}
+
+func consumeAutoProbeMeta(probeID string) (autoProbeTargetMeta, bool) {
+	autoProbeMetaMu.Lock()
+	defer autoProbeMetaMu.Unlock()
+	meta, ok := autoProbeDispatchTargets[probeID]
+	if ok {
+		delete(autoProbeDispatchTargets, probeID)
+	}
+	return meta, ok
+}
+
+func resetAutoProbeTracking() {
+	autoProbeMetaMu.Lock()
+	autoProbeDispatchTargets = make(map[string]autoProbeTargetMeta)
+	autoProbeMetaMu.Unlock()
 }
 
 // NetQualityProbeMeta describes the background auto-probe task in the admin task catalog.
@@ -54,14 +103,14 @@ var NetQualityProbeMeta = task.TaskMeta{
 	Type:         TaskTypeNetQualityProbe,
 	AsynqTask:    NetQualityProbeTask,
 	Name:         "OpenFlare automated network quality probe",
-	Description:  "Dispatch rate-limited traceroute probes from online edge nodes to active client ASNs to discover AS paths and enrich quality matrix",
+	Description:  "Dispatch rate-limited active probes to managed probe targets using traffic heat, prediction uncertainty, staleness, and non-optimal exploration",
 	SupportsTime: false,
 	MaxRetry:     task.DefaultMaxRetry,
 	Queue:        task.QueueDefault,
 	Retryable:    true,
 }
 
-// ProbeHandler executes periodic automated edge traceroutes.
+// ProbeHandler executes periodic automated edge active probes.
 type ProbeHandler struct{}
 
 // Execute runs one auto-probe dispatch pass.
@@ -74,10 +123,12 @@ func (h *ProbeHandler) Execute(ctx context.Context, _ []byte) (*task.TaskResult,
 	}
 	detailBytes, _ := json.Marshal(summary)
 	msg := fmt.Sprintf(
-		"Automated probe finished: enabled=%t online_nodes=%d dispatched=%d",
+		"Automated probe finished: enabled=%t online_nodes=%d targets=%d dispatched=%d skipped_backoff=%d",
 		summary.Enabled,
 		summary.OnlineNodes,
+		summary.TargetsUsed,
 		summary.Dispatched,
+		summary.SkippedBackoff,
 	)
 	task.AppendLog(ctx, "%s", msg)
 	return &task.TaskResult{
@@ -88,13 +139,34 @@ func (h *ProbeHandler) Execute(ctx context.Context, _ []byte) (*task.TaskResult,
 
 // AutoProbeSummary summarizes one automated probe dispatch run.
 type AutoProbeSummary struct {
-	Enabled     bool `json:"enabled"`
-	OnlineNodes int  `json:"online_nodes"`
-	TargetsUsed int  `json:"targets_used"`
-	Dispatched  int  `json:"dispatched"`
+	Enabled        bool `json:"enabled"`
+	OnlineNodes    int  `json:"online_nodes"`
+	TargetsUsed    int  `json:"targets_used"`
+	Dispatched     int  `json:"dispatched"`
+	SkippedBackoff int  `json:"skipped_backoff"`
+	PacketBudget   int  `json:"packet_budget_used"`
 }
 
-// RunAutoProbe dispatches rate-limited traceroute probes from online edge nodes when enabled.
+type probeStateKey struct {
+	nodeID   string
+	targetID uint
+}
+
+type probeHeatKey struct {
+	asn     uint32
+	country string
+	region  string
+}
+
+type probeScheduleCandidate struct {
+	node       model.OpenFlareNode
+	target     *model.OpenFlareProbeTarget
+	score      float64
+	packetCost int
+}
+
+// RunAutoProbe dispatches budget-bounded active probes against managed of_probe_targets using
+// traffic heat, prediction uncertainty, staleness, and non-optimal node exploration.
 func RunAutoProbe(ctx context.Context) (*AutoProbeSummary, error) {
 	if db.DB(ctx) == nil {
 		return nil, fmt.Errorf("database not initialized")
@@ -104,12 +176,54 @@ func RunAutoProbe(ctx context.Context) (*AutoProbeSummary, error) {
 		return &AutoProbeSummary{Enabled: false}, nil
 	}
 
+	now := time.Now().UTC()
+	onlineNodes, err := listOnlineEdgeNodes(ctx, now)
+	if err != nil {
+		return nil, err
+	}
+	if len(onlineNodes) == 0 {
+		return &AutoProbeSummary{Enabled: true}, nil
+	}
+
+	targets, err := repository.ListEnabledOpenFlareProbeTargets(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list enabled probe targets: %w", err)
+	}
+	if len(targets) == 0 {
+		return &AutoProbeSummary{
+			Enabled:     true,
+			OnlineNodes: len(onlineNodes),
+		}, nil
+	}
+
+	candidates, skippedBackoff := buildProbeScheduleCandidates(ctx, now, onlineNodes, targets)
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].score != candidates[j].score {
+			return candidates[i].score > candidates[j].score
+		}
+		if candidates[i].node.NodeID != candidates[j].node.NodeID {
+			return candidates[i].node.NodeID < candidates[j].node.NodeID
+		}
+		return candidates[i].target.ID < candidates[j].target.ID
+	})
+
+	dispatched, usedTargets, usedPackets := dispatchBudgetedCandidates(ctx, now, candidates)
+	return &AutoProbeSummary{
+		Enabled:        true,
+		OnlineNodes:    len(onlineNodes),
+		TargetsUsed:    usedTargets,
+		Dispatched:     dispatched,
+		SkippedBackoff: skippedBackoff,
+		PacketBudget:   usedPackets,
+	}, nil
+}
+
+func listOnlineEdgeNodes(ctx context.Context, now time.Time) ([]model.OpenFlareNode, error) {
 	nodes, err := repository.ListOpenFlareNodes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list nodes: %w", err)
 	}
-	now := time.Now().UTC()
-	var onlineNodes []model.OpenFlareNode
+	online := make([]model.OpenFlareNode, 0, len(nodes))
 	for i := range nodes {
 		n := nodes[i]
 		if n.IsQuarantined() {
@@ -119,114 +233,291 @@ func RunAutoProbe(ctx context.Context) (*AutoProbeSummary, error) {
 			continue
 		}
 		if n.Status == "online" || (n.LastSeenAt != nil && now.Sub(*n.LastSeenAt) <= onlineWindow) {
-			onlineNodes = append(onlineNodes, n)
+			online = append(online, n)
 		}
 	}
-	if len(onlineNodes) == 0 {
-		return &AutoProbeSummary{Enabled: true}, nil
+	return online, nil
+}
+
+func buildProbeScheduleCandidates(
+	ctx context.Context,
+	now time.Time,
+	onlineNodes []model.OpenFlareNode,
+	targets []*model.OpenFlareProbeTarget,
+) ([]probeScheduleCandidate, int) {
+	targetIDs := make([]uint, 0, len(targets))
+	for _, t := range targets {
+		if t != nil && t.ID > 0 {
+			targetIDs = append(targetIDs, t.ID)
+		}
+	}
+	states, _ := repository.ListOpenFlareProbeTargetStates(ctx, "", targetIDs)
+	stateMap := make(map[probeStateKey]*model.OpenFlareProbeTargetState, len(states))
+	for _, st := range states {
+		if st != nil {
+			stateMap[probeStateKey{nodeID: st.NodeID, targetID: st.TargetID}] = st
+		}
 	}
 
-	targets := selectAutoProbeTargets(ctx, maxAutoProbeTargetsPerNode)
-	dispatched := 0
+	measured, _ := repository.ListOpenFlareNetworkQualityMatrixMeasured(ctx)
+	heatMap := buildTrafficHeatMap(measured)
+	predictor, _ := LoadLivePredictor(ctx)
+	if predictor == nil {
+		predictor = NewPredictor(now, onlineNodes, measured, nil, currentErrorCalibration())
+	}
+
+	var candidates []probeScheduleCandidate
+	skippedBackoff := 0
+	for _, target := range targets {
+		if target == nil || !target.Enabled || strings.TrimSpace(target.IP) == "" {
+			continue
+		}
+		optimalNodeID, predsByNode := evaluateTargetNodesPrediction(predictor, onlineNodes, target)
+		heat := lookupTargetTrafficHeat(heatMap, target)
+		pktCost := probePacketCost(target.ProbeProto)
+		for _, node := range onlineNodes {
+			st := stateMap[probeStateKey{nodeID: node.NodeID, targetID: target.ID}]
+			if isProbeStateBlocked(now, st) {
+				skippedBackoff++
+				continue
+			}
+			pred := predsByNode[node.NodeID]
+			if isProbeMeasurementFresh(now, st, pred) {
+				continue
+			}
+			score := scoreProbeCandidate(now, heat, node.NodeID == optimalNodeID, st, pred)
+			candidates = append(candidates, probeScheduleCandidate{
+				node:       node,
+				target:     target,
+				score:      score,
+				packetCost: pktCost,
+			})
+		}
+	}
+	return candidates, skippedBackoff
+}
+
+func buildTrafficHeatMap(rows []*model.OpenFlareNetworkQualityMatrix) map[probeHeatKey]int {
+	heat := make(map[probeHeatKey]int, len(rows))
+	for _, r := range rows {
+		if r == nil || r.ClientASN == 0 || r.TCPSampleCount <= 0 {
+			continue
+		}
+		country := strings.ToUpper(strings.TrimSpace(r.ClientCountry))
+		region := strings.ToUpper(strings.TrimSpace(r.ClientRegion))
+		if region != "" {
+			heat[probeHeatKey{asn: r.ClientASN, country: country, region: region}] += r.TCPSampleCount
+		}
+		if country != "" {
+			heat[probeHeatKey{asn: r.ClientASN, country: country}] += r.TCPSampleCount
+		}
+		heat[probeHeatKey{asn: r.ClientASN}] += r.TCPSampleCount
+	}
+	return heat
+}
+
+func lookupTargetTrafficHeat(heat map[probeHeatKey]int, t *model.OpenFlareProbeTarget) float64 {
+	if t == nil || t.ASN == 0 {
+		return 1.0
+	}
+	country := strings.ToUpper(strings.TrimSpace(t.Country))
+	region := pkgnetintel.NormalizeMatrixRegion(country, t.Region)
+	samples := 0
+	if region != "" {
+		samples = heat[probeHeatKey{asn: t.ASN, country: country, region: region}]
+	}
+	if samples == 0 && country != "" {
+		samples = heat[probeHeatKey{asn: t.ASN, country: country}]
+	}
+	if samples == 0 {
+		samples = heat[probeHeatKey{asn: t.ASN}]
+	}
+	return 1.0 + math.Log1p(float64(max(0, samples)))
+}
+
+func evaluateTargetNodesPrediction(
+	predictor *Predictor,
+	nodes []model.OpenFlareNode,
+	t *model.OpenFlareProbeTarget,
+) (string, map[string]PredictionResult) {
+	preds := make(map[string]PredictionResult, len(nodes))
+	bestNode := ""
+	bestScore := math.Inf(-1)
+	country := strings.ToUpper(strings.TrimSpace(t.Country))
+	region := pkgnetintel.NormalizeMatrixRegion(country, t.Region)
+	ipFam := strings.ToLower(strings.TrimSpace(t.IPFamily))
+	if ipFam == "" {
+		ipFam = pkgnetintel.DetectIPFamily(t.IP)
+	}
+	for _, n := range nodes {
+		res := predictor.Predict(PredictQuery{
+			NodeID:        n.NodeID,
+			ClientASN:     t.ASN,
+			ClientCountry: country,
+			ClientRegion:  region,
+			IPFamily:      ipFam,
+			GeoSource:     pkgnetintel.GeoSourceCountry,
+			AnycastStatus: t.AnycastStatus,
+		})
+		preds[n.NodeID] = res
+		qScore := ComputeQualityScore(res)
+		if qScore > bestScore {
+			bestScore = qScore
+			bestNode = n.NodeID
+		}
+	}
+	return bestNode, preds
+}
+
+func isProbeStateBlocked(now time.Time, st *model.OpenFlareProbeTargetState) bool {
+	if st == nil {
+		return false
+	}
+	if st.NextProbeAt != nil && now.Before(*st.NextProbeAt) {
+		return true
+	}
+	if st.LastProbedAt != nil && now.Sub(*st.LastProbedAt) < autoProbeMinCooldown {
+		return true
+	}
+	return false
+}
+
+func isProbeMeasurementFresh(now time.Time, st *model.OpenFlareProbeTargetState, pred PredictionResult) bool {
+	if st == nil || st.LastSuccessAt == nil {
+		return false
+	}
+	return now.Sub(*st.LastSuccessAt) < autoProbeFreshSkipAge && pred.Confidence >= autoProbeFreshMinConfidence
+}
+
+func scoreProbeCandidate(
+	now time.Time,
+	heat float64,
+	isOptimalNode bool,
+	st *model.OpenFlareProbeTargetState,
+	pred PredictionResult,
+) float64 {
+	uncertainty := math.Max(autoProbeMinUncertainty, 1.0-pred.Confidence)
+	if pred.CandidateDispersionMs > 0 {
+		uncertainty += pred.CandidateDispersionMs / autoProbeDispersionScaleMs
+	}
+	if pred.ErrorMs != nil && *pred.ErrorMs > 0 {
+		uncertainty += *pred.ErrorMs / autoProbeDispersionScaleMs
+	}
+	uncertainty = math.Min(autoProbeMaxUncertainty, uncertainty)
+
+	staleness := autoProbeNeverProbedStaleFactor
+	if st != nil && st.LastSuccessAt != nil {
+		hours := math.Max(0, now.Sub(*st.LastSuccessAt).Hours())
+		staleness = math.Min(autoProbeNeverProbedStaleFactor, autoProbeStaleBaseFactor+hours/autoProbeStaleHalfHours)
+	}
+
+	explore := 1.0
+	if !isOptimalNode && (st == nil || st.LastSuccessAt == nil || now.Sub(*st.LastSuccessAt) >= autoProbeExploreStaleAge) &&
+		pred.Confidence < autoProbeOptimalConfFloor {
+		explore = autoProbeExploreBonus
+	}
+	return heat * uncertainty * staleness * explore
+}
+
+func probePacketCost(proto string) int {
+	switch strings.ToLower(strings.TrimSpace(proto)) {
+	case model.ProbeProtoICMP, model.ProbeProtoTCP:
+		return autoProbePingPacketCost
+	default:
+		return autoProbeTraceroutePacketCost
+	}
+}
+
+func dispatchBudgetedCandidates(
+	ctx context.Context,
+	now time.Time,
+	candidates []probeScheduleCandidate,
+) (dispatched, usedTargets, usedPackets int) {
+	nodeDispatches := make(map[string]int)
+	nodePackets := make(map[string]int)
+	targetDispatches := make(map[uint]int)
+	seenTargets := make(map[uint]struct{})
+
+	for _, c := range candidates {
+		if dispatched >= autoProbeGlobalDispatchBudget {
+			break
+		}
+		if nodeDispatches[c.node.NodeID] >= autoProbeMaxTargetsPerNode {
+			continue
+		}
+		if nodePackets[c.node.NodeID]+c.packetCost > autoProbeMaxPacketCostPerNode {
+			continue
+		}
+		if targetDispatches[c.target.ID] >= autoProbeMaxNodesPerTarget {
+			continue
+		}
+
+		probeID := autoProbeIDPrefix + uuid.NewString()
+		dispatch := buildAutoProbeDispatch(probeID, c.target)
+		recordAutoProbeMeta(probeID, autoProbeTargetMeta{
+			targetID:      c.target.ID,
+			anycastStatus: strings.ToLower(strings.TrimSpace(c.target.AnycastStatus)),
+			port:          c.target.Port,
+		})
+		if !dispatchNetProbeFn(ctx, c.node.NodeID, dispatch) {
+			consumeAutoProbeMeta(probeID)
+			continue
+		}
+		if err := repository.MarkOpenFlareProbeDispatched(ctx, c.node.NodeID, c.target.ID, now, now.Add(autoProbeMinCooldown)); err != nil {
+			logger.WarnF(ctx, "[NetQuality] failed to mark probe dispatch state (node=%s target=%d): %v", c.node.NodeID, c.target.ID, err)
+		}
+
+		dispatched++
+		usedPackets += c.packetCost
+		nodeDispatches[c.node.NodeID]++
+		nodePackets[c.node.NodeID] += c.packetCost
+		targetDispatches[c.target.ID]++
+		seenTargets[c.target.ID] = struct{}{}
+	}
+	return dispatched, len(seenTargets), usedPackets
+}
+
+func buildAutoProbeDispatch(probeID string, target *model.OpenFlareProbeTarget) protocol.NetProbeTaskDispatch {
 	timeoutMs := autoProbeTimeoutMs
-	for _, node := range onlineNodes {
-		for _, targetIP := range targets {
-			dispatch := protocol.NetProbeTaskDispatch{
-				ProbeID: autoProbeIDPrefix + uuid.NewString(),
-				Kind:    "traceroute",
-				Traceroute: &protocol.TracerouteRequest{
-					Target:       targetIP,
-					Protocol:     "icmp",
-					MaxHops:      autoProbeMaxHops,
-					ProbesPerHop: autoProbeProbesPerHop,
-					TimeoutMs:    &timeoutMs,
-				},
-			}
-			if websocket.DispatchNetProbeTask(ctx, node.NodeID, dispatch) {
-				dispatched++
-			}
-		}
-	}
-	return &AutoProbeSummary{
-		Enabled:     true,
-		OnlineNodes: len(onlineNodes),
-		TargetsUsed: len(targets),
-		Dispatched:  dispatched,
-	}, nil
-}
-
-func selectAutoProbeTargets(ctx context.Context, limit int) []string {
-	seenIP := make(map[string]struct{})
-	seenASN := make(map[uint32]struct{})
-	targets := make([]string, 0, limit)
-
-	rows, _, err := repository.ListOpenFlareNetworkQualityMatrix(ctx, model.NetworkQualityMatrixQuery{
-		Page:      1,
-		PageSize:  autoProbeMatrixLookback,
-		SortBy:    "tcp_sample_count",
-		SortOrder: "desc",
-	})
-	if err == nil {
-		targets = appendMatrixTargets(targets, rows, seenIP, seenASN, limit)
+	proto := strings.ToLower(strings.TrimSpace(target.ProbeProto))
+	var portPtr *uint16
+	if target.Port > 0 && target.Port <= int(math.MaxUint16) {
+		p := uint16(target.Port) //nolint:gosec // validated 1..65535
+		portPtr = &p
 	}
 
-	for _, anchor := range anchorProbeTargets {
-		if len(targets) >= limit {
-			break
+	if proto == model.ProbeProtoICMP || proto == model.ProbeProtoTCP {
+		intervalMs := autoProbePingIntervalMs
+		return protocol.NetProbeTaskDispatch{
+			ProbeID: probeID,
+			Kind:    "ping_batch",
+			Ping: &protocol.PingBatchRequest{
+				Protocol:   proto,
+				Target:     target.IP,
+				Port:       portPtr,
+				Count:      autoProbePingCount,
+				IntervalMs: intervalMs,
+				TimeoutMs:  &timeoutMs,
+			},
 		}
-		if _, ok := seenIP[anchor.ip]; ok {
-			continue
-		}
-		seenIP[anchor.ip] = struct{}{}
-		targets = append(targets, anchor.ip)
 	}
-	return targets
-}
 
-func appendMatrixTargets(
-	targets []string,
-	rows []*model.OpenFlareNetworkQualityMatrix,
-	seenIP map[string]struct{},
-	seenASN map[uint32]struct{},
-	limit int,
-) []string {
-	for _, row := range rows {
-		if len(targets) >= limit {
-			break
-		}
-		if row == nil || row.ClientASN == 0 {
-			continue
-		}
-		if _, ok := seenASN[row.ClientASN]; ok {
-			continue
-		}
-		seenASN[row.ClientASN] = struct{}{}
-		ip := firstProbeablePrefixIP(row.ClientASN)
-		if ip == "" {
-			continue
-		}
-		if _, ok := seenIP[ip]; ok {
-			continue
-		}
-		seenIP[ip] = struct{}{}
-		targets = append(targets, ip)
+	traceProto := model.ProbeProtoICMP
+	if portPtr != nil {
+		traceProto = model.ProbeProtoTCP
 	}
-	return targets
-}
-
-func firstProbeablePrefixIP(asn uint32) string {
-	prefixes, _ := netintel.ListASNPrefixes(asn, "ipv4", 1, prefixCandidateLimit)
-	for _, p := range prefixes {
-		prefix, err := netip.ParsePrefix(strings.TrimSpace(p.CIDR))
-		if err != nil || !prefix.Addr().Is4() {
-			continue
-		}
-		addr := prefix.Addr().Next()
-		if addr.IsGlobalUnicast() && !addr.IsPrivate() {
-			return addr.String()
-		}
+	return protocol.NetProbeTaskDispatch{
+		ProbeID: probeID,
+		Kind:    "traceroute",
+		Traceroute: &protocol.TracerouteRequest{
+			Target:       target.IP,
+			Protocol:     traceProto,
+			Port:         portPtr,
+			MaxHops:      autoProbeMaxHops,
+			ProbesPerHop: autoProbeProbesPerHop,
+			TimeoutMs:    &timeoutMs,
+		},
 	}
-	return ""
 }
 
 // EnrichedTracerouteHop represents a traceroute hop enriched with geolocation, ASN, and bgp.tools tags.
@@ -258,23 +549,41 @@ func IngestProbeResult(ctx context.Context, nodeID string, payload protocol.NetP
 	case "traceroute":
 		if payload.Traceroute != nil {
 			ingestTracerouteResult(ctx, trimmedNode, payload.ProbeID, payload.Traceroute)
+		} else {
+			consumeAutoProbeMeta(strings.TrimSpace(payload.ProbeID))
 		}
 	case "ping_batch":
 		if payload.Ping != nil {
-			ingestPingBatchResult(ctx, trimmedNode, payload.Ping)
+			ingestPingBatchResult(ctx, trimmedNode, payload.ProbeID, payload.Ping)
+		} else {
+			consumeAutoProbeMeta(strings.TrimSpace(payload.ProbeID))
 		}
 	}
 }
 
-func ingestTracerouteResult(ctx context.Context, nodeID, probeID string, tr *protocol.TracerouteResult) {
-	enrichedHops := EnrichTracerouteHops(tr.Hops)
-	asPath := make([]uint32, 0, len(enrichedHops))
+func resolveEffectiveAnycastStatus(ctx context.Context, lookupIP, mmdbAnycast string, metaAnycast string) string {
+	if strings.EqualFold(metaAnycast, pkgnetintel.AnycastStatusConfirmed) ||
+		strings.EqualFold(mmdbAnycast, pkgnetintel.AnycastStatusConfirmed) {
+		return pkgnetintel.AnycastStatusConfirmed
+	}
+	if lookupIP != "" {
+		if target, err := repository.GetOpenFlareProbeTargetByEndpoint(ctx, lookupIP, model.ProbeProtoICMP, 0); err == nil &&
+			target != nil && strings.EqualFold(target.AnycastStatus, pkgnetintel.AnycastStatusConfirmed) {
+			return pkgnetintel.AnycastStatusConfirmed
+		}
+	}
+	if mmdbAnycast != "" {
+		return mmdbAnycast
+	}
+	return metaAnycast
+}
+
+func extractTracerouteASPathAndEdges(hops []EnrichedTracerouteHop, seenAt time.Time) ([]uint32, []repository.ObservedASEdge) {
+	asPath := make([]uint32, 0, len(hops))
 	var edges []repository.ObservedASEdge
 	var prevASN uint32
 	var prevRTT float64
-	seenAt := time.Now().UTC()
-
-	for _, hop := range enrichedHops {
+	for _, hop := range hops {
 		if hop.ASN == 0 {
 			continue
 		}
@@ -286,63 +595,108 @@ func ingestTracerouteResult(ctx context.Context, nodeID, probeID string, tr *pro
 			hopRTT = *hop.AvgMs
 		}
 		if prevASN != 0 && prevASN != hop.ASN {
-			delta := math.Max(0, hopRTT-prevRTT)
 			edges = append(edges, repository.ObservedASEdge{
 				SrcASN:   prevASN,
 				DstASN:   hop.ASN,
 				EdgeType: "observed",
-				HopRTTMs: round2(delta),
+				HopRTTMs: round2(math.Max(0, hopRTT-prevRTT)),
 				SeenAt:   seenAt,
 			})
 		}
 		prevASN = hop.ASN
 		prevRTT = hopRTT
 	}
+	return asPath, edges
+}
 
-	var targetASN uint32
-	var targetCountry, targetRegion, geoSource string
-	var clientLat, clientLon *float64
-	var geoAccuracyKm float64
-	var anycastStatus string
+func ingestTracerouteResult(ctx context.Context, nodeID, probeID string, tr *protocol.TracerouteResult) {
+	cleanProbeID := strings.TrimSpace(probeID)
+	meta, _ := consumeAutoProbeMeta(cleanProbeID)
+
+	enrichedHops := EnrichTracerouteHops(tr.Hops)
+	seenAt := time.Now().UTC()
+	asPath, edges := extractTracerouteASPathAndEdges(enrichedHops, seenAt)
+
 	lookupIP := strings.TrimSpace(tr.ResolvedIP)
 	if lookupIP == "" {
 		lookupIP = strings.TrimSpace(tr.Target)
 	}
 	ipFamily := pkgnetintel.DetectIPFamily(lookupIP)
+	var geoRes *pkgnetintel.IPLookupResult
 	if lookupIP != "" {
-		if res := netintel.LookupIP(lookupIP); res != nil {
-			targetASN = res.ASN
-			targetCountry = res.CountryISO
-			targetRegion = res.RegionCode
-			clientLat = res.Latitude
-			clientLon = res.Longitude
-			geoAccuracyKm = res.AccuracyRadiusKm
-			geoSource = res.GeoSource
-			anycastStatus = res.AnycastStatus
-		}
+		geoRes = netintel.LookupIP(lookupIP)
 	}
+	targetMeta := extractTracerouteTargetGeo(geoRes)
+	effectiveAnycast := resolveEffectiveAnycastStatus(ctx, lookupIP, targetMeta.anycastStatus, meta.anycastStatus)
 
-	// Isolate confirmed Anycast targets from AS topology edges to prevent misleading shortcut links.
-	if len(edges) > 0 && anycastStatus != pkgnetintel.AnycastStatusConfirmed {
+	if len(edges) > 0 && effectiveAnycast != pkgnetintel.AnycastStatusConfirmed {
 		if err := repository.UpsertOpenFlareASTopologyEdges(ctx, edges); err != nil {
 			logger.WarnF(ctx, "[NetQuality] upsert AS topology edges failed (node=%s): %v", nodeID, err)
 		}
 	}
 
+	persistTracerouteRecordAndOutcome(ctx, nodeID, cleanProbeID, meta, tr, lookupIP, ipFamily, targetMeta, enrichedHops, asPath, seenAt)
+
+	trSuccess := tr.Reached && tr.TotalRTTMs > 0
+	if targetMeta.asn > 0 && trSuccess && effectiveAnycast != pkgnetintel.AnycastStatusConfirmed {
+		persistTracerouteQualitySample(ctx, nodeID, tr, lookupIP, ipFamily, targetMeta, seenAt)
+	}
+}
+
+type tracerouteTargetGeo struct {
+	asn           uint32
+	country       string
+	region        string
+	lat           *float64
+	lon           *float64
+	accuracyKm    float64
+	geoSource     string
+	anycastStatus string
+}
+
+func extractTracerouteTargetGeo(res *pkgnetintel.IPLookupResult) tracerouteTargetGeo {
+	if res == nil {
+		return tracerouteTargetGeo{}
+	}
+	return tracerouteTargetGeo{
+		asn:           res.ASN,
+		country:       res.CountryISO,
+		region:        res.RegionCode,
+		lat:           res.Latitude,
+		lon:           res.Longitude,
+		accuracyKm:    res.AccuracyRadiusKm,
+		geoSource:     res.GeoSource,
+		anycastStatus: res.AnycastStatus,
+	}
+}
+
+func persistTracerouteRecordAndOutcome(
+	ctx context.Context,
+	nodeID string,
+	cleanProbeID string,
+	meta autoProbeTargetMeta,
+	tr *protocol.TracerouteResult,
+	lookupIP string,
+	ipFamily string,
+	targetMeta tracerouteTargetGeo,
+	enrichedHops []EnrichedTracerouteHop,
+	asPath []uint32,
+	seenAt time.Time,
+) {
 	triggerType := model.TracerouteTriggerManual
-	if strings.HasPrefix(probeID, autoProbeIDPrefix) {
+	if strings.HasPrefix(cleanProbeID, autoProbeIDPrefix) {
 		triggerType = model.TracerouteTriggerAuto
 	}
 	hopsJSON, _ := json.Marshal(enrichedHops)
 	record := &model.OpenFlareTracerouteRecord{
-		TaskID:        strings.TrimSpace(probeID),
+		TaskID:        cleanProbeID,
 		TriggerType:   triggerType,
 		NodeID:        nodeID,
 		Target:        strings.TrimSpace(tr.Target),
 		ResolvedIP:    strings.TrimSpace(tr.ResolvedIP),
-		TargetASN:     targetASN,
-		TargetCountry: targetCountry,
-		TargetRegion:  targetRegion,
+		TargetASN:     targetMeta.asn,
+		TargetCountry: targetMeta.country,
+		TargetRegion:  targetMeta.region,
 		IPFamily:      ipFamily,
 		Protocol:      strings.TrimSpace(tr.Protocol),
 		HopCount:      int(tr.HopCount),
@@ -356,60 +710,95 @@ func ingestTracerouteResult(ctx context.Context, nodeID, probeID string, tr *pro
 		logger.WarnF(ctx, "[NetQuality] persist traceroute record failed (node=%s): %v", nodeID, err)
 	}
 
-	if targetASN > 0 && tr.Reached && tr.TotalRTTMs > 0 && anycastStatus != pkgnetintel.AnycastStatusConfirmed {
-		var lossRate float64
-		if len(tr.Hops) > 0 {
-			last := tr.Hops[len(tr.Hops)-1]
-			lossRate = math.Min(1.0, math.Max(0, last.LossPct/percentDivisor))
-		}
-		var hist LogHistogram64
-		hist.Add(tr.TotalRTTMs)
-		var sketch PrefixSketch
-		sketch.AddIP(lookupIP)
-
-		sample := &model.OpenFlareNetworkQualitySample{
-			NodeID:              nodeID,
-			NodeASN:             lookupCachedNodeASNs(ctx)[nodeID],
-			ClientASN:           targetASN,
-			ClientCountry:       targetCountry,
-			ClientRegion:        targetRegion,
-			IPFamily:            ipFamily,
-			StatsVersion:        model.NetworkQualityStatsVersionHist64,
-			Source:              model.NetworkQualitySourceTraceroute,
-			SampleCount:         1,
-			RTTMinMs:            round2(tr.TotalRTTMs),
-			RTTP50Ms:            round2(tr.TotalRTTMs),
-			RTTP95Ms:            round2(tr.TotalRTTMs),
-			RTTHist:             hist.Encode(),
-			PrefixSketch:        sketch.Encode(),
-			DistinctPrefixCount: sketch.DistinctCount(),
-			ClientLat:           clientLat,
-			ClientLon:           clientLon,
-			GeoAccuracyKm:       geoAccuracyKm,
-			GeoSource:           geoSource,
-			LossRate:            round4(lossRate),
-			HopCount:            int(tr.HopCount),
-			CapturedAt:          seenAt,
-		}
-		if err := repository.InsertOpenFlareNetworkQualitySample(ctx, sample); err != nil {
-			logger.WarnF(ctx, "[NetQuality] insert traceroute sample failed (node=%s): %v", nodeID, err)
-		}
+	trSuccess := tr.Reached && tr.TotalRTTMs > 0
+	errMsg := strings.TrimSpace(tr.Error)
+	if !trSuccess && errMsg == "" {
+		errMsg = "traceroute target unreachable or timed out"
+	}
+	if err := repository.RecordOpenFlareProbeTargetOutcome(
+		ctx, meta.targetID, nodeID, lookupIP, tr.Protocol, meta.port,
+		trSuccess, round2(tr.TotalRTTMs), errMsg, seenAt, autoProbeBackoffBase, autoProbeBackoffMax,
+	); err != nil {
+		logger.WarnF(ctx, "[NetQuality] update probe target state failed (node=%s): %v", nodeID, err)
 	}
 }
 
-func ingestPingBatchResult(ctx context.Context, nodeID string, ping *protocol.PingBatchResult) {
-	if ping.Received == 0 || ping.AvgMs <= 0 {
-		return
+func persistTracerouteQualitySample(
+	ctx context.Context,
+	nodeID string,
+	tr *protocol.TracerouteResult,
+	lookupIP string,
+	ipFamily string,
+	targetMeta tracerouteTargetGeo,
+	seenAt time.Time,
+) {
+	var lossRate float64
+	if len(tr.Hops) > 0 {
+		last := tr.Hops[len(tr.Hops)-1]
+		lossRate = math.Min(1.0, math.Max(0, last.LossPct/percentDivisor))
 	}
+	var hist LogHistogram64
+	hist.Add(tr.TotalRTTMs)
+	var sketch PrefixSketch
+	sketch.AddIP(lookupIP)
+
+	sample := &model.OpenFlareNetworkQualitySample{
+		NodeID:              nodeID,
+		NodeASN:             lookupCachedNodeASNs(ctx)[nodeID],
+		ClientASN:           targetMeta.asn,
+		ClientCountry:       targetMeta.country,
+		ClientRegion:        targetMeta.region,
+		IPFamily:            ipFamily,
+		StatsVersion:        model.NetworkQualityStatsVersionHist64,
+		Source:              model.NetworkQualitySourceTraceroute,
+		SampleCount:         1,
+		RTTMinMs:            round2(tr.TotalRTTMs),
+		RTTP50Ms:            round2(tr.TotalRTTMs),
+		RTTP95Ms:            round2(tr.TotalRTTMs),
+		RTTHist:             hist.Encode(),
+		PrefixSketch:        sketch.Encode(),
+		DistinctPrefixCount: sketch.DistinctCount(),
+		ClientLat:           targetMeta.lat,
+		ClientLon:           targetMeta.lon,
+		GeoAccuracyKm:       targetMeta.accuracyKm,
+		GeoSource:           targetMeta.geoSource,
+		LossRate:            round4(lossRate),
+		HopCount:            int(tr.HopCount),
+		CapturedAt:          seenAt,
+	}
+	if err := repository.InsertOpenFlareNetworkQualitySample(ctx, sample); err != nil {
+		logger.WarnF(ctx, "[NetQuality] insert traceroute sample failed (node=%s): %v", nodeID, err)
+	}
+}
+
+func ingestPingBatchResult(ctx context.Context, nodeID, probeID string, ping *protocol.PingBatchResult) {
+	meta, _ := consumeAutoProbeMeta(strings.TrimSpace(probeID))
 	lookupIP := strings.TrimSpace(ping.ResolvedIP)
 	if lookupIP == "" {
 		lookupIP = strings.TrimSpace(ping.Target)
 	}
+	now := time.Now().UTC()
+	pingSuccess := ping.Received > 0 && ping.AvgMs > 0
+	errMsg := strings.TrimSpace(ping.Error)
+	if !pingSuccess && errMsg == "" {
+		errMsg = "all ping probes timed out or failed"
+	}
+	if err := repository.RecordOpenFlareProbeTargetOutcome(
+		ctx, meta.targetID, nodeID, lookupIP, ping.Protocol, meta.port,
+		pingSuccess, round2(ping.AvgMs), errMsg, now, autoProbeBackoffBase, autoProbeBackoffMax,
+	); err != nil {
+		logger.WarnF(ctx, "[NetQuality] update ping probe target state failed (node=%s): %v", nodeID, err)
+	}
+	if !pingSuccess {
+		// Never persist 0ms or unreachable outcomes into quality samples or matrix rows.
+		return
+	}
+
 	res := netintel.LookupIP(lookupIP)
 	if res == nil || res.ASN == 0 {
 		return
 	}
-	if res.AnycastStatus == pkgnetintel.AnycastStatusConfirmed {
+	if resolveEffectiveAnycastStatus(ctx, lookupIP, res.AnycastStatus, meta.anycastStatus) == pkgnetintel.AnycastStatusConfirmed {
 		return
 	}
 
@@ -458,7 +847,7 @@ func ingestPingBatchResult(ctx context.Context, nodeID string, ping *protocol.Pi
 		GeoAccuracyKm:       res.AccuracyRadiusKm,
 		GeoSource:           res.GeoSource,
 		LossRate:            round4(math.Min(1.0, math.Max(0, ping.LossRate/percentDivisor))),
-		CapturedAt:          time.Now().UTC(),
+		CapturedAt:          now,
 	}
 	if err := repository.InsertOpenFlareNetworkQualitySample(ctx, sample); err != nil {
 		logger.WarnF(ctx, "[NetQuality] insert ping_batch sample failed (node=%s): %v", nodeID, err)

@@ -409,6 +409,149 @@ func TriggerNetIntelSyncHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OK(res))
 }
 
+// ListProbeTargetsHandler returns paginated managed probe targets and per-node backoff states.
+// @Summary 分页查询受控主动探测靶点
+// @Description 列出 of_probe_targets 探测靶点及其按节点维度（of_probe_target_states）的连续失败次数、退避截止时间与最近成功延迟
+// @Tags openflare-network-tools
+// @Produce json
+// @Security SessionCookie
+// @Param asn query int false "目标 ASN"
+// @Param country query string false "国家/地区 ISO 编码"
+// @Param ip_family query string false "IP 地址族（ipv4 或 ipv6）"
+// @Param target_type query string false "靶点类型（public_anchor、customer_isp、manual）"
+// @Param anycast_status query string false "Anycast 状态（unknown、unicast、confirmed）"
+// @Param enabled query bool false "是否启用"
+// @Param search query string false "关键词搜索"
+// @Param p query int false "页码"
+// @Param page_size query int false "每页条数"
+// @Success 200 {object} response.Any{data=nettools.ProbeTargetPage} "受控探测靶点列表"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/probe-targets [get]
+func ListProbeTargetsHandler(c *gin.Context) {
+	query := model.ProbeTargetQuery{
+		Page:          parsePositiveInt(c.Query("p"), 1),
+		PageSize:      parsePositiveInt(c.Query("page_size"), defaultHistoryPageSize),
+		ASN:           uint32(parsePositiveInt(c.Query("asn"), 0)), //nolint:gosec // bounded uint32 ASN
+		Country:       c.Query("country"),
+		IPFamily:      c.Query("ip_family"),
+		TargetType:    c.Query("target_type"),
+		AnycastStatus: c.Query("anycast_status"),
+		Enabled:       parseOptionalBool(c.Query("enabled")),
+		Search:        c.Query("search"),
+	}
+	res, err := ListProbeTargets(c.Request.Context(), query)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// CreateProbeTargetHandler validates and registers a new public active probe target.
+// @Summary 新增受控主动探测靶点
+// @Description 执行公网 IP 与 SSRF 校验并保存受控探测靶点（禁止私网、回环、CGNAT 及内部地址）
+// @Tags openflare-network-tools
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body nettools.ProbeTargetInput true "探测靶点配置"
+// @Success 200 {object} response.Any{data=model.OpenFlareProbeTarget} "已创建的探测靶点"
+// @Failure 400 {object} response.Any "参数错误或 SSRF 校验失败"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/probe-targets [post]
+func CreateProbeTargetHandler(c *gin.Context) {
+	var input ProbeTargetInput
+	if !httpx.BindJSON(c, &input) {
+		return
+	}
+	res, err := CreateProbeTarget(c.Request.Context(), input)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// UpdateProbeTargetHandler updates settings or enablement for an existing managed probe target.
+// @Summary 更新受控主动探测靶点
+// @Description 修改探测靶点名称、协议、端口、Anycast 标注或启停状态
+// @Tags openflare-network-tools
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "靶点 ID"
+// @Param body body nettools.ProbeTargetUpdateInput true "靶点更新参数"
+// @Success 200 {object} response.Any{data=model.OpenFlareProbeTarget} "更新后的探测靶点"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/probe-targets/{id} [put]
+func UpdateProbeTargetHandler(c *gin.Context) {
+	id, ok := parseUintParam(c, "id")
+	if !ok {
+		return
+	}
+	var input ProbeTargetUpdateInput
+	if !httpx.BindJSON(c, &input) {
+		return
+	}
+	res, err := UpdateProbeTarget(c.Request.Context(), id, input)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// DeleteProbeTargetHandler removes a managed probe target and its node backoff state records.
+// @Summary 删除受控主动探测靶点
+// @Description 删除指定探测靶点及其关联的节点探测退避状态
+// @Tags openflare-network-tools
+// @Produce json
+// @Security SessionCookie
+// @Param id path int true "靶点 ID"
+// @Success 200 {object} response.Any "删除成功"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/probe-targets/{id} [delete]
+func DeleteProbeTargetHandler(c *gin.Context) {
+	id, ok := parseUintParam(c, "id")
+	if !ok {
+		return
+	}
+	if httpx.AbortBadRequestOnError(c, DeleteProbeTarget(c.Request.Context(), id)) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OKNil())
+}
+
+func parseUintParam(c *gin.Context, name string) (uint, bool) {
+	id, err := strconv.ParseUint(c.Param(name), 10, 64)
+	if err != nil || id == 0 {
+		response.AbortBadRequest(c, errProbeTargetNotFound)
+		return 0, false
+	}
+	return uint(id), true
+}
+
+func parseOptionalBool(raw string) *bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "true", "1":
+		v := true
+		return &v
+	case "false", "0":
+		v := false
+		return &v
+	default:
+		return nil
+	}
+}
+
 func parseASNParam(c *gin.Context) (uint32, bool) {
 	raw := c.Param("asn")
 	id, err := strconv.ParseUint(raw, 10, 32)

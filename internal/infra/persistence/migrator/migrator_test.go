@@ -258,6 +258,23 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 	if !sqliteDB.Migrator().HasIndex(&model.OpenFlareNetworkQualityMatrix{}, "uidx_of_nq_matrix_node_asn_geo_v2") {
 		t.Error("Migrate() did not create uidx_of_nq_matrix_node_asn_geo_v2")
 	}
+	if !sqliteDB.Migrator().HasTable(&model.OpenFlareProbeTarget{}) {
+		t.Error("Migrate() did not create of_probe_targets")
+	}
+	if !sqliteDB.Migrator().HasTable(&model.OpenFlareProbeTargetState{}) {
+		t.Error("Migrate() did not create of_probe_target_states")
+	}
+	if !sqliteDB.Migrator().HasIndex(&model.OpenFlareProbeTarget{}, "uidx_of_probe_targets_ip_proto_port") {
+		t.Error("Migrate() did not create uidx_of_probe_targets_ip_proto_port")
+	}
+	if !sqliteDB.Migrator().HasIndex(&model.OpenFlareProbeTargetState{}, "uidx_of_probe_target_states_node_target") {
+		t.Error("Migrate() did not create uidx_of_probe_target_states_node_target")
+	}
+	var anchorCount int64
+	require.NoError(t, sqliteDB.Model(&model.OpenFlareProbeTarget{}).Where("target_type = ? AND anycast_status = ?", model.ProbeTargetTypeAnchor, "confirmed").Count(&anchorCount).Error)
+	if anchorCount < 4 {
+		t.Errorf("seeded confirmed anchor probe target count = %d, want >= 4", anchorCount)
+	}
 	if !sqliteDB.Migrator().HasColumn("of_cf_connections", "authorization") {
 		t.Error("Migrate() did not create of_cf_connections.authorization")
 	}

@@ -1,4 +1,5 @@
-use crate::ping::{resolve_ip, split_host_port};
+use crate::ping::split_host_port;
+use crate::safety::resolve_public_ip;
 use crate::types::{TracerouteHop, TracerouteProbe, TracerouteRequest, TracerouteResult};
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::OnceLock;
@@ -71,15 +72,10 @@ pub async fn execute_traceroute(req: &TracerouteRequest) -> TracerouteResult {
         );
     }
 
-    let target_ip = match resolve_ip(&host).await {
+    let target_ip = match resolve_public_ip(&host).await {
         Ok(ip) => ip,
         Err(err) => {
-            return error_result(
-                trimmed,
-                None,
-                protocol.as_str(),
-                format!("DNS resolution failed for {host}: {err}"),
-            );
+            return error_result(trimmed, None, protocol.as_str(), err);
         }
     };
     let resolved_ip = Some(target_ip.to_string());

@@ -24,6 +24,10 @@ func registerOpenFlareNetworkToolsRoutes(apiGroup *gin.RouterGroup) {
 		toolsRoute.POST("/as-path", nettools.TraceASPathHandler)
 		toolsRoute.GET("/quality-matrix", nettools.ListQualityMatrixHandler)
 		toolsRoute.POST("/quality-matrix/predict", nettools.PredictQualityMatrixHandler)
+		toolsRoute.GET("/probe-targets", nettools.ListProbeTargetsHandler)
+		toolsRoute.POST("/probe-targets", nettools.CreateProbeTargetHandler)
+		toolsRoute.PUT("/probe-targets/:id", nettools.UpdateProbeTargetHandler)
+		toolsRoute.DELETE("/probe-targets/:id", nettools.DeleteProbeTargetHandler)
 		toolsRoute.GET("/netintel/status", nettools.GetNetIntelStatusHandler)
 		toolsRoute.POST("/netintel/sync", nettools.TriggerNetIntelSyncHandler)
 	}

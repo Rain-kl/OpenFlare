@@ -28,6 +28,10 @@ sidebar: false
   - 访问日志接口与「访问日志 → 日志明细」列表及详情弹窗新增展示每条请求的耗时（`request_time_ms`）与客户端 TCP RTT（`tcp_rtt_us`）。
   - 数据看板在「24 小时请求趋势」上方新增 **全球延迟视图（2D）** 卡片，按来源国家聚合展示最近 24 小时平均访问延迟、客户端 TCP RTT 与国家延迟排行。
   - 新增构建与定时增量同步任务 `of_netintel_sync`（支持 GeoLite2/sapics 与 `bgp.tools`，默认关闭 CAIDA 并仅在运行期配置 `netintel_caida_enabled=true` 时按需拉取）。
+  - 升级 **网络质量矩阵与调度感知（Phase 1.5）**：
+    - 拆分 `(node_id, client_asn, client_country, client_region, ip_family, aggregation_level)` 多维键并分离被动 TCP（`tcp_*`）、主动探测（`probe_*`）与路由追踪（`trace_*`）指标，采用 64 桶对数直方图（`LogHistogram64`）、Bottom-64 前缀去重草图（`PrefixSketch`）、时间有序 EWMA 与球面加权地理质心替代有偏分位数均值，并支持 Edge Node 线路分组（`network_group`）与 City 级节点坐标优先回填。
+    - 实现 5 级延迟预测引擎（精确区域 → 国家聚合 → 基于多维网络相似度过滤的非负残差上游迁移 → 同城同组节点冷启动映射 → 地理基线），配备有界代数失效预测缓存、`POST /api/v1/d/network-tools/quality-matrix/predict` 实时模拟接口及离线 6 场景回测误差校准机制。
+    - 用受控公网探测靶点池（`of_probe_targets`）与按节点独立指数退避状态表（`of_probe_target_states`）取代前缀试探猜 IP 逻辑；新增控制台「探测靶点」管理页签、多维质量过滤、模拟预测面板及控制面 + Rust Edge `openflare-probe` 双向 SSRF 地址拦截与发包/并发预算防护。
 
 ### ⚡️ 优化与改进
 

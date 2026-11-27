@@ -7,6 +7,7 @@ pub mod dns_probe;
 pub mod exec;
 pub mod net_probe;
 pub mod ping;
+pub mod safety;
 pub mod supervisor;
 pub mod traceroute;
 pub mod types;

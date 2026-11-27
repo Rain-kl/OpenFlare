@@ -10,9 +10,16 @@ import type {
   NetToolsIPLookupResponse,
   NetToolsNetIntelStatusResponse,
   NetToolsPingPayload,
+  NetToolsProbeTarget,
+  NetToolsProbeTargetInput,
+  NetToolsProbeTargetPage,
+  NetToolsProbeTargetQuery,
+  NetToolsProbeTargetUpdateInput,
   NetToolsProbeTaskState,
   NetToolsQualityMatrixPage,
   NetToolsQualityMatrixQuery,
+  NetToolsQualityPredictInput,
+  NetToolsQualityPredictResponse,
   NetToolsTracerouteHistoryPage,
   NetToolsTracerouteHistoryQuery,
   NetToolsTraceroutePayload,
@@ -99,6 +106,41 @@ export class NetworkToolsService extends OpenFlareBaseService {
       '/quality-matrix',
       query as Record<string, unknown>,
     );
+  }
+
+  static async predictQualityMatrix(
+    payload: NetToolsQualityPredictInput,
+  ): Promise<NetToolsQualityPredictResponse> {
+    return this.post<NetToolsQualityPredictResponse>(
+      '/quality-matrix/predict',
+      payload,
+    );
+  }
+
+  static async listProbeTargets(
+    query: NetToolsProbeTargetQuery = {},
+  ): Promise<NetToolsProbeTargetPage> {
+    return this.get<NetToolsProbeTargetPage>(
+      '/probe-targets',
+      query as Record<string, unknown>,
+    );
+  }
+
+  static async createProbeTarget(
+    payload: NetToolsProbeTargetInput,
+  ): Promise<NetToolsProbeTarget> {
+    return this.post<NetToolsProbeTarget>('/probe-targets', payload);
+  }
+
+  static async updateProbeTarget(
+    id: number,
+    payload: NetToolsProbeTargetUpdateInput,
+  ): Promise<NetToolsProbeTarget> {
+    return this.put<NetToolsProbeTarget>(`/probe-targets/${id}`, payload);
+  }
+
+  static async deleteProbeTarget(id: number): Promise<void> {
+    return this.delete<void>(`/probe-targets/${id}`);
   }
 
   static async getNetIntelStatus(): Promise<NetToolsNetIntelStatusResponse> {

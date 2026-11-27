@@ -27,6 +27,7 @@ OpenFlare 适合需要统一管理多台 OpenFlare Edge 代理节点、构建自
 | **边缘缓存** | 边缘节点内存缓存；默认 static 扩展名 + 源站头/Set-Cookie 闸门 + 默认 Edge TTL | [边缘缓存策略设计](./edge-cache-design.md) |
 | **Zone 与域名管理** | 以可注册根域为管理入口，聚合明确域名、域名证书与反向代理路由 | [Zone 与域名资源设计](./zone-design.md) |
 | **Cloudflare DNS 指向** | 以 ZoneDomain 为粒度，将单条 Cloudflare A 记录幂等指向边缘节点 IPv4 | [Cloudflare DNS 指向设计](./cloudflare-pointing.md) |
+| **智能 DNS 接入契约（Phase 2）** | 基于 ECS / 访客 IP 解析与 Phase 1.5 5 级预测器融合的调度输入、离散度惩罚与回退契约 | [SmartDNS Phase 2 ECS 接入契约](./smartdns-phase2-ecs-contract.md) |
 | **边缘配置同步** | 保存后自动同步，节点原子应用并保留最后一份健康快照 | [边缘节点设计](./pingora-edge-design.md) |
 | **WAF 安全防护** | 支持可视化 DAG 编排规则、手动/自动/订阅型 IP 组、GeoIP 匹配与 PoW CC 防护 | [WAF 设计](./waf-design.md) / [WAF 可编排规则设计](./waf-orchestration-design.md) / [WAF 使用指南](../guide/waf-usage.md) |
 | **内网穿透** | 基于原生 Rust 中继（`openflare-relay`）与连接器（`openflared`），支持跨可用区多中继高可用调度与 L4/L7 双协议内网穿透 | [内网穿透设计](./tunnel-design.md) / [穿透使用指南](../guide/tunnel-usage.md) |

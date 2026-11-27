@@ -137,6 +137,7 @@
         "asHops": "AS 跳数",
         "asPath": "预估 / 实测 AS 路径",
         "effectiveRtt": "有效延迟",
+        "predictionMethod": "预测层级",
         "qualityScore": "质量评分",
         "source": "来源"
       },
@@ -207,27 +208,118 @@
     },
     "quality": {
       "title": "网络质量矩阵与情报数据集",
-      "description": "融合边缘节点被动 TCP 握手首包 RTT 与主动路由追踪指标，为智能流量调度提供节点×访客 ASN 维度的实时评分矩阵。",
+      "description": "融合边缘节点被动 TCP 握手首包 RTT 与受控主动探测指标，构建分国家、分地区与分 IP 地址族的精确网络质量矩阵与 5 级延迟预测模型。",
       "tabs": {
         "matrix": "质量融合矩阵",
+        "targets": "探测靶点",
         "datasets": "情报数据库状态"
       },
       "filters": {
         "searchPlaceholder": "搜索节点 ID、AS 编号、组织或国家...",
+        "countryPlaceholder": "国家 (CN)",
+        "regionPlaceholder": "地区 (CN-GD)",
+        "ipFamilyAll": "全部 IP 族",
+        "levelAll": "全部聚合层级",
+        "levelRegion": "下钻地区 (region)",
+        "levelCountry": "国家级 (country)",
+        "measureAll": "全部实测来源",
+        "measureTcpPassive": "被动 TCP_INFO",
+        "measureTcpActive": "主动 TCPing",
+        "measureIcmpActive": "主动 ICMP",
+        "measureTraceroute": "主动路由追踪",
         "sourceAll": "全部数据来源",
         "sourceMeasured": "实测融合 (measured)",
-        "sourcePredicted": "图/距离推算 (predicted)"
+        "sourcePredicted": "模型预测 (predicted)"
+      },
+      "predictor": {
+        "title": "客户端网络质量模拟预测",
+        "description": "输入访客 IP、ASN、国家/地区与 IP 地址族，实时查看 5 级预测器输出的延迟、离散度、校准误差与节点排序。",
+        "targetIpPlaceholder": "访客 IP（可选）",
+        "targetAsnPlaceholder": "访客 ASN，如 4134",
+        "targetCountryPlaceholder": "国家，如 CN",
+        "targetRegionPlaceholder": "地区，如 CN-GD",
+        "run": "计算预测",
+        "anycastIsolatedBadge": "Anycast 隔离",
+        "dispersionError": "候选离散度 {dispersion} ms · 校准误差 {error}",
+        "methods": {
+          "exact_region": "L1 精确区域",
+          "country_rollup": "L2 国家聚合",
+          "inferred_upstream": "L3 上游残差迁移",
+          "similar_node": "L4 同组/同城节点",
+          "geo_prior": "L5 地理基线"
+        }
+      },
+      "sources": {
+        "tcp_passive": "被动 TCP",
+        "tcp_active": "主动 TCPing",
+        "icmp_active": "主动 ICMP",
+        "traceroute": "路由追踪",
+        "none": "无实测"
       },
       "columns": {
         "node": "边缘节点",
-        "clientAsn": "访客 ASN",
-        "effectiveRtt": "综合有效延迟",
-        "tcpStats": "被动 TCP (P50 / P95 / 重传)",
-        "traceStats": "主动探测 (RTT / 丢包 / 跳数)",
-        "score": "质量评分",
-        "confidence": "置信度",
-        "source": "来源",
-        "updatedAt": "更新时间"
+        "clientNetwork": "访客网络 / 地区 / 地址族",
+        "predictionMethod": "预测层级",
+        "effectiveRtt": "有效延迟 (P50 / P95)",
+        "tcpStats": "被动 TCP (P50 / P95 / 样本)",
+        "activeStats": "主动探测 / 路由追踪",
+        "scoreConfidence": "评分 / 置信度",
+        "source": "实测来源 / 状态",
+        "updatedAt": "最近观测时间",
+        "prefixes": "{count} 个前缀",
+        "geoBase": "地理基线 {value} ms"
+      },
+      "targets": {
+        "addButton": "新增探测靶点",
+        "editTitle": "编辑受控探测靶点",
+        "createTitle": "新增受控探测靶点",
+        "formDesc": "仅允许添加已验证公网 IPv4 / IPv6 地址，系统将在控制面与边缘节点同步执行 SSRF 地址范围拦截。",
+        "searchPlaceholder": "搜索靶点名称、IP、国家或地区...",
+        "filterTypeAll": "全部靶点类型",
+        "types": {
+          "public_anchor": "公共锚点",
+          "customer_isp": "客户运营商",
+          "manual": "人工指定"
+        },
+        "anycast": {
+          "unknown": "未确定",
+          "unicast": "单播",
+          "confirmed": "已确认 Anycast"
+        },
+        "columns": {
+          "target": "靶点名称 / 备注",
+          "endpoint": "IP / 地址族 / 协议",
+          "networkGeo": "ASN / 国家地区",
+          "classification": "类型 / Anycast 状态",
+          "nodeStates": "各节点探测状态与退避",
+          "enabled": "启用状态",
+          "actions": "操作"
+        },
+        "form": {
+          "name": "靶点名称",
+          "namePlaceholder": "例如 广东电信网关",
+          "ip": "目标公网 IP",
+          "ipPlaceholder": "例如 202.96.128.86",
+          "ssrfHint": "禁止输入私网、回环、链路本地、CGNAT 及基准测试地址段。",
+          "proto": "探测协议",
+          "port": "端口",
+          "targetType": "靶点分类",
+          "anycastStatus": "Anycast 属性",
+          "asn": "归属 ASN",
+          "country": "国家编码",
+          "region": "下钻地区编码",
+          "notes": "备注说明",
+          "enabled": "允许自动调度探测该靶点"
+        },
+        "createSuccess": "探测靶点已创建。",
+        "updateSuccess": "探测靶点已更新。",
+        "deleteSuccess": "探测靶点已删除。",
+        "deleteConfirmTitle": "删除探测靶点",
+        "deleteConfirmDesc": "确认删除探测靶点“{target}”及其关联的各节点退避状态记录。",
+        "noStates": "尚无探测记录",
+        "stateFailures": "连续失败 {count} 次",
+        "stateHealthy": "正常 ({rtt} ms)",
+        "stateBackoffUntil": "退避至 {time}"
       },
       "datasets": {
         "dataDir": "数据目录：{dir}",

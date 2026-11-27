@@ -128,6 +128,7 @@ func ResetCollectorForTest() {
 	defaultCollector.earlyFlushes.Store(0)
 	defaultCollector.flushInFlight.Store(false)
 	defaultCollector.lastWarnUnix.Store(0)
+	resetAutoProbeTracking()
 }
 
 // GetPassiveCollectorStats returns current buffered bucket count and drop/eviction counters.

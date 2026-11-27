@@ -40,6 +40,8 @@ func setupNetQualityTestDB(t *testing.T) func() {
 		&model.OpenFlareNetworkQualityMatrix{},
 		&model.OpenFlareASTopologyEdge{},
 		&model.OpenFlareTracerouteRecord{},
+		&model.OpenFlareProbeTarget{},
+		&model.OpenFlareProbeTargetState{},
 	))
 	db.SetDB(sqliteDB)
 	testhelper.SetupLogStoresForTest(t)
@@ -422,4 +424,139 @@ func TestIngestTracerouteExtractsASEdgesAndHistory(t *testing.T) {
 	var asPath []uint32
 	require.NoError(t, json.Unmarshal([]byte(records[0].ASPathJSON), &asPath))
 	require.Equal(t, []uint32{13335, 174, 4134}, asPath)
+}
+
+func TestRunAutoProbeSchedulerBackoffBudgetsAndAnycastIsolation(t *testing.T) {
+	cleanup := setupNetQualityTestDB(t)
+	defer cleanup()
+
+	restoreMgr := netintel.SetManagerForTest(pkgnetintel.NewManager())
+	defer restoreMgr()
+
+	dir := t.TempDir()
+	asnsCSV := "asn,name,class,cc\nAS13335,Cloudflare,Content,US\nAS174,Cogent,Transit,US\nAS4134,ChinaNet,Eyeball,CN\n"
+	tableJSONL := "{\"CIDR\":\"1.1.1.0/24\",\"ASN\":13335,\"Hits\":100}\n{\"CIDR\":\"2.2.2.0/24\",\"ASN\":174,\"Hits\":100}\n{\"CIDR\":\"3.3.3.0/24\",\"ASN\":4134,\"Hits\":100}\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "bgptools-asns.csv"), []byte(asnsCSV), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "bgptools-table.jsonl"), []byte(tableJSONL), 0o600))
+	require.NoError(t, netintel.ReloadFromDir(context.Background(), dir))
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+	for _, n := range []model.OpenFlareNode{
+		{NodeID: "edge-best", Name: "Best", IP: "1.1.1.1", ASN: 13335, Status: "online", NodeType: "edge_node", LastSeenAt: &now, AccessToken: "tok-1", CapabilitiesJSON: "[]"},
+		{NodeID: "edge-backup", Name: "Backup", IP: "2.2.2.2", ASN: 174, Status: "online", NodeType: "edge_node", LastSeenAt: &now, AccessToken: "tok-2", CapabilitiesJSON: "[]"},
+	} {
+		require.NoError(t, repository.CreateOpenFlareNode(ctx, &n))
+	}
+
+	// Mark edge-best as already high-confidence for AS4134 so backup node gets exploration priority,
+	// while edge-best still probes the confirmed-anycast anchor.
+	_, err := repository.ReplaceOpenFlareNetworkQualityMatrixSnapshot(ctx, []*model.OpenFlareNetworkQualityMatrix{
+		{
+			NodeID: "edge-best", NodeASN: 13335, ClientASN: 4134, ClientCountry: "CN", IPFamily: pkgnetintel.IPFamilyIPv4,
+			AggregationLevel: model.QualityAggregationLevelCountry, StatsVersion: model.NetworkQualityStatsVersionHist64,
+			TCPRTTP50Ms: 32, TCPSampleCount: 150, TCPLastSeenAt: &now, EffectiveRTTMs: 32,
+			Confidence: 0.92, MeasurementSource: model.NetworkQualitySourceTCPPassive, DataSource: model.QualityMatrixDataSourceMeasured, LastObservedAt: &now,
+		},
+	}, now.Add(-time.Hour))
+	require.NoError(t, err)
+
+	ispTarget := &model.OpenFlareProbeTarget{
+		Name: "ChinaNet ISP", IP: "3.3.3.3", IPFamily: pkgnetintel.IPFamilyIPv4, ProbeProto: model.ProbeProtoTraceroute,
+		ASN: 4134, Country: "CN", TargetType: model.ProbeTargetTypeCustomerISP, AnycastStatus: pkgnetintel.AnycastStatusUnicast, Enabled: true,
+	}
+	anycastAnchor := &model.OpenFlareProbeTarget{
+		Name: "CF Anchor", IP: "1.1.1.1", IPFamily: pkgnetintel.IPFamilyIPv4, ProbeProto: model.ProbeProtoICMP,
+		ASN: 13335, Country: "US", TargetType: model.ProbeTargetTypeAnchor, AnycastStatus: pkgnetintel.AnycastStatusConfirmed, Enabled: true,
+	}
+	require.NoError(t, repository.CreateOpenFlareProbeTarget(ctx, ispTarget))
+	require.NoError(t, repository.CreateOpenFlareProbeTarget(ctx, anycastAnchor))
+
+	// Put edge-backup on active failure backoff for ispTarget; verify RunAutoProbe skips only that pair.
+	futureBackoff := now.Add(30 * time.Minute)
+	require.NoError(t, repository.MarkOpenFlareProbeDispatched(ctx, "edge-backup", ispTarget.ID, now.Add(-40*time.Minute), futureBackoff))
+
+	type dispatchedItem struct {
+		nodeID string
+		kind   string
+		target string
+	}
+	var sent []dispatchedItem
+	origDispatch := dispatchNetProbeFn
+	dispatchNetProbeFn = func(_ context.Context, nodeID string, task protocol.NetProbeTaskDispatch) bool {
+		tgt := ""
+		if task.Traceroute != nil {
+			tgt = task.Traceroute.Target
+		} else if task.Ping != nil {
+			tgt = task.Ping.Target
+		}
+		sent = append(sent, dispatchedItem{nodeID: nodeID, kind: task.Kind, target: tgt})
+		return true
+	}
+	defer func() { dispatchNetProbeFn = origDispatch }()
+
+	summary, err := RunAutoProbe(ctx)
+	require.NoError(t, err)
+	require.True(t, summary.Enabled)
+	require.Equal(t, 2, summary.OnlineNodes)
+	require.GreaterOrEqual(t, summary.SkippedBackoff, 1)
+	require.GreaterOrEqual(t, summary.Dispatched, 2)
+	for _, s := range sent {
+		require.False(t, s.nodeID == "edge-backup" && s.target == "3.3.3.3", "backed-off pair must be skipped")
+	}
+
+	// Simulate failed ping_batch against ispTarget from edge-best -> must increment backoff WITHOUT creating a 0ms matrix/sample row!
+	beforeSamples, err := repository.ListOpenFlareNetworkQualitySamplesSince(ctx, now.Add(-time.Hour), 50)
+	require.NoError(t, err)
+	IngestProbeResult(ctx, "edge-best", protocol.NetProbeResultPayload{
+		ProbeID: "auto-fail-1",
+		Kind:    "ping_batch",
+		Ping: &protocol.PingBatchResult{
+			Protocol: "icmp",
+			Target:   "3.3.3.3",
+			Sent:     4,
+			Received: 0,
+			LossRate: 100,
+			Error:    "request timed out",
+		},
+	})
+	afterSamples, err := repository.ListOpenFlareNetworkQualitySamplesSince(ctx, now.Add(-time.Hour), 50)
+	require.NoError(t, err)
+	require.Len(t, afterSamples, len(beforeSamples), "failed/0ms probes must NEVER write quality samples")
+
+	states, err := repository.ListOpenFlareProbeTargetStates(ctx, "edge-best", []uint{ispTarget.ID})
+	require.NoError(t, err)
+	require.Len(t, states, 1)
+	require.GreaterOrEqual(t, states[0].ConsecutiveFailures, 1)
+	require.NotNil(t, states[0].NextProbeAt)
+	require.True(t, states[0].NextProbeAt.After(now))
+
+	// Confirmed anycast anchor traceroute must NOT pollute AS topology edges or quality samples, while still resetting failure state.
+	avg1 := 3.0
+	avg2 := 8.0
+	IngestProbeResult(ctx, "edge-backup", protocol.NetProbeResultPayload{
+		ProbeID: "auto-anycast-1",
+		Kind:    "traceroute",
+		Traceroute: &protocol.TracerouteResult{
+			Target:     "1.1.1.1",
+			ResolvedIP: "1.1.1.1",
+			Protocol:   "icmp",
+			HopCount:   2,
+			Reached:    true,
+			TotalRTTMs: 8.0,
+			Hops: []protocol.TracerouteHop{
+				{TTL: 1, IP: "2.2.2.2", AvgMs: &avg1, Sent: 2, Recv: 2},
+				{TTL: 2, IP: "1.1.1.1", AvgMs: &avg2, Sent: 2, Recv: 2},
+			},
+		},
+	})
+	edges, err := repository.ListOpenFlareASTopologyEdges(ctx, 20)
+	require.NoError(t, err)
+	require.Empty(t, edges, "confirmed anycast target must be isolated from AS topology edges")
+
+	anchorStates, err := repository.ListOpenFlareProbeTargetStates(ctx, "edge-backup", []uint{anycastAnchor.ID})
+	require.NoError(t, err)
+	require.Len(t, anchorStates, 1)
+	require.Zero(t, anchorStates[0].ConsecutiveFailures)
+	require.InDelta(t, 8.0, anchorStates[0].LastRTTMs, 0.1)
 }
