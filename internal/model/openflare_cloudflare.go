@@ -29,6 +29,8 @@ const (
 	CFPointingTargetModeNode = "node"
 	// CFPointingTargetModeCustom binds group members to a custom DNS target.
 	CFPointingTargetModeCustom = "custom"
+	// CFPointingTargetModeSmartDNS delegates group domains via CNAME to OpenFlare SmartDNS.
+	CFPointingTargetModeSmartDNS = "smartdns"
 )
 
 // CFConnection stores the single Cloudflare API credential source.
@@ -48,18 +50,20 @@ func (CFConnection) TableName() string { return "of_cf_connections" }
 
 // CFPointingGroup stores a reusable node target for DNS records.
 type CFPointingGroup struct {
-	ID             uint      `json:"id" gorm:"primaryKey;autoIncrement"`
-	Name           string    `json:"name" gorm:"size:128;not null"`
-	TargetMode     string    `json:"target_mode" gorm:"size:16;not null;default:'node'"`
-	RecordType     string    `json:"record_type" gorm:"size:8;not null;default:'A'"`
-	RecordContent  string    `json:"record_content" gorm:"size:255;not null;default:''"`
-	PrimaryNodeID  uint      `json:"primary_node_id" gorm:"not null;index:idx_of_cf_pointing_groups_primary_node_id"`
-	BackupNodeID   *uint     `json:"backup_node_id" gorm:"index:idx_of_cf_pointing_groups_backup_node_id"`
-	ActiveNodeID   uint      `json:"active_node_id" gorm:"not null;index:idx_of_cf_pointing_groups_active_node_id"`
-	DefaultProxied bool      `json:"default_proxied" gorm:"not null;default:false"`
-	Enabled        bool      `json:"enabled" gorm:"not null;default:false"`
-	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID                 uint      `json:"id" gorm:"primaryKey;autoIncrement"`
+	Name               string    `json:"name" gorm:"size:128;not null"`
+	TargetMode         string    `json:"target_mode" gorm:"size:16;not null;default:'node'"`
+	RecordType         string    `json:"record_type" gorm:"size:8;not null;default:'A'"`
+	RecordContent      string    `json:"record_content" gorm:"size:255;not null;default:''"`
+	SmartDNSPolicyID   *uint     `json:"smartdns_policy_id" gorm:"column:smartdns_policy_id;index:idx_of_cf_pointing_groups_smartdns_policy"`
+	SmartDNSTargetHost string    `json:"smartdns_target_host" gorm:"column:smartdns_target_host;size:255;not null;default:''"`
+	PrimaryNodeID      uint      `json:"primary_node_id" gorm:"not null;index:idx_of_cf_pointing_groups_primary_node_id"`
+	BackupNodeID       *uint     `json:"backup_node_id" gorm:"index:idx_of_cf_pointing_groups_backup_node_id"`
+	ActiveNodeID       uint      `json:"active_node_id" gorm:"not null;index:idx_of_cf_pointing_groups_active_node_id"`
+	DefaultProxied     bool      `json:"default_proxied" gorm:"not null;default:false"`
+	Enabled            bool      `json:"enabled" gorm:"not null;default:false"`
+	CreatedAt          time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt          time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 	// TTL 为 1 时表示自动；零值兼容旧分组的 300 秒 TTL。
 	TTL int `json:"ttl" gorm:"not null;default:0"`
 }

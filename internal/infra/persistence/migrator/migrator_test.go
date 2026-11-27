@@ -32,7 +32,7 @@ import (
 // （初始系统配置 + 各期配置迁移/新增 seed：of_options 迁移、文件白名单、磁盘缓存、
 // 登录会话 TTL、升级源、存储、Pages、OpenResty 限流、单 IP 限频、
 // 错误页、SW 离线、日志保留期、指标保留期、新隧道默认配置等）；新增配置 seed 迁移时需同步更新本常量。
-const expectedMigratedSystemConfigCount = 74
+const expectedMigratedSystemConfigCount = 81
 
 func TestTrustedProxyCIDRMigrationDefaultsMatchRenderer(t *testing.T) {
 	want := edgeconfig.DefaultTrustedProxyCIDRs()
@@ -230,10 +230,36 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 			t.Errorf("Migrate() did not create %s", table)
 		}
 	}
-	for _, col := range []string{"geo_source", "network_group", "openresty_connections"} {
+	for _, col := range []string{"geo_source", "network_group", "openresty_connections", "capacity_bandwidth_mbps", "capacity_connections", "capacity_weight"} {
 		if !sqliteDB.Migrator().HasColumn("of_nodes", col) {
 			t.Errorf("Migrate() did not create of_nodes.%s", col)
 		}
+	}
+	for _, table := range []string{
+		"of_node_tags",
+		"of_node_tag_bindings",
+		"of_dns_instances",
+		"of_dns_policies",
+		"of_dns_metric_snapshots",
+	} {
+		if !sqliteDB.Migrator().HasTable(table) {
+			t.Errorf("Migrate() did not create %s", table)
+		}
+	}
+	for _, col := range []string{"smartdns_policy_id", "smartdns_target_host"} {
+		if !sqliteDB.Migrator().HasColumn("of_cf_pointing_groups", col) {
+			t.Errorf("Migrate() did not create of_cf_pointing_groups.%s", col)
+		}
+	}
+	var seededTagCount int64
+	require.NoError(t, sqliteDB.Model(&model.OpenFlareNodeTag{}).Count(&seededTagCount).Error)
+	if seededTagCount < 3 {
+		t.Errorf("seeded node tag count = %d, want >= 3", seededTagCount)
+	}
+	var seededPolicyCount int64
+	require.NoError(t, sqliteDB.Model(&model.OpenFlareDNSPolicy{}).Count(&seededPolicyCount).Error)
+	if seededPolicyCount < 2 {
+		t.Errorf("seeded smartdns policy count = %d, want >= 2", seededPolicyCount)
 	}
 	if sqliteDB.Migrator().HasTable("of_node_edge_health") {
 		t.Error("Migrate() should have dropped of_node_edge_health")

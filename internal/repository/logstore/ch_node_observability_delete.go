@@ -117,3 +117,11 @@ func (s *clickhouseLogStore) DeleteAllNetworkQualitySamples(ctx context.Context)
 func (s *clickhouseLogStore) DeleteNetworkQualitySamplesBefore(ctx context.Context, _ time.Time) (int64, error) {
 	return s.chMaterializeObsTTL(ctx, chNetworkQualitySampleTableName(), chTableTTLDaysNetworkQualitySamples)
 }
+
+func (s *clickhouseLogStore) DeleteAllDNSMetricSnapshots(ctx context.Context) (int64, error) {
+	return s.chTruncateTable(ctx, chDNSMetricSnapshotTableName())
+}
+
+func (s *clickhouseLogStore) DeleteDNSMetricSnapshotsBefore(ctx context.Context, _ time.Time) (int64, error) {
+	return s.chMaterializeObsTTL(ctx, chDNSMetricSnapshotTableName(), chTableTTLDaysDNSMetricSnapshots)
+}

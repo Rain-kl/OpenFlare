@@ -22,6 +22,7 @@ const (
 	chTableTTLDaysNodeMetricSnapshots   = 30
 	chTableTTLDaysUserAccessLogs        = 180
 	chTableTTLDaysNetworkQualitySamples = 30
+	chTableTTLDaysDNSMetricSnapshots    = 30
 )
 
 const (

@@ -176,8 +176,9 @@ func TestNodePageTwentyThousandNodes(t *testing.T) {
 	if page.Results[0].LatestApplyChecksum != "new" {
 		t.Errorf("ListPage latest checksum=%q,want new", page.Results[0].LatestApplyChecksum)
 	}
-	if len(recorder.statements) != 3 || recorder.rows > 22 {
-		t.Errorf("ListPage SQL queries=%v selectedRows=%d,want3 and <=22", recorder.statements, recorder.rows)
+	// Query count stays constant O(1) per page: count + page rows + batch apply logs + batch node tags.
+	if len(recorder.statements) != 4 || recorder.rows > 22 {
+		t.Errorf("ListPage SQL queries=%v selectedRows=%d,want4 and <=22", recorder.statements, recorder.rows)
 	}
 	conn.Logger = recorder.Interface
 	second, err := ListPage(ctx, ListQuery{Page: 2})

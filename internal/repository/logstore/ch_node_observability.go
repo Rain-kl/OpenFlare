@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -250,6 +251,74 @@ func scanNetworkQualitySampleRows(rows driver.Rows) ([]analyticsmodel.NetworkQua
 			&item.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan network quality sample row: %w", err)
+		}
+		item.CapturedAt = item.CapturedAt.UTC()
+		item.CreatedAt = item.CreatedAt.UTC()
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
+func (s *clickhouseLogStore) ListDNSMetricSnapshots(ctx context.Context, instanceID string, since time.Time, limit int) ([]analyticsmodel.DNSMetricSnapshot, error) {
+	conn, err := chConn()
+	if err != nil {
+		return nil, err
+	}
+	parts := make([]string, 0, 2)
+	args := make([]any, 0, 3)
+	if trimmed := strings.TrimSpace(instanceID); trimmed != "" {
+		parts = append(parts, "instance_id = ?")
+		args = append(args, trimmed)
+	}
+	if !since.IsZero() {
+		parts = append(parts, "captured_at >= ?")
+		args = append(args, since.UTC())
+	}
+	clause := "1"
+	if len(parts) > 0 {
+		clause = strings.Join(parts, " AND ")
+	}
+	sql := fmt.Sprintf(`
+SELECT %s
+FROM %s
+WHERE %s
+ORDER BY captured_at DESC, id DESC`, analyticsmodel.DNSMetricSnapshot{}.InsertColumns(), chDNSMetricSnapshotTableName(), clause)
+	if limit > 0 {
+		sql += clickHouseLimitClause
+		args = append(args, limit)
+	}
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list dns metric snapshots: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanDNSMetricSnapshotRows(rows)
+}
+
+func scanDNSMetricSnapshotRows(rows driver.Rows) ([]analyticsmodel.DNSMetricSnapshot, error) {
+	var result []analyticsmodel.DNSMetricSnapshot
+	for rows.Next() {
+		var item analyticsmodel.DNSMetricSnapshot
+		if err := rows.Scan(
+			&item.ID,
+			&item.InstanceID,
+			&item.CapturedAt,
+			&item.QueriesTotal,
+			&item.QueriesSuccess,
+			&item.QueriesNXDomain,
+			&item.QueriesServFail,
+			&item.QueriesRateLimited,
+			&item.QPS,
+			&item.LatencyP50Ms,
+			&item.LatencyP95Ms,
+			&item.LatencyP99Ms,
+			&item.CacheHitRatio,
+			&item.SnapshotVersion,
+			&item.CPUUsagePercent,
+			&item.MemoryUsagePercent,
+			&item.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan dns metric snapshot row: %w", err)
 		}
 		item.CapturedAt = item.CapturedAt.UTC()
 		item.CreatedAt = item.CreatedAt.UTC()

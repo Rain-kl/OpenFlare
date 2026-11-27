@@ -44,6 +44,7 @@ var (
 	metricSnapshotWriter       *batchwriter.Writer[analyticsmodel.NodeMetricSnapshot]
 	pingRecordWriter           *batchwriter.Writer[analyticsmodel.NodePingRecord]
 	networkQualitySampleWriter *batchwriter.Writer[analyticsmodel.NetworkQualitySample]
+	dnsMetricSnapshotWriter    *batchwriter.Writer[analyticsmodel.DNSMetricSnapshot]
 	nodeAccessLogWriter        *batchwriter.Writer[analyticsmodel.NodeAccessLog]
 
 	metricSnapshotDedup *dedupSet
@@ -74,11 +75,18 @@ func Init(ctx context.Context) {
 			nil,
 			nil,
 		)
+		dnsMetricSnapshotWriter = mustNewObservabilityWriter(
+			"dns_metric_snapshots",
+			withFlushRetries(flushDNSMetricSnapshots),
+			nil,
+			nil,
+		)
 		nodeAccessLogWriter = mustNewNodeAccessLogWriter()
 
 		metricSnapshotWriter.Start(ctx)
 		pingRecordWriter.Start(ctx)
 		networkQualitySampleWriter.Start(ctx)
+		dnsMetricSnapshotWriter.Start(ctx)
 		nodeAccessLogWriter.Start(ctx)
 
 		wireModelInsertHooks()
@@ -97,6 +105,7 @@ func Stop(ctx context.Context) error {
 		metricSnapshotWriter,
 		pingRecordWriter,
 		networkQualitySampleWriter,
+		dnsMetricSnapshotWriter,
 		nodeAccessLogWriter,
 	} {
 		if writer == nil {
@@ -160,6 +169,7 @@ func WriterStats() []batchwriter.Stats {
 		metricSnapshotWriter,
 		pingRecordWriter,
 		networkQualitySampleWriter,
+		dnsMetricSnapshotWriter,
 		nodeAccessLogWriter,
 	}
 	out := make([]batchwriter.Stats, 0, len(writers))
@@ -191,6 +201,14 @@ func QueueNetworkQualitySample(row analyticsmodel.NetworkQualitySample) {
 		return
 	}
 	networkQualitySampleWriter.TryEnqueue(row)
+}
+
+// QueueDNSMetricSnapshot enqueues a SmartDNS instance metric snapshot for asynchronous flush.
+func QueueDNSMetricSnapshot(row analyticsmodel.DNSMetricSnapshot) {
+	if dnsMetricSnapshotWriter == nil {
+		return
+	}
+	dnsMetricSnapshotWriter.TryEnqueue(row)
 }
 
 // QueueNodeAccessLogs enqueues node access logs for asynchronous flush.
@@ -309,6 +327,7 @@ func wireModelInsertHooks() {
 		QueueMetricSnapshot:       QueueMetricSnapshot,
 		QueuePingRecord:           QueuePingRecord,
 		QueueNetworkQualitySample: QueueNetworkQualitySample,
+		QueueDNSMetricSnapshot:    QueueDNSMetricSnapshot,
 	})
 	logstore.SetAccessLogHooks(logstore.AccessLogHooks{
 		QueueNodeAccessLogs: QueueNodeAccessLogs,
@@ -339,6 +358,14 @@ func flushNetworkQualitySamples(ctx context.Context, rows []analyticsmodel.Netwo
 		return err
 	}
 	return s.Observability.BatchInsertNetworkQualitySamples(ctx, rows)
+}
+
+func flushDNSMetricSnapshots(ctx context.Context, rows []analyticsmodel.DNSMetricSnapshot) error {
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return err
+	}
+	return s.Observability.BatchInsertDNSMetricSnapshots(ctx, rows)
 }
 
 func flushNodeAccessLogs(ctx context.Context, rows []analyticsmodel.NodeAccessLog) error {

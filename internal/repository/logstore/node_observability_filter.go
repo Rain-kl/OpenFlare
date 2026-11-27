@@ -75,6 +75,10 @@ func chNetworkQualitySampleTableName() string {
 	return "of_network_quality_samples"
 }
 
+func chDNSMetricSnapshotTableName() string {
+	return "of_dns_metric_snapshots"
+}
+
 func chAccessLogHourlyTableName() string {
 	return "of_access_log_hourly"
 }

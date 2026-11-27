@@ -205,6 +205,66 @@ func (s *clickhouseLogStore) BatchInsertNetworkQualitySamples(ctx context.Contex
 	})
 }
 
+// InsertDNSMetricSnapshot 写入入口：冻结检查 + 经 hook 入队（异步），不直接落库。
+func (s *clickhouseLogStore) InsertDNSMetricSnapshot(ctx context.Context, record *model.OpenFlareDNSMetricSnapshot) error {
+	if record == nil {
+		return nil
+	}
+	if err := s.ensureWritable(ctx); err != nil {
+		return err
+	}
+	if h := currentObservabilityHooks().QueueDNSMetricSnapshot; h != nil {
+		h(toAnalyticsDNSMetricSnapshot(record))
+	}
+	return nil
+}
+
+// BatchInsertDNSMetricSnapshots 是 batchwriter flush 目标：CH 原生批量写入。
+func (s *clickhouseLogStore) BatchInsertDNSMetricSnapshots(ctx context.Context, rows []analyticsmodel.DNSMetricSnapshot) error {
+	return chBatchInsert(ctx, s, analyticsmodel.DNSMetricSnapshot{}.BatchInsertSQL(), len(rows), func(batch driver.Batch, now time.Time) error {
+		for _, row := range rows {
+			instanceID := strings.TrimSpace(row.InstanceID)
+			if instanceID == "" {
+				continue
+			}
+			id := row.ID
+			if id == 0 {
+				id = idgen.NextUint64ID()
+			}
+			createdAt := row.CreatedAt
+			if createdAt.IsZero() {
+				createdAt = now
+			}
+			capturedAt := row.CapturedAt.UTC()
+			if capturedAt.IsZero() {
+				capturedAt = now
+			}
+			if err := batch.Append(
+				id,
+				instanceID,
+				capturedAt,
+				row.QueriesTotal,
+				row.QueriesSuccess,
+				row.QueriesNXDomain,
+				row.QueriesServFail,
+				row.QueriesRateLimited,
+				row.QPS,
+				row.LatencyP50Ms,
+				row.LatencyP95Ms,
+				row.LatencyP99Ms,
+				row.CacheHitRatio,
+				row.SnapshotVersion,
+				row.CPUUsagePercent,
+				row.MemoryUsagePercent,
+				createdAt.UTC(),
+			); err != nil {
+				return fmt.Errorf("append dns metric snapshot to batch: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
 func chBatchInsert(ctx context.Context, s *clickhouseLogStore, batchSQL string, count int, appendFn func(batch driver.Batch, now time.Time) error) error {
 	if count == 0 {
 		return nil

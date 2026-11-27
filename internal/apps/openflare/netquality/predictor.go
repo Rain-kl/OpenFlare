@@ -117,6 +117,7 @@ type PredictionResult struct {
 	RTTMs                 float64    `json:"rtt_ms"`
 	RTTP95Ms              float64    `json:"rtt_p95_ms"`
 	CandidateDispersionMs float64    `json:"candidate_dispersion_ms"`
+	LossRate              float64    `json:"loss_rate,omitempty"`
 	ErrorMs               *float64   `json:"error_ms,omitempty"`
 	Confidence            float64    `json:"confidence"`
 	MeasurementSource     string     `json:"measurement_source"`
@@ -533,6 +534,7 @@ func (p *Predictor) buildDirectPrediction(
 	return PredictionResult{
 		RTTMs:             round2(rttMs),
 		RTTP95Ms:          round2(max(rttMs, p95Ms)),
+		LossRate:          round4(selectDirectLossRate(row, src)),
 		Confidence:        round4(math.Max(minSampleConfidence, math.Min(maxSampleConfidence, conf))),
 		MeasurementSource: src,
 		PredictionMethod:  method,
@@ -542,6 +544,30 @@ func (p *Predictor) buildDirectPrediction(
 		DistinctPrefixes:  uint32(max(0, row.DistinctPrefixCount)), //nolint:gosec // clamped >= 0
 		LastObservedAt:    obsAt,
 	}, true
+}
+
+func selectDirectLossRate(row *model.OpenFlareNetworkQualityMatrix, src string) float64 {
+	if row == nil {
+		return 0
+	}
+	var loss float64
+	switch src {
+	case model.NetworkQualitySourceTCPPassive:
+		loss = row.TCPRetransRate
+	case model.NetworkQualitySourceTCPActive, model.NetworkQualitySourceICMPActive:
+		loss = row.ProbeLossRate
+	case model.NetworkQualitySourceTraceroute:
+		loss = row.TraceLossRate
+	default:
+		loss = max(row.ProbeLossRate, max(row.TraceLossRate, row.TCPRetransRate))
+	}
+	if loss < 0 || math.IsNaN(loss) || math.IsInf(loss, 0) {
+		return 0
+	}
+	if loss > 1 {
+		return 1
+	}
+	return loss
 }
 
 func (p *Predictor) selectDirectSource(row *model.OpenFlareNetworkQualityMatrix) (rttMs, p95Ms float64, source string, samples uint64, obsAt *time.Time) {

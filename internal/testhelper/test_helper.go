@@ -378,6 +378,48 @@ func getSeedConfigsPart2() []model.SystemConfig {
 			Type:        configTypeSystem,
 			Description: "是否启用边缘节点后台自动路由探测",
 		},
+		{
+			Key:         model.ConfigKeySmartDNSEnabled,
+			Value:       configValueTrue,
+			Type:        configTypeSystem,
+			Description: "是否启用 SmartDNS 权威智能解析服务",
+		},
+		{
+			Key:         model.ConfigKeySmartDNSDelegationDomain,
+			Value:       "",
+			Type:        configTypeSystem,
+			Description: "SmartDNS 全局委派主域名（如 edge.example.com）",
+		},
+		{
+			Key:         model.ConfigKeySmartDNSNSHosts,
+			Value:       "[]",
+			Type:        configTypeSystem,
+			Description: "SmartDNS 权威 NS 主机名列表（JSON 数组）",
+		},
+		{
+			Key:         model.ConfigKeySmartDNSDefaultTTL,
+			Value:       "60",
+			Type:        configTypeSystem,
+			Description: "SmartDNS 默认解析应答 TTL（秒）",
+		},
+		{
+			Key:         model.ConfigKeySmartDNSDiscoveryToken,
+			Value:       "",
+			Type:        configTypeSystem,
+			Description: "独立 SmartDNS 实例自动发现注册令牌",
+		},
+		{
+			Key:         model.ConfigKeySmartDNSSnapshotIntervalSeconds,
+			Value:       "10",
+			Type:        configTypeSystem,
+			Description: "SmartDNS 不可变运行时快照刷新间隔（秒）",
+		},
+		{
+			Key:         model.ConfigKeySmartDNSUpdateRepo,
+			Value:       "Rain-kl/OpenFlare",
+			Type:        configTypeSystem,
+			Description: "独立 SmartDNS 实例发布版本查询仓库",
+		},
 	}
 }
 
@@ -439,6 +481,7 @@ func SetupLogStoresForTest(t *testing.T) {
 		&analyticsmodel.UserAccessLog{},
 		&analyticsmodel.NodeMetricSnapshot{},
 		&analyticsmodel.NetworkQualitySample{},
+		&analyticsmodel.DNSMetricSnapshot{},
 	))
 
 	logstore.ResetForTest()
@@ -467,6 +510,11 @@ func SetupLogStoresForTest(t *testing.T) {
 		QueueNetworkQualitySample: func(record analyticsmodel.NetworkQualitySample) {
 			if err := store.Observability.BatchInsertNetworkQualitySamples(context.Background(), []analyticsmodel.NetworkQualitySample{record}); err != nil {
 				t.Errorf("batch insert network quality samples failed in test hook: %v", err)
+			}
+		},
+		QueueDNSMetricSnapshot: func(record analyticsmodel.DNSMetricSnapshot) {
+			if err := store.Observability.BatchInsertDNSMetricSnapshots(context.Background(), []analyticsmodel.DNSMetricSnapshot{record}); err != nil {
+				t.Errorf("batch insert DNS metric snapshots failed in test hook: %v", err)
 			}
 		},
 	})

@@ -1488,6 +1488,82 @@ func (s *gormLogStore) DeleteNetworkQualitySamplesBefore(ctx context.Context, cu
 	return res.RowsAffected, res.Error
 }
 
+// InsertDNSMetricSnapshot 写入入口：冻结检查 + 经 hook 入队（异步），不直接落库。
+func (s *gormLogStore) InsertDNSMetricSnapshot(ctx context.Context, record *model.OpenFlareDNSMetricSnapshot) error {
+	if record == nil {
+		return nil
+	}
+	if err := s.ensureWritable(ctx); err != nil {
+		return err
+	}
+	if h := currentObservabilityHooks().QueueDNSMetricSnapshot; h != nil {
+		h(toAnalyticsDNSMetricSnapshot(record))
+	}
+	return nil
+}
+
+// BatchInsertDNSMetricSnapshots 是 batchwriter flush 目标：GORM 分批落库。
+func (s *gormLogStore) BatchInsertDNSMetricSnapshots(ctx context.Context, rows []analyticsmodel.DNSMetricSnapshot) error {
+	return batchInsertAnalyticsRows(ctx, s, rows, func(row *analyticsmodel.DNSMetricSnapshot, now time.Time) {
+		if row.ID == 0 {
+			row.ID = idgen.NextUint64ID()
+		}
+		if row.CapturedAt.IsZero() {
+			row.CapturedAt = now
+		}
+		if row.CreatedAt.IsZero() {
+			row.CreatedAt = now
+		}
+	})
+}
+
+func (s *gormLogStore) ListDNSMetricSnapshots(ctx context.Context, instanceID string, since time.Time, limit int) ([]analyticsmodel.DNSMetricSnapshot, error) {
+	var rows []analyticsmodel.DNSMetricSnapshot
+	q := s.db.WithContext(ctx).Model(&analyticsmodel.DNSMetricSnapshot{})
+	if trimmed := strings.TrimSpace(instanceID); trimmed != "" {
+		q = q.Where("instance_id = ?", trimmed)
+	}
+	if !since.IsZero() {
+		q = q.Where("captured_at >= ?", since.UTC())
+	}
+	q = q.Order("captured_at DESC, id DESC")
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (s *gormLogStore) ListDNSMetricSnapshotsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.DNSMetricSnapshot, error) {
+	var rows []analyticsmodel.DNSMetricSnapshot
+	q := s.db.WithContext(ctx).Model(&analyticsmodel.DNSMetricSnapshot{}).
+		Where("id > ?", afterID).
+		Order("id ASC").
+		Limit(limitOr(limit, migrationPageSize))
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (s *gormLogStore) DeleteAllDNSMetricSnapshots(ctx context.Context) (int64, error) {
+	if err := s.ensureWritable(ctx); err != nil {
+		return 0, err
+	}
+	res := s.db.WithContext(ctx).Where("1 = 1").Delete(&analyticsmodel.DNSMetricSnapshot{})
+	return res.RowsAffected, res.Error
+}
+
+func (s *gormLogStore) DeleteDNSMetricSnapshotsBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	if err := s.ensureWritable(ctx); err != nil {
+		return 0, err
+	}
+	res := s.db.WithContext(ctx).Where("captured_at < ?", cutoff.UTC()).Delete(&analyticsmodel.DNSMetricSnapshot{})
+	return res.RowsAffected, res.Error
+}
+
 // ---- UserAccessLogStore ----
 
 // BatchInsert 是 batchwriter flush 目标：GORM 分批落库。
@@ -1828,5 +1904,27 @@ func toAnalyticsNetworkQualitySample(record *model.OpenFlareNetworkQualitySample
 		HopCount:            clampInt32(record.HopCount),
 		CapturedAt:          record.CapturedAt,
 		CreatedAt:           record.CreatedAt,
+	}
+}
+
+func toAnalyticsDNSMetricSnapshot(record *model.OpenFlareDNSMetricSnapshot) analyticsmodel.DNSMetricSnapshot {
+	return analyticsmodel.DNSMetricSnapshot{
+		ID:                 record.ID,
+		InstanceID:         strings.TrimSpace(record.InstanceID),
+		CapturedAt:         record.CapturedAt,
+		QueriesTotal:       record.QueriesTotal,
+		QueriesSuccess:     record.QueriesSuccess,
+		QueriesNXDomain:    record.QueriesNXDomain,
+		QueriesServFail:    record.QueriesServFail,
+		QueriesRateLimited: record.QueriesRateLimited,
+		QPS:                record.QPS,
+		LatencyP50Ms:       record.LatencyP50Ms,
+		LatencyP95Ms:       record.LatencyP95Ms,
+		LatencyP99Ms:       record.LatencyP99Ms,
+		CacheHitRatio:      record.CacheHitRatio,
+		SnapshotVersion:    record.SnapshotVersion,
+		CPUUsagePercent:    record.CPUUsagePercent,
+		MemoryUsagePercent: record.MemoryUsagePercent,
+		CreatedAt:          record.CreatedAt,
 	}
 }

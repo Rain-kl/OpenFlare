@@ -40,6 +40,7 @@ func newLogDBSwitchDB(t *testing.T) *gorm.DB {
 		&analyticsmodel.NodeMetricSnapshot{},
 		&analyticsmodel.NodePingRecord{},
 		&analyticsmodel.NetworkQualitySample{},
+		&analyticsmodel.DNSMetricSnapshot{},
 		&analyticsmodel.UserAccessLog{},
 	))
 	return gdb
@@ -458,4 +459,86 @@ func TestCopyAndClearNetworkQualitySamplesPreservesIDs(t *testing.T) {
 	assert.Equal(t, uint64(702), got[1].ID)
 	assert.Equal(t, "ipv6", got[1].IPFamily)
 	assert.Equal(t, int32(11), got[1].HopCount)
+}
+
+func TestCopyAndClearDNSMetricSnapshotsPreservesIDs(t *testing.T) {
+	oldDB, oldCH := config.Config.Database.Enabled, config.Config.ClickHouse.Enabled
+	config.Config.Database.Enabled, config.Config.ClickHouse.Enabled = false, false
+	t.Cleanup(func() {
+		config.Config.Database.Enabled, config.Config.ClickHouse.Enabled = oldDB, oldCH
+	})
+	logstore.ResetForTest()
+	defer logstore.ResetForTest()
+
+	ctx := context.Background()
+	srcDB := newLogDBSwitchDB(t)
+	dstDB := newLogDBSwitchDB(t)
+
+	db.SetDB(srcDB)
+	src, err := logstore.Active(ctx)
+	require.NoError(t, err)
+	db.SetDB(dstDB)
+	dst, err := logstore.BuildForMigration(ctx, "sqlite")
+	require.NoError(t, err)
+	t.Cleanup(func() { db.SetDB(nil) })
+
+	now := time.Now().UTC().Truncate(time.Second)
+	rows := []analyticsmodel.DNSMetricSnapshot{
+		{
+			ID:                 801,
+			InstanceID:         "dns-embedded",
+			CapturedAt:         now.Add(-2 * time.Minute),
+			QueriesTotal:       1500,
+			QueriesSuccess:     1490,
+			QueriesNXDomain:    7,
+			QueriesServFail:    2,
+			QueriesRateLimited: 1,
+			QPS:                150.5,
+			LatencyP50Ms:       0.45,
+			LatencyP95Ms:       1.2,
+			LatencyP99Ms:       2.6,
+			CacheHitRatio:      0.91,
+			SnapshotVersion:    12,
+			CPUUsagePercent:    3.4,
+			MemoryUsagePercent: 1.5,
+			CreatedAt:          now.Add(-2 * time.Minute),
+		},
+		{
+			ID:                 802,
+			InstanceID:         "dns-hk-01",
+			CapturedAt:         now.Add(-1 * time.Minute),
+			QueriesTotal:       4200,
+			QueriesSuccess:     4190,
+			QueriesNXDomain:    10,
+			QueriesServFail:    0,
+			QueriesRateLimited: 0,
+			QPS:                420.0,
+			LatencyP50Ms:       0.32,
+			LatencyP95Ms:       0.95,
+			LatencyP99Ms:       1.9,
+			CacheHitRatio:      0.96,
+			SnapshotVersion:    13,
+			CPUUsagePercent:    6.8,
+			MemoryUsagePercent: 2.2,
+			CreatedAt:          now.Add(-1 * time.Minute),
+		},
+	}
+	require.NoError(t, src.Observability.BatchInsertDNSMetricSnapshots(ctx, rows))
+	require.NoError(t, dst.Observability.BatchInsertDNSMetricSnapshots(ctx, []analyticsmodel.DNSMetricSnapshot{
+		{ID: 999, InstanceID: "stale-dns", CapturedAt: now, CreatedAt: now},
+	}))
+
+	require.NoError(t, clearTargetLogTables(ctx, dst))
+	require.NoError(t, copyObservability(ctx, src, dst))
+
+	var got []analyticsmodel.DNSMetricSnapshot
+	require.NoError(t, dstDB.Order("id ASC").Find(&got).Error)
+	require.Len(t, got, 2)
+	assert.Equal(t, uint64(801), got[0].ID)
+	assert.Equal(t, "dns-embedded", got[0].InstanceID)
+	assert.Equal(t, uint64(1500), got[0].QueriesTotal)
+	assert.InDelta(t, 0.91, got[0].CacheHitRatio, 1e-6)
+	assert.Equal(t, uint64(802), got[1].ID)
+	assert.Equal(t, "dns-hk-01", got[1].InstanceID)
+	assert.Equal(t, uint64(13), got[1].SnapshotVersion)
 }

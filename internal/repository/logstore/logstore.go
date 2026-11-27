@@ -91,6 +91,13 @@ type ObservabilityStore interface {
 	DeleteAllNetworkQualitySamples(ctx context.Context) (int64, error)
 	DeleteNetworkQualitySamplesBefore(ctx context.Context, cutoff time.Time) (int64, error)
 
+	InsertDNSMetricSnapshot(ctx context.Context, record *model.OpenFlareDNSMetricSnapshot) error
+	BatchInsertDNSMetricSnapshots(ctx context.Context, rows []analyticsmodel.DNSMetricSnapshot) error
+	ListDNSMetricSnapshots(ctx context.Context, instanceID string, since time.Time, limit int) ([]analyticsmodel.DNSMetricSnapshot, error)
+	ListDNSMetricSnapshotsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.DNSMetricSnapshot, error)
+	DeleteAllDNSMetricSnapshots(ctx context.Context) (int64, error)
+	DeleteDNSMetricSnapshotsBefore(ctx context.Context, cutoff time.Time) (int64, error)
+
 	// 迁移复制用：按 id 升序分页读取。
 	ListMetricSnapshotsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeMetricSnapshot, error)
 	ListPingRecordsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodePingRecord, error)

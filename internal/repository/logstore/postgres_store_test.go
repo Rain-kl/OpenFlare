@@ -1243,3 +1243,68 @@ func TestGormUserAccessLogEndTimeInclusive(t *testing.T) {
 		t.Fatalf("count by end time want 2 (boundary row included), got %d", total)
 	}
 }
+
+func TestGormDNSMetricSnapshots(t *testing.T) {
+	ResetForTest()
+	SetConfigReader(func(_ context.Context, _ string) (string, error) { return "", nil })
+
+	s := newTestGormStoreWithModels(t, &analyticsmodel.DNSMetricSnapshot{})
+	ctx := context.Background()
+	base := time.Now().UTC().Truncate(time.Second)
+
+	rows := []analyticsmodel.DNSMetricSnapshot{
+		{
+			ID:                 1,
+			InstanceID:         "dns-embedded",
+			CapturedAt:         base.Add(-10 * time.Minute),
+			QueriesTotal:       100,
+			QueriesSuccess:     98,
+			QueriesNXDomain:    2,
+			QPS:                10,
+			LatencyP50Ms:       0.5,
+			LatencyP95Ms:       1.2,
+			LatencyP99Ms:       2.1,
+			CacheHitRatio:      0.9,
+			SnapshotVersion:    1,
+			CPUUsagePercent:    1.2,
+			MemoryUsagePercent: 0.8,
+			CreatedAt:          base.Add(-10 * time.Minute),
+		},
+		{
+			ID:                 2,
+			InstanceID:         "dns-hk-1",
+			CapturedAt:         base.Add(-2 * time.Minute),
+			QueriesTotal:       500,
+			QueriesSuccess:     495,
+			QueriesNXDomain:    4,
+			QueriesServFail:    1,
+			QPS:                50,
+			LatencyP50Ms:       0.4,
+			LatencyP95Ms:       0.9,
+			LatencyP99Ms:       1.7,
+			CacheHitRatio:      0.95,
+			SnapshotVersion:    2,
+			CPUUsagePercent:    3.5,
+			MemoryUsagePercent: 1.4,
+			CreatedAt:          base.Add(-2 * time.Minute),
+		},
+	}
+	if err := s.BatchInsertDNSMetricSnapshots(ctx, rows); err != nil {
+		t.Fatalf("batch insert dns metrics: %v", err)
+	}
+	listed, err := s.ListDNSMetricSnapshots(ctx, "dns-hk-1", base.Add(-20*time.Minute), 10)
+	if err != nil || len(listed) != 1 || listed[0].ID != 2 {
+		t.Fatalf("list dns metrics failed: err=%v len=%d", err, len(listed))
+	}
+	forMig, err := s.ListDNSMetricSnapshotsForMigration(ctx, 0, 10)
+	if err != nil || len(forMig) != 2 {
+		t.Fatalf("list dns metrics for migration failed: err=%v len=%d", err, len(forMig))
+	}
+	deleted, err := s.DeleteDNSMetricSnapshotsBefore(ctx, base.Add(-5*time.Minute))
+	if err != nil || deleted != 1 {
+		t.Fatalf("delete before failed: err=%v deleted=%d", err, deleted)
+	}
+	if _, err := s.DeleteAllDNSMetricSnapshots(ctx); err != nil {
+		t.Fatalf("delete all dns metrics failed: %v", err)
+	}
+}

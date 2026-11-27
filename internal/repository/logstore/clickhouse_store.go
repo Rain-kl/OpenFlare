@@ -124,6 +124,14 @@ func (s *clickhouseLogStore) ListNetworkQualitySamplesForMigration(ctx context.C
 		scanNetworkQualitySampleRows)
 }
 
+// ListDNSMetricSnapshotsForMigration 按 id 升序分页读取（迁移复制用）。
+func (s *clickhouseLogStore) ListDNSMetricSnapshotsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.DNSMetricSnapshot, error) {
+	return chListForMigration(ctx, afterID, limit,
+		analyticsmodel.DNSMetricSnapshot{}.TableName(),
+		analyticsmodel.DNSMetricSnapshot{}.InsertColumns(),
+		scanDNSMetricSnapshotRows)
+}
+
 // chListForMigration 执行按 id 升序分页的 CH 原生表查询，并交给 scanner 扫描。
 func chListForMigration[T any](ctx context.Context, afterID uint64, limit int, table, columns string, scanner func(driver.Rows) ([]T, error)) ([]T, error) {
 	conn, err := chConn()

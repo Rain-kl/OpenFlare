@@ -161,6 +161,15 @@ func registerOpenFlareNodeRoutes(apiGroup *gin.RouterGroup) {
 		nodeRoute.GET("/:id/ping-records", ping.GetNodePingRecordsHandler)
 	}
 
+	tagRoute := apiGroup.Group("/node-tags")
+	tagRoute.Use(openFlareAdminMiddlewares()...)
+	{
+		httpx.RegisterCollection(tagRoute, "GET", node.ListNodeTagsHandler)
+		httpx.RegisterCollection(tagRoute, "POST", node.CreateNodeTagHandler)
+		tagRoute.POST("/:id/update", node.UpdateNodeTagHandler)
+		tagRoute.POST("/:id/delete", node.DeleteNodeTagHandler)
+	}
+
 	pingRoute := apiGroup.Group("/ping-tasks")
 	pingRoute.Use(openFlareAdminMiddlewares()...)
 	{

@@ -140,6 +140,11 @@ func CleanupExpired(ctx context.Context) (*CleanupSummary, error) {
 	}, summary); err != nil {
 		return nil, err
 	}
+	if err := cleanupTable("dns_metric_snapshots", func() (int64, error) {
+		return s.Observability.DeleteDNSMetricSnapshotsBefore(ctx, metricCutoff)
+	}, summary); err != nil {
+		return nil, err
+	}
 	return summary, nil
 }
 

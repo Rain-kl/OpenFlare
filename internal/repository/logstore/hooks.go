@@ -19,6 +19,7 @@ type ObservabilityHooks struct {
 	QueueMetricSnapshot       func(record analyticsmodel.NodeMetricSnapshot)
 	QueuePingRecord           func(record analyticsmodel.NodePingRecord)
 	QueueNetworkQualitySample func(record analyticsmodel.NetworkQualitySample)
+	QueueDNSMetricSnapshot    func(record analyticsmodel.DNSMetricSnapshot)
 }
 
 var (

@@ -37,6 +37,8 @@ func setupNodeTestDB(t *testing.T) func() {
 	require.NoError(t, err)
 	require.NoError(t, sqliteDB.AutoMigrate(
 		&model.OpenFlareNode{},
+		&model.OpenFlareNodeTag{},
+		&model.OpenFlareNodeTagBinding{},
 		&model.SystemConfig{},
 		&model.OpenFlareApplyLog{},
 	))

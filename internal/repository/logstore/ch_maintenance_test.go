@@ -32,4 +32,5 @@ func TestTableTTLDaysMatchDDL(t *testing.T) {
 	assert.Equal(t, 90, chTableTTLDaysNodeAccessLogs)
 	assert.Equal(t, 30, chTableTTLDaysNodeMetricSnapshots)
 	assert.Equal(t, 180, chTableTTLDaysUserAccessLogs)
+	assert.Equal(t, 30, chTableTTLDaysDNSMetricSnapshots)
 }
