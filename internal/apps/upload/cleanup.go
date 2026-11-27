@@ -46,24 +46,40 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 	if ReadOnly(ctx) {
 		return nil, errors.New(ErrStorageReadOnly)
 	}
+
+	totalProcessed, totalDeleted, err := cleanupPendingUploads(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pushHistoryCount := cleanupNotificationHistory(ctx)
+	taskLogStats := cleanupLogsAndExec(ctx)
+
+	msg := fmt.Sprintf("System cleanup completed. Removed %d/%d unused uploads, %d notification audit records and %d task execution logs.",
+		totalDeleted,
+		totalProcessed,
+		pushHistoryCount,
+		taskLogStats.HighFrequencyDeleted+taskLogStats.LowFrequencyDeleted,
+	)
+	task.AppendLog(ctx, "%s", msg)
+	return &task.TaskResult{Message: msg}, nil
+}
+
+func cleanupPendingUploads(ctx context.Context) (totalProcessed, totalDeleted int, err error) {
 	const batchSize = 100
 	var lastID uint64
-	var totalProcessed int
-	var totalDeleted int
-
 	oneHourAgo := time.Now().Add(-1 * time.Hour)
 
 	task.AppendLog(ctx, "Scanning unused uploads, cutoff: %s", oneHourAgo.Format(time.RFC3339))
 
 	for {
-		unusedUploads, err := repository.ListPendingUploadsOlderThan(ctx, lastID, oneHourAgo, batchSize)
-		if err != nil {
-			task.AppendLog(ctx, "Failed to query unused uploads: %v", err)
-			return nil, fmt.Errorf(ErrQueryUnusedUploadsFailed, err)
+		unusedUploads, listErr := repository.ListPendingUploadsOlderThan(ctx, lastID, oneHourAgo, batchSize)
+		if listErr != nil {
+			task.AppendLog(ctx, "Failed to query unused uploads: %v", listErr)
+			return totalProcessed, totalDeleted, fmt.Errorf(ErrQueryUnusedUploadsFailed, listErr)
 		}
 
 		if len(unusedUploads) == 0 {
-			break
+			return totalProcessed, totalDeleted, nil
 		}
 
 		task.AppendLog(ctx, "Found %d uploads to clean up in this batch", len(unusedUploads))
@@ -73,7 +89,7 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 			transitioned := false
 
 			// Multi-step: row lock + ownership-safe soft-delete + stats delta stay orchestrated here.
-			if err := repository.RunInTransaction(ctx, func(tx *gorm.DB) error {
+			if txErr := repository.RunInTransaction(ctx, func(tx *gorm.DB) error {
 				locked, err := repository.GetUploadByIDForUpdateTx(tx, u.ID)
 				if err != nil {
 					return err
@@ -84,8 +100,8 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 				var removeErr error
 				transitioned, removeErr = RemoveLockedTx(tx, &locked)
 				return removeErr
-			}); err != nil {
-				task.AppendLog(ctx, "Failed to clean up upload [ID:%d]: %v", u.ID, err)
+			}); txErr != nil {
+				task.AppendLog(ctx, "Failed to clean up upload [ID:%d]: %v", u.ID, txErr)
 				lastID = u.ID
 				continue
 			}
@@ -97,7 +113,9 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 			lastID = u.ID
 		}
 	}
+}
 
+func cleanupNotificationHistory(ctx context.Context) int64 {
 	task.AppendLog(ctx, "Cleaning up notification audit history; retaining the last 7 days...")
 	cutoff := time.Now().AddDate(0, 0, -7)
 	pushHistoryCount, err := repository.CountPushHistoriesCreatedBefore(ctx, cutoff)
@@ -113,7 +131,10 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 			task.AppendLog(ctx, "Deleted %d notification history records (cutoff: %s)", pushHistoryCount, cutoff.Format("2006-01-02 15:04:05"))
 		}
 	}
+	return pushHistoryCount
+}
 
+func cleanupLogsAndExec(ctx context.Context) model.TaskExecutionCleanupStats {
 	task.AppendLog(ctx, "Cleaning up task execution logs: retaining 3 days for high-frequency tasks and 30 days for low-frequency tasks...")
 	taskLogStats, err := repository.CleanupTaskExecutionLogs(ctx, time.Now())
 	if err != nil {
@@ -145,13 +166,5 @@ func (h *SystemCleanupHandler) Execute(ctx context.Context, _ []byte) (*task.Tas
 	} else if execDeleted > 0 {
 		task.AppendLog(ctx, "Cleaned up %d expired remote execution records", execDeleted)
 	}
-
-	msg := fmt.Sprintf("System cleanup completed. Removed %d/%d unused uploads, %d notification audit records and %d task execution logs.",
-		totalDeleted,
-		totalProcessed,
-		pushHistoryCount,
-		taskLogStats.HighFrequencyDeleted+taskLogStats.LowFrequencyDeleted,
-	)
-	task.AppendLog(ctx, "%s", msg)
-	return &task.TaskResult{Message: msg}, nil
+	return taskLogStats
 }

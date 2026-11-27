@@ -83,7 +83,7 @@ func TestOAuthAndReadOnlyTransports(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, session.Close()) })
 	tools, err := session.ListTools(ctx, nil)
 	require.NoError(t, err)
-	require.Len(t, tools.Tools, 2)
+	require.Len(t, tools.Tools, 3)
 	for _, tool := range tools.Tools {
 		require.True(t, tool.Annotations.ReadOnlyHint)
 		require.NotEqual(t, connectionOperation, tool.Name)

@@ -923,6 +923,8 @@ func RelayWebSocketHandler(c *gin.Context) {
 // @Failure 401 {object} response.Any "Token 无效"
 // @Failure 403 {object} response.Any "隧道已隔离或连接器已吊销"
 // @Router /api/v1/tunnel/heartbeat [post]
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 func TunnelHeartbeatHandler(c *gin.Context) {
 	var payload protocol.TunnelConnectorHeartbeatPayload
 	if !httpx.BindJSON(c, &payload) {
@@ -950,6 +952,8 @@ func TunnelHeartbeatHandler(c *gin.Context) {
 // @Failure 401 {object} response.Any "Token 无效"
 // @Failure 403 {object} response.Any "隧道已隔离"
 // @Router /api/v1/tunnel/config [get]
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 func TunnelConfigHandler(c *gin.Context) {
 	tun, ok := TunnelFromContext(c)
 	if !ok {
@@ -975,6 +979,8 @@ func TunnelConfigHandler(c *gin.Context) {
 // @Failure 401 {object} response.Any "Token 无效"
 // @Failure 403 {object} response.Any "隧道已隔离"
 // @Router /api/v1/tunnel/attachments [post]
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 func TunnelNegotiateAttachmentsHandler(c *gin.Context) {
 	var req protocol.TunnelNegotiateAttachmentsRequest
 	if !httpx.BindJSON(c, &req) {
@@ -1002,6 +1008,8 @@ func TunnelNegotiateAttachmentsHandler(c *gin.Context) {
 // @Failure 401 {object} response.Any "Token 无效"
 // @Failure 403 {object} response.Any "隧道已隔离或连接器已吊销"
 // @Router /api/v1/tunnel/ws [get]
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 func TunnelWebSocketHandler(c *gin.Context) {
 	tun, ok := TunnelFromContext(c)
 	if !ok {

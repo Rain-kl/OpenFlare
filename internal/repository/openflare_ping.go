@@ -74,13 +74,13 @@ func UpdateOpenFlarePingTasks(ctx context.Context, tasks []*model.OpenFlarePingT
 	return conn.Transaction(func(tx *gorm.DB) error {
 		for _, task := range tasks {
 			res := tx.Model(&model.OpenFlarePingTask{}).Where("id = ?", task.ID).Updates(map[string]any{
-				"name":        task.Name,
-				"clients":     task.Clients,
+				colName:       task.Name,
+				colClients:    task.Clients,
 				"all_clients": task.DefaultOn,
-				"type":        task.Type,
+				colType:       task.Type,
 				"target":      task.Target,
 				"interval":    task.Interval,
-				"updated_at":  time.Now().UTC(),
+				colUpdatedAt:  time.Now().UTC(),
 			})
 			if res.Error != nil {
 				return res.Error
@@ -131,7 +131,7 @@ func ReorderOpenFlarePingTasks(ctx context.Context, weights map[uint]int) error 
 		for id, weight := range weights {
 			if err := tx.Model(&model.OpenFlarePingTask{}).Where("id = ?", id).Updates(map[string]any{
 				"weight":     weight,
-				"updated_at": now,
+				colUpdatedAt: now,
 			}).Error; err != nil {
 				return err
 			}
@@ -164,8 +164,8 @@ func AttachNodeToDefaultOnPingTasks(ctx context.Context, nodeID string) error {
 			}
 			task.Clients = append(task.Clients, nodeID)
 			if err := tx.Model(&model.OpenFlarePingTask{}).Where("id = ?", task.ID).Updates(map[string]any{
-				"clients":    task.Clients,
-				"updated_at": now,
+				colClients:   task.Clients,
+				colUpdatedAt: now,
 			}).Error; err != nil {
 				return err
 			}
@@ -203,8 +203,8 @@ func RemoveNodeFromAllPingTasks(ctx context.Context, nodeID string) error {
 				}
 			}
 			if err := tx.Model(&model.OpenFlarePingTask{}).Where("id = ?", task.ID).Updates(map[string]any{
-				"clients":    filtered,
-				"updated_at": now,
+				colClients:   filtered,
+				colUpdatedAt: now,
 			}).Error; err != nil {
 				return err
 			}

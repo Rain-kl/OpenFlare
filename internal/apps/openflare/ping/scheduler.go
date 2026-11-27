@@ -52,7 +52,6 @@ func ReloadSchedule(ctx context.Context) {
 		defaultScheduler.mu.Unlock()
 		return
 	}
-	baseCtx := defaultScheduler.baseCtx
 	defaultScheduler.mu.Unlock()
 
 	tasks, err := repository.ListOpenFlarePingTasks(ctx)
@@ -61,7 +60,7 @@ func ReloadSchedule(ctx context.Context) {
 		return
 	}
 
-	defaultScheduler.replaceLocked(baseCtx, tasks)
+	defaultScheduler.replaceLocked(tasks) //nolint:contextcheck // scheduler goroutines outlive caller request context via baseCtx
 }
 
 // StopScheduler stops all active ping interval goroutines and waits for them to exit.
@@ -78,8 +77,9 @@ func StopScheduler() {
 	defaultScheduler.wg.Wait()
 }
 
-func (s *pingScheduler) replaceLocked(baseCtx context.Context, tasks []*model.OpenFlarePingTask) {
+func (s *pingScheduler) replaceLocked(tasks []*model.OpenFlarePingTask) {
 	s.mu.Lock()
+	baseCtx := s.baseCtx
 	prevCancel := s.cancel
 	s.cancel = nil
 	s.mu.Unlock()
@@ -100,6 +100,9 @@ func (s *pingScheduler) replaceLocked(baseCtx context.Context, tasks []*model.Op
 		return
 	}
 
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
 	runCtx, cancel := context.WithCancel(baseCtx)
 	s.mu.Lock()
 	if !s.started {

@@ -20,6 +20,8 @@ import (
 )
 
 // TunnelInput creates or updates a logical private-network tunnel.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelInput struct {
 	Name               string         `json:"name"`
 	Description        string         `json:"description"`
@@ -40,6 +42,8 @@ type TunnelInput struct {
 }
 
 // TunnelServiceInput creates or updates an L4 TCP/UDP exposed service on a tunnel.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelServiceInput struct {
 	Name        string         `json:"name"`
 	ServiceType string         `json:"service_type"`
@@ -51,11 +55,15 @@ type TunnelServiceInput struct {
 }
 
 // TunnelQuarantineInput carries an optional isolation reason.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelQuarantineInput struct {
 	Reason string `json:"reason"`
 }
 
 // TunnelConnectorView describes a single openflared connector replica.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelConnectorView struct {
 	ID              uint                                  `json:"id"`
 	ConnectorID     string                                `json:"connector_id"`
@@ -81,6 +89,8 @@ type TunnelConnectorView struct {
 }
 
 // TunnelAttachmentView describes one dynamic connector <-> relay session lease.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelAttachmentView struct {
 	ID              uint       `json:"id"`
 	TunnelID        uint       `json:"tunnel_id"`
@@ -99,6 +109,8 @@ type TunnelAttachmentView struct {
 }
 
 // TunnelServiceView describes an L4 TCP/UDP forwarding service attached to a tunnel.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelServiceView struct {
 	ID          uint           `json:"id"`
 	TunnelID    uint           `json:"tunnel_id"`
@@ -114,6 +126,8 @@ type TunnelServiceView struct {
 }
 
 // TunnelBoundRouteView summarizes an HTTP ProxyRoute routed through a tunnel.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelBoundRouteView struct {
 	RouteID              uint     `json:"route_id"`
 	SiteName             string   `json:"site_name"`
@@ -124,6 +138,8 @@ type TunnelBoundRouteView struct {
 }
 
 // TunnelView is the console list representation of a logical tunnel.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelView struct {
 	ID                 uint           `json:"id"`
 	TunnelID           string         `json:"tunnel_id"`
@@ -156,6 +172,8 @@ type TunnelView struct {
 }
 
 // TunnelDeployView returns single-use/rotated connector deployment credentials.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelDeployView struct {
 	Tunnel         TunnelView `json:"tunnel"`
 	AccessToken    string     `json:"access_token"`
@@ -165,6 +183,8 @@ type TunnelDeployView struct {
 }
 
 // TunnelDetailView expands full topology, replicas, leases, L4 services, and bound HTTP routes for a tunnel.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelDetailView struct {
 	Tunnel      TunnelView             `json:"tunnel"`
 	Connectors  []TunnelConnectorView  `json:"connectors"`
@@ -174,6 +194,8 @@ type TunnelDetailView struct {
 }
 
 // TunnelTopologyView aggregates the global mesh of pools, relays, tunnels, connectors, and active leases.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelTopologyView struct {
 	Pools       []PoolView             `json:"pools"`
 	Relays      []RelayView            `json:"relays"`
@@ -359,11 +381,11 @@ func CreateTunnel(ctx context.Context, input TunnelInput) (*TunnelDeployView, er
 		return nil, errors.New(errInvalidJSONPayload)
 	}
 
-	tunnelID, err := GenerateRandomToken("tun-", 12)
+	tunnelID, err := GenerateRandomToken("tun-", tunnelIDTokenBytes)
 	if err != nil {
 		return nil, err
 	}
-	accessToken, err := GenerateRandomToken("tun_", 24)
+	accessToken, err := GenerateRandomToken("tun_", tunnelSecretTokenBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -522,11 +544,11 @@ func RotateTunnelToken(ctx context.Context, id uint) (*TunnelDeployView, error) 
 	if err != nil {
 		return nil, err
 	}
-	newToken, err := GenerateRandomToken("tun_", 24)
+	newToken, err := GenerateRandomToken("tun_", tunnelSecretTokenBytes)
 	if err != nil {
 		return nil, err
 	}
-	if err := repository.UpdateTunnelColumns(ctx, tunnel, map[string]any{"access_token": newToken}); err != nil {
+	if err := repository.UpdateTunnelColumns(ctx, tunnel, map[string]any{colTunnelAccessToken: newToken}); err != nil {
 		return nil, err
 	}
 	tunnel.AccessToken = newToken
@@ -540,7 +562,7 @@ func QuarantineTunnel(ctx context.Context, id uint, reason string) (*TunnelView,
 	if err != nil {
 		return nil, err
 	}
-	newToken, err := GenerateRandomToken("tun_revoked_", 24)
+	newToken, err := GenerateRandomToken("tun_revoked_", tunnelSecretTokenBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -550,9 +572,9 @@ func QuarantineTunnel(ctx context.Context, id uint, reason string) (*TunnelView,
 		trimmedReason = "isolated by administrator"
 	}
 	if err := repository.UpdateTunnelColumns(ctx, tunnel, map[string]any{
-		"access_token":      newToken,
-		"quarantined_at":    &now,
-		"quarantine_reason": trimmedReason,
+		colTunnelAccessToken:      newToken,
+		colTunnelQuarantinedAt:    &now,
+		colTunnelQuarantineReason: trimmedReason,
 	}); err != nil {
 		return nil, err
 	}
@@ -573,14 +595,14 @@ func UnquarantineTunnel(ctx context.Context, id uint) (*TunnelDeployView, error)
 	if err != nil {
 		return nil, err
 	}
-	newToken, err := GenerateRandomToken("tun_", 24)
+	newToken, err := GenerateRandomToken("tun_", tunnelSecretTokenBytes)
 	if err != nil {
 		return nil, err
 	}
 	if err := repository.UpdateTunnelColumns(ctx, tunnel, map[string]any{
-		"access_token":      newToken,
-		"quarantined_at":    nil,
-		"quarantine_reason": "",
+		colTunnelAccessToken:      newToken,
+		colTunnelQuarantinedAt:    nil,
+		colTunnelQuarantineReason: "",
 	}); err != nil {
 		return nil, err
 	}
@@ -605,8 +627,8 @@ func RevokeConnector(ctx context.Context, tunnelID uint, connectorID string) err
 	}
 	now := time.Now().UTC()
 	if err := repository.UpdateTunnelConnectorColumns(ctx, connector.ID, map[string]any{
-		"revoked_at": &now,
-		"status":     model.TunnelNodeStatusQuarantined,
+		"revoked_at":    &now,
+		colTunnelStatus: model.TunnelNodeStatusQuarantined,
 	}); err != nil {
 		return err
 	}
@@ -641,9 +663,9 @@ func RequestTunnelBinaryUpdate(ctx context.Context, id uint, input BinaryUpdateI
 		return nil, errors.New(errRelayUpdateTagRequired)
 	}
 	if err := repository.UpdateTunnelColumns(ctx, tunnel, map[string]any{
-		"update_requested": true,
-		"update_channel":   channel,
-		"update_tag":       tag,
+		colTunnelUpdateRequested: true,
+		"update_channel":         channel,
+		"update_tag":             tag,
 	}); err != nil {
 		return nil, err
 	}

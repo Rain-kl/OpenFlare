@@ -178,15 +178,14 @@ func QuarantineNode(ctx context.Context, id uint, input QuarantineInput) (*Quara
 		seenCert[item.CertificateID] = struct{}{}
 		exposed = append(exposed, item)
 
-		if item.Provider == "acme" {
-			if input.RotateACMECerts {
-				if _, rotErr := oftls.RotateCompromisedCertificate(ctx, item.CertificateID); rotErr != nil {
-					rotationErrors[item.CertificateID] = rotErr.Error()
-				} else {
-					rotatedIDs = append(rotatedIDs, item.CertificateID)
-				}
+		switch {
+		case item.Provider == "acme" && input.RotateACMECerts:
+			if _, rotErr := oftls.RotateCompromisedCertificate(ctx, item.CertificateID); rotErr != nil {
+				rotationErrors[item.CertificateID] = rotErr.Error()
+			} else {
+				rotatedIDs = append(rotatedIDs, item.CertificateID)
 			}
-		} else if item.Provider != "deleted" {
+		case item.Provider != "acme" && item.Provider != "deleted":
 			manualIDs = append(manualIDs, item.CertificateID)
 		}
 	}

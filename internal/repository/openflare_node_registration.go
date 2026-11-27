@@ -19,7 +19,7 @@ func CreateOrGetOpenFlareDiscoveryNode(ctx context.Context, node *model.OpenFlar
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
 	if err := conn.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "node_id"}},
+		Columns:   []clause.Column{{Name: colNodeID}},
 		DoNothing: true,
 	}).Create(node).Error; err != nil {
 		return nil, err

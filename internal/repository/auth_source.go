@@ -90,7 +90,7 @@ func UpdateAuthSource(ctx context.Context, source *model.AuthSource, keepSecret 
 	}
 	return db.DB(ctx).Model(&current).Updates(map[string]any{
 		colName:                source.Name,
-		"type":                 source.Type,
+		colType:                source.Type,
 		"display_name":         source.DisplayName,
 		"is_active":            source.IsActive,
 		"client_id":            source.ClientID,

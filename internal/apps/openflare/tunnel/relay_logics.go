@@ -5,7 +5,6 @@ package tunnel
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -209,15 +208,15 @@ func CreateRelay(ctx context.Context, input RelayInput) (*RelayDeployView, error
 		return nil, errors.New(errInvalidJSONPayload)
 	}
 
-	relayID, err := GenerateRandomToken("relay-", 12)
+	relayID, err := GenerateRandomToken("relay-", tunnelIDTokenBytes)
 	if err != nil {
 		return nil, err
 	}
-	accessToken, err := GenerateRandomToken("rly_", 24)
+	accessToken, err := GenerateRandomToken("rly_", tunnelSecretTokenBytes)
 	if err != nil {
 		return nil, err
 	}
-	gatewaySecret, err := GenerateRandomToken("gws_", 24)
+	gatewaySecret, err := GenerateRandomToken("gws_", tunnelSecretTokenBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -387,11 +386,11 @@ func RotateRelayToken(ctx context.Context, id uint) (*RelayDeployView, error) {
 	if err != nil {
 		return nil, err
 	}
-	newToken, err := GenerateRandomToken("rly_", 24)
+	newToken, err := GenerateRandomToken("rly_", tunnelSecretTokenBytes)
 	if err != nil {
 		return nil, err
 	}
-	if err := repository.UpdateTunnelRelayColumns(ctx, relay, map[string]any{"access_token": newToken}); err != nil {
+	if err := repository.UpdateTunnelRelayColumns(ctx, relay, map[string]any{colTunnelAccessToken: newToken}); err != nil {
 		return nil, err
 	}
 	relay.AccessToken = newToken
@@ -426,7 +425,7 @@ func QuarantineRelay(ctx context.Context, id uint, reason string) (*RelayView, e
 	if err != nil {
 		return nil, err
 	}
-	newToken, err := GenerateRandomToken("rly_revoked_", 24)
+	newToken, err := GenerateRandomToken("rly_revoked_", tunnelSecretTokenBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -436,10 +435,10 @@ func QuarantineRelay(ctx context.Context, id uint, reason string) (*RelayView, e
 		trimmedReason = "isolated by administrator"
 	}
 	changes := map[string]any{
-		"access_token":      newToken,
-		"status":            model.TunnelNodeStatusQuarantined,
-		"quarantined_at":    &now,
-		"quarantine_reason": trimmedReason,
+		colTunnelAccessToken:      newToken,
+		colTunnelStatus:           model.TunnelNodeStatusQuarantined,
+		colTunnelQuarantinedAt:    &now,
+		colTunnelQuarantineReason: trimmedReason,
 	}
 	if err := repository.UpdateTunnelRelayColumns(ctx, relay, changes); err != nil {
 		return nil, err
@@ -464,15 +463,15 @@ func UnquarantineRelay(ctx context.Context, id uint) (*RelayDeployView, error) {
 	if err != nil {
 		return nil, err
 	}
-	newToken, err := GenerateRandomToken("rly_", 24)
+	newToken, err := GenerateRandomToken("rly_", tunnelSecretTokenBytes)
 	if err != nil {
 		return nil, err
 	}
 	changes := map[string]any{
-		"access_token":      newToken,
-		"status":            model.TunnelNodeStatusOffline,
-		"quarantined_at":    nil,
-		"quarantine_reason": "",
+		colTunnelAccessToken:      newToken,
+		colTunnelStatus:           model.TunnelNodeStatusOffline,
+		colTunnelQuarantinedAt:    nil,
+		colTunnelQuarantineReason: "",
 	}
 	if err := repository.UpdateTunnelRelayColumns(ctx, relay, changes); err != nil {
 		return nil, err
@@ -509,9 +508,9 @@ func RequestRelayBinaryUpdate(ctx context.Context, id uint, input BinaryUpdateIn
 		return nil, errors.New(errRelayUpdateTagRequired)
 	}
 	changes := map[string]any{
-		"update_requested": true,
-		"update_channel":   channel,
-		"update_tag":       tag,
+		colTunnelUpdateRequested: true,
+		"update_channel":         channel,
+		"update_tag":             tag,
 	}
 	if err := repository.UpdateTunnelRelayColumns(ctx, relay, changes); err != nil {
 		return nil, err
@@ -537,7 +536,7 @@ func GetRelayBootstrapToken(ctx context.Context) (*RelayBootstrapView, error) {
 
 // RotateRelayBootstrapToken rotates the global relay discovery bootstrap token.
 func RotateRelayBootstrapToken(ctx context.Context) (*RelayBootstrapView, error) {
-	token, err := GenerateRandomToken("rdisc_", 24)
+	token, err := GenerateRandomToken("rdisc_", tunnelSecretTokenBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -552,7 +551,7 @@ func ensureRelayDiscoveryToken(ctx context.Context) (string, error) {
 	if err == nil && strings.TrimSpace(sc.Value) != "" {
 		return strings.TrimSpace(sc.Value), nil
 	}
-	token, err := GenerateRandomToken("rdisc_", 24)
+	token, err := GenerateRandomToken("rdisc_", tunnelSecretTokenBytes)
 	if err != nil {
 		return "", err
 	}
@@ -654,8 +653,10 @@ func applyRelayGeo(ctx context.Context, relay *model.TunnelRelay, rawAddr string
 	}
 	ip := net.ParseIP(strings.TrimSpace(rawAddr))
 	if ip == nil {
-		if addrs, err := net.LookupIP(strings.TrimSpace(rawAddr)); err == nil && len(addrs) > 0 {
-			ip = addrs[0]
+		lookupCtx, cancel := context.WithTimeout(ctx, relayDNSLookupTimeout)
+		defer cancel()
+		if addrs, err := net.DefaultResolver.LookupIPAddr(lookupCtx, strings.TrimSpace(rawAddr)); err == nil && len(addrs) > 0 {
+			ip = addrs[0].IP
 		}
 	}
 	if ip == nil || !iputil.IsPublic(ip) {
@@ -715,9 +716,9 @@ func loadPoolKeyMap(ctx context.Context) map[uint]string {
 func resolveRelayOfflineWindow(ctx context.Context) time.Duration {
 	ttlSeconds := resolveTunnelLeaseTTLSeconds(ctx)
 	hbMs := resolveTunnelHeartbeatMS(ctx)
-	window := max(time.Duration(ttlSeconds)*time.Second, time.Duration(hbMs*3)*time.Millisecond)
-	if window < 15*time.Second {
-		return 15 * time.Second
+	window := max(time.Duration(ttlSeconds)*time.Second, time.Duration(hbMs*relayOfflineHeartbeatMultiplier)*time.Millisecond)
+	if window < minRelayOfflineWindow {
+		return minRelayOfflineWindow
 	}
 	return window
 }
@@ -792,22 +793,4 @@ func computeRelayEffectiveStatus(relay *model.TunnelRelay, wsConnected bool, now
 		return model.TunnelNodeStatusOnline
 	}
 	return model.TunnelNodeStatusOffline
-}
-
-func appendCapability(ctx context.Context, capabilitiesJSON string, capName string, supported bool) string {
-	caps := decodeJSONStringSlice(ctx, capabilitiesJSON)
-	has := slices.Contains(caps, capName)
-	if has == supported {
-		raw, err := json.Marshal(caps)
-		if err != nil {
-			return "[]"
-		}
-		return string(raw)
-	}
-	if supported {
-		caps = append(caps, capName)
-	} else {
-		caps = slices.DeleteFunc(caps, func(item string) bool { return item == capName })
-	}
-	return encodeJSONStringSlice(caps)
 }

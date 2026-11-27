@@ -66,7 +66,7 @@ func UpsertUploadStatDeltaTx(tx *gorm.DB, dimension, key string, countDelta, siz
 				sizeDelta,
 				sizeDelta,
 			),
-			"updated_at": time.Now(),
+			colUpdatedAt: time.Now(),
 		}),
 	}).Create(&model.UploadStat{
 		Dimension: dimension,

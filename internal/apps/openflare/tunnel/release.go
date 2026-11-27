@@ -42,6 +42,8 @@ var (
 )
 
 // TunnelReleaseInfo describes the latest available tunnel binary release (tunnel-v*).
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 type TunnelReleaseInfo struct {
 	Channel     string `json:"channel"`
 	Repository  string `json:"repository"`

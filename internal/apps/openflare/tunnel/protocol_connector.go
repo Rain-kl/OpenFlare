@@ -125,7 +125,7 @@ func HeartbeatConnector(ctx context.Context, tun *model.Tunnel, payload protocol
 
 	if tun.UpdateRequested && strings.TrimSpace(payload.AppliedUpdateTag) != "" &&
 		strings.TrimSpace(payload.AppliedUpdateTag) == strings.TrimSpace(tun.UpdateTag) {
-		_ = repository.UpdateTunnelColumns(ctx, tun, map[string]any{"update_requested": false})
+		_ = repository.UpdateTunnelColumns(ctx, tun, map[string]any{colTunnelUpdateRequested: false})
 		tun.UpdateRequested = false
 	}
 
@@ -294,26 +294,9 @@ func NegotiateConnectorAttachments(
 	req protocol.TunnelNegotiateAttachmentsRequest,
 	clientIP string,
 ) (*protocol.TunnelNegotiateAttachmentsResponse, error) {
-	if tun == nil {
-		return nil, errors.New(errTunnelNotFound)
-	}
-	if tun.IsQuarantined() {
-		return nil, errors.New(errTunnelQuarantined)
-	}
-	if !tun.Enabled {
-		return nil, errors.New(errTunnelDisabled)
-	}
-	connectorID := strings.TrimSpace(req.ConnectorID)
-	if connectorID == "" {
-		return nil, errors.New(errTunnelConnectorRequired)
-	}
-	if revoked, err := CheckConnectorNotRevoked(ctx, tun.ID, connectorID); err != nil {
+	connectorID, err := validateNegotiateAttachmentsInput(ctx, tun, req)
+	if err != nil {
 		return nil, err
-	} else if revoked {
-		return nil, errors.New(errTunnelConnectorRevoked)
-	}
-	if len(req.Desired) == 0 {
-		return nil, errors.New(errTunnelDesiredRelaysInvalid)
 	}
 
 	now := time.Now().UTC()
@@ -321,24 +304,7 @@ func NegotiateConnectorAttachments(
 		return nil, err
 	}
 
-	// Ensure connector replica record exists before creating attachments.
-	publicIP := strings.TrimSpace(req.PublicIP)
-	if publicIP == "" {
-		publicIP = strings.TrimSpace(clientIP)
-	}
-	if err := repository.UpsertTunnelConnector(ctx, &model.TunnelConnector{
-		ConnectorID:      connectorID,
-		TunnelID:         tun.ID,
-		Hostname:         strings.TrimSpace(req.Hostname),
-		OSArch:           strings.TrimSpace(req.OSArch),
-		PublicIP:         publicIP,
-		Version:          strings.TrimSpace(req.Version),
-		EngineVersion:    strings.TrimSpace(req.EngineVersion),
-		ContractVersion:  req.ContractVersion,
-		CapabilitiesJSON: encodeJSONStringSlice(req.Capabilities),
-		Status:           model.TunnelNodeStatusOnline,
-		LastSeenAt:       &now,
-	}); err != nil {
+	if err := upsertNegotiatingConnector(ctx, tun.ID, connectorID, req, clientIP, now); err != nil {
 		return nil, err
 	}
 
@@ -367,65 +333,160 @@ func NegotiateConnectorAttachments(
 		}
 		seenRelays[want.RelayID] = struct{}{}
 
-		relay, err := repository.GetTunnelRelayByID(ctx, want.RelayID)
+		row, grant, relayPublicID, err := negotiateSingleRelayAttachment(ctx, tun, connectorID, want, existingByRelay, expiresAt)
 		if err != nil {
-			return nil, errors.New(errTunnelRelayNotInPool)
-		}
-		if relay.IsQuarantined() || relay.Draining {
-			return nil, errors.New(errTunnelRelayNotInPool)
-		}
-		if tun.PoolID > 0 && relay.PoolID != tun.PoolID {
-			return nil, errors.New(errTunnelRelayNotInPool)
-		}
-
-		transport := strings.ToLower(strings.TrimSpace(want.Transport))
-		if transport == "" {
-			transport = model.TunnelTransportNoise
-		}
-		supported := decodeJSONStringSlice(ctx, relay.SupportedTransportsJSON)
-		if !slices.Contains(supported, transport) {
-			return nil, errors.New(errRelayTransportsInvalid)
-		}
-
-		prev, hasPrev := existingByRelay[relay.ID]
-		serviceName := fmt.Sprintf("http_t%d_%s", tun.ID, sanitizeConnectorToken(connectorID))
-		sessionToken := prev.SessionToken
-		state := model.TunnelAttachmentStateConnecting
-		if hasPrev && sessionToken != "" && prev.State != model.TunnelAttachmentStateStale {
-			if prev.State == model.TunnelAttachmentStateActive {
-				state = model.TunnelAttachmentStateActive
-			}
-		} else {
-			sessionToken, err = GenerateRandomToken("ses_", 20)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		row := model.TunnelAttachment{
-			TunnelID:       tun.ID,
-			ConnectorID:    connectorID,
-			RelayID:        relay.ID,
-			ServiceName:    serviceName,
-			SessionToken:   sessionToken,
-			Transport:      transport,
-			State:          state,
-			RTTMs:          max(0, want.RTTMs),
-			LeaseExpiresAt: &expiresAt,
+			return nil, err
 		}
 		desiredRows = append(desiredRows, row)
-		grants = append(grants, protocol.TunnelConnectorAttachmentGrant{
-			RelayID:            relay.ID,
-			RelayPublicID:      relay.RelayID,
-			ServiceName:        serviceName,
-			SessionToken:       sessionToken,
-			Transport:          transport,
-			State:              state,
-			LeaseExpiresAtUnix: expiresAt.Unix(),
-		})
-		wakeRelayIDs = append(wakeRelayIDs, relay.RelayID)
+		grants = append(grants, grant)
+		wakeRelayIDs = append(wakeRelayIDs, relayPublicID)
 	}
 
+	if err := repository.ReconcileConnectorAttachments(ctx, connectorID, desiredRows); err != nil {
+		return nil, err
+	}
+
+	wakeAffectedRelays(ctx, existingByRelay, seenRelays, wakeRelayIDs)
+
+	return &protocol.TunnelNegotiateAttachmentsResponse{
+		TunnelID:        tun.ID,
+		ConfigRevision:  tun.ConfigRevision,
+		LeaseTTLSeconds: leaseTTLSeconds,
+		Attachments:     grants,
+	}, nil
+}
+
+func validateNegotiateAttachmentsInput(
+	ctx context.Context,
+	tun *model.Tunnel,
+	req protocol.TunnelNegotiateAttachmentsRequest,
+) (string, error) {
+	if tun == nil {
+		return "", errors.New(errTunnelNotFound)
+	}
+	if tun.IsQuarantined() {
+		return "", errors.New(errTunnelQuarantined)
+	}
+	if !tun.Enabled {
+		return "", errors.New(errTunnelDisabled)
+	}
+	connectorID := strings.TrimSpace(req.ConnectorID)
+	if connectorID == "" {
+		return "", errors.New(errTunnelConnectorRequired)
+	}
+	revoked, err := CheckConnectorNotRevoked(ctx, tun.ID, connectorID)
+	if err != nil {
+		return "", err
+	}
+	if revoked {
+		return "", errors.New(errTunnelConnectorRevoked)
+	}
+	if len(req.Desired) == 0 {
+		return "", errors.New(errTunnelDesiredRelaysInvalid)
+	}
+	return connectorID, nil
+}
+
+func upsertNegotiatingConnector(
+	ctx context.Context,
+	tunnelID uint,
+	connectorID string,
+	req protocol.TunnelNegotiateAttachmentsRequest,
+	clientIP string,
+	now time.Time,
+) error {
+	publicIP := strings.TrimSpace(req.PublicIP)
+	if publicIP == "" {
+		publicIP = strings.TrimSpace(clientIP)
+	}
+	return repository.UpsertTunnelConnector(ctx, &model.TunnelConnector{
+		ConnectorID:      connectorID,
+		TunnelID:         tunnelID,
+		Hostname:         strings.TrimSpace(req.Hostname),
+		OSArch:           strings.TrimSpace(req.OSArch),
+		PublicIP:         publicIP,
+		Version:          strings.TrimSpace(req.Version),
+		EngineVersion:    strings.TrimSpace(req.EngineVersion),
+		ContractVersion:  req.ContractVersion,
+		CapabilitiesJSON: encodeJSONStringSlice(req.Capabilities),
+		Status:           model.TunnelNodeStatusOnline,
+		LastSeenAt:       &now,
+	})
+}
+
+func negotiateSingleRelayAttachment(
+	ctx context.Context,
+	tun *model.Tunnel,
+	connectorID string,
+	want protocol.TunnelDesiredAttachment,
+	existingByRelay map[uint]model.TunnelAttachment,
+	expiresAt time.Time,
+) (model.TunnelAttachment, protocol.TunnelConnectorAttachmentGrant, string, error) {
+	relay, err := repository.GetTunnelRelayByID(ctx, want.RelayID)
+	if err != nil || relay.IsQuarantined() || relay.Draining || (tun.PoolID > 0 && relay.PoolID != tun.PoolID) {
+		return model.TunnelAttachment{}, protocol.TunnelConnectorAttachmentGrant{}, "", errors.New(errTunnelRelayNotInPool)
+	}
+
+	transport := strings.ToLower(strings.TrimSpace(want.Transport))
+	if transport == "" {
+		transport = model.TunnelTransportNoise
+	}
+	supported := decodeJSONStringSlice(ctx, relay.SupportedTransportsJSON)
+	if !slices.Contains(supported, transport) {
+		return model.TunnelAttachment{}, protocol.TunnelConnectorAttachmentGrant{}, "", errors.New(errRelayTransportsInvalid)
+	}
+
+	prev, hasPrev := existingByRelay[relay.ID]
+	serviceName := fmt.Sprintf("http_t%d_%s", tun.ID, sanitizeConnectorToken(connectorID))
+	sessionToken, state, err := resolveAttachmentSession(prev, hasPrev)
+	if err != nil {
+		return model.TunnelAttachment{}, protocol.TunnelConnectorAttachmentGrant{}, "", err
+	}
+
+	row := model.TunnelAttachment{
+		TunnelID:       tun.ID,
+		ConnectorID:    connectorID,
+		RelayID:        relay.ID,
+		ServiceName:    serviceName,
+		SessionToken:   sessionToken,
+		Transport:      transport,
+		State:          state,
+		RTTMs:          max(0, want.RTTMs),
+		LeaseExpiresAt: &expiresAt,
+	}
+	grant := protocol.TunnelConnectorAttachmentGrant{
+		RelayID:            relay.ID,
+		RelayPublicID:      relay.RelayID,
+		ServiceName:        serviceName,
+		SessionToken:       sessionToken,
+		Transport:          transport,
+		State:              state,
+		LeaseExpiresAtUnix: expiresAt.Unix(),
+	}
+	return row, grant, relay.RelayID, nil
+}
+
+func resolveAttachmentSession(prev model.TunnelAttachment, hasPrev bool) (string, string, error) {
+	if hasPrev && prev.SessionToken != "" && prev.State != model.TunnelAttachmentStateStale {
+		state := model.TunnelAttachmentStateConnecting
+		if prev.State == model.TunnelAttachmentStateActive {
+			state = model.TunnelAttachmentStateActive
+		}
+		return prev.SessionToken, state, nil
+	}
+	sessionToken, err := GenerateRandomToken("ses_", sessionTokenBytes)
+	if err != nil {
+		return "", "", err
+	}
+	return sessionToken, model.TunnelAttachmentStateConnecting, nil
+}
+
+func wakeAffectedRelays(
+	ctx context.Context,
+	existingByRelay map[uint]model.TunnelAttachment,
+	seenRelays map[uint]struct{},
+	wakeRelayIDs []string,
+) {
 	// Also wake previously attached relays that are now transitioning to draining.
 	for relayID := range existingByRelay {
 		if _, kept := seenRelays[relayID]; !kept {
@@ -433,10 +494,6 @@ func NegotiateConnectorAttachments(
 				wakeRelayIDs = append(wakeRelayIDs, prevRelay.RelayID)
 			}
 		}
-	}
-
-	if err := repository.ReconcileConnectorAttachments(ctx, connectorID, desiredRows); err != nil {
-		return nil, err
 	}
 
 	woken := make(map[string]struct{}, len(wakeRelayIDs))
@@ -450,13 +507,6 @@ func NegotiateConnectorAttachments(
 		woken[rid] = struct{}{}
 		websocket.NotifyTunnelRelayChanged(ctx, rid)
 	}
-
-	return &protocol.TunnelNegotiateAttachmentsResponse{
-		TunnelID:        tun.ID,
-		ConfigRevision:  tun.ConfigRevision,
-		LeaseTTLSeconds: leaseTTLSeconds,
-		Attachments:     grants,
-	}, nil
 }
 
 func ensureConnectorCapacity(ctx context.Context, tun *model.Tunnel, connectorID string, now time.Time) error {
@@ -482,8 +532,8 @@ func sanitizeConnectorToken(raw string) string {
 		}
 	}
 	cleaned := b.String()
-	if len(cleaned) > 24 {
-		return cleaned[:24]
+	if len(cleaned) > maxSanitizedConnectorTokenLen {
+		return cleaned[:maxSanitizedConnectorTokenLen]
 	}
 	if cleaned == "" {
 		return "conn"

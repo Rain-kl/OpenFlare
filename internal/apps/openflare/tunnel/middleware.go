@@ -96,6 +96,8 @@ func RelayAuth() gin.HandlerFunc {
 }
 
 // TunnelAuth authenticates an openflared connector request and rejects quarantined tunnels or revoked connectors.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 func TunnelAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rawToken := extractTunnelHeaderToken(c)
@@ -135,6 +137,8 @@ func RelayFromContext(c *gin.Context) (*model.TunnelRelay, bool) {
 }
 
 // TunnelFromContext returns the authenticated tunnel from Gin context.
+//
+//nolint:revive // keeps explicit Tunnel prefix to distinguish from Relay and RelayPool types/handlers and preserve Swagger schema
 func TunnelFromContext(c *gin.Context) (*model.Tunnel, bool) {
 	value, ok := c.Get(ctxTunnelKey)
 	if !ok {

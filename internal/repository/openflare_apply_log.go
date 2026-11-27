@@ -99,7 +99,7 @@ func GetLatestOpenFlareApplyLogsByNodeIDs(ctx context.Context, nodeIDs []string)
 	subQuery := conn.Session(&gorm.Session{}).Model(&model.OpenFlareApplyLog{}).
 		Select("MAX(id) AS id").
 		Where("node_id IN ?", nodeIDs).
-		Group("node_id")
+		Group(colNodeID)
 	if err := conn.Where("id IN (?)", subQuery).Find(&logs).Error; err != nil {
 		return nil, err
 	}

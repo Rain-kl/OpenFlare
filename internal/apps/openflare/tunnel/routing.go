@@ -55,13 +55,44 @@ func BuildEdgeTunnelRouting(ctx context.Context, edgeNode *model.OpenFlareNode) 
 		edgeNodeID = strings.TrimSpace(edgeNode.NodeID)
 	}
 	offlineWindow := resolveRelayOfflineWindow(ctx)
+	relayByID := filterOnlineTunnelRelays(relays, now, offlineWindow)
+	grouped := groupVerifiedAttachmentsByTunnel(attachments, relayByID)
 
-	relayByID := make(map[uint]model.TunnelRelay, len(relays))
-	for _, r := range relays {
-		if r.IsQuarantined() {
+	// Sort tunnels deterministically by numeric ID ascending so SHA256 never churns on query order.
+	sort.Slice(tunnels, func(i, j int) bool {
+		return tunnels[i].ID < tunnels[j].ID
+	})
+
+	entries := make([]protocol.TunnelEdgeRoutingEntry, 0, len(tunnels))
+	var maxStructuralUnix int64
+	for _, tun := range tunnels {
+		if !tun.Enabled || tun.IsQuarantined() {
 			continue
 		}
-		if r.GatewayPort <= 0 {
+		if ts := tun.UpdatedAt.Unix(); ts > maxStructuralUnix {
+			maxStructuralUnix = ts
+		}
+		entries = append(entries, protocol.TunnelEdgeRoutingEntry{
+			TunnelID:           tun.ID,
+			TunnelPublicID:     tun.TunnelID,
+			Enabled:            tun.Enabled,
+			Quarantined:        tun.IsQuarantined(),
+			PreferredTransport: tun.PreferredTransport,
+			Relays:             rankTunnelRelayEndpoints(grouped[tun.ID], relayByID, edgeNodeID),
+		})
+	}
+
+	return &protocol.TunnelRoutingSnapshot{
+		SchemaVersion:   protocol.TunnelContractVersion,
+		GeneratedAtUnix: maxStructuralUnix,
+		Tunnels:         entries,
+	}, nil
+}
+
+func filterOnlineTunnelRelays(relays []model.TunnelRelay, now time.Time, offlineWindow time.Duration) map[uint]model.TunnelRelay {
+	relayByID := make(map[uint]model.TunnelRelay, len(relays))
+	for _, r := range relays {
+		if r.IsQuarantined() || r.GatewayPort <= 0 {
 			continue
 		}
 		if r.LastSeenAt == nil || now.Sub(*r.LastSeenAt) > offlineWindow {
@@ -72,8 +103,10 @@ func BuildEdgeTunnelRouting(ctx context.Context, edgeNode *model.OpenFlareNode) 
 		}
 		relayByID[r.ID] = r
 	}
+	return relayByID
+}
 
-	// Group active verified attachments by tunnel_id -> relay_id.
+func groupVerifiedAttachmentsByTunnel(attachments []model.TunnelAttachment, relayByID map[uint]model.TunnelRelay) map[uint]map[uint]*relayAggregate {
 	grouped := make(map[uint]map[uint]*relayAggregate)
 	for _, att := range attachments {
 		if _, ok := relayByID[att.RelayID]; !ok {
@@ -97,89 +130,62 @@ func BuildEdgeTunnelRouting(ctx context.Context, edgeNode *model.OpenFlareNode) 
 			agg.bestRTTMs = att.RTTMs
 		}
 	}
+	return grouped
+}
 
-	// Sort tunnels deterministically by numeric ID ascending so SHA256 never churns on query order.
-	sort.Slice(tunnels, func(i, j int) bool {
-		return tunnels[i].ID < tunnels[j].ID
-	})
-
-	entries := make([]protocol.TunnelEdgeRoutingEntry, 0, len(tunnels))
-	var maxStructuralUnix int64
-	for _, tun := range tunnels {
-		if !tun.Enabled || tun.IsQuarantined() {
+func rankTunnelRelayEndpoints(byRelay map[uint]*relayAggregate, relayByID map[uint]model.TunnelRelay, edgeNodeID string) []protocol.TunnelEdgeRelayEndpoint {
+	scored := make([]scoredRelayEndpoint, 0, len(byRelay))
+	for relayID, agg := range byRelay {
+		relay := relayByID[relayID]
+		gatewayURL := buildRelayGatewayURL(&relay)
+		if gatewayURL == "" {
 			continue
 		}
-		if ts := tun.UpdatedAt.Unix(); ts > maxStructuralUnix {
-			maxStructuralUnix = ts
+		isColocated := edgeNodeID != "" && relay.ColocatedEdgeNodeID != "" && relay.ColocatedEdgeNodeID == edgeNodeID
+		quantizedRTT := 0
+		if agg.bestRTTMs < unknownRTTMs {
+			quantizedRTT = quantizeRTT(agg.bestRTTMs)
 		}
-		byRelay := grouped[tun.ID]
-		scored := make([]scoredRelayEndpoint, 0, len(byRelay))
-		for relayID, agg := range byRelay {
-			relay := relayByID[relayID]
-			gatewayURL := buildRelayGatewayURL(&relay)
-			if gatewayURL == "" {
-				continue
-			}
-			isColocated := edgeNodeID != "" && relay.ColocatedEdgeNodeID != "" && relay.ColocatedEdgeNodeID == edgeNodeID
-			quantizedRTT := 0
-			if agg.bestRTTMs < unknownRTTMs {
-				quantizedRTT = quantizeRTT(agg.bestRTTMs)
-			}
-			scored = append(scored, scoredRelayEndpoint{
-				rawBestRTT: agg.bestRTTMs,
-				draining:   relay.Draining,
-				endpoint: protocol.TunnelEdgeRelayEndpoint{
-					RelayID:             relay.ID,
-					RelayPublicID:       relay.RelayID,
-					GatewayURL:          gatewayURL,
-					GatewaySecret:       relay.GatewaySecret,
-					ZoneTag:             relay.ZoneTag,
-					ColocatedEdgeNodeID: relay.ColocatedEdgeNodeID,
-					IsColocated:         isColocated,
-					Weight:              relay.Weight,
-					BestRTTMs:           quantizedRTT,
-					ActiveConnectors:    len(agg.connectors),
-				},
-			})
-		}
-
-		sort.Slice(scored, func(i, j int) bool {
-			a, b := scored[i], scored[j]
-			if a.endpoint.IsColocated != b.endpoint.IsColocated {
-				return a.endpoint.IsColocated
-			}
-			if a.draining != b.draining {
-				return !a.draining
-			}
-			if a.rawBestRTT != b.rawBestRTT {
-				return a.rawBestRTT < b.rawBestRTT
-			}
-			if a.endpoint.Weight != b.endpoint.Weight {
-				return a.endpoint.Weight > b.endpoint.Weight
-			}
-			return a.endpoint.RelayID < b.endpoint.RelayID
-		})
-
-		endpoints := make([]protocol.TunnelEdgeRelayEndpoint, len(scored))
-		for i := range scored {
-			endpoints[i] = scored[i].endpoint
-		}
-
-		entries = append(entries, protocol.TunnelEdgeRoutingEntry{
-			TunnelID:           tun.ID,
-			TunnelPublicID:     tun.TunnelID,
-			Enabled:            tun.Enabled,
-			Quarantined:        tun.IsQuarantined(),
-			PreferredTransport: tun.PreferredTransport,
-			Relays:             endpoints,
+		scored = append(scored, scoredRelayEndpoint{
+			rawBestRTT: agg.bestRTTMs,
+			draining:   relay.Draining,
+			endpoint: protocol.TunnelEdgeRelayEndpoint{
+				RelayID:             relay.ID,
+				RelayPublicID:       relay.RelayID,
+				GatewayURL:          gatewayURL,
+				GatewaySecret:       relay.GatewaySecret,
+				ZoneTag:             relay.ZoneTag,
+				ColocatedEdgeNodeID: relay.ColocatedEdgeNodeID,
+				IsColocated:         isColocated,
+				Weight:              relay.Weight,
+				BestRTTMs:           quantizedRTT,
+				ActiveConnectors:    len(agg.connectors),
+			},
 		})
 	}
 
-	return &protocol.TunnelRoutingSnapshot{
-		SchemaVersion:   protocol.TunnelContractVersion,
-		GeneratedAtUnix: maxStructuralUnix,
-		Tunnels:         entries,
-	}, nil
+	sort.Slice(scored, func(i, j int) bool {
+		a, b := scored[i], scored[j]
+		if a.endpoint.IsColocated != b.endpoint.IsColocated {
+			return a.endpoint.IsColocated
+		}
+		if a.draining != b.draining {
+			return !a.draining
+		}
+		if a.rawBestRTT != b.rawBestRTT {
+			return a.rawBestRTT < b.rawBestRTT
+		}
+		if a.endpoint.Weight != b.endpoint.Weight {
+			return a.endpoint.Weight > b.endpoint.Weight
+		}
+		return a.endpoint.RelayID < b.endpoint.RelayID
+	})
+
+	endpoints := make([]protocol.TunnelEdgeRelayEndpoint, len(scored))
+	for i := range scored {
+		endpoints[i] = scored[i].endpoint
+	}
+	return endpoints
 }
 
 func buildRelayGatewayURL(relay *model.TunnelRelay) string {

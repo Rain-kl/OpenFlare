@@ -28,6 +28,7 @@ const (
 	nodeListOperation   = "openflare_node_list"
 	nodeGetOperation    = "openflare_node_get"
 	edgeNodeType        = "edge_node"
+	boolTrueString      = "true"
 )
 
 type operationFunc func(context.Context, identity, map[string]string) (any, *operationError)

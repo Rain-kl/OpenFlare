@@ -24,7 +24,7 @@ func UpsertNodeCertDeliveries(ctx context.Context, deliveries []model.OpenFlareN
 	}
 	return conn.Clauses(clause.OnConflict{
 		Columns: []clause.Column{
-			{Name: "node_id"},
+			{Name: colNodeID},
 			{Name: "certificate_id"},
 			{Name: "cert_sha256"},
 		},

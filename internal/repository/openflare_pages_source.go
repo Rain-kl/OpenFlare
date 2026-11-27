@@ -229,7 +229,7 @@ func RenewPagesSourceRuntimeLease(
 ) (int64, error) {
 	result := db.DB(ctx).Model(&model.PagesProjectSourceRuntime{}).
 		Where("source_id = ? AND lease_token = ? AND lease_expires_at > ?", sourceID, token, now).
-		Updates(map[string]any{"lease_expires_at": expiresAt})
+		Updates(map[string]any{colLeaseExpiresAt: expiresAt})
 	return result.RowsAffected, result.Error
 }
 

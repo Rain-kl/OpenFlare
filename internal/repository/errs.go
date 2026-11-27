@@ -22,6 +22,12 @@ const (
 	errExternalAccountBindingIDRequired     = "account binding ID must not be empty"
 )
 
-const colName = "name"
-
-const colEnabled = "enabled"
+const (
+	colName           = "name"
+	colEnabled        = "enabled"
+	colType           = "type"
+	colClients        = "clients"
+	colTunnelID       = "tunnel_id"
+	colState          = "state"
+	colLeaseExpiresAt = "lease_expires_at"
+)

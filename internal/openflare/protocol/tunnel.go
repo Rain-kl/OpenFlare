@@ -7,9 +7,9 @@ package protocol
 const (
 	TunnelContractVersion = 1
 
-	HeaderRelayToken          = "X-Relay-Token"
-	HeaderRelayBootstrapToken = "X-Relay-Bootstrap-Token"
-	HeaderTunnelToken         = "X-Tunnel-Token"
+	HeaderRelayToken          = "X-Relay-Token"           //nolint:gosec // HTTP header name, not a credential
+	HeaderRelayBootstrapToken = "X-Relay-Bootstrap-Token" //nolint:gosec // HTTP header name, not a credential
+	HeaderTunnelToken         = "X-Tunnel-Token"          //nolint:gosec // HTTP header name, not a credential
 	HeaderConnectorID         = "X-Connector-ID"
 
 	HeaderEdgeTunnelID = "X-OpenFlare-Tunnel-ID"

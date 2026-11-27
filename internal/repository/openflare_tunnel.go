@@ -455,7 +455,7 @@ func UpsertTunnelConnector(ctx context.Context, connector *model.TunnelConnector
 	return conn.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "connector_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"tunnel_id",
+			colTunnelID,
 			"hostname",
 			"os_arch",
 			"public_ip",
@@ -468,7 +468,7 @@ func UpsertTunnelConnector(ctx context.Context, connector *model.TunnelConnector
 			"last_error",
 			"connected_relays_json",
 			"last_seen_at",
-			"updated_at",
+			colUpdatedAt,
 		}),
 	}).Create(connector).Error
 }
@@ -581,14 +581,14 @@ func ReconcileConnectorAttachments(ctx context.Context, connectorID string, desi
 			if err := tx.Clauses(clause.OnConflict{
 				Columns: []clause.Column{{Name: "connector_id"}, {Name: "relay_id"}},
 				DoUpdates: clause.AssignmentColumns([]string{
-					"tunnel_id",
+					colTunnelID,
 					"service_name",
 					"session_token",
 					"transport",
-					"state",
+					colState,
 					"rtt_ms",
-					"lease_expires_at",
-					"updated_at",
+					colLeaseExpiresAt,
+					colUpdatedAt,
 				}),
 			}).Create(item).Error; err != nil {
 				return err
@@ -600,8 +600,8 @@ func ReconcileConnectorAttachments(ctx context.Context, connectorID string, desi
 			q = q.Where("relay_id NOT IN ?", keepRelayIDs)
 		}
 		return q.Updates(map[string]any{
-			"state":      model.TunnelAttachmentStateDraining,
-			"updated_at": time.Now().UTC(),
+			colState:     model.TunnelAttachmentStateDraining,
+			colUpdatedAt: time.Now().UTC(),
 		}).Error
 	})
 }
@@ -654,12 +654,12 @@ func ReconcileRelayVerifiedAttachments(
 				nextState = model.TunnelAttachmentStateActive
 			}
 			if err := tx.Model(&model.TunnelAttachment{}).Where("id = ?", att.ID).Updates(map[string]any{
-				"state":             nextState,
+				colState:            nextState,
 				"rtt_ms":            proof.RTTMs,
 				"active_streams":    proof.ActiveStreams,
 				"relay_verified_at": now,
-				"lease_expires_at":  expiresAt,
-				"updated_at":        now,
+				colLeaseExpiresAt:   expiresAt,
+				colUpdatedAt:        now,
 			}).Error; err != nil {
 				return err
 			}
@@ -672,8 +672,8 @@ func ReconcileRelayVerifiedAttachments(
 			if att.State == model.TunnelAttachmentStateActive || att.State == model.TunnelAttachmentStateDraining {
 				changed = true
 				if err := tx.Model(&model.TunnelAttachment{}).Where("id = ?", att.ID).Updates(map[string]any{
-					"state":      model.TunnelAttachmentStateStale,
-					"updated_at": now,
+					colState:     model.TunnelAttachmentStateStale,
+					colUpdatedAt: now,
 				}).Error; err != nil {
 					return err
 				}

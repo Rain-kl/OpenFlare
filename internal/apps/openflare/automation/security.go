@@ -95,7 +95,7 @@ func setSiteWAF(ctx context.Context, _ identity, input map[string]string) (any, 
 	if err != nil {
 		return nil, invalidArguments(err)
 	}
-	err = repository.SetOpenFlareWAFSiteRuleGroup(ctx, siteID, flowID, input["bound"] == "true")
+	err = repository.SetOpenFlareWAFSiteRuleGroup(ctx, siteID, flowID, input["bound"] == boolTrueString)
 	if errors.Is(err, repository.ErrWAFGroupGlobal) {
 		return nil, &operationError{http.StatusConflict, "GLOBAL_WAF_FLOW", err.Error()}
 	}

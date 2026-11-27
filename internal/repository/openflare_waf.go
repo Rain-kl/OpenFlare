@@ -79,7 +79,7 @@ func UpdateOpenFlareWAFRuleGroup(ctx context.Context, group *model.OpenFlareWAFR
 		return err
 	}
 	return conn.Model(&model.OpenFlareWAFRuleGroup{}).Where("id = ?", group.ID).Updates(map[string]any{
-		"name":      group.Name,
+		colName:     group.Name,
 		colEnabled:  group.Enabled,
 		"is_global": group.IsGlobal,
 	}).Error
@@ -218,8 +218,8 @@ func UpdateOpenFlareWAFIPGroup(ctx context.Context, group *model.OpenFlareWAFIPG
 		return err
 	}
 	return conn.Model(&model.OpenFlareWAFIPGroup{}).Where("id = ?", group.ID).Updates(map[string]any{
-		"name":                      group.Name,
-		"type":                      group.Type,
+		colName:                     group.Name,
+		colType:                     group.Type,
 		colEnabled:                  group.Enabled,
 		"ip_list":                   group.IPList,
 		"auto_config":               group.AutoConfig,

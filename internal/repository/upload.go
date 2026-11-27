@@ -136,7 +136,7 @@ func ListDistinctUploadTypes(ctx context.Context) ([]string, error) {
 	if err := db.DB(ctx).Model(&model.Upload{}).
 		Where("type IS NOT NULL AND type != ''").
 		Distinct().
-		Pluck("type", &types).Error; err != nil {
+		Pluck(colType, &types).Error; err != nil {
 		return nil, err
 	}
 	return types, nil

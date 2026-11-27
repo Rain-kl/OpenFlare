@@ -211,7 +211,7 @@ func nodeMetrics(ctx context.Context, _ identity, input map[string]string) (any,
 	result, err := node.GetObservability(ctx, id, node.ObservabilityQuery{
 		Hours:    inputInt(input, "hours"),
 		Limit:    inputInt(input, "limit"),
-		Realtime: input["realtime"] == "true",
+		Realtime: input["realtime"] == boolTrueString,
 	})
 	if err != nil {
 		return nil, resourceFailure(ctx, "read node metrics", err)

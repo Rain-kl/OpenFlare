@@ -194,12 +194,23 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 	PersistHeartbeatObservability(ctx, authNode.NodeID, payload, reportedAt)
 
 	settings := buildAgentSettings(ctx, restartEdgeNow)
+	if err := reconcileHeartbeatEdgeUpdate(ctx, authNode, payload, settings); err != nil {
+		return nil, err
+	}
+	return &HeartbeatResponse{
+		Config:        configManifest(ctx, authNode, payload.LatestConfigVersion),
+		Node:          authNode,
+		AgentSettings: settings,
+	}, nil
+}
+
+func reconcileHeartbeatEdgeUpdate(ctx context.Context, authNode *model.OpenFlareNode, payload protocol.NodePayload, settings *protocol.AgentSettings) error {
 	updateTag := authNode.UpdateTag
 	hasPendingUpdate := authNode.UpdateRequested && strings.HasPrefix(updateTag, "edge-v")
 	if payload.EdgeUpdateSupported && payload.EdgeUpdateReady && hasPendingUpdate &&
 		updateTag == "edge-v"+strings.TrimPrefix(payload.Version, "edge-v") {
 		if err := repository.AcknowledgeOpenFlareEdgeUpdate(ctx, authNode); err != nil {
-			return nil, err
+			return err
 		}
 		authNode.UpdateRequested = false
 		authNode.UpdateChannel = releaseChannelStable
@@ -215,11 +226,7 @@ func HeartbeatNode(ctx context.Context, authNode *model.OpenFlareNode, payload p
 			settings.EdgeUpdate.Tag = updateTag
 		}
 	}
-	return &HeartbeatResponse{
-		Config:        configManifest(ctx, authNode, payload.LatestConfigVersion),
-		Node:          authNode,
-		AgentSettings: settings,
-	}, nil
+	return nil
 }
 
 // ReportApplyLog records an agent apply result.

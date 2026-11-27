@@ -87,6 +87,8 @@ type NodePingRecordsQuery struct {
 }
 
 // PingRecordView represents one timestamped latency sample (-1 indicates timeout/loss).
+//
+//nolint:revive // PingRecordView preserves Swagger schema and automation API type name
 type PingRecordView struct {
 	TaskID     uint      `json:"task_id"`
 	RecordedAt time.Time `json:"recorded_at"`
@@ -94,6 +96,8 @@ type PingRecordView struct {
 }
 
 // PingTaskStatsView summarizes unsampled latency statistics for one ping task on a node.
+//
+//nolint:revive // PingTaskStatsView preserves Swagger schema and automation API type name
 type PingTaskStatsView struct {
 	ID          uint    `json:"id"`
 	Name        string  `json:"name"`

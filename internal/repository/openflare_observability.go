@@ -259,7 +259,7 @@ func ListOpenFlareNodeOperatingSystems(ctx context.Context, nodeIDs []string) (m
 		return nil, errors.New(errDatabaseNotInitialized)
 	}
 	var profiles []model.OpenFlareNodeSystemProfile
-	if err := conn.Select("node_id", "os_name").Where("node_id IN ?", nodeIDs).Find(&profiles).Error; err != nil {
+	if err := conn.Select(colNodeID, "os_name").Where("node_id IN ?", nodeIDs).Find(&profiles).Error; err != nil {
 		return nil, err
 	}
 	names := make(map[string]string, len(profiles))
@@ -299,7 +299,7 @@ func UpsertOpenFlareNodeSystemProfile(ctx context.Context, record *model.OpenFla
 
 func upsertOpenFlareNodeSystemProfileTx(tx *gorm.DB, record *model.OpenFlareNodeSystemProfile) error {
 	return tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "node_id"}},
+		Columns: []clause.Column{{Name: colNodeID}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"hostname",
 			"os_name",
@@ -319,7 +319,7 @@ func upsertOpenFlareNodeSystemProfileTx(tx *gorm.DB, record *model.OpenFlareNode
 			"probe_version",
 			"uptime_seconds",
 			"reported_at",
-			"updated_at",
+			colUpdatedAt,
 		}),
 	}).Create(record).Error
 }

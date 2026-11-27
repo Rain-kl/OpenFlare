@@ -1,6 +1,7 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
+// Package tunnel implements control-plane management, authentication, routing, and deployment for OpenFlare tunnels and relays.
 package tunnel
 
 import (
@@ -12,12 +13,28 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 )
 
 const (
 	bootstrapTokenPrefix = "oftok1_"
 	bootstrapKindRelay   = "relay"
 	bootstrapKindTunnel  = "tunnel"
+
+	tunnelIDTokenBytes              = 12
+	tunnelSecretTokenBytes          = 24
+	sessionTokenBytes               = 20
+	maxSanitizedConnectorTokenLen   = 24
+	maxTCPUDPPort                   = 65535
+	relayOfflineHeartbeatMultiplier = 3
+	minRelayOfflineWindow           = 15 * time.Second
+	relayDNSLookupTimeout           = 5 * time.Second
+
+	colTunnelStatus           = "status"
+	colTunnelAccessToken      = "access_token"
+	colTunnelQuarantinedAt    = "quarantined_at"
+	colTunnelQuarantineReason = "quarantine_reason"
+	colTunnelUpdateRequested  = "update_requested"
 )
 
 // BootstrapTokenPayload packs control-plane URL, credential role, secret token, and optional pool key

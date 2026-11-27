@@ -107,21 +107,7 @@ func FetchNodeTLSKeys(ctx context.Context, node *model.OpenFlareNode, req protoc
 		return nil, err
 	}
 
-	version, err := repository.GetActivePingoraConfigVersion(ctx)
-	if isActiveConfigNotFound(err) {
-		return nil, errTLSKeyNoActiveConfig
-	}
-	if err != nil {
-		return nil, err
-	}
-	if version.PayloadChecksum == "" {
-		return nil, errTLSKeyNoActiveConfig
-	}
-	source, err := repository.GetConfigVersionSource(ctx, version)
-	if err != nil {
-		return nil, err
-	}
-	allowed, err := edgeconfig.ActiveCertificateDigests(source.SnapshotJSON, source.SupportFilesJSON)
+	version, allowed, err := loadActiveAllowedCertDigests(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -130,32 +116,11 @@ func FetchNodeTLSKeys(ctx context.Context, node *model.OpenFlareNode, req protoc
 	deliveries := make([]model.OpenFlareNodeCertDelivery, 0, len(requested))
 	now := time.Now().UTC()
 	for _, item := range requested {
-		expectedDigest, ok := allowed[item.CertificateID]
-		if !ok {
-			return nil, errTLSKeyForbidden
+		keyPEM, keyErr := loadAndAuthorizeTLSKey(ctx, item, allowed)
+		if keyErr != nil {
+			return nil, keyErr
 		}
-		if expectedDigest != item.CertSHA256 {
-			return nil, errTLSKeyChanged
-		}
-		cert, certErr := repository.GetTLSCertificateByID(ctx, item.CertificateID)
-		if certErr != nil {
-			if errors.Is(certErr, gorm.ErrRecordNotFound) {
-				return nil, errTLSKeyChanged
-			}
-			return nil, certErr
-		}
-		if edgeconfig.CertificatePEMDigest(cert.CertPEM) != item.CertSHA256 {
-			return nil, errTLSKeyChanged
-		}
-		keyPEM, openErr := credential.Open(cert.KeyPEM)
-		if openErr != nil {
-			return nil, openErr
-		}
-		keyPEM = strings.TrimSpace(keyPEM)
-		if keyPEM == "" {
-			return nil, errors.New("certificate private key is empty")
-		}
-		keys[strconv.FormatUint(uint64(item.CertificateID), 10)] = keyPEM + "\n"
+		keys[strconv.FormatUint(uint64(item.CertificateID), 10)] = keyPEM
 		deliveries = append(deliveries, model.OpenFlareNodeCertDelivery{
 			NodeID:           freshNode.NodeID,
 			CertificateID:    item.CertificateID,
@@ -176,6 +141,57 @@ func FetchNodeTLSKeys(ctx context.Context, node *model.OpenFlareNode, req protoc
 		ReleaseSequence: version.ReleaseSequence,
 		Keys:            keys,
 	}, nil
+}
+
+func loadActiveAllowedCertDigests(ctx context.Context) (*model.ConfigVersion, map[uint]string, error) {
+	version, err := repository.GetActivePingoraConfigVersion(ctx)
+	if isActiveConfigNotFound(err) {
+		return nil, nil, errTLSKeyNoActiveConfig
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if version.PayloadChecksum == "" {
+		return nil, nil, errTLSKeyNoActiveConfig
+	}
+	source, err := repository.GetConfigVersionSource(ctx, version)
+	if err != nil {
+		return nil, nil, err
+	}
+	allowed, err := edgeconfig.ActiveCertificateDigests(source.SnapshotJSON, source.SupportFilesJSON)
+	if err != nil {
+		return nil, nil, err
+	}
+	return version, allowed, nil
+}
+
+func loadAndAuthorizeTLSKey(ctx context.Context, item protocol.TLSKeyRequestItem, allowed map[uint]string) (string, error) {
+	expectedDigest, ok := allowed[item.CertificateID]
+	if !ok {
+		return "", errTLSKeyForbidden
+	}
+	if expectedDigest != item.CertSHA256 {
+		return "", errTLSKeyChanged
+	}
+	cert, certErr := repository.GetTLSCertificateByID(ctx, item.CertificateID)
+	if certErr != nil {
+		if errors.Is(certErr, gorm.ErrRecordNotFound) {
+			return "", errTLSKeyChanged
+		}
+		return "", certErr
+	}
+	if edgeconfig.CertificatePEMDigest(cert.CertPEM) != item.CertSHA256 {
+		return "", errTLSKeyChanged
+	}
+	keyPEM, openErr := credential.Open(cert.KeyPEM)
+	if openErr != nil {
+		return "", openErr
+	}
+	keyPEM = strings.TrimSpace(keyPEM)
+	if keyPEM == "" {
+		return "", errors.New("certificate private key is empty")
+	}
+	return keyPEM + "\n", nil
 }
 
 func normalizeTLSKeyRequestItems(items []protocol.TLSKeyRequestItem) ([]protocol.TLSKeyRequestItem, error) {

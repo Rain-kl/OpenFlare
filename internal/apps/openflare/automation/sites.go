@@ -346,7 +346,7 @@ func createSite(ctx context.Context, _ identity, input map[string]string) (any, 
 	}
 	view, err := proxy_route.CreateDirectSite(ctx, proxy_route.Input{
 		SiteName: input["site_name"], ZoneDomainIDs: domains, OriginHost: input["origin_host"], Upstreams: upstreams,
-		Enabled: true, EnableHTTPS: input["enable_https"] == "true",
+		Enabled: true, EnableHTTPS: input["enable_https"] == boolTrueString,
 	})
 	if err != nil {
 		return nil, siteFailure(ctx, "create site", err)

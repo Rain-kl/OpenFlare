@@ -134,7 +134,7 @@ func proxyRouteUpdateMap(route *model.ProxyRoute) map[string]any {
 		"site_auth_ttl_hours":    route.SiteAuthTTLHours,
 		"site_auth_key":          route.SiteAuthKey,
 		"upstream_type":          route.UpstreamType,
-		"tunnel_id":              route.TunnelID,
+		colTunnelID:              route.TunnelID,
 		"tunnel_target_addr":     route.TunnelTargetAddr,
 		"tunnel_target_protocol": route.TunnelTargetProtocol,
 		"tunnel_options_json":    route.TunnelOptionsJSON,

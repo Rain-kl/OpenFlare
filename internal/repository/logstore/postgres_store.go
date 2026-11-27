@@ -1767,6 +1767,7 @@ func (s *userAccessLogGormStore) GetTopActiveUsers(ctx context.Context, startTim
 
 // ---- ObservabilityStore 转换辅助（从旧 openflare_observability_store.go 复制） ----
 
+//nolint:dupl // bidirectional struct field mapping between model and analyticsmodel
 func toAnalyticsNodeMetricSnapshot(record *model.OpenFlareMetricSnapshot) analyticsmodel.NodeMetricSnapshot {
 	return analyticsmodel.NodeMetricSnapshot{
 		ID:                uint64(record.ID),
@@ -1798,6 +1799,7 @@ func toAnalyticsNodeMetricSnapshot(record *model.OpenFlareMetricSnapshot) analyt
 	}
 }
 
+//nolint:dupl // bidirectional struct field mapping between model and analyticsmodel
 func fromAnalyticsNodeMetricSnapshots(rows []analyticsmodel.NodeMetricSnapshot) []*model.OpenFlareMetricSnapshot {
 	result := make([]*model.OpenFlareMetricSnapshot, len(rows))
 	for index, row := range rows {
