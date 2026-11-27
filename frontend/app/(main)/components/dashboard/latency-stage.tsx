@@ -385,8 +385,8 @@ export function LatencyStage({
             </div>
 
             {sortedEntries.length > 0 ? (
-              <ol className='flex flex-1 flex-col justify-center gap-3.5 py-2'>
-                {sortedEntries.slice(0, 7).map((item) => {
+              <ol className='hide-scrollbar flex max-h-[410px] flex-1 flex-col gap-3.5 overflow-y-auto py-1'>
+                {sortedEntries.map((item) => {
                   const primaryValue = getCountryLatencyValue(item, metric);
                   const secondaryValue =
                     metric === 'tcp_rtt'
