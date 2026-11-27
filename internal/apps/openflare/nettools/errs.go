@@ -22,7 +22,8 @@ const (
 	errTaskNotFound         = "network probe task was not found or has expired"
 	errInvalidPort          = "port must be between 1 and 65535"
 	errDatabaseUnavailable  = "database is not initialized"
-	errLookupInputRequired  = "query IP, hostname, or ASN is required"
-	errASPathTargetRequired = "target_asn or target_ip is required"
-	errHostnameNoPublicIP   = "hostname did not resolve to any valid public IP address"
+	errLookupInputRequired   = "query IP, hostname, or ASN is required"
+	errASPathTargetRequired  = "target_asn or target_ip is required"
+	errPredictTargetRequired = "target_ip, target_asn, or target_country is required"
+	errHostnameNoPublicIP    = "hostname did not resolve to any valid public IP address"
 )

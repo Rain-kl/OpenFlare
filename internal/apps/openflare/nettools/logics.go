@@ -67,14 +67,8 @@ const (
 	maxResolvedHostnameIPs = 4
 	ipNeighborsLimit       = 100
 	asnNeighborsLimit      = 150
-	usPerCentisecond       = 10.0
-	centisPerSecond        = 100.0
-	predictedHopRTTMs      = 14.0
-	predictedBaseRTTMs     = 12.0
-	scoreRTTScale          = 80.0
-	scoreScaleMax          = 100.0
-	scoreRoundFactor       = 100
-	predictedConfidence    = 0.35
+	usPerCentisecond = 10.0
+	centisPerSecond  = 100.0
 )
 
 // PingDispatchInput requests a multi-node batch Ping/TCPing/HTTP probe.
@@ -216,9 +210,12 @@ type ASNPrefixesResponse struct {
 
 // ASPathInput requests multi-node AS path and quality comparison toward a target ASN or IP.
 type ASPathInput struct {
-	TargetASN uint32   `json:"target_asn"`
-	TargetIP  string   `json:"target_ip"`
-	NodeIDs   []string `json:"node_ids,omitempty"`
+	TargetASN     uint32   `json:"target_asn"`
+	TargetIP      string   `json:"target_ip"`
+	TargetCountry string   `json:"target_country,omitempty"`
+	TargetRegion  string   `json:"target_region,omitempty"`
+	IPFamily      string   `json:"ip_family,omitempty"`
+	NodeIDs       []string `json:"node_ids,omitempty"`
 }
 
 // ASPathHopNode identifies one ASN along a predicted or observed AS path.
@@ -231,34 +228,101 @@ type ASPathHopNode struct {
 
 // NodeASPathComparison scores how each edge node reaches target_asn.
 type NodeASPathComparison struct {
-	NodeID         string          `json:"node_id"`
-	NodeName       string          `json:"node_name"`
-	NodeIP         string          `json:"node_ip"`
-	NodeGeo        string          `json:"node_geo"`
-	NodeASN        uint32          `json:"node_asn"`
-	NodeASNName    string          `json:"node_asn_name"`
-	ASHops         int             `json:"as_hops"`
-	Path           []ASPathHopNode `json:"path"`
-	EffectiveRTTMs float64         `json:"effective_rtt_ms"`
-	QualityScore   float64         `json:"quality_score"`
-	Confidence     float64         `json:"confidence"`
-	DataSource     string          `json:"data_source"`
+	NodeID                string          `json:"node_id"`
+	NodeName              string          `json:"node_name"`
+	NodeIP                string          `json:"node_ip"`
+	NodeGeo               string          `json:"node_geo"`
+	NodeASN               uint32          `json:"node_asn"`
+	NodeASNName           string          `json:"node_asn_name"`
+	NetworkGroup          string          `json:"network_group,omitempty"`
+	GeoSource             string          `json:"geo_source,omitempty"`
+	ASHops                int             `json:"as_hops"`
+	Path                  []ASPathHopNode `json:"path"`
+	EffectiveRTTMs        float64         `json:"effective_rtt_ms"`
+	RTTP95Ms              float64         `json:"rtt_p95_ms"`
+	CandidateDispersionMs float64         `json:"candidate_dispersion_ms"`
+	PredictionErrorMs     *float64        `json:"prediction_error_ms,omitempty"`
+	QualityScore          float64         `json:"quality_score"`
+	Confidence            float64         `json:"confidence"`
+	MeasurementSource     string          `json:"measurement_source"`
+	PredictionMethod      string          `json:"prediction_method"`
+	GeoBaseRTTMs          float64         `json:"geo_base_rtt_ms"`
+	SampleCount           uint64          `json:"sample_count"`
+	DistinctPrefixes      uint32          `json:"distinct_prefixes"`
+	LastObservedAt        *time.Time      `json:"last_observed_at,omitempty"`
+	AnycastIsolated       bool            `json:"anycast_isolated,omitempty"`
+	DataSource            string          `json:"data_source"`
 }
 
 // ASPathResponse compares edge node paths toward the requested target ASN.
 type ASPathResponse struct {
 	TargetASN     uint32                 `json:"target_asn"`
 	TargetASNInfo *pkgnetintel.ASNInfo   `json:"target_asn_info,omitempty"`
+	TargetCountry string                 `json:"target_country,omitempty"`
+	TargetRegion  string                 `json:"target_region,omitempty"`
+	IPFamily      string                 `json:"ip_family,omitempty"`
 	Nodes         []NodeASPathComparison `json:"nodes"`
 	Attribution   string                 `json:"attribution"`
+}
+
+// QualityPredictInput simulates SmartDNS node ranking and latency prediction for a client network target.
+type QualityPredictInput struct {
+	TargetIP      string   `json:"target_ip"`
+	TargetASN     uint32   `json:"target_asn"`
+	TargetCountry string   `json:"target_country"`
+	TargetRegion  string   `json:"target_region"`
+	IPFamily      string   `json:"ip_family"`
+	NodeIDs       []string `json:"node_ids,omitempty"`
+}
+
+// NodeQualityPrediction holds predicted latency, confidence, and source breakdown for one edge node.
+type NodeQualityPrediction struct {
+	NodeID                string     `json:"node_id"`
+	NodeName              string     `json:"node_name"`
+	NodeIP                string     `json:"node_ip"`
+	NodeGeo               string     `json:"node_geo"`
+	NodeASN               uint32     `json:"node_asn"`
+	NodeASNName           string     `json:"node_asn_name"`
+	NetworkGroup          string     `json:"network_group,omitempty"`
+	GeoSource             string     `json:"geo_source,omitempty"`
+	EffectiveRTTMs        float64    `json:"effective_rtt_ms"`
+	RTTP95Ms              float64    `json:"rtt_p95_ms"`
+	CandidateDispersionMs float64    `json:"candidate_dispersion_ms"`
+	PredictionErrorMs     *float64   `json:"prediction_error_ms,omitempty"`
+	QualityScore          float64    `json:"quality_score"`
+	Confidence            float64    `json:"confidence"`
+	MeasurementSource     string     `json:"measurement_source"`
+	PredictionMethod      string     `json:"prediction_method"`
+	GeoBaseRTTMs          float64    `json:"geo_base_rtt_ms"`
+	SampleCount           uint64     `json:"sample_count"`
+	DistinctPrefixes      uint32     `json:"distinct_prefixes"`
+	LastObservedAt        *time.Time `json:"last_observed_at,omitempty"`
+	AnycastIsolated       bool       `json:"anycast_isolated,omitempty"`
+	DataSource            string     `json:"data_source"`
+}
+
+// QualityPredictResponse ranks all candidate edge nodes for a simulated client query.
+type QualityPredictResponse struct {
+	TargetIP      string                  `json:"target_ip,omitempty"`
+	TargetASN     uint32                  `json:"target_asn"`
+	TargetASNInfo *pkgnetintel.ASNInfo    `json:"target_asn_info,omitempty"`
+	TargetCountry string                  `json:"target_country,omitempty"`
+	TargetRegion  string                  `json:"target_region,omitempty"`
+	IPFamily      string                  `json:"ip_family"`
+	AnycastStatus string                  `json:"anycast_status,omitempty"`
+	GeoSource     string                  `json:"geo_source,omitempty"`
+	Nodes         []NodeQualityPrediction `json:"nodes"`
+	Attribution   string                  `json:"attribution"`
 }
 
 // QualityMatrixItem enriches a matrix row with node metadata.
 type QualityMatrixItem struct {
 	*model.OpenFlareNetworkQualityMatrix
-	NodeName   string `json:"node_name"`
-	NodeGeo    string `json:"node_geo"`
-	NodeStatus string `json:"node_status"`
+	NodeName         string `json:"node_name"`
+	NodeGeo          string `json:"node_geo"`
+	NodeStatus       string `json:"node_status"`
+	NodeNetworkGroup string `json:"node_network_group,omitempty"`
+	NodeGeoSource    string `json:"node_geo_source,omitempty"`
 }
 
 // QualityMatrixPage wraps paginated network quality matrix results.
@@ -809,44 +873,143 @@ func ListASNPrefixes(_ context.Context, asn uint32, family string, page, pageSiz
 	}, nil
 }
 
+type resolvedTargetQuery struct {
+	targetIP      string
+	targetASN     uint32
+	targetCountry string
+	targetRegion  string
+	ipFamily      string
+	clientLat     *float64
+	clientLon     *float64
+	geoAccuracyKm float64
+	geoSource     string
+	anycastStatus string
+}
+
+func enrichResolvedTargetFromIP(out *resolvedTargetQuery) {
+	if out.targetIP == "" {
+		return
+	}
+	if out.ipFamily == "" {
+		out.ipFamily = pkgnetintel.DetectIPFamily(out.targetIP)
+	}
+	res := netintel.LookupIP(out.targetIP)
+	if res == nil {
+		return
+	}
+	if out.targetASN == 0 {
+		out.targetASN = res.ASN
+	}
+	if out.targetCountry == "" {
+		out.targetCountry = res.CountryISO
+	}
+	if out.targetRegion == "" {
+		out.targetRegion = res.RegionCode
+	}
+	out.clientLat = res.Latitude
+	out.clientLon = res.Longitude
+	out.geoAccuracyKm = res.AccuracyRadiusKm
+	out.geoSource = res.GeoSource
+	out.anycastStatus = res.AnycastStatus
+}
+
+func resolveTargetQueryContext(
+	targetIP string,
+	targetASN uint32,
+	targetCountry string,
+	targetRegion string,
+	ipFamily string,
+) resolvedTargetQuery {
+	out := resolvedTargetQuery{
+		targetIP:      strings.TrimSpace(targetIP),
+		targetASN:     targetASN,
+		targetCountry: strings.ToUpper(strings.TrimSpace(targetCountry)),
+		targetRegion:  strings.ToUpper(strings.TrimSpace(targetRegion)),
+		ipFamily:      strings.ToLower(strings.TrimSpace(ipFamily)),
+	}
+	enrichResolvedTargetFromIP(&out)
+	if out.targetCountry == "" && out.targetASN > 0 {
+		if info := netintel.LookupASN(out.targetASN); info != nil && info.Country != "" {
+			out.targetCountry = strings.ToUpper(strings.TrimSpace(info.Country))
+		}
+	}
+	if out.targetCountry != "" && out.targetRegion != "" {
+		out.targetRegion = pkgnetintel.NormalizeMatrixRegion(out.targetCountry, out.targetRegion)
+	}
+	if out.ipFamily != pkgnetintel.IPFamilyIPv4 && out.ipFamily != pkgnetintel.IPFamilyIPv6 {
+		out.ipFamily = pkgnetintel.IPFamilyUnknown
+	}
+	return out
+}
+
+func predictionDataSource(method string) string {
+	if method == netquality.PredictionMethodExactRegion || method == netquality.PredictionMethodCountryRollup {
+		return model.QualityMatrixDataSourceMeasured
+	}
+	return model.QualityMatrixDataSourcePredicted
+}
+
+func buildPredictQueryForNode(nodeID string, target resolvedTargetQuery) netquality.PredictQuery {
+	return netquality.PredictQuery{
+		NodeID:        nodeID,
+		ClientASN:     target.targetASN,
+		ClientCountry: target.targetCountry,
+		ClientRegion:  target.targetRegion,
+		IPFamily:      target.ipFamily,
+		ClientLat:     target.clientLat,
+		ClientLon:     target.clientLon,
+		GeoAccuracyKm: target.geoAccuracyKm,
+		GeoSource:     target.geoSource,
+		AnycastStatus: target.anycastStatus,
+	}
+}
+
 func buildASPathComparisonItem(
 	n model.OpenFlareNode,
-	targetASN uint32,
+	target resolvedTargetQuery,
+	predictor *netquality.Predictor,
 	matrixByNode map[string]*model.OpenFlareNetworkQualityMatrix,
 	observedAdj map[uint32][]uint32,
 ) NodeASPathComparison {
 	if n.ASN == 0 && strings.TrimSpace(n.IP) != "" {
 		netintel.EnrichNodeASN(&n)
 	}
+	predRes := predictor.Predict(buildPredictQueryForNode(n.NodeID, target))
 	item := NodeASPathComparison{
-		NodeID:      n.NodeID,
-		NodeName:    n.Name,
-		NodeIP:      n.IP,
-		NodeGeo:     n.GeoName,
-		NodeASN:     n.ASN,
-		NodeASNName: n.ASNOrg,
+		NodeID:                n.NodeID,
+		NodeName:              n.Name,
+		NodeIP:                n.IP,
+		NodeGeo:               n.GeoName,
+		NodeASN:               n.ASN,
+		NodeASNName:           n.ASNOrg,
+		NetworkGroup:          n.NetworkGroup,
+		GeoSource:             n.GeoSource,
+		EffectiveRTTMs:        predRes.RTTMs,
+		RTTP95Ms:              predRes.RTTP95Ms,
+		CandidateDispersionMs: predRes.CandidateDispersionMs,
+		PredictionErrorMs:     predRes.ErrorMs,
+		QualityScore:          netquality.ComputeQualityScore(predRes),
+		Confidence:            predRes.Confidence,
+		MeasurementSource:     predRes.MeasurementSource,
+		PredictionMethod:      predRes.PredictionMethod,
+		GeoBaseRTTMs:          predRes.GeoBaseRTTMs,
+		SampleCount:           predRes.SampleCount,
+		DistinctPrefixes:      predRes.DistinctPrefixes,
+		LastObservedAt:        predRes.LastObservedAt,
+		AnycastIsolated:       predRes.AnycastIsolated,
+		DataSource:            predictionDataSource(predRes.PredictionMethod),
 	}
 	if m := matrixByNode[n.NodeID]; m != nil {
-		item.EffectiveRTTMs = m.EffectiveRTTMs
-		item.QualityScore = m.QualityScore
-		item.Confidence = m.Confidence
-		item.DataSource = m.DataSource
 		var recordedPath []uint32
 		if json.Unmarshal([]byte(m.TraceASPath), &recordedPath) == nil && len(recordedPath) > 0 {
 			item.ASHops = max(0, len(recordedPath)-1)
 			item.Path = enrichASPathHops(recordedPath)
 		}
 	}
-	if len(item.Path) == 0 && n.ASN > 0 {
-		if hops, path, ok := netintel.EstimateASPath(n.ASN, targetASN, observedAdj); ok {
+	if len(item.Path) == 0 && n.ASN > 0 && target.targetASN > 0 {
+		if hops, path, ok := netintel.EstimateASPath(n.ASN, target.targetASN, observedAdj); ok {
 			item.ASHops = hops
 			item.Path = enrichASPathHops(path)
-			if item.EffectiveRTTMs == 0 {
-				item.EffectiveRTTMs = float64(hops)*predictedHopRTTMs + predictedBaseRTTMs
-				item.QualityScore = math.Round((scoreScaleMax/(1.0+item.EffectiveRTTMs/scoreRTTScale))*scoreRoundFactor) / scoreRoundFactor
-				item.Confidence = predictedConfidence
-				item.DataSource = model.QualityMatrixDataSourcePredicted
-			}
 		}
 	}
 	if item.Path == nil {
@@ -868,15 +1031,35 @@ func loadObservedAdjacencyMap(ctx context.Context) map[uint32][]uint32 {
 	return observedAdj
 }
 
-// TraceASPath compares estimated AS paths and measured/predicted quality across edge nodes toward a target ASN or IP.
-func TraceASPath(ctx context.Context, input ASPathInput) (*ASPathResponse, error) {
-	targetASN := input.TargetASN
-	if targetASN == 0 && strings.TrimSpace(input.TargetIP) != "" {
-		if res := netintel.LookupIP(strings.TrimSpace(input.TargetIP)); res != nil {
-			targetASN = res.ASN
+func indexPreferredMatrixTraceByNode(
+	rows []*model.OpenFlareNetworkQualityMatrix,
+	country, ipFamily string,
+) map[string]*model.OpenFlareNetworkQualityMatrix {
+	best := make(map[string]*model.OpenFlareNetworkQualityMatrix, len(rows))
+	bestScore := make(map[string]int, len(rows))
+	for _, m := range rows {
+		if m == nil || strings.TrimSpace(m.TraceASPath) == "" || m.TraceASPath == "[]" {
+			continue
+		}
+		score := 1
+		if country != "" && strings.EqualFold(m.ClientCountry, country) {
+			score += 2
+		}
+		if ipFamily != "" && strings.EqualFold(m.IPFamily, ipFamily) {
+			score++
+		}
+		if prevScore, ok := bestScore[m.NodeID]; !ok || score > prevScore {
+			best[m.NodeID] = m
+			bestScore[m.NodeID] = score
 		}
 	}
-	if targetASN == 0 {
+	return best
+}
+
+// TraceASPath compares estimated AS paths and measured/predicted quality across edge nodes toward a target ASN or IP.
+func TraceASPath(ctx context.Context, input ASPathInput) (*ASPathResponse, error) {
+	resolved := resolveTargetQueryContext(input.TargetIP, input.TargetASN, input.TargetCountry, input.TargetRegion, input.IPFamily)
+	if resolved.targetASN == 0 {
 		return nil, errors.New(errASPathTargetRequired)
 	}
 	if db.DB(ctx) == nil {
@@ -887,19 +1070,17 @@ func TraceASPath(ctx context.Context, input ASPathInput) (*ASPathResponse, error
 	if err != nil {
 		return nil, err
 	}
-	observedAdj := loadObservedAdjacencyMap(ctx)
-
-	matrixRows, _ := repository.ListOpenFlareNetworkQualityMatrixByClientASN(ctx, targetASN)
-	matrixByNode := make(map[string]*model.OpenFlareNetworkQualityMatrix, len(matrixRows))
-	for _, m := range matrixRows {
-		if m != nil {
-			matrixByNode[m.NodeID] = m
-		}
+	predictor, err := netquality.LoadLivePredictor(ctx)
+	if err != nil {
+		return nil, err
 	}
+	observedAdj := loadObservedAdjacencyMap(ctx)
+	matrixRows, _ := repository.ListOpenFlareNetworkQualityMatrixByClientASN(ctx, resolved.targetASN)
+	matrixByNode := indexPreferredMatrixTraceByNode(matrixRows, resolved.targetCountry, resolved.ipFamily)
 
 	comparisons := make([]NodeASPathComparison, 0, len(nodes))
 	for _, n := range nodes {
-		comparisons = append(comparisons, buildASPathComparisonItem(n, targetASN, matrixByNode, observedAdj))
+		comparisons = append(comparisons, buildASPathComparisonItem(n, resolved, predictor, matrixByNode, observedAdj))
 	}
 
 	sort.Slice(comparisons, func(i, j int) bool {
@@ -910,9 +1091,90 @@ func TraceASPath(ctx context.Context, input ASPathInput) (*ASPathResponse, error
 	})
 
 	return &ASPathResponse{
-		TargetASN:     targetASN,
-		TargetASNInfo: netintel.LookupASN(targetASN),
+		TargetASN:     resolved.targetASN,
+		TargetASNInfo: netintel.LookupASN(resolved.targetASN),
+		TargetCountry: resolved.targetCountry,
+		TargetRegion:  resolved.targetRegion,
+		IPFamily:      resolved.ipFamily,
 		Nodes:         comparisons,
+		Attribution:   attributionBGPTools,
+	}, nil
+}
+
+// PredictQualityMatrix predicts client-to-node latency and SmartDNS ranking scores across edge nodes.
+func PredictQualityMatrix(ctx context.Context, input QualityPredictInput) (*QualityPredictResponse, error) {
+	resolved := resolveTargetQueryContext(input.TargetIP, input.TargetASN, input.TargetCountry, input.TargetRegion, input.IPFamily)
+	if resolved.targetIP == "" && resolved.targetASN == 0 && resolved.targetCountry == "" {
+		return nil, errors.New(errPredictTargetRequired)
+	}
+	if db.DB(ctx) == nil {
+		return nil, errors.New(errDatabaseUnavailable)
+	}
+	nodes, err := selectComparisonNodes(ctx, input.NodeIDs)
+	if err != nil {
+		return nil, err
+	}
+	predictor, err := netquality.LoadLivePredictor(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]NodeQualityPrediction, 0, len(nodes))
+	for _, n := range nodes {
+		if n.ASN == 0 && strings.TrimSpace(n.IP) != "" {
+			netintel.EnrichNodeASN(&n)
+		}
+		res := predictor.Predict(buildPredictQueryForNode(n.NodeID, resolved))
+		out = append(out, NodeQualityPrediction{
+			NodeID:                n.NodeID,
+			NodeName:              n.Name,
+			NodeIP:                n.IP,
+			NodeGeo:               n.GeoName,
+			NodeASN:               n.ASN,
+			NodeASNName:           n.ASNOrg,
+			NetworkGroup:          n.NetworkGroup,
+			GeoSource:             n.GeoSource,
+			EffectiveRTTMs:        res.RTTMs,
+			RTTP95Ms:              res.RTTP95Ms,
+			CandidateDispersionMs: res.CandidateDispersionMs,
+			PredictionErrorMs:     res.ErrorMs,
+			QualityScore:          netquality.ComputeQualityScore(res),
+			Confidence:            res.Confidence,
+			MeasurementSource:     res.MeasurementSource,
+			PredictionMethod:      res.PredictionMethod,
+			GeoBaseRTTMs:          res.GeoBaseRTTMs,
+			SampleCount:           res.SampleCount,
+			DistinctPrefixes:      res.DistinctPrefixes,
+			LastObservedAt:        res.LastObservedAt,
+			AnycastIsolated:       res.AnycastIsolated,
+			DataSource:            predictionDataSource(res.PredictionMethod),
+		})
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].QualityScore != out[j].QualityScore {
+			return out[i].QualityScore > out[j].QualityScore
+		}
+		if out[i].EffectiveRTTMs != out[j].EffectiveRTTMs {
+			return out[i].EffectiveRTTMs < out[j].EffectiveRTTMs
+		}
+		return out[i].Confidence > out[j].Confidence
+	})
+
+	var targetInfo *pkgnetintel.ASNInfo
+	if resolved.targetASN > 0 {
+		targetInfo = netintel.LookupASN(resolved.targetASN)
+	}
+	return &QualityPredictResponse{
+		TargetIP:      resolved.targetIP,
+		TargetASN:     resolved.targetASN,
+		TargetASNInfo: targetInfo,
+		TargetCountry: resolved.targetCountry,
+		TargetRegion:  resolved.targetRegion,
+		IPFamily:      resolved.ipFamily,
+		AnycastStatus: resolved.anycastStatus,
+		GeoSource:     resolved.geoSource,
+		Nodes:         out,
 		Attribution:   attributionBGPTools,
 	}, nil
 }
@@ -943,6 +1205,8 @@ func ListQualityMatrix(ctx context.Context, query model.NetworkQualityMatrixQuer
 			NodeName:                      n.Name,
 			NodeGeo:                       n.GeoName,
 			NodeStatus:                    n.Status,
+			NodeNetworkGroup:              n.NetworkGroup,
+			NodeGeoSource:                 n.GeoSource,
 		})
 	}
 	return &QualityMatrixPage{

@@ -11427,7 +11427,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "基于已观测路由器跳边与 CAIDA AS 关系估算各边缘节点到达目标 ASN 的最短 AS 路径并对比质量矩阵评分",
+                "description": "基于已观测路由拓扑与 5 级质量预测器计算各边缘节点到达目标 ASN/IP（支持区域与 IP 族参数）的 AS 路径、预测延迟与评分",
                 "consumes": [
                     "application/json"
                 ],
@@ -12091,7 +12091,7 @@ const docTemplate = `{
                         "SessionCookie": []
                     }
                 ],
-                "description": "列出节点×访客 ASN 维度的被动 TCP RTT、主动路由追踪 RTT、有效延迟、置信度与质量评分",
+                "description": "列出节点×访客 ASN×地区×IP族维度的被动 TCP RTT、主动探测 RTT、有效延迟、置信度与质量评分",
                 "produces": [
                     "application/json"
                 ],
@@ -12116,6 +12116,30 @@ const docTemplate = `{
                         "type": "string",
                         "description": "国家/地区 ISO 编码",
                         "name": "client_country",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "下钻省/州细分编码（如 CN-GD、US-CA）",
+                        "name": "client_region",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "IP 地址族（ipv4、ipv6、unknown）",
+                        "name": "ip_family",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "聚合层级（country 或 region）",
+                        "name": "aggregation_level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "实测来源（tcp_passive、tcp_active、icmp_active 等）",
+                        "name": "measurement_source",
                         "in": "query"
                     },
                     {
@@ -12168,6 +12192,81 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/apps_openflare_nettools.QualityMatrixPage"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/network-tools/quality-matrix/predict": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "基于 5 级预测器（区域精确→国家级→同节点相似上游→同城/同组节点→地理基线）计算各节点预测延迟、离散度、置信度与评分",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-network-tools"
+                ],
+                "summary": "预测客户端到各节点网络质量",
+                "parameters": [
+                    {
+                        "description": "客户端目标（IP、ASN、国家/地区或 IP 族）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_nettools.QualityPredictInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "各节点预测质量排序结果",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_nettools.QualityPredictResponse"
                                         }
                                     }
                                 }
@@ -27492,6 +27591,9 @@ const docTemplate = `{
         "apps_openflare_nettools.ASPathInput": {
             "type": "object",
             "properties": {
+                "ip_family": {
+                    "type": "string"
+                },
                 "node_ids": {
                     "type": "array",
                     "items": {
@@ -27501,7 +27603,13 @@ const docTemplate = `{
                 "target_asn": {
                     "type": "integer"
                 },
+                "target_country": {
+                    "type": "string"
+                },
                 "target_ip": {
+                    "type": "string"
+                },
+                "target_region": {
                     "type": "string"
                 }
             }
@@ -27510,6 +27618,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "attribution": {
+                    "type": "string"
+                },
+                "ip_family": {
                     "type": "string"
                 },
                 "nodes": {
@@ -27523,6 +27634,12 @@ const docTemplate = `{
                 },
                 "target_asn_info": {
                     "$ref": "#/definitions/netintel.ASNInfo"
+                },
+                "target_country": {
+                    "type": "string"
+                },
+                "target_region": {
+                    "type": "string"
                 }
             }
         },
@@ -27794,8 +27911,14 @@ const docTemplate = `{
         "apps_openflare_nettools.NodeASPathComparison": {
             "type": "object",
             "properties": {
+                "anycast_isolated": {
+                    "type": "boolean"
+                },
                 "as_hops": {
                     "type": "integer"
+                },
+                "candidate_dispersion_ms": {
+                    "type": "number"
                 },
                 "confidence": {
                     "type": "number"
@@ -27803,8 +27926,26 @@ const docTemplate = `{
                 "data_source": {
                     "type": "string"
                 },
+                "distinct_prefixes": {
+                    "type": "integer"
+                },
                 "effective_rtt_ms": {
                     "type": "number"
+                },
+                "geo_base_rtt_ms": {
+                    "type": "number"
+                },
+                "geo_source": {
+                    "type": "string"
+                },
+                "last_observed_at": {
+                    "type": "string"
+                },
+                "measurement_source": {
+                    "type": "string"
+                },
+                "network_group": {
+                    "type": "string"
                 },
                 "node_asn": {
                     "type": "integer"
@@ -27830,8 +27971,91 @@ const docTemplate = `{
                         "$ref": "#/definitions/apps_openflare_nettools.ASPathHopNode"
                     }
                 },
+                "prediction_error_ms": {
+                    "type": "number"
+                },
+                "prediction_method": {
+                    "type": "string"
+                },
                 "quality_score": {
                     "type": "number"
+                },
+                "rtt_p95_ms": {
+                    "type": "number"
+                },
+                "sample_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_nettools.NodeQualityPrediction": {
+            "type": "object",
+            "properties": {
+                "anycast_isolated": {
+                    "type": "boolean"
+                },
+                "candidate_dispersion_ms": {
+                    "type": "number"
+                },
+                "confidence": {
+                    "type": "number"
+                },
+                "data_source": {
+                    "type": "string"
+                },
+                "distinct_prefixes": {
+                    "type": "integer"
+                },
+                "effective_rtt_ms": {
+                    "type": "number"
+                },
+                "geo_base_rtt_ms": {
+                    "type": "number"
+                },
+                "geo_source": {
+                    "type": "string"
+                },
+                "last_observed_at": {
+                    "type": "string"
+                },
+                "measurement_source": {
+                    "type": "string"
+                },
+                "network_group": {
+                    "type": "string"
+                },
+                "node_asn": {
+                    "type": "integer"
+                },
+                "node_asn_name": {
+                    "type": "string"
+                },
+                "node_geo": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "node_ip": {
+                    "type": "string"
+                },
+                "node_name": {
+                    "type": "string"
+                },
+                "prediction_error_ms": {
+                    "type": "number"
+                },
+                "prediction_method": {
+                    "type": "string"
+                },
+                "quality_score": {
+                    "type": "number"
+                },
+                "rtt_p95_ms": {
+                    "type": "number"
+                },
+                "sample_count": {
+                    "type": "integer"
                 }
             }
         },
@@ -27937,6 +28161,9 @@ const docTemplate = `{
         "apps_openflare_nettools.QualityMatrixItem": {
             "type": "object",
             "properties": {
+                "aggregation_level": {
+                    "type": "string"
+                },
                 "client_asn": {
                     "type": "integer"
                 },
@@ -27944,6 +28171,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "client_country": {
+                    "type": "string"
+                },
+                "client_region": {
                     "type": "string"
                 },
                 "confidence": {
@@ -27955,16 +28185,43 @@ const docTemplate = `{
                 "data_source": {
                     "type": "string"
                 },
+                "distinct_prefix_count": {
+                    "type": "integer"
+                },
                 "effective_rtt_ms": {
                     "type": "number"
                 },
+                "geo_accuracy_km": {
+                    "type": "number"
+                },
+                "geo_base_rtt_ms": {
+                    "type": "number"
+                },
+                "geo_confidence": {
+                    "type": "number"
+                },
+                "geo_source": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
+                },
+                "ip_family": {
+                    "type": "string"
+                },
+                "last_observed_at": {
+                    "type": "string"
+                },
+                "measurement_source": {
+                    "type": "string"
                 },
                 "node_asn": {
                     "type": "integer"
                 },
                 "node_geo": {
+                    "type": "string"
+                },
+                "node_geo_source": {
                     "type": "string"
                 },
                 "node_id": {
@@ -27973,14 +28230,38 @@ const docTemplate = `{
                 "node_name": {
                     "type": "string"
                 },
+                "node_network_group": {
+                    "type": "string"
+                },
                 "node_status": {
                     "type": "string"
                 },
                 "predicted_rtt_ms": {
                     "type": "number"
                 },
+                "probe_last_seen_at": {
+                    "type": "string"
+                },
+                "probe_loss_rate": {
+                    "type": "number"
+                },
+                "probe_proto": {
+                    "type": "string"
+                },
+                "probe_rtt_p50_ms": {
+                    "type": "number"
+                },
+                "probe_sample_count": {
+                    "type": "integer"
+                },
                 "quality_score": {
                     "type": "number"
+                },
+                "rtt_ewma_ms": {
+                    "type": "number"
+                },
+                "stats_version": {
+                    "type": "integer"
                 },
                 "tcp_last_seen_at": {
                     "type": "string"
@@ -28034,6 +28315,70 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_nettools.QualityPredictInput": {
+            "type": "object",
+            "properties": {
+                "ip_family": {
+                    "type": "string"
+                },
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "target_asn": {
+                    "type": "integer"
+                },
+                "target_country": {
+                    "type": "string"
+                },
+                "target_ip": {
+                    "type": "string"
+                },
+                "target_region": {
+                    "type": "string"
+                }
+            }
+        },
+        "apps_openflare_nettools.QualityPredictResponse": {
+            "type": "object",
+            "properties": {
+                "anycast_status": {
+                    "type": "string"
+                },
+                "attribution": {
+                    "type": "string"
+                },
+                "geo_source": {
+                    "type": "string"
+                },
+                "ip_family": {
+                    "type": "string"
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_nettools.NodeQualityPrediction"
+                    }
+                },
+                "target_asn": {
+                    "type": "integer"
+                },
+                "target_asn_info": {
+                    "$ref": "#/definitions/netintel.ASNInfo"
+                },
+                "target_country": {
+                    "type": "string"
+                },
+                "target_ip": {
+                    "type": "string"
+                },
+                "target_region": {
+                    "type": "string"
                 }
             }
         },
@@ -28300,6 +28645,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "network_group": {
+                    "type": "string"
+                },
                 "node_type": {
                     "type": "string"
                 }
@@ -28525,6 +28873,9 @@ const docTemplate = `{
                 "geo_name": {
                     "type": "string"
                 },
+                "geo_source": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -28566,6 +28917,9 @@ const docTemplate = `{
                     "$ref": "#/definitions/apps_openflare_node.MonitoringView"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "network_group": {
                     "type": "string"
                 },
                 "node_id": {
@@ -32436,6 +32790,9 @@ const docTemplate = `{
                 "recv": {
                     "type": "integer"
                 },
+                "region_code": {
+                    "type": "string"
+                },
                 "sent": {
                     "type": "integer"
                 },
@@ -35318,6 +35675,9 @@ const docTemplate = `{
                 "geo_name": {
                     "type": "string"
                 },
+                "geo_source": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -35334,6 +35694,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "network_group": {
                     "type": "string"
                 },
                 "node_id": {
@@ -36131,6 +36494,12 @@ const docTemplate = `{
         "netintel.IPLookupResult": {
             "type": "object",
             "properties": {
+                "accuracy_radius_km": {
+                    "type": "number"
+                },
+                "anycast_status": {
+                    "type": "string"
+                },
                 "asn": {
                     "type": "integer"
                 },
@@ -36152,6 +36521,9 @@ const docTemplate = `{
                 "city_name": {
                     "type": "string"
                 },
+                "continent_code": {
+                    "type": "string"
+                },
                 "country_iso": {
                     "type": "string"
                 },
@@ -36163,6 +36535,9 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "geo_source": {
+                    "type": "string"
                 },
                 "ip": {
                     "type": "string"
@@ -36178,6 +36553,9 @@ const docTemplate = `{
                 },
                 "prefix_hits": {
                     "type": "integer"
+                },
+                "region_code": {
+                    "type": "string"
                 }
             }
         },

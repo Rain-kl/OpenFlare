@@ -264,7 +264,7 @@ func ListASNPrefixesHandler(c *gin.Context) {
 
 // TraceASPathHandler compares AS paths and quality metrics across edge nodes toward a target ASN or IP.
 // @Summary 多节点 AS 路径与质量对比
-// @Description 基于已观测路由器跳边与 CAIDA AS 关系估算各边缘节点到达目标 ASN 的最短 AS 路径并对比质量矩阵评分
+// @Description 基于已观测路由拓扑与 5 级质量预测器计算各边缘节点到达目标 ASN/IP（支持区域与 IP 族参数）的 AS 路径、预测延迟与评分
 // @Tags openflare-network-tools
 // @Accept json
 // @Produce json
@@ -290,13 +290,17 @@ func TraceASPathHandler(c *gin.Context) {
 
 // ListQualityMatrixHandler returns paginated network quality matrix rows.
 // @Summary 分页查询网络质量矩阵
-// @Description 列出节点×访客 ASN 维度的被动 TCP RTT、主动路由追踪 RTT、有效延迟、置信度与质量评分
+// @Description 列出节点×访客 ASN×地区×IP族维度的被动 TCP RTT、主动探测 RTT、有效延迟、置信度与质量评分
 // @Tags openflare-network-tools
 // @Produce json
 // @Security SessionCookie
 // @Param node_id query string false "节点 ID"
 // @Param client_asn query int false "访客 ASN"
 // @Param client_country query string false "国家/地区 ISO 编码"
+// @Param client_region query string false "下钻省/州细分编码（如 CN-GD、US-CA）"
+// @Param ip_family query string false "IP 地址族（ipv4、ipv6、unknown）"
+// @Param aggregation_level query string false "聚合层级（country 或 region）"
+// @Param measurement_source query string false "实测来源（tcp_passive、tcp_active、icmp_active 等）"
 // @Param data_source query string false "数据来源（measured 或 predicted）"
 // @Param search query string false "关键词搜索"
 // @Param sort_by query string false "排序字段"
@@ -311,17 +315,47 @@ func TraceASPathHandler(c *gin.Context) {
 // @Router /api/v1/d/network-tools/quality-matrix [get]
 func ListQualityMatrixHandler(c *gin.Context) {
 	query := model.NetworkQualityMatrixQuery{
-		Page:          parsePositiveInt(c.Query("p"), 1),
-		PageSize:      parsePositiveInt(c.Query("page_size"), defaultHistoryPageSize),
-		NodeID:        c.Query("node_id"),
-		ClientASN:     uint32(parsePositiveInt(c.Query("client_asn"), 0)), //nolint:gosec // bounded uint32 ASN
-		ClientCountry: c.Query("client_country"),
-		DataSource:    c.Query("data_source"),
-		Search:        c.Query("search"),
-		SortBy:        c.Query("sort_by"),
-		SortOrder:     c.Query("sort_order"),
+		Page:              parsePositiveInt(c.Query("p"), 1),
+		PageSize:          parsePositiveInt(c.Query("page_size"), defaultHistoryPageSize),
+		NodeID:            c.Query("node_id"),
+		ClientASN:         uint32(parsePositiveInt(c.Query("client_asn"), 0)), //nolint:gosec // bounded uint32 ASN
+		ClientCountry:     c.Query("client_country"),
+		ClientRegion:      c.Query("client_region"),
+		IPFamily:          c.Query("ip_family"),
+		AggregationLevel:  c.Query("aggregation_level"),
+		MeasurementSource: c.Query("measurement_source"),
+		DataSource:        c.Query("data_source"),
+		Search:            c.Query("search"),
+		SortBy:            c.Query("sort_by"),
+		SortOrder:         c.Query("sort_order"),
 	}
 	res, err := ListQualityMatrix(c.Request.Context(), query)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// PredictQualityMatrixHandler simulates five-level SmartDNS node latency prediction for a client network target.
+// @Summary 预测客户端到各节点网络质量
+// @Description 基于 5 级预测器（区域精确→国家级→同节点相似上游→同城/同组节点→地理基线）计算各节点预测延迟、离散度、置信度与评分
+// @Tags openflare-network-tools
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body nettools.QualityPredictInput true "客户端目标（IP、ASN、国家/地区或 IP 族）"
+// @Success 200 {object} response.Any{data=nettools.QualityPredictResponse} "各节点预测质量排序结果"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/quality-matrix/predict [post]
+func PredictQualityMatrixHandler(c *gin.Context) {
+	var input QualityPredictInput
+	if !httpx.BindJSON(c, &input) {
+		return
+	}
+	res, err := PredictQualityMatrix(c.Request.Context(), input)
 	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}

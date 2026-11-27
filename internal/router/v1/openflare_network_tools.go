@@ -23,6 +23,7 @@ func registerOpenFlareNetworkToolsRoutes(apiGroup *gin.RouterGroup) {
 		toolsRoute.GET("/lookup/asn/:asn/upstream-graph", nettools.GetASNUpstreamGraphHandler)
 		toolsRoute.POST("/as-path", nettools.TraceASPathHandler)
 		toolsRoute.GET("/quality-matrix", nettools.ListQualityMatrixHandler)
+		toolsRoute.POST("/quality-matrix/predict", nettools.PredictQualityMatrixHandler)
 		toolsRoute.GET("/netintel/status", nettools.GetNetIntelStatusHandler)
 		toolsRoute.POST("/netintel/sync", nettools.TriggerNetIntelSyncHandler)
 	}

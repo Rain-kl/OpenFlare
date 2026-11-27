@@ -186,6 +186,11 @@ func LookupASUpstreamPaths(originASN uint32, maxDepth, maxDirect int) [][]uint32
 	return currentManager().LookupASUpstreamPaths(originASN, maxDepth, maxDirect)
 }
 
+// ExtractASUpstreamProfile returns direct providers, Tier-1 reachability, neighbors, and class/tag metadata for asn.
+func ExtractASUpstreamProfile(asn uint32) pkgnetintel.ASUpstreamProfile {
+	return currentManager().ExtractASUpstreamProfile(asn)
+}
+
 // Statuses returns status metadata for every tracked dataset file.
 func Statuses() []pkgnetintel.DatasetFileStatus {
 	return currentManager().Statuses()

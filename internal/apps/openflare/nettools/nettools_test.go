@@ -229,3 +229,163 @@ func TestDispatchAndResultLifecycle(t *testing.T) {
 
 	_ = gin.Mode()
 }
+
+func TestPredictQualityMatrixAndASPathWithRegionAndIPFamily(t *testing.T) {
+	cleanup := setupNetToolsTestEnv(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+	require.NoError(t, repository.CreateOpenFlareNode(ctx, &model.OpenFlareNode{
+		NodeID:           "edge-hk-cn2",
+		Name:             "Edge HK CN2",
+		IP:               "1.1.1.1",
+		ASN:              13335,
+		NetworkGroup:     "cn2-gia",
+		GeoSource:        pkgnetintel.GeoSourceCity,
+		Status:           "online",
+		NodeType:         "edge_node",
+		LastSeenAt:       &now,
+		AccessToken:      "tok-hk-cn2",
+		CapabilitiesJSON: "[]",
+	}))
+	require.NoError(t, repository.CreateOpenFlareNode(ctx, &model.OpenFlareNode{
+		NodeID:           "edge-us-bgp",
+		Name:             "Edge US BGP",
+		IP:               "2.2.2.2",
+		ASN:              174,
+		NetworkGroup:     "bgp",
+		GeoSource:        pkgnetintel.GeoSourceCountry,
+		Status:           "online",
+		NodeType:         "edge_node",
+		LastSeenAt:       &now,
+		AccessToken:      "tok-us-bgp",
+		CapabilitiesJSON: "[]",
+	}))
+
+	_, err := repository.ReplaceOpenFlareNetworkQualityMatrixSnapshot(ctx, []*model.OpenFlareNetworkQualityMatrix{
+		{
+			NodeID:            "edge-hk-cn2",
+			NodeASN:           13335,
+			ClientASN:         4134,
+			ClientCountry:     "CN",
+			ClientRegion:      "CN-GD",
+			IPFamily:          pkgnetintel.IPFamilyIPv4,
+			AggregationLevel:  model.QualityAggregationLevelRegion,
+			StatsVersion:      model.NetworkQualityStatsVersionHist64,
+			TCPRTTP50Ms:       24.0,
+			TCPRTTP95Ms:       31.0,
+			TCPSampleCount:    18,
+			TCPLastSeenAt:     &now,
+			EffectiveRTTMs:    24.0,
+			MeasurementSource: model.NetworkQualitySourceTCPPassive,
+			Confidence:        0.86,
+			QualityScore:      76.92,
+			DataSource:        model.QualityMatrixDataSourceMeasured,
+			LastObservedAt:    &now,
+		},
+		{
+			NodeID:            "edge-hk-cn2",
+			NodeASN:           13335,
+			ClientASN:         4134,
+			ClientCountry:     "CN",
+			ClientRegion:      "",
+			IPFamily:          pkgnetintel.IPFamilyIPv4,
+			AggregationLevel:  model.QualityAggregationLevelCountry,
+			StatsVersion:      model.NetworkQualityStatsVersionHist64,
+			TCPRTTP50Ms:       35.0,
+			TCPRTTP95Ms:       48.0,
+			TCPSampleCount:    42,
+			TCPLastSeenAt:     &now,
+			EffectiveRTTMs:    35.0,
+			MeasurementSource: model.NetworkQualitySourceTCPPassive,
+			Confidence:        0.91,
+			QualityScore:      69.57,
+			DataSource:        model.QualityMatrixDataSourceMeasured,
+			LastObservedAt:    &now,
+		},
+		{
+			NodeID:            "edge-us-bgp",
+			NodeASN:           174,
+			ClientASN:         4134,
+			ClientCountry:     "CN",
+			ClientRegion:      "",
+			IPFamily:          pkgnetintel.IPFamilyIPv4,
+			AggregationLevel:  model.QualityAggregationLevelCountry,
+			StatsVersion:      model.NetworkQualityStatsVersionHist64,
+			TCPRTTP50Ms:       185.0,
+			TCPRTTP95Ms:       230.0,
+			TCPSampleCount:    20,
+			TCPLastSeenAt:     &now,
+			EffectiveRTTMs:    185.0,
+			MeasurementSource: model.NetworkQualitySourceTCPPassive,
+			Confidence:        0.82,
+			QualityScore:      30.19,
+			DataSource:        model.QualityMatrixDataSourceMeasured,
+			LastObservedAt:    &now,
+		},
+	}, now.Add(-time.Hour))
+	require.NoError(t, err)
+
+	r := testhelper.NewTestGinEngine()
+	group := r.Group("/api/v1/d/network-tools")
+	group.POST("/as-path", TraceASPathHandler)
+	group.GET("/quality-matrix", ListQualityMatrixHandler)
+	group.POST("/quality-matrix/predict", PredictQualityMatrixHandler)
+
+	// 1. Exact region match on AS-path comparison.
+	asBody, _ := json.Marshal(ASPathInput{
+		TargetASN:     4134,
+		TargetCountry: "CN",
+		TargetRegion:  "GD",
+		IPFamily:      pkgnetintel.IPFamilyIPv4,
+	})
+	asReq := httptest.NewRequest(http.MethodPost, "/api/v1/d/network-tools/as-path", bytes.NewReader(asBody))
+	asReq.Header.Set("Content-Type", "application/json")
+	asW := httptest.NewRecorder()
+	r.ServeHTTP(asW, asReq)
+	require.Equal(t, http.StatusOK, asW.Code)
+	var asPayload struct {
+		Data ASPathResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(asW.Body.Bytes(), &asPayload))
+	require.Equal(t, "CN-GD", asPayload.Data.TargetRegion)
+	require.Len(t, asPayload.Data.Nodes, 2)
+	require.Equal(t, "edge-hk-cn2", asPayload.Data.Nodes[0].NodeID)
+	require.Equal(t, netquality.PredictionMethodExactRegion, asPayload.Data.Nodes[0].PredictionMethod)
+	require.InDelta(t, 24.0, asPayload.Data.Nodes[0].EffectiveRTTMs, 0.1)
+
+	// 2. Country-level prediction simulation via /quality-matrix/predict.
+	predBody, _ := json.Marshal(QualityPredictInput{
+		TargetASN:     4134,
+		TargetCountry: "CN",
+		IPFamily:      pkgnetintel.IPFamilyIPv4,
+	})
+	predReq := httptest.NewRequest(http.MethodPost, "/api/v1/d/network-tools/quality-matrix/predict", bytes.NewReader(predBody))
+	predReq.Header.Set("Content-Type", "application/json")
+	predW := httptest.NewRecorder()
+	r.ServeHTTP(predW, predReq)
+	require.Equal(t, http.StatusOK, predW.Code)
+	var predPayload struct {
+		Data QualityPredictResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(predW.Body.Bytes(), &predPayload))
+	require.Len(t, predPayload.Data.Nodes, 2)
+	require.Equal(t, "edge-hk-cn2", predPayload.Data.Nodes[0].NodeID)
+	require.Equal(t, netquality.PredictionMethodCountryRollup, predPayload.Data.Nodes[0].PredictionMethod)
+	require.Equal(t, "cn2-gia", predPayload.Data.Nodes[0].NetworkGroup)
+	require.InDelta(t, 35.0, predPayload.Data.Nodes[0].EffectiveRTTMs, 0.1)
+
+	// 3. Matrix query filters: aggregation_level & ip_family.
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/d/network-tools/quality-matrix?aggregation_level=region&ip_family=ipv4", nil)
+	listW := httptest.NewRecorder()
+	r.ServeHTTP(listW, listReq)
+	require.Equal(t, http.StatusOK, listW.Code)
+	var listPayload struct {
+		Data QualityMatrixPage `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(listW.Body.Bytes(), &listPayload))
+	require.Equal(t, int64(1), listPayload.Data.Total)
+	require.Equal(t, "CN-GD", listPayload.Data.Results[0].ClientRegion)
+	require.Equal(t, "cn2-gia", listPayload.Data.Results[0].NodeNetworkGroup)
+}

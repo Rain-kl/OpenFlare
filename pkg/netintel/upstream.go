@@ -5,6 +5,7 @@ package netintel
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 )
@@ -16,6 +17,15 @@ const (
 	maxUpstreamHopProviders    = 8
 	maxTier1InterconnectTarget = 8
 	maxShortASNRunes           = 18
+
+	simWeightDirectUpstream = 0.40
+	simWeightObservedPath   = 0.30
+	simWeightClassAndTags   = 0.20
+	simWeightTier1          = 0.07
+	simWeightNeighbors      = 0.03
+	simClassWeightShare     = 0.50
+	simTagWeightShare       = 0.50
+	simCoverageNormFloor    = 0.60
 )
 
 var tier1ShortNames = map[uint32]string{
@@ -264,4 +274,209 @@ func collectSortedCAIDARelatedASNs(
 		out = out[:limit]
 	}
 	return out
+}
+
+// ASUpstreamProfile summarizes an ASN's upstream providers, Tier-1 reachability, neighbors, and class/tags.
+type ASUpstreamProfile struct {
+	ASN             uint32
+	Class           string
+	Country         string
+	Tags            []string
+	DirectProviders []uint32
+	Tier1Upstreams  []uint32
+	Neighbors       []uint32
+}
+
+// NetworkSimilarityResult reports network similarity in [0, 1] and whether sufficient evidence existed.
+type NetworkSimilarityResult struct {
+	Score float64
+	Known bool
+}
+
+// ExtractASUpstreamProfile extracts an immutable upstream and metadata profile for asn.
+func (m *Manager) ExtractASUpstreamProfile(asn uint32) ASUpstreamProfile {
+	prof := ASUpstreamProfile{ASN: asn}
+	if m == nil || asn == 0 {
+		return prof
+	}
+	s := m.snap.Load()
+	if s == nil {
+		return prof
+	}
+	if s.bgp != nil {
+		if meta, ok := s.bgp.asns[asn]; ok {
+			prof.Class = strings.TrimSpace(meta.Class)
+			prof.Country = strings.ToUpper(strings.TrimSpace(meta.Country))
+		}
+		if tags := s.bgp.tags[asn]; len(tags) > 0 {
+			prof.Tags = append([]string(nil), tags...)
+		}
+	}
+	if s.caida != nil && len(s.caida.neighbors[asn]) > 0 {
+		prof.DirectProviders = collectSortedCAIDARelatedASNs(s.caida, asn, defaultUpstreamMaxDirect, false, RelationProvider)
+		neighSeen := make(map[uint32]struct{}, len(s.caida.neighbors[asn]))
+		for _, rel := range s.caida.neighbors[asn] {
+			if rel.PeerASN == 0 || rel.PeerASN == asn {
+				continue
+			}
+			if _, ok := neighSeen[rel.PeerASN]; ok {
+				continue
+			}
+			neighSeen[rel.PeerASN] = struct{}{}
+			prof.Neighbors = append(prof.Neighbors, rel.PeerASN)
+		}
+		sort.Slice(prof.Neighbors, func(i, j int) bool { return prof.Neighbors[i] < prof.Neighbors[j] })
+	}
+
+	tier1Seen := make(map[uint32]struct{})
+	if IsTier1ASN(asn) {
+		tier1Seen[asn] = struct{}{}
+	}
+	for _, p := range m.LookupASUpstreamPaths(asn, defaultUpstreamMaxDepth, defaultUpstreamMaxDirect) {
+		for _, hop := range p {
+			if IsTier1ASN(hop) && hop != asn {
+				tier1Seen[hop] = struct{}{}
+			}
+		}
+	}
+	for t1 := range tier1Seen {
+		prof.Tier1Upstreams = append(prof.Tier1Upstreams, t1)
+	}
+	sort.Slice(prof.Tier1Upstreams, func(i, j int) bool { return prof.Tier1Upstreams[i] < prof.Tier1Upstreams[j] })
+	return prof
+}
+
+// ComputeNetworkSimilarity evaluates tiered similarity between two AS profiles without treating missing data as identical.
+func ComputeNetworkSimilarity(a, b ASUpstreamProfile, observedASPathSimilarity float64) NetworkSimilarityResult {
+	var weightedSum, activeWeight float64
+
+	if len(a.DirectProviders) > 0 && len(b.DirectProviders) > 0 {
+		weightedSum += simWeightDirectUpstream * uint32Jaccard(a.DirectProviders, b.DirectProviders)
+		activeWeight += simWeightDirectUpstream
+	} else if len(a.DirectProviders) > 0 || len(b.DirectProviders) > 0 {
+		// One side has known direct providers while the other lacks them: count active weight as mismatch (0).
+		activeWeight += simWeightDirectUpstream
+	}
+
+	if observedASPathSimilarity > 0 {
+		clamped := math.Max(0, math.Min(1.0, observedASPathSimilarity))
+		weightedSum += simWeightObservedPath * clamped
+		activeWeight += simWeightObservedPath
+	}
+
+	classTagSim, hasClassTag := computeClassAndTagSimilarity(a, b)
+	if hasClassTag {
+		weightedSum += simWeightClassAndTags * classTagSim
+		activeWeight += simWeightClassAndTags
+	}
+
+	if len(a.Tier1Upstreams) > 0 && len(b.Tier1Upstreams) > 0 {
+		weightedSum += simWeightTier1 * uint32Jaccard(a.Tier1Upstreams, b.Tier1Upstreams)
+		activeWeight += simWeightTier1
+	}
+
+	if len(a.Neighbors) > 0 && len(b.Neighbors) > 0 {
+		weightedSum += simWeightNeighbors * uint32Jaccard(a.Neighbors, b.Neighbors)
+		activeWeight += simWeightNeighbors
+	}
+
+	if activeWeight <= 0 {
+		return NetworkSimilarityResult{Score: 0, Known: false}
+	}
+
+	raw := weightedSum / activeWeight
+	coverageDamping := math.Min(1.0, activeWeight/simCoverageNormFloor)
+	return NetworkSimilarityResult{
+		Score: math.Max(0, math.Min(1.0, raw*coverageDamping)),
+		Known: true,
+	}
+}
+
+func computeClassAndTagSimilarity(a, b ASUpstreamProfile) (float64, bool) {
+	aTags := filterInformativeTags(a.Tags)
+	bTags := filterInformativeTags(b.Tags)
+	hasClass := a.Class != "" && b.Class != ""
+	hasTags := len(aTags) > 0 && len(bTags) > 0
+	if !hasClass && !hasTags {
+		return 0, false
+	}
+	var sum, weight float64
+	if hasClass {
+		weight += simClassWeightShare
+		if strings.EqualFold(a.Class, b.Class) {
+			sum += simClassWeightShare
+		}
+	}
+	if hasTags {
+		weight += simTagWeightShare
+		sum += simTagWeightShare * stringJaccard(aTags, bTags)
+	}
+	return sum / weight, true
+}
+
+func filterInformativeTags(tags []string) []string {
+	if len(tags) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(tags))
+	for _, t := range tags {
+		norm := strings.ToLower(strings.TrimSpace(t))
+		if norm == "" || norm == "anycast" {
+			continue
+		}
+		out = append(out, norm)
+	}
+	return out
+}
+
+func uint32Jaccard(a, b []uint32) float64 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	setA := make(map[uint32]struct{}, len(a))
+	for _, v := range a {
+		setA[v] = struct{}{}
+	}
+	var inter, union int
+	seenB := make(map[uint32]struct{}, len(b))
+	for _, v := range b {
+		if _, dup := seenB[v]; dup {
+			continue
+		}
+		seenB[v] = struct{}{}
+		if _, ok := setA[v]; ok {
+			inter++
+		}
+	}
+	union = len(setA) + len(seenB) - inter
+	if union == 0 {
+		return 0
+	}
+	return float64(inter) / float64(union)
+}
+
+func stringJaccard(a, b []string) float64 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	setA := make(map[string]struct{}, len(a))
+	for _, v := range a {
+		setA[v] = struct{}{}
+	}
+	var inter int
+	seenB := make(map[string]struct{}, len(b))
+	for _, v := range b {
+		if _, dup := seenB[v]; dup {
+			continue
+		}
+		seenB[v] = struct{}{}
+		if _, ok := setA[v]; ok {
+			inter++
+		}
+	}
+	union := len(setA) + len(seenB) - inter
+	if union == 0 {
+		return 0
+	}
+	return float64(inter) / float64(union)
 }
