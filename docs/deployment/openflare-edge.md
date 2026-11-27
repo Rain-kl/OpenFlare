@@ -77,6 +77,7 @@ sudo journalctl -u openflare-edge -f
 
 ```bash
 docker run -d --pull always --name openflare-edge --restart unless-stopped \
+  --cap-add=NET_RAW \
   -p 80:8080 -p 443:8443 \
   -v openflare-edge-data:/var/lib/openflare-edge \
   -e OPENFLARE_EDGE_SERVER_URL=https://control.example.com \
@@ -86,14 +87,14 @@ docker run -d --pull always --name openflare-edge --restart unless-stopped \
 ```
 
 容器运行说明：
-- 容器内以非 root 用户（UID 10001 / GID 10001）运行，内部监听端口为 `8080`（HTTP）与 `8443`（HTTPS），通过宿主机端口映射对外暴露 `80` 与 `443`。
+- 容器内以非 root 用户（UID 10001 / GID 10001）运行，镜像内置 `cap_net_raw+p` 文件能力；配合 `--cap-add=NET_RAW` 后，仅独立探测子进程会在执行原生 ICMP Ping 与路由追踪探测时按需启用 `CAP_NET_RAW`，主代理线程保持最小权限。内部监听端口为 `8080`（HTTP）与 `8443`（HTTPS），通过宿主机端口映射对外暴露 `80` 与 `443`。
 - 节点身份、配置快照与 Pages 资源持久化于数据卷 `openflare-edge-data`（挂载至 `/var/lib/openflare-edge`）。
 - 可通过环境变量 `OPENFLARE_EDGE_TOKEN_FILE` 指定只读挂载的令牌文件路径（文件须允许 UID 10001 读取），替代明文传入 `OPENFLARE_EDGE_TOKEN`。
 - 当容器加载有效配置并成功开启监听后，健康检查标记为 healthy。查看日志：`docker logs -f openflare-edge`。
 
 ## 权限与安全加固
 
-Linux 安装脚本自动创建专用系统用户 `openflare-edge`，并以该用户运行 systemd 服务。服务仅申请网络绑定特权 `CAP_NET_BIND_SERVICE`（允许非 root 进程监听低于 1024 的特权端口，如 80 和 443），并通过以下安全策略限制权限：
+Linux 安装脚本自动创建专用系统用户 `openflare-edge`，并以该用户运行 systemd 服务。服务仅申请低端口绑定特权 `CAP_NET_BIND_SERVICE`（允许非 root 进程监听低于 1024 的特权端口，如 80 和 443）与原始套接字特权 `CAP_NET_RAW`（供隔离探测子进程执行原生 ICMP Ping 与路由追踪），并通过以下安全策略限制权限：
 
 - `NoNewPrivileges=yes`
 - `PrivateTmp=yes`
@@ -128,7 +129,7 @@ OpenFlare Edge 二进制内置双进程架构：控制面监督进程与 OpenFla
 
 ### 二进制平滑升级
 
-日常更新可直接使用更新脚本，该脚本自动检测已有的安装路径与状态目录，仅替换可执行二进制并重启服务，保留原有的 systemd 配置、节点令牌、快照数据与 GeoIP 数据库：
+日常更新可直接使用更新脚本，该脚本自动检测已有的安装路径与状态目录，原子替换可执行二进制并在缺失时为既有 systemd 单元补充 `CAP_NET_RAW` 能力，同时保留其他配置、节点令牌、快照数据与 GeoIP 数据库：
 
 ```bash
 # 更新到最新正式版
@@ -154,6 +155,7 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/upda
 docker pull ghcr.io/rain-kl/openflare-edge:latest
 docker stop openflare-edge && docker rm openflare-edge
 docker run -d --pull always --name openflare-edge --restart unless-stopped \
+  --cap-add=NET_RAW \
   -p 80:8080 -p 443:8443 \
   -v openflare-edge-data:/var/lib/openflare-edge \
   -e OPENFLARE_EDGE_SERVER_URL=https://control.example.com \

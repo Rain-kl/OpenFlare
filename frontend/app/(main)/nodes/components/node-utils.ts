@@ -153,6 +153,7 @@ export function buildEdgeDockerInstallCommand(
     `docker pull ${image}`,
     'docker rm -f openflare-edge 2>/dev/null || true',
     'docker run -d --name openflare-edge --restart unless-stopped \\',
+    '  --cap-add=NET_RAW \\',
     '  -p 80:8080 -p 443:8443 \\',
     '  -v openflare-edge-data:/var/lib/openflare-edge \\',
     `  -e OPENFLARE_EDGE_SERVER_URL=${quoteShellArgument(serverUrl)} \\`,

@@ -18,7 +18,7 @@ OpenFlare「网络工具」子系统提供控制平面与多边缘节点协同�
 3. **独立子进程探测运行时（`probe-worker`）**
    - 多节点主动探测（批量 ICMP/TCPing/HTTP Ping、基于 `trippy-core` 的多轮 Traceroute、带 EDNS0 ECS 的 DNS 探测）全部由 Edge 托管并隔离在独立操作系统子进程 `openflare-edge probe-worker` 中执行。
    - Linux 下子进程启用 `PR_SET_PDEATHSIG(SIGTERM)`、禁用 core dump（`RLIMIT_CORE = 0`）并降低调度优先级（`nice +10`）；主控或子进程任一单次探测异常或崩溃均会被监督器（`ProbeSupervisor`）隔离与退避重启，不会波及边缘反向代理与控制面主进程。
-   - 边缘节点安装脚本默认赋予 `CAP_NET_RAW` 能力，以支持原生 ICMP Ping 与路由追踪探测。
+   - 权限授予说明（`CAP_NET_RAW`）：systemd 节点通过 `install-openflare-edge.sh` 与 `update-openflare-edge.sh` 在服务单元的 `AmbientCapabilities` 及 `CapabilityBoundingSet` 中授予 `CAP_NET_RAW`；Docker 节点通过镜像内置 `cap_net_raw+p` 并在启动参数附加 `--cap-add=NET_RAW` 获得权限。若早期 systemd 节点通过控制台自更新升级而来，可重新运行 `update-openflare-edge.sh`，或手动在 `/etc/systemd/system/openflare-edge.service` 的 `AmbientCapabilities` 与 `CapabilityBoundingSet` 中补充 `CAP_NET_RAW` 后执行 `systemctl daemon-reload && systemctl restart openflare-edge`。
 
 ---
 

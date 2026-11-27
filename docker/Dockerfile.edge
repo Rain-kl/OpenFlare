@@ -30,6 +30,9 @@ RUN test -s /etc/ssl/certs/ca-certificates.crt \
 
 COPY --chmod=0755 docker/entrypoints/edge-entrypoint.sh /usr/local/bin/edge-entrypoint
 COPY --from=builder /out/openflare-edge /usr/local/bin/openflare-edge
+RUN apk add --no-cache --virtual .cap-deps libcap-setcap \
+    && setcap cap_net_raw+p /usr/local/bin/openflare-edge \
+    && apk del .cap-deps
 
 ARG VERSION=dev
 ARG SOURCE_URL=https://github.com/Rain-kl/OpenFlare

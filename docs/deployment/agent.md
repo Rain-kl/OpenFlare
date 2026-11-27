@@ -63,6 +63,7 @@ sudo bash scripts/install-openflare-edge.sh \
 
 ```bash
 docker run -d --pull always --name openflare-edge --restart unless-stopped \
+  --cap-add=NET_RAW \
   -p 80:8080 -p 443:8443 \
   -v openflare-edge-data:/var/lib/openflare-edge \
   -e OPENFLARE_EDGE_SERVER_URL=https://openflare.example.com \

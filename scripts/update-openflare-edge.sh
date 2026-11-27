@@ -39,9 +39,9 @@ OpenFlare Edge Updater
 Usage:
   update-openflare-edge.sh [canary] [OPTIONS]
 
-Updates only the installed openflare-edge binary without modifying service
-configuration, tokens, snapshots, or GeoIP databases. No arguments are
-required for standard installations.
+Updates the installed openflare-edge binary and synchronizes required systemd service
+capabilities (such as CAP_NET_RAW) without modifying other service configuration,
+tokens, snapshots, or GeoIP databases. No arguments are required for standard installations.
 
 Options:
   canary              Update to the most recently published Edge prerelease
@@ -172,7 +172,37 @@ if [[ -d "$INSTALL_DIR/releases" && ! -L "$INSTALL_DIR/releases" ]]; then
 fi
 rm -f -- "$INSTALL_DIR/verified-releases" "$INSTALL_DIR/verified-releases.tmp" "$INSTALL_DIR/.current.tmp"
 
+ensure_service_capabilities() {
+  local service_path="$1"
+  [[ -f "$service_path" ]] || return 0
+  local tmp_file="${service_path}.tmp"
+  local changed=false
+  local line
+  : > "$tmp_file"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == AmbientCapabilities=* || "$line" == CapabilityBoundingSet=* ]]; then
+      if [[ "$line" == AmbientCapabilities= || "$line" == CapabilityBoundingSet= ]]; then
+        line="${line}CAP_NET_RAW"
+        changed=true
+      elif [[ ! "$line" =~ (^|[[:space:]=])CAP_NET_RAW([[:space:]]|$) ]]; then
+        line="${line} CAP_NET_RAW"
+        changed=true
+      fi
+    fi
+    printf '%s\n' "$line" >> "$tmp_file"
+  done < "$service_path"
+  if [[ "$changed" == true ]]; then
+    chmod 0644 "$tmp_file"
+    mv -Tf -- "$tmp_file" "$service_path"
+    log "adding CAP_NET_RAW to ${SERVICE_NAME}.service"
+    systemctl daemon-reload 9>&-
+  else
+    rm -f -- "$tmp_file"
+  fi
+}
+
 if [[ "$HAS_SYSTEMD_SERVICE" == true ]]; then
+  ensure_service_capabilities "$SERVICE_PATH"
   log "starting ${SERVICE_NAME}"
   if ! systemctl start "$SERVICE_NAME" 9>&-; then
     journalctl -u "$SERVICE_NAME" -n 50 --no-pager 9>&- || true

@@ -40,9 +40,19 @@ impl Default for ProbeWorkerConfig {
 /// Logs MUST be routed to `stderr` by the caller before invoking this function.
 pub fn run_probe_worker(config: ProbeWorkerConfig) -> Result<(), String> {
     #[cfg(target_os = "linux")]
-    harden_and_deprioritize_worker();
+    {
+        harden_and_deprioritize_worker();
+        acquire_probe_raw_socket_privilege();
+    }
 
     run_probe_worker_with_io(std::io::stdin(), std::io::stdout(), config)
+}
+
+#[cfg(target_os = "linux")]
+fn acquire_probe_raw_socket_privilege() {
+    if let Err(err) = trippy_privilege::Privilege::acquire_privileges() {
+        tracing::debug!(%err, "failed to raise CAP_NET_RAW for probe worker");
+    }
 }
 
 /// Testable core loop taking explicit `Read`/`Write` IPC streams.

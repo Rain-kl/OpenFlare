@@ -464,6 +464,8 @@ fn open_icmp_socket(
     if dgram >= 0 {
         return Ok((SocketGuard(dgram), true));
     }
+    #[cfg(target_os = "linux")]
+    let _ = trippy_privilege::Privilege::acquire_privileges();
     let raw = unsafe { libc::socket(domain, libc::SOCK_RAW | libc::SOCK_CLOEXEC, protocol) };
     if raw >= 0 {
         return Ok((SocketGuard(raw), false));

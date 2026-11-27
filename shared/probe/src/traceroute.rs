@@ -138,6 +138,8 @@ pub async fn execute_traceroute(req: &TracerouteRequest) -> TracerouteResult {
     };
 
     let trace_future = tokio::task::spawn_blocking(move || {
+        #[cfg(target_os = "linux")]
+        let _ = Privilege::acquire_privileges();
         tracer.run()?;
         Ok::<State, trippy_core::Error>(tracer.snapshot())
     });
@@ -166,14 +168,14 @@ pub async fn execute_traceroute(req: &TracerouteRequest) -> TracerouteResult {
 }
 
 fn discover_privilege_mode() -> Result<PrivilegeMode, String> {
-    match Privilege::discover() {
+    match Privilege::acquire_privileges() {
         Ok(privilege) => {
             if privilege.has_privileges() {
                 Ok(PrivilegeMode::Privileged)
             } else if !privilege.needs_privileges() {
                 Ok(PrivilegeMode::Unprivileged)
             } else {
-                Err("traceroute requires CAP_NET_RAW on Linux (ensure openflare-edge unit includes CAP_NET_RAW)".to_owned())
+                Err("traceroute requires CAP_NET_RAW on Linux (ensure openflare-edge unit includes CAP_NET_RAW or Docker runs with --cap-add=NET_RAW)".to_owned())
             }
         }
         Err(err) => Err(format!("failed to inspect traceroute privileges: {err}")),
