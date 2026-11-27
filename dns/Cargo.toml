@@ -15,7 +15,7 @@ hdrhistogram = "7.6"
 hex = "0.4"
 hickory-proto = "0.26.4"
 hickory-server = "0.26.4"
-maxminddb = "0.24"
+maxminddb = "0.27"
 moka = { version = "0.12", features = ["sync"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "gzip", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
