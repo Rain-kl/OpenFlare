@@ -32,6 +32,7 @@
       "pageSummary": "Страница {page} из {totalPages} (всего {total})",
       "prevPage": "Назад",
       "nextPage": "Вперёд",
+      "pageSizeOption": "{count} на стр.",
       "attributionPrefix": "Источник данных: ",
       "targetNormalized": "Адрес цели автоматически исправлен на {target}"
     },

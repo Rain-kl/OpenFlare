@@ -32,6 +32,7 @@
       "pageSummary": "第 {page} / {totalPages} 页，共 {total} 条记录",
       "prevPage": "上一页",
       "nextPage": "下一页",
+      "pageSizeOption": "{count} 条 / 页",
       "attributionPrefix": "数据支持：",
       "targetNormalized": "目标地址已自动修正为 {target}"
     },

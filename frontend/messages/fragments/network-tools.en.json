@@ -32,6 +32,7 @@
       "pageSummary": "Page {page} of {totalPages} ({total} total)",
       "prevPage": "Previous",
       "nextPage": "Next",
+      "pageSizeOption": "{count} / page",
       "attributionPrefix": "Attribution: ",
       "targetNormalized": "Target address automatically corrected to {target}"
     },

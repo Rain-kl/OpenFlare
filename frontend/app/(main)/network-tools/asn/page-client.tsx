@@ -33,6 +33,7 @@ import type {
 import { NetworkToolsService } from '@/lib/services/openflare';
 
 import { formatNetToolsMs, getNetToolsErrorMessage } from '../shared/utils';
+import { NeighborsCard } from './components/neighbors-card';
 import { UpstreamRoutingGraph } from './components/upstream-routing-graph';
 
 type QueryState =
@@ -510,75 +511,11 @@ export function NetworkToolsAsnPageClient() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className='pb-3'>
-                <CardTitle className='text-base font-medium'>
-                  {t('asn.neighborsCard')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('asn.columns.peerAsn')}</TableHead>
-                      <TableHead>{t('asn.columns.peerName')}</TableHead>
-                      <TableHead>{t('asn.columns.relation')}</TableHead>
-                      <TableHead>{t('asn.columns.observedRtt')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {neighbors.map((nb) => (
-                      <TableRow key={`${nb.peer_asn}-${nb.relation}`}>
-                        <TableCell className='font-mono text-xs'>
-                          <button
-                            type='button'
-                            onClick={() => handleSelectUpstreamAsn(nb.peer_asn)}
-                            className='font-mono text-xs text-primary underline-offset-4 hover:underline'
-                          >
-                            {`AS${nb.peer_asn}`}
-                          </button>
-                        </TableCell>
-                        <TableCell className='text-xs'>
-                          <div className='font-medium'>
-                            {nb.peer_name || '—'}
-                          </div>
-                          <div className='text-muted-foreground'>
-                            {[nb.peer_country, nb.peer_class]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant='outline'>
-                            {nb.relation === 'provider' ||
-                            nb.relation === 'customer' ||
-                            nb.relation === 'peer' ||
-                            nb.relation === 'observed'
-                              ? t(`asn.relations.${nb.relation}`)
-                              : nb.relation}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className='font-mono text-xs'>
-                          {nb.observed_rtt_ms
-                            ? `${formatNetToolsMs(nb.observed_rtt_ms)} ms (${nb.sample_count ?? 0})`
-                            : '—'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {neighbors.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={4}
-                          className='py-6 text-center text-muted-foreground'
-                        >
-                          {t('common.noData')}
-                        </TableCell>
-                      </TableRow>
-                    ) : null}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <NeighborsCard
+              key={`${submitted?.kind ?? 'none'}-${submitted?.kind === 'ip' ? submitted.query : resolvedAsn}`}
+              neighbors={neighbors}
+              onSelectAsn={handleSelectUpstreamAsn}
+            />
           </div>
         </div>
       ) : !isSearching ? (
