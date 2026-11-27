@@ -35,7 +35,7 @@ import type {
 import { NetworkToolsService } from '@/lib/services/openflare';
 import { cn } from '@/lib/utils';
 
-import { NodeSelector } from '../shared/node-selector';
+import { NodeSelector, type NodeSelection } from '../shared/node-selector';
 import {
   formatNetToolsMs,
   formatNetToolsPercent,
@@ -54,7 +54,7 @@ export function NetworkToolsTraceroutePageClient() {
   const [maxHops, setMaxHops] = useState('30');
   const [probesPerHop, setProbesPerHop] = useState('3');
   const [timeoutMs, setTimeoutMs] = useState('1500');
-  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const [selectedNodes, setSelectedNodes] = useState<NodeSelection>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
   const [histTarget, setHistTarget] = useState('');
@@ -107,6 +107,9 @@ export function NetworkToolsTraceroutePageClient() {
     if (!trimmed) {
       return;
     }
+    if (selectedNodes !== null && selectedNodes.length === 0) {
+      return;
+    }
     const parsedPort = port.trim() ? Number(port.trim()) : undefined;
     dispatchMutation.mutate({
       target: trimmed,
@@ -118,7 +121,7 @@ export function NetworkToolsTraceroutePageClient() {
       max_hops: Number(maxHops) || 30,
       probes_per_hop: Number(probesPerHop) || 3,
       timeout_ms: Number(timeoutMs) || 1500,
-      node_ids: selectedNodes.length > 0 ? selectedNodes : undefined,
+      node_ids: selectedNodes === null ? undefined : selectedNodes,
     });
   };
 
@@ -265,10 +268,18 @@ export function NetworkToolsTraceroutePageClient() {
                     />
                   </div>
                 </div>
-                <div className='flex justify-end'>
+                <div className='flex flex-wrap items-center justify-between gap-3 border-t border-dashed pt-4'>
+                  <NodeSelector
+                    selectedIds={selectedNodes}
+                    onChange={setSelectedNodes}
+                  />
                   <Button
                     type='submit'
-                    disabled={dispatchMutation.isPending || !target.trim()}
+                    disabled={
+                      dispatchMutation.isPending ||
+                      !target.trim() ||
+                      (selectedNodes !== null && selectedNodes.length === 0)
+                    }
                   >
                     {dispatchMutation.isPending ||
                     task?.status === 'running' ? (
@@ -284,11 +295,6 @@ export function NetworkToolsTraceroutePageClient() {
               </form>
             </CardContent>
           </Card>
-
-          <NodeSelector
-            selectedIds={selectedNodes}
-            onChange={setSelectedNodes}
-          />
 
           {task ? (
             <div className='space-y-4'>

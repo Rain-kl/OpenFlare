@@ -33,7 +33,11 @@ import type {
 } from '@/lib/services/openflare';
 import { NetworkToolsService } from '@/lib/services/openflare';
 
-import { NodeSelector } from '../shared/node-selector';
+import {
+  NodeSelector,
+  type NodeSelection,
+  useEdgeNodes,
+} from '../shared/node-selector';
 import {
   formatNetToolsMs,
   getNetToolsErrorMessage,
@@ -71,7 +75,8 @@ export function NetworkToolsDnsPageClient() {
   const [customResolver, setCustomResolver] = useState('');
   const [ecsSubnet, setEcsSubnet] = useState('');
   const [mode, setMode] = useState<'direct' | 'nodes'>('direct');
-  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const [selectedNodes, setSelectedNodes] = useState<NodeSelection>(null);
+  const { onlineIds } = useEdgeNodes();
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [lastDirectResult, setLastDirectResult] =
     useState<NetToolsDNSQueryResponse['direct_result']>();
@@ -102,10 +107,15 @@ export function NetworkToolsDnsPageClient() {
 
   const task = taskQuery.data ?? queryMutation.data?.task ?? null;
 
+  const effectiveNodeIds = selectedNodes ?? onlineIds;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = domain.trim();
     if (!trimmed) return;
+    if (mode === 'nodes' && effectiveNodeIds.length === 0) {
+      return;
+    }
     const resolver =
       resolverPreset === 'custom' ? customResolver.trim() : resolverPreset;
     queryMutation.mutate({
@@ -113,10 +123,7 @@ export function NetworkToolsDnsPageClient() {
       record_type: recordType,
       resolver: resolver || undefined,
       ecs_subnet: ecsSubnet.trim() || undefined,
-      node_ids:
-        mode === 'nodes' && selectedNodes.length > 0
-          ? selectedNodes
-          : undefined,
+      node_ids: mode === 'nodes' ? effectiveNodeIds : undefined,
     });
   };
 
@@ -234,10 +241,26 @@ export function NetworkToolsDnsPageClient() {
               </div>
             </div>
 
-            <div className='flex justify-end'>
+            <div
+              className={
+                mode === 'nodes'
+                  ? 'flex flex-wrap items-center justify-between gap-3 border-t border-dashed pt-4'
+                  : 'flex justify-end'
+              }
+            >
+              {mode === 'nodes' ? (
+                <NodeSelector
+                  selectedIds={selectedNodes}
+                  onChange={setSelectedNodes}
+                />
+              ) : null}
               <Button
                 type='submit'
-                disabled={queryMutation.isPending || !domain.trim()}
+                disabled={
+                  queryMutation.isPending ||
+                  !domain.trim() ||
+                  (mode === 'nodes' && effectiveNodeIds.length === 0)
+                }
               >
                 {queryMutation.isPending || task?.status === 'running' ? (
                   <Loader2 className='mr-2 size-4 animate-spin' />
@@ -250,10 +273,6 @@ export function NetworkToolsDnsPageClient() {
           </form>
         </CardContent>
       </Card>
-
-      {mode === 'nodes' ? (
-        <NodeSelector selectedIds={selectedNodes} onChange={setSelectedNodes} />
-      ) : null}
 
       {lastDirectResult ? (
         <Card>

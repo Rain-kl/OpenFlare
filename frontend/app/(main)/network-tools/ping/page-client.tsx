@@ -39,7 +39,7 @@ import type {
 } from '@/lib/services/openflare';
 import { NetworkToolsService } from '@/lib/services/openflare';
 
-import { NodeSelector } from '../shared/node-selector';
+import { NodeSelector, type NodeSelection } from '../shared/node-selector';
 import {
   extractNetToolsTargetHost,
   formatNetToolsMs,
@@ -57,7 +57,7 @@ export function NetworkToolsPingPageClient() {
   const [count, setCount] = useState('4');
   const [intervalMs, setIntervalMs] = useState('200');
   const [timeoutMs, setTimeoutMs] = useState('3000');
-  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const [selectedNodes, setSelectedNodes] = useState<NodeSelection>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>(
     {},
@@ -116,6 +116,9 @@ export function NetworkToolsPingPageClient() {
     if (!trimmed) {
       return;
     }
+    if (selectedNodes !== null && selectedNodes.length === 0) {
+      return;
+    }
 
     // HTTP probes accept full URLs; for ICMP / TCPing reduce pasted URLs and
     // host:port forms to the bare host so validation never rejects them.
@@ -147,7 +150,7 @@ export function NetworkToolsPingPageClient() {
       count: Number(count) || 4,
       interval_ms: Number(intervalMs) || 200,
       timeout_ms: Number(timeoutMs) || 3000,
-      node_ids: selectedNodes.length > 0 ? selectedNodes : undefined,
+      node_ids: selectedNodes === null ? undefined : selectedNodes,
     });
   };
 
@@ -252,10 +255,18 @@ export function NetworkToolsPingPageClient() {
               </div>
             </div>
 
-            <div className='flex justify-end'>
+            <div className='flex flex-wrap items-center justify-between gap-3 border-t border-dashed pt-4'>
+              <NodeSelector
+                selectedIds={selectedNodes}
+                onChange={setSelectedNodes}
+              />
               <Button
                 type='submit'
-                disabled={dispatchMutation.isPending || !target.trim()}
+                disabled={
+                  dispatchMutation.isPending ||
+                  !target.trim() ||
+                  (selectedNodes !== null && selectedNodes.length === 0)
+                }
               >
                 {dispatchMutation.isPending || task?.status === 'running' ? (
                   <Loader2 className='mr-2 size-4 animate-spin' />
@@ -270,8 +281,6 @@ export function NetworkToolsPingPageClient() {
           </form>
         </CardContent>
       </Card>
-
-      <NodeSelector selectedIds={selectedNodes} onChange={setSelectedNodes} />
 
       {task ? (
         <>
