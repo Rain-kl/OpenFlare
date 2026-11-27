@@ -1,7 +1,15 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Globe2, Save, ShieldCheck, XCircle } from 'lucide-react';
+import {
+  BookOpen,
+  CheckCircle2,
+  ExternalLink,
+  Globe2,
+  Save,
+  ShieldCheck,
+  XCircle,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -34,6 +42,7 @@ import {
 import { getErrorMessage } from '../../websites/components/website-utils';
 
 const settingsKey = [...smartdnsQueryKey, 'settings'] as const;
+const smartdnsGuideUrl = 'https://openflare.cc/guide/smartdns/';
 
 function toDraft(settings: SmartDNSSettings) {
   return {
@@ -132,6 +141,32 @@ function SmartDNSSettingsForm({ settings }: { settings: SmartDNSSettings }) {
         <CardDescription>{t('settingsDesc')}</CardDescription>
       </CardHeader>
       <CardContent>
+        <div className='mb-5 flex flex-col gap-3 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='flex items-start gap-3'>
+            <BookOpen className='mt-0.5 size-4 shrink-0 text-primary' />
+            <div className='flex flex-col gap-1'>
+              <p className='text-sm font-medium'>{t('delegationGuideTitle')}</p>
+              <p className='text-xs leading-relaxed text-muted-foreground'>
+                {t('delegationGuideDesc')}
+              </p>
+            </div>
+          </div>
+          <Button
+            asChild
+            variant='outline'
+            size='sm'
+            className='self-start sm:self-center'
+          >
+            <a
+              href={smartdnsGuideUrl}
+              target='_blank'
+              rel='noopener noreferrer'
+            >
+              {t('delegationGuideAction')}
+              <ExternalLink data-icon='inline-end' />
+            </a>
+          </Button>
+        </div>
         <form
           className='flex flex-col gap-5'
           onSubmit={(event) => {
@@ -178,7 +213,7 @@ function SmartDNSSettingsForm({ settings }: { settings: SmartDNSSettings }) {
                 rows={3}
                 value={draft.hosts}
                 disabled={busy}
-                placeholder={'ns1.sdns.example.com\nns2.sdns.example.com'}
+                placeholder={'ns1.example.com\nns2.example.com'}
                 onChange={(event) => update({ hosts: event.target.value })}
               />
               <FieldDescription>{t('nsHostsDesc')}</FieldDescription>
