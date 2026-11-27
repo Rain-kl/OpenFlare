@@ -51,7 +51,7 @@
       "count": "Probe Count",
       "intervalMs": "Interval (ms)",
       "timeoutMs": "Timeout (ms)",
-      "targetHint": "Supports public IPs, hostnames, or http(s):// URLs (for HTTP mode). In ICMP / TCPing mode, pasted URLs are automatically reduced to the bare host address. Private and reserved addresses are blocked.",
+      "targetHint": "Supports public IPs, hostnames, or http(s):// URLs (for HTTP mode).",
       "summary": {
         "responded": "Responded Nodes",
         "minLatency": "Lowest Avg RTT",

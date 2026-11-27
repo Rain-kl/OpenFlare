@@ -51,7 +51,7 @@
       "count": "发包次数",
       "intervalMs": "间隔 (ms)",
       "timeoutMs": "超时 (ms)",
-      "targetHint": "支持公网 IP、域名或 http(s):// URL（HTTP 协议模式）。ICMP / TCPing 模式下粘贴 URL 时将自动去除协议与路径，仅保留主机地址。内网与保留网段将被拒绝。",
+      "targetHint": "支持公网 IP、域名或 http(s):// URL（HTTP 协议模式）。",
       "summary": {
         "responded": "已响应节点",
         "minLatency": "最低平均延迟",
