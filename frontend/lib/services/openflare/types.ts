@@ -2338,3 +2338,42 @@ export interface NetToolsTriggerSyncResponse {
     duration_ms: number;
   };
 }
+
+export interface NetToolsASUpstreamNode {
+  asn: number;
+  name: string;
+  short_name: string;
+  country: string;
+  class: string;
+  tags?: string[];
+  role: 'origin' | 'transit' | 'tier1_upstream' | 'tier1';
+  layer: number;
+  is_tier1: boolean;
+  path_hits: number;
+}
+
+export interface NetToolsASUpstreamEdge {
+  from: number;
+  to: number;
+  kind: 'upstream' | 'tier1_interconnect' | 'observed';
+  path_hits: number;
+  observed_rtt_ms?: number;
+  sample_count?: number;
+}
+
+export interface NetToolsASNUpstreamGraphResponse {
+  origin_asn: number;
+  sampled_prefix?: string;
+  data_source:
+    | 'caida'
+    | 'ripestat_lg'
+    | 'ripestat_neighbours'
+    | 'observed'
+    | 'none';
+  attribution: string;
+  total_paths_parsed: number;
+  nodes: NetToolsASUpstreamNode[];
+  edges: NetToolsASUpstreamEdge[];
+  cached: boolean;
+  generated_at: string;
+}

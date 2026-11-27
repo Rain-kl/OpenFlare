@@ -144,6 +144,31 @@
         "peer": "对等互联 (Peer)",
         "observed": "路由实测直连"
       },
+      "upstreamGraph": {
+        "title": "上游路由接线拓扑图",
+        "subtitle": "展示源站 ASN 经由中间上游接入全局 Tier 1 骨干网的层次连接关系。",
+        "loading": "正在构建上游路由拓扑图...",
+        "empty": "暂未检索到该 ASN 的可用上游路由接线数据。",
+        "refresh": "刷新",
+        "exportSvg": "导出 SVG",
+        "zoomIn": "放大画布",
+        "zoomOut": "缩小画布",
+        "pathCount": "已解析 {count} 条路由路径",
+        "edgeHits": "{count} 条观测路径",
+        "clickHint": "点击任意上游或 Tier 1 节点可下钻查看其 ASN 情报。",
+        "groups": {
+          "origins": "源站 (Origins)",
+          "upstreams": "上游网络 (Upstreams)",
+          "tier1": "Tier 1 骨干运营商 (Tier 1 ISPs)"
+        },
+        "sources": {
+          "caida": "CAIDA 拓扑库",
+          "ripestat_lg": "RIPEstat 实时路由镜像",
+          "ripestat_neighbours": "RIPEstat 邻接推断",
+          "observed": "节点路由追踪观测",
+          "none": "无可用数据源"
+        }
+      },
       "emptyState": "请输入公网 IP、域名或 AS 编号开始检索网络情报。"
     },
     "dns": {

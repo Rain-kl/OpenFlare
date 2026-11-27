@@ -20,6 +20,7 @@ func registerOpenFlareNetworkToolsRoutes(apiGroup *gin.RouterGroup) {
 		toolsRoute.GET("/lookup/ip", nettools.LookupIPHandler)
 		toolsRoute.GET("/lookup/asn/:asn", nettools.LookupASNHandler)
 		toolsRoute.GET("/lookup/asn/:asn/prefixes", nettools.ListASNPrefixesHandler)
+		toolsRoute.GET("/lookup/asn/:asn/upstream-graph", nettools.GetASNUpstreamGraphHandler)
 		toolsRoute.POST("/as-path", nettools.TraceASPathHandler)
 		toolsRoute.GET("/quality-matrix", nettools.ListQualityMatrixHandler)
 		toolsRoute.GET("/netintel/status", nettools.GetNetIntelStatusHandler)

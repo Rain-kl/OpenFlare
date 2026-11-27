@@ -2,6 +2,7 @@ import { OpenFlareBaseService } from './base.service';
 import type {
   NetToolsASNDetailResponse,
   NetToolsASNPrefixesResponse,
+  NetToolsASNUpstreamGraphResponse,
   NetToolsASPathInput,
   NetToolsASPathResponse,
   NetToolsDNSQueryPayload,
@@ -71,6 +72,16 @@ export class NetworkToolsService extends OpenFlareBaseService {
   ): Promise<NetToolsASNPrefixesResponse> {
     return this.get<NetToolsASNPrefixesResponse>(
       `/lookup/asn/${asn}/prefixes`,
+      query as Record<string, unknown>,
+    );
+  }
+
+  static async getASNUpstreamGraph(
+    asn: number,
+    query: { prefix?: string; refresh?: boolean } = {},
+  ): Promise<NetToolsASNUpstreamGraphResponse> {
+    return this.get<NetToolsASNUpstreamGraphResponse>(
+      `/lookup/asn/${asn}/upstream-graph`,
       query as Record<string, unknown>,
     );
   }

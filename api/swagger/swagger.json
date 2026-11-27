@@ -11721,6 +11721,88 @@
                 }
             }
         },
+        "/api/v1/d/network-tools/lookup/asn/{asn}/upstream-graph": {
+            "get": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "基于本地 CAIDA、RIPEstat Looking Glass/Neighbours 与实测路径构建 Origins -\u003e Upstreams -\u003e Tier 1 ISPs 分层上游拓扑图",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-network-tools"
+                ],
+                "summary": "ASN 上游路由接线图查询",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ASN 编号",
+                        "name": "asn",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "采样前缀（可选，默认选用可见度最高的公告前缀）",
+                        "name": "prefix",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否忽略缓存强制刷新",
+                        "name": "refresh",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ASN 上游路由拓扑图",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_nettools.ASNUpstreamGraphResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/network-tools/lookup/ip": {
             "get": {
                 "security": [
@@ -27303,6 +27385,44 @@
                 }
             }
         },
+        "apps_openflare_nettools.ASNUpstreamGraphResponse": {
+            "type": "object",
+            "properties": {
+                "attribution": {
+                    "type": "string"
+                },
+                "cached": {
+                    "type": "boolean"
+                },
+                "data_source": {
+                    "type": "string"
+                },
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_nettools.ASUpstreamEdge"
+                    }
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apps_openflare_nettools.ASUpstreamNode"
+                    }
+                },
+                "origin_asn": {
+                    "type": "integer"
+                },
+                "sampled_prefix": {
+                    "type": "string"
+                },
+                "total_paths_parsed": {
+                    "type": "integer"
+                }
+            }
+        },
         "apps_openflare_nettools.ASNeighborItem": {
             "type": "object",
             "properties": {
@@ -27389,6 +27509,67 @@
                 },
                 "target_asn_info": {
                     "$ref": "#/definitions/netintel.ASNInfo"
+                }
+            }
+        },
+        "apps_openflare_nettools.ASUpstreamEdge": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "observed_rtt_ms": {
+                    "type": "number"
+                },
+                "path_hits": {
+                    "type": "integer"
+                },
+                "sample_count": {
+                    "type": "integer"
+                },
+                "to": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apps_openflare_nettools.ASUpstreamNode": {
+            "type": "object",
+            "properties": {
+                "asn": {
+                    "type": "integer"
+                },
+                "class": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "is_tier1": {
+                    "type": "boolean"
+                },
+                "layer": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "path_hits": {
+                    "type": "integer"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "short_name": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

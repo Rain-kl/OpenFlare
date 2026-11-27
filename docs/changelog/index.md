@@ -22,7 +22,7 @@ sidebar: false
 ### ✨ 新功能
 
 - 新增 **网络情报与网络工具** 基础设施（为后续智能 DNS 调度提供测量与拓扑底座）：
-  - 在控制面「网络工具」分组上线 **多点 Ping / TCPing**、**多点路由追踪（Traceroute）**、**ASN 与 IP 情报查询**、**DNS 与 EDNS0 ECS 诊断查询** 以及 **网络质量矩阵与情报数据集状态** 五个控制台页面。
+  - 在控制面「网络工具」分组上线 **多点 Ping / TCPing**、**多点路由追踪（Traceroute）**、**ASN 与 IP 情报查询**（含 `Origins → Upstreams → Tier 1 ISPs` 上游路由接线拓扑图）、**DNS 与 EDNS0 ECS 诊断查询** 以及 **网络质量矩阵与情报数据集状态** 五个控制台页面。
   - Edge 边缘端将主动网络探测隔离至独立子进程 `openflare-edge probe-worker` 执行（集成 `trippy-core` 多轮路由追踪、复用 `openflare-probe` 批量 Ping/TCPing 与 EDNS0 ECS DNS 探针，并与反向代理主线程及进程崩溃完全隔离）；同步在 `Dockerfile.edge`（`cap_net_raw+p`）、`docker-compose.yaml`、控制台 Docker 部署命令（`--cap-add=NET_RAW`）、`install-openflare-edge.sh`/`update-openflare-edge.sh` 与探测子进程能力提升链路中完整保障 `CAP_NET_RAW` 权限。
   - Edge 访问日志链路在有界队列富余时轻量采集内核 `TCP_INFO`（RTT/MinRTT/重传）与 TLS 握手耗时；服务端结合 `bgp.tools` 与 GeoIP 数据库无锁识别访客 `client_asn`，通过 1 分钟有界分桶及 6 小时衰减融合任务（`of_netquality_rollup`）生成 `节点 × 访客 ASN` 网络质量矩阵与 `of_as_topology_edges` AS 拓扑边表。
   - 新增构建与定时增量同步任务 `of_netintel_sync`（支持 GeoLite2/sapics 与 `bgp.tools`，默认关闭 CAIDA 并仅在运行期配置 `netintel_caida_enabled=true` 时按需拉取）。

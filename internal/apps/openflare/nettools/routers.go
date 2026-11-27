@@ -6,6 +6,7 @@ package nettools
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
@@ -197,6 +198,34 @@ func LookupASNHandler(c *gin.Context) {
 		return
 	}
 	res, err := LookupASN(c.Request.Context(), asn)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// GetASNUpstreamGraphHandler returns the layered upstream routing connectivity DAG for an ASN.
+// @Summary ASN 上游路由接线图查询
+// @Description 基于本地 CAIDA、RIPEstat Looking Glass/Neighbours 与实测路径构建 Origins -> Upstreams -> Tier 1 ISPs 分层上游拓扑图
+// @Tags openflare-network-tools
+// @Produce json
+// @Security SessionCookie
+// @Param asn path int true "ASN 编号"
+// @Param prefix query string false "采样前缀（可选，默认选用可见度最高的公告前缀）"
+// @Param refresh query bool false "是否忽略缓存强制刷新"
+// @Success 200 {object} response.Any{data=nettools.ASNUpstreamGraphResponse} "ASN 上游路由拓扑图"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/lookup/asn/{asn}/upstream-graph [get]
+func GetASNUpstreamGraphHandler(c *gin.Context) {
+	asn, ok := parseASNParam(c)
+	if !ok {
+		return
+	}
+	forceRefresh := strings.EqualFold(c.Query("refresh"), "true") || c.Query("refresh") == "1"
+	res, err := GetASNUpstreamGraph(c.Request.Context(), asn, c.Query("prefix"), forceRefresh)
 	if httpx.AbortBadRequestOnError(c, err) {
 		return
 	}

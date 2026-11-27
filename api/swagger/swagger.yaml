@@ -2081,6 +2081,31 @@ definitions:
       total:
         type: integer
     type: object
+  apps_openflare_nettools.ASNUpstreamGraphResponse:
+    properties:
+      attribution:
+        type: string
+      cached:
+        type: boolean
+      data_source:
+        type: string
+      edges:
+        items:
+          $ref: '#/definitions/apps_openflare_nettools.ASUpstreamEdge'
+        type: array
+      generated_at:
+        type: string
+      nodes:
+        items:
+          $ref: '#/definitions/apps_openflare_nettools.ASUpstreamNode'
+        type: array
+      origin_asn:
+        type: integer
+      sampled_prefix:
+        type: string
+      total_paths_parsed:
+        type: integer
+    type: object
   apps_openflare_nettools.ASNeighborItem:
     properties:
       observed_rtt_ms:
@@ -2138,6 +2163,46 @@ definitions:
         type: integer
       target_asn_info:
         $ref: '#/definitions/netintel.ASNInfo'
+    type: object
+  apps_openflare_nettools.ASUpstreamEdge:
+    properties:
+      from:
+        type: integer
+      kind:
+        type: string
+      observed_rtt_ms:
+        type: number
+      path_hits:
+        type: integer
+      sample_count:
+        type: integer
+      to:
+        type: integer
+    type: object
+  apps_openflare_nettools.ASUpstreamNode:
+    properties:
+      asn:
+        type: integer
+      class:
+        type: string
+      country:
+        type: string
+      is_tier1:
+        type: boolean
+      layer:
+        type: integer
+      name:
+        type: string
+      path_hits:
+        type: integer
+      role:
+        type: string
+      short_name:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
     type: object
   apps_openflare_nettools.DNSQueryInput:
     properties:
@@ -15117,6 +15182,57 @@ paths:
       security:
       - SessionCookie: []
       summary: 分页列出 ASN 宣告的 BGP 前缀
+      tags:
+      - openflare-network-tools
+  /api/v1/d/network-tools/lookup/asn/{asn}/upstream-graph:
+    get:
+      description: 基于本地 CAIDA、RIPEstat Looking Glass/Neighbours 与实测路径构建 Origins ->
+        Upstreams -> Tier 1 ISPs 分层上游拓扑图
+      parameters:
+      - description: ASN 编号
+        in: path
+        name: asn
+        required: true
+        type: integer
+      - description: 采样前缀（可选，默认选用可见度最高的公告前缀）
+        in: query
+        name: prefix
+        type: string
+      - description: 是否忽略缓存强制刷新
+        in: query
+        name: refresh
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ASN 上游路由拓扑图
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+            - properties:
+                data:
+                  $ref: '#/definitions/apps_openflare_nettools.ASNUpstreamGraphResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "404":
+          description: 无权限或不存在
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+        "500":
+          description: 内部错误
+          schema:
+            $ref: '#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any'
+      security:
+      - SessionCookie: []
+      summary: ASN 上游路由接线图查询
       tags:
       - openflare-network-tools
   /api/v1/d/network-tools/lookup/ip:

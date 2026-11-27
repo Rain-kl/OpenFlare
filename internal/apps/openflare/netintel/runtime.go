@@ -181,6 +181,11 @@ func EstimateASPath(srcASN, dstASN uint32, observedAdj map[uint32][]uint32) (int
 	return currentManager().EstimateASPath(srcASN, dstASN, observedAdj)
 }
 
+// LookupASUpstreamPaths extracts bounded CAIDA upstream paths from originASN toward Tier 1 ISPs.
+func LookupASUpstreamPaths(originASN uint32, maxDepth, maxDirect int) [][]uint32 {
+	return currentManager().LookupASUpstreamPaths(originASN, maxDepth, maxDirect)
+}
+
 // Statuses returns status metadata for every tracked dataset file.
 func Statuses() []pkgnetintel.DatasetFileStatus {
 	return currentManager().Statuses()

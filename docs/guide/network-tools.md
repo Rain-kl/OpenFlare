@@ -30,7 +30,7 @@ OpenFlare「网络工具」子系统提供控制平面与多边缘节点协同�
 | :--- | :--- |
 | `/network-tools/ping` | **多点 Ping / TCPing**：向指定或全部在线边缘节点并发下发批量 ICMP、TCPing 或 HTTP 探测，汇总各节点的最小/平均/P95 延迟、抖动、丢包率及逐包明细。 |
 | `/network-tools/traceroute` | **路由追踪（Traceroute）**：支持 ICMP、UDP 与 TCP 模式的多轮次路径探测，逐跳自动标注地理位置、ASN、组织名称与 `bgp.tools` 标签，并记录历史与观测到的 AS 跳边（`of_as_topology_edges`）。 |
-| `/network-tools/asn` | **ASN 情报查询**：输入任意公网 IP、域名或 AS 编号（如 `AS13335`），查看地理位置、最长匹配 BGP 前缀、IPv4/IPv6 宣告前缀分页、AS 邻接关系与多边缘节点到达目标 AS 的路径对比。 |
+| `/network-tools/asn` | **ASN 情报查询**：输入任意公网 IP、域名或 AS 编号（如 `AS13335`），查看地理位置、最长匹配 BGP 前缀、IPv4/IPv6 宣告前缀分页、**上游路由接线拓扑图**（展示 `Origins → Upstreams → Tier 1 ISPs` 分层上游与骨干连接，支持下钻跳转与导出 SVG）、AS 邻接关系与多边缘节点到达目标 AS 的路径对比。 |
 | `/network-tools/dns` | **DNS 诊断查询**：支持控制平面直查与多边缘节点并发探测，可指定解析器与 EDNS0 客户端子网（ECS）CIDR 模拟不同访客区域的权威返回，并自动富化应答 IP 的 ASN 与地区归属。 |
 | `/network-tools/quality` | **网络质量矩阵**：以 6 小时指数衰减窗口融合被动 TCP RTT 与主动路由追踪样本（并在缺失实测链路时按 AS 路径先验生成预测项），并支持查看情报数据库状态与一键触发同步（Data powered by [bgp.tools](https://bgp.tools)）。 |
 

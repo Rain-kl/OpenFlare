@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { GitFork, Loader2, Network, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -33,6 +33,7 @@ import type {
 import { NetworkToolsService } from '@/lib/services/openflare';
 
 import { formatNetToolsMs, getNetToolsErrorMessage } from '../shared/utils';
+import { UpstreamRoutingGraph } from './components/upstream-routing-graph';
 
 type QueryState =
   | { kind: 'asn'; asn: number }
@@ -54,6 +55,7 @@ function parseAsnOrIpQuery(raw: string): QueryState {
 
 export function NetworkToolsAsnPageClient() {
   const t = useTranslations('networkTools');
+  const queryClient = useQueryClient();
 
   const [input, setInput] = useState('');
   const [submitted, setSubmitted] = useState<QueryState>(null);
@@ -137,6 +139,47 @@ export function NetworkToolsAsnPageClient() {
       : ipQuery.data?.neighbors) ?? [];
   const primaryIp =
     submitted?.kind === 'ip' ? ipQuery.data?.primary : undefined;
+  const upstreamQueryKey = useMemo(
+    () =>
+      [
+        'openflare',
+        'network-tools',
+        'asn-upstream-graph',
+        resolvedAsn,
+        primaryIp?.prefix ?? '',
+      ] as const,
+    [resolvedAsn, primaryIp?.prefix],
+  );
+
+  const upstreamGraphQuery = useQuery({
+    queryKey: upstreamQueryKey,
+    queryFn: () =>
+      NetworkToolsService.getASNUpstreamGraph(resolvedAsn, {
+        prefix: primaryIp?.prefix || undefined,
+      }),
+    enabled: resolvedAsn > 0,
+  });
+
+  const refreshUpstreamMutation = useMutation({
+    mutationFn: () =>
+      NetworkToolsService.getASNUpstreamGraph(resolvedAsn, {
+        prefix: primaryIp?.prefix || undefined,
+        refresh: true,
+      }),
+    onSuccess: (fresh) => {
+      queryClient.setQueryData(upstreamQueryKey, fresh);
+    },
+    onError: (err) =>
+      toast.error(getNetToolsErrorMessage(err, t('common.error'))),
+  });
+
+  const handleSelectUpstreamAsn = (asn: number) => {
+    setInput(`AS${asn}`);
+    setPrefixPage(1);
+    setSubmitted({ kind: 'asn', asn });
+    pathMutation.reset();
+  };
+
   const isSearching = ipQuery.isFetching || asnDirectQuery.isFetching;
   const searchError = ipQuery.error || asnDirectQuery.error;
   const totalPrefixPages = Math.max(
@@ -295,6 +338,19 @@ export function NetworkToolsAsnPageClient() {
               ) : null}
             </CardContent>
           </Card>
+
+          {resolvedAsn > 0 ? (
+            <UpstreamRoutingGraph
+              data={upstreamGraphQuery.data}
+              isLoading={upstreamGraphQuery.isLoading}
+              isFetching={
+                upstreamGraphQuery.isFetching ||
+                refreshUpstreamMutation.isPending
+              }
+              onRefresh={() => refreshUpstreamMutation.mutate()}
+              onSelectAsn={handleSelectUpstreamAsn}
+            />
+          ) : null}
 
           {pathMutation.data ? (
             <Card>

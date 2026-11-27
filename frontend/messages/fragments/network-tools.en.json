@@ -144,6 +144,31 @@
         "peer": "Peer",
         "observed": "Traceroute Observed"
       },
+      "upstreamGraph": {
+        "title": "Upstream Routing Connectivity Graph",
+        "subtitle": "Displays the layered upstream transit wiring from the origin ASN toward Tier 1 ISPs.",
+        "loading": "Building upstream routing graph...",
+        "empty": "No upstream routing connectivity data is currently available for this ASN.",
+        "refresh": "Refresh",
+        "exportSvg": "Export SVG",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "pathCount": "{count} routing paths parsed",
+        "edgeHits": "{count} observed paths",
+        "clickHint": "Select any upstream or Tier 1 node to inspect its ASN details.",
+        "groups": {
+          "origins": "Origins",
+          "upstreams": "Upstreams",
+          "tier1": "Tier 1 ISPs"
+        },
+        "sources": {
+          "caida": "CAIDA Topology",
+          "ripestat_lg": "RIPEstat Looking Glass",
+          "ripestat_neighbours": "RIPEstat Neighbours",
+          "observed": "Observed Traceroute",
+          "none": "No Data Source"
+        }
+      },
       "emptyState": "Enter a public IP address, hostname, or ASN to inspect network intelligence."
     },
     "dns": {
