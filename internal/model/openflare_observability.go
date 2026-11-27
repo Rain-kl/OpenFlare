@@ -132,21 +132,6 @@ func (OpenFlareNodeSystemProfile) TableName() string {
 	return "of_node_system_profiles"
 }
 
-// OpenFlareEdgeHealth is L2 OpenResty health (of_node_edge_health).
-type OpenFlareEdgeHealth struct {
-	ID          uint      `json:"id"`
-	NodeID      string    `json:"node_id"`
-	CapturedAt  time.Time `json:"captured_at"`
-	Status      string    `json:"status"`
-	Connections int64     `json:"connections"`
-	CreatedAt   time.Time `json:"created_at"`
-}
-
-// TableName returns the ClickHouse table name.
-func (OpenFlareEdgeHealth) TableName() string {
-	return "of_node_edge_health"
-}
-
 // OpenFlareAccessLogQuery filters access log list queries.
 type OpenFlareAccessLogQuery struct {
 	ID              uint64

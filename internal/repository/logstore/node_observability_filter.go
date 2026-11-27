@@ -67,10 +67,6 @@ func chNodeMetricSnapshotTableName() string {
 	return "of_node_metric_snapshots"
 }
 
-func chNodeEdgeHealthTableName() string {
-	return "of_node_edge_health"
-}
-
 func chNodePingRecordTableName() string {
 	return "of_node_ping_records"
 }

@@ -58,15 +58,6 @@ func InsertOpenFlareMetricSnapshot(ctx context.Context, record *model.OpenFlareM
 	return s.Observability.InsertMetricSnapshot(ctx, record)
 }
 
-// InsertOpenFlareEdgeHealth inserts an L2 edge health snapshot into ClickHouse.
-func InsertOpenFlareEdgeHealth(ctx context.Context, record *model.OpenFlareEdgeHealth) error {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return err
-	}
-	return s.Observability.InsertEdgeHealth(ctx, record)
-}
-
 // ListOpenFlareMetricSnapshotsSince returns metric snapshots since the given time.
 func ListOpenFlareMetricSnapshotsSince(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareMetricSnapshot, error) {
 	s, err := logstore.Active(ctx)
@@ -243,24 +234,6 @@ func DeleteAllOpenFlareMetricSnapshots(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return s.Observability.DeleteAllMetricSnapshots(ctx)
-}
-
-// DeleteOpenFlareEdgeHealthBefore deletes edge health rows captured before cutoff.
-func DeleteOpenFlareEdgeHealthBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return s.Observability.DeleteEdgeHealthBefore(ctx, cutoff)
-}
-
-// DeleteAllOpenFlareEdgeHealth deletes all edge health snapshots.
-func DeleteAllOpenFlareEdgeHealth(ctx context.Context) (int64, error) {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return s.Observability.DeleteAllEdgeHealth(ctx)
 }
 
 // DeleteOpenFlareHealthEventsByNodeID deletes all health events for a node.
@@ -545,13 +518,4 @@ func marshalOpenFlareHealthMetadata(value map[string]string) string {
 		return ""
 	}
 	return string(raw)
-}
-
-// ListOpenFlareEdgeHealth returns L2 edge health snapshots.
-func ListOpenFlareEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareEdgeHealth, error) {
-	s, err := logstore.Active(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return s.Observability.ListEdgeHealth(ctx, nodeID, since, limit)
 }

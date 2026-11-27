@@ -334,19 +334,14 @@ func TestGormObservabilityInsertList(t *testing.T) {
 
 	s := newTestGormStoreWithModels(t,
 		&analyticsmodel.NodeMetricSnapshot{},
-		&analyticsmodel.NodeEdgeHealth{},
 	)
 	ctx := context.Background()
 	now := time.Now()
 
-	// 写入入口：hook 入队（metric/edge hook 均触发），不直接落库。
-	var (
-		hookedMetric *analyticsmodel.NodeMetricSnapshot
-		hookedEdge   *analyticsmodel.NodeEdgeHealth
-	)
+	// 写入入口：hook 入队，不直接落库。
+	var hookedMetric *analyticsmodel.NodeMetricSnapshot
 	SetObservabilityHooks(ObservabilityHooks{
 		QueueMetricSnapshot: func(row analyticsmodel.NodeMetricSnapshot) { hookedMetric = &row },
-		QueueEdgeHealth:     func(row analyticsmodel.NodeEdgeHealth) { hookedEdge = &row },
 	})
 	metricRec := &model.OpenFlareMetricSnapshot{ID: 99, NodeID: "n1", CapturedAt: now, CPUUsagePercent: 12.5, MemoryUsedBytes: 1024}
 	if err := s.InsertMetricSnapshot(ctx, metricRec); err != nil {
@@ -355,23 +350,11 @@ func TestGormObservabilityInsertList(t *testing.T) {
 	if hookedMetric == nil || hookedMetric.NodeID != "n1" || hookedMetric.CPUUsagePercent != 12.5 || hookedMetric.ID != 99 {
 		t.Fatalf("metric hook not fired with converted row: %+v", hookedMetric)
 	}
-	edgeRec := &model.OpenFlareEdgeHealth{ID: 98, NodeID: "n1", CapturedAt: now, Status: "healthy", Connections: 5}
-	if err := s.InsertEdgeHealth(ctx, edgeRec); err != nil {
-		t.Fatalf("insert edge entry: %v", err)
-	}
-	if hookedEdge == nil || hookedEdge.ID != 98 || hookedEdge.Status != "healthy" || hookedEdge.Connections != 5 {
-		t.Fatalf("edge hook not fired with converted row: %+v", hookedEdge)
-	}
-	// 两个入口均只入队、不落库。
+	// 写入入口只入队、不落库。
 	if rows, err := s.ListMetricSnapshots(ctx, "n1", now.Add(-time.Hour), 10); err != nil {
 		t.Fatalf("list metrics after entry insert: %v", err)
 	} else if len(rows) != 0 {
 		t.Fatalf("metric entry insert must not write rows, got %d", len(rows))
-	}
-	if rows, err := s.ListEdgeHealth(ctx, "n1", now.Add(-time.Hour), 10); err != nil {
-		t.Fatalf("list edge after entry insert: %v", err)
-	} else if len(rows) != 0 {
-		t.Fatalf("edge entry insert must not write rows, got %d", len(rows))
 	}
 	SetObservabilityHooks(ObservabilityHooks{})
 
@@ -417,30 +400,6 @@ func TestGormObservabilityInsertList(t *testing.T) {
 	}
 	if len(left) != 0 {
 		t.Fatalf("metrics should be empty after delete, got %d", len(left))
-	}
-
-	// edge health：flush + 查询 + 迁移分页 + 删除。
-	if err := s.BatchInsertNodeEdgeHealth(ctx, []analyticsmodel.NodeEdgeHealth{
-		{ID: 1, NodeID: "n1", CapturedAt: now, Status: "healthy", Connections: 3},
-	}); err != nil {
-		t.Fatalf("flush edge health: %v", err)
-	}
-	edges, err := s.ListEdgeHealth(ctx, "n1", now.Add(-time.Hour), 10)
-	if err != nil {
-		t.Fatalf("list edge health: %v", err)
-	}
-	if len(edges) != 1 || edges[0].Status != "healthy" || edges[0].Connections != 3 {
-		t.Fatalf("edge health list mismatch: %+v", edges)
-	}
-	edgeMig, err := s.ListEdgeHealthForMigration(ctx, 0, 10)
-	if err != nil {
-		t.Fatalf("edge migration list: %v", err)
-	}
-	if len(edgeMig) != 1 {
-		t.Fatalf("edge migration want 1, got %d", len(edgeMig))
-	}
-	if _, err := s.DeleteAllEdgeHealth(ctx); err != nil {
-		t.Fatalf("delete all edge health: %v", err)
 	}
 }
 
@@ -1048,7 +1007,6 @@ func TestGormWriteMethodsFreezeDuringMigration(t *testing.T) {
 	s := newTestGormStoreWithModels(t,
 		&analyticsmodel.NodeAccessLog{},
 		&analyticsmodel.NodeMetricSnapshot{},
-		&analyticsmodel.NodeEdgeHealth{},
 		&analyticsmodel.UserAccessLog{},
 	)
 	ua := newUserAccessLogGormStore(s.db)
@@ -1071,19 +1029,11 @@ func TestGormWriteMethodsFreezeDuringMigration(t *testing.T) {
 		{"InsertMetricSnapshot", func() error {
 			return s.InsertMetricSnapshot(ctx, &model.OpenFlareMetricSnapshot{NodeID: "n1", CapturedAt: now})
 		}},
-		{"InsertEdgeHealth", func() error {
-			return s.InsertEdgeHealth(ctx, &model.OpenFlareEdgeHealth{NodeID: "n1", CapturedAt: now})
-		}},
 		{"BatchInsertNodeMetricSnapshots", func() error {
 			return s.BatchInsertNodeMetricSnapshots(ctx, []analyticsmodel.NodeMetricSnapshot{{NodeID: "n1", CapturedAt: now}})
 		}},
-		{"BatchInsertNodeEdgeHealth", func() error {
-			return s.BatchInsertNodeEdgeHealth(ctx, []analyticsmodel.NodeEdgeHealth{{NodeID: "n1", CapturedAt: now}})
-		}},
 		{"DeleteAllMetricSnapshots", func() error { _, err := s.DeleteAllMetricSnapshots(ctx); return err }},
 		{"DeleteMetricSnapshotsBefore", func() error { _, err := s.DeleteMetricSnapshotsBefore(ctx, now); return err }},
-		{"DeleteAllEdgeHealth", func() error { _, err := s.DeleteAllEdgeHealth(ctx); return err }},
-		{"DeleteEdgeHealthBefore", func() error { _, err := s.DeleteEdgeHealthBefore(ctx, now); return err }},
 		{"UserAccessLogBatchInsert", func() error { return ua.BatchInsert(ctx, []analyticsmodel.UserAccessLog{{UserID: 1, CreatedAt: now}}) }},
 	}
 	for _, tc := range cases {

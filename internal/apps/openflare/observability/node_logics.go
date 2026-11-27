@@ -116,10 +116,6 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 		return nil, err
 	}
 	snapshots := downsampleMetricSnapshots(rawSnapshots, since, now, limit)
-	edgeHealth, err := repository.ListOpenFlareEdgeHealth(ctx, node.NodeID, since, limit)
-	if err != nil {
-		return nil, err
-	}
 	accessLogRegions, err := repository.ListOpenFlareAccessLogRegionCounts(ctx, node.NodeID, since, defaultTrafficDistributionLimit)
 	if err != nil {
 		return nil, err
@@ -135,7 +131,7 @@ func GetNodeObservability(ctx context.Context, id uint, query NodeQuery) (*NodeV
 	view := &NodeView{
 		NodeID:          node.NodeID,
 		Profile:         profile,
-		MetricSnapshots: BuildMetricSnapshotViews(snapshots, edgeHealth),
+		MetricSnapshots: BuildMetricSnapshotViews(snapshots, node.OpenrestyConnections),
 		HealthEvents:    events,
 		Analytics: NodeAnalytics{
 			Traffic:       trafficSummary,

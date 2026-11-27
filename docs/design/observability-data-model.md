@@ -32,22 +32,22 @@
          (L1 明细)       (L3 读数)       (L2 瞬时)
               │               │               │
               ▼               ▼               ▼
-     of_node_access_logs  of_node_metric_  of_node_edge_health
-              │           snapshots              │
-              │               │                  │
-              ▼               ▼                  │
-     of_access_log_hourly  of_node_metric_       │
-     (MV, Server 侧)       capacity_hourly (MV)  │
-              │               │                  │
+     of_node_access_logs  of_node_metric_  of_nodes (PG/SQLite)
+              │           snapshots        openresty_status / message / connections
+              │               │
+              ▼               ▼
+     of_access_log_hourly  of_node_metric_
+     (MV, Server 侧)       capacity_hourly (MV)
+              │               │
               └─────── 管理端聚合 API ───────────┘
 
-关系库 (PostgreSQL/SQLite)：节点最新状态、Profile、健康事件（非明细湖）
+关系库 (PostgreSQL/SQLite)：节点最新状态（含 openresty_connections）、Profile、健康事件（非明细湖）
 ```
 
-| 层 | 含义 | Agent 上报块 | ClickHouse 事实表 |
+| 层 | 含义 | Agent 上报块 | 存储表 |
 | --- | --- | --- | --- |
 | L1 | 业务交付 | `access_logs` | `of_node_access_logs` |
-| L2 | 边缘健康 | `edge_health` | `of_node_edge_health` |
+| L2 | 边缘健康 | `edge_health` | `of_nodes`（`openresty_status` / `openresty_message` / `openresty_connections`） |
 | L3 | 宿主机资源（`openflare-probe`） | `host_metrics` | `of_node_metric_snapshots` |
 | L4 | 网络延迟探测（`openflare-probe`） | WebSocket `ping_result` / `POST /api/v1/agent/ping/result` | `of_node_ping_records` |
 
@@ -94,7 +94,7 @@
 | `openresty_message` | string | | **最新健康说明权威字段** → 写 PG 节点表（**不进 CH**） |
 | `profile` | object | | 主机概况，变化时上报（可节流） |
 | `host_metrics` | object | 建议每拍 | L3 资源快照 |
-| `edge_health` | object | 建议每拍 | L2 连接时序 + 与顶层一致的 status |
+| `edge_health` | object | 建议每拍 | L2 连接数与健康状态（写入节点表最新态） |
 | `access_logs` | array | | 本拍增量访问明细 |
 | `buffered` | array | | 离线补传的事实批次（见 §3.6） |
 | `health_events` | array | | 边缘健康事件 |
@@ -180,18 +180,17 @@
 | 字段 | 类型 | 语义 |
 | --- | --- | --- |
 | `status` | string | `healthy` / `unhealthy` / `unknown`（须与顶层 `openresty_status` 一致） |
-| `message` | string | 状态说明（上报可带；**仅用于回填 PG 最新态，不进 CH**） |
-| `connections` | int64 | stub_status Active connections |
+| `message` | string | 状态说明（上报可带；仅写 PG/SQLite 节点表最新态） |
+| `connections` | int64 | stub_status Active connections（写入节点表 `openresty_connections`） |
 
 #### 健康状态权威源（收敛）
 
 | 数据 | 权威存储 | 说明 |
 | --- | --- | --- |
-| **当前** OpenResty 是否健康 + 说明文案 | **PG 节点表** `openresty_status` / `openresty_message` | UI 徽章、列表、告警以这里为准 |
-| **时序** 健康 status + 连接数 | **CH** `of_node_edge_health`（`status`, `connections`） | 连接曲线 / 健康状态历史；**无 message 列** |
-| Agent 上报 | 顶层 status/message + `edge_health` | Server 归一化后二者 status 对齐；message **只写 PG** |
+| **当前** OpenResty 是否健康、说明文案及连接数 | **关系库节点表** `openresty_status` / `openresty_message` / `openresty_connections` | UI 徽章、列表、告警、节点快照连接数均以这里为准 |
+| Agent 上报 | 顶层 status/message + `edge_health` | Server 归一化后统一写入节点表；已移除 `of_node_edge_health` 时序表 |
 
-因此：查「现在是否 unhealthy」→ 读 PG；查「过去 24h 连接数」→ 读 CH。
+因此：查「现在是否 unhealthy」或「当前连接数」均直接读主库 `of_nodes`（旧版 `of_node_edge_health` 时序表已移除）。
 ### 3.5 `access_logs[]` — 访问明细（L1，业务唯一事实）
 
 Agent：tail access.log → 解析 JSON 行 → 原样字段上报（可截断 path）。
@@ -395,7 +394,7 @@ type BufferedFacts struct {
        buffered ← buffered_observability
    - path 再截断、status 范围钳制、负数字节 → 0
 3. 关系库事务（节点最新态）
-   - 更新 node 在线时间、IP、版本、edge_health.status/message
+   - 更新 node 在线时间、IP、版本、`openresty_status`、`openresty_message`、`openresty_connections`
    - upsert profile（若有）
    - insert health_events（若有）
 4. ClickHouse 异步 batch（失败记日志，不阻断心跳响应的配置下发）
@@ -405,8 +404,6 @@ type BufferedFacts struct {
         → BatchInsert of_node_access_logs
    b. host_metrics + buffered[].host_metrics
         → of_node_metric_snapshots
-   c. edge_health + buffered[].edge_health
-        → of_node_edge_health（仅 connections + status 快照可选）
 5. 返回心跳响应（settings / active_config / waf 差分）
 6. 若使用 buffer ack：按 buffered.captured_at_unix 列表确认
 ```
@@ -428,7 +425,7 @@ type BufferedFacts struct {
 | --- | --- | --- |
 | `access_logs[]` | CH `of_node_access_logs` | 见 §5.1 |
 | `host_metrics` | CH `of_node_metric_snapshots` | 见 §5.2 |
-| `edge_health` | CH `of_node_edge_health` + PG node 最新状态 | 见 §5.3 / §5.6 |
+| `edge_health` | 关系库 `of_nodes` 最新状态（`openresty_status` / `openresty_message` / `openresty_connections`） | 见 §5.6 |
 | `profile` | PG `of_node_system_profiles` | 现有列 |
 | `health_events` | PG 健康事件表 | 现有模型 |
 | `waf_ip_group_checksums` | 不落观测表 | 同步逻辑 |
@@ -446,7 +443,7 @@ type BufferedFacts struct {
 | 5xx | `countIf(status_code >= 500)` |
 | 按域名/状态码/地区 | `GROUP BY host / status_code / region` |
 | 宿主机网卡出站 | 对 `network_tx_bytes` 按 node 时间序非负差分后 sum |
-| OpenResty 连接 | `of_node_edge_health.connections` 最新或平均 |
+| OpenResty 连接 | `of_nodes.openresty_connections` 最新值 |
 
 ---
 
@@ -594,39 +591,16 @@ SETTINGS index_granularity = 8192;
 * `network_tx_max - network_tx_min` ≈ 该小时宿主机出站  
 * **不得** 用于「已提供数据」
 
-### 5.5 L2 事实表：`of_node_edge_health`（新建，替换吞吐型 openresty 表）
+### 5.5 L2 事实表：`of_node_edge_health`（已移除）
 
-```sql
-CREATE TABLE IF NOT EXISTS of_node_edge_health
-(
-    id           UInt64,
-    node_id      String,
-    captured_at  DateTime64(3, 'UTC'),
-    status       LowCardinality(String),  -- healthy / unhealthy / unknown
-    connections  Int64,
-    created_at   DateTime64(3, 'UTC')
-)
-ENGINE = MergeTree()
-PARTITION BY toYYYYMM(captured_at)
-ORDER BY (node_id, captured_at, id)
-TTL toDateTime(captured_at) + INTERVAL 30 DAY
-SETTINGS index_granularity = 8192;
-```
-
-| 列 | 说明 |
-| --- | --- |
-| `status` | 瞬时健康（与 PG 当前态同源；用于时序，非唯一 UI 权威） |
-| `connections` | 当前连接数 |
-
-**无** `message` 列（说明文案仅 PG 最新态）。  
-**无** `openresty_rx_bytes` / `openresty_tx_bytes`。
+该表已从 PostgreSQL / SQLite / ClickHouse 移除；`edge_health.status`、`edge_health.message` 与 `edge_health.connections` 直接写入主库 `of_nodes` 最新状态列，不再保留逐心跳历史时序。
 ### 5.6 关系库（节点最新态，非分析湖）
 
 与观测湖分离，保持「最新一份」：
 
 | 表（逻辑名） | 用途 | 关键列 |
 | --- | --- | --- |
-| `of_nodes`（或现节点表） | 在线、版本、IP | `last_seen_at`, `openresty_status`, `openresty_message`, `agent_version` |
+| `of_nodes`（或现节点表） | 在线、版本、IP、连接数 | `last_seen_at`, `openresty_status`, `openresty_message`, `openresty_connections`, `agent_version` |
 | `of_node_system_profiles` | profile upsert | hostname, cpu_cores, total_memory_bytes, ... |
 | 健康事件表 | `health_events` | event_type, severity, message, triggered_at |
 
@@ -638,7 +612,7 @@ SETTINGS index_granularity = 8192;
 | --- | --- | --- |
 | `of_node_request_reports` | Agent 预聚合 | `of_node_access_logs` + hourly |
 | `of_node_traffic_hourly` + MV | 依赖 request_reports | `of_access_log_hourly` |
-| `of_node_obs_openresty` | 含业务 rx/tx | `of_node_edge_health` |
+| `of_node_obs_openresty` | 含业务 rx/tx | `of_nodes` + `of_node_access_logs` |
 | `of_node_openresty_hourly` + MV | 业务吞吐差分 | `of_access_log_hourly` 的 bytes_* |
 
 Relay 专用 `of_node_obs_frps` / `of_node_obs_frpc` **保留**（非本 Agent 主路径，但同属 CH 观测）。
@@ -660,8 +634,8 @@ Relay 专用 `of_node_obs_frps` / `of_node_obs_frpc` **保留**（非本 Agent �
 | 宿主机网卡入站 | `network_rx_bytes` | 同左 | 差分 |
 | 磁盘读/写 | `disk_*_bytes` | 同左 | 差分 |
 | CPU/内存 | 瞬时字段 | 同左 | avg |
-| OpenResty 连接 | `edge_health.connections` | `of_node_edge_health.connections` | 最新/avg |
-| OpenResty 健康 | `edge_health.status` | 节点表 + 可选 CH | 最新 |
+| OpenResty 连接 | `edge_health.connections` | `of_nodes.openresty_connections` | 最新值 |
+| OpenResty 健康 | `edge_health.status` | `of_nodes.openresty_status` | 最新值 |
 
 **不再存在的映射：**
 
@@ -705,7 +679,7 @@ Agent 解析：
 | Agent 升级 | **销毁重建**优先；允许**二进制替换** |
 | 协议 | 仅 schema v2 字段；旧 JSON 字段不解析 |
 | 本地观测缓冲 | 若仍是旧格式（含 `snapshot` / `openresty_observation` / `traffic_report`）或损坏 → **整文件删除**，运行中重建 |
-| 读路径 | 业务 API **只读** access_logs（及 hourly）；健康当前态读 PG；连接时序读 CH edge_health |
+| 读路径 | 业务 API **只读** access_logs（及 hourly）；健康当前态与连接数读主库 `of_nodes` |
 | 旧 Agent | 必须升级；控制面不提供 v1 双读路径 |
 
 ---
@@ -752,11 +726,10 @@ Agent 解析：
 
 **写入：**
 
-1. PG 节点最新态：`openresty_status` / `openresty_message`（若上报）  
+1. PG 节点最新态：`openresty_status` / `openresty_message` / `openresty_connections=5`（若上报）  
 2. `of_node_metric_snapshots` 1 行（network_tx=2000 累计）  
-3. `of_node_edge_health` 1 行（status + connections=5；**无 message**）  
-4. `of_node_access_logs` 1 行（bytes_sent=500, request_length=80, region=Server 填充）  
-5. MV 异步计入 `of_access_log_hourly`  
+3. `of_node_access_logs` 1 行（bytes_sent=500, request_length=80, region=Server 填充）  
+4. MV 异步计入 `of_access_log_hourly`  
 
 **查询 24h 已提供数据：** `sum(bytes_sent)` → 至少 500（加历史）  
 **查询宿主机出站：** 对 snapshots 差分，与 500 **无强制相等关系**。

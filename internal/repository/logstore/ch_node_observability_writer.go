@@ -80,55 +80,6 @@ func (s *clickhouseLogStore) BatchInsertNodeMetricSnapshots(ctx context.Context,
 	})
 }
 
-// InsertEdgeHealth 写入入口：冻结检查 + 经 hook 入队（异步），不直接落库。
-func (s *clickhouseLogStore) InsertEdgeHealth(ctx context.Context, record *model.OpenFlareEdgeHealth) error {
-	if record == nil {
-		return nil
-	}
-	if err := s.ensureWritable(ctx); err != nil {
-		return err
-	}
-	if h := currentObservabilityHooks().QueueEdgeHealth; h != nil {
-		h(toAnalyticsNodeEdgeHealth(record))
-	}
-	return nil
-}
-
-// BatchInsertNodeEdgeHealth 是 batchwriter flush 目标：CH 原生批量写入。
-func (s *clickhouseLogStore) BatchInsertNodeEdgeHealth(ctx context.Context, rows []analyticsmodel.NodeEdgeHealth) error {
-	return chBatchInsert(ctx, s, analyticsmodel.NodeEdgeHealth{}.BatchInsertSQL(), len(rows), func(batch driver.Batch, now time.Time) error {
-		for _, row := range rows {
-			nodeID := strings.TrimSpace(row.NodeID)
-			if nodeID == "" {
-				continue
-			}
-			id := row.ID
-			if id == 0 {
-				id = idgen.NextUint64ID()
-			}
-			createdAt := row.CreatedAt
-			if createdAt.IsZero() {
-				createdAt = now
-			}
-			capturedAt := row.CapturedAt.UTC()
-			if capturedAt.IsZero() {
-				capturedAt = now
-			}
-			if err := batch.Append(
-				id,
-				nodeID,
-				capturedAt,
-				normalizeEdgeHealthStatus(row.Status),
-				row.Connections,
-				createdAt.UTC(),
-			); err != nil {
-				return fmt.Errorf("append node edge health to batch: %w", err)
-			}
-		}
-		return nil
-	})
-}
-
 // InsertPingRecord 写入入口：冻结检查 + 经 hook 入队（异步），不直接落库。
 func (s *clickhouseLogStore) InsertPingRecord(ctx context.Context, record *model.OpenFlarePingRecord) error {
 	if record == nil {

@@ -1283,78 +1283,10 @@ ORDER BY hour_epoch ASC`
 	return out, nil
 }
 
-// InsertEdgeHealth 写入入口：冻结检查 + 经 hook 入队（异步），不直接落库。
-func (s *gormLogStore) InsertEdgeHealth(ctx context.Context, record *model.OpenFlareEdgeHealth) error {
-	if record == nil {
-		return nil
-	}
-	if err := s.ensureWritable(ctx); err != nil {
-		return err
-	}
-	if h := currentObservabilityHooks().QueueEdgeHealth; h != nil {
-		h(toAnalyticsNodeEdgeHealth(record))
-	}
-	return nil
-}
-
-func (s *gormLogStore) ListEdgeHealth(ctx context.Context, nodeID string, since time.Time, limit int) ([]*model.OpenFlareEdgeHealth, error) {
-	var rows []analyticsmodel.NodeEdgeHealth
-	if err := nodeIDScope(s.db.WithContext(ctx), nodeID).Where("captured_at >= ?", since).
-		Order("captured_at DESC, id DESC").Limit(limitOr(limit, migrationPageSize)).Find(&rows).Error; err != nil {
-		return nil, err
-	}
-	return fromAnalyticsNodeEdgeHealths(rows), nil
-}
-
-func (s *gormLogStore) DeleteAllEdgeHealth(ctx context.Context) (int64, error) {
-	if err := s.ensureWritable(ctx); err != nil {
-		return 0, err
-	}
-	res := s.db.WithContext(ctx).Where("1 = 1").Delete(&analyticsmodel.NodeEdgeHealth{})
-	return res.RowsAffected, res.Error
-}
-
-func (s *gormLogStore) DeleteEdgeHealthBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	if err := s.ensureWritable(ctx); err != nil {
-		return 0, err
-	}
-	res := s.db.WithContext(ctx).Where("captured_at < ?", cutoff).Delete(&analyticsmodel.NodeEdgeHealth{})
-	return res.RowsAffected, res.Error
-}
-
-// BatchInsertNodeEdgeHealth 是 batchwriter flush 目标：GORM 分批落库。
-func (s *gormLogStore) BatchInsertNodeEdgeHealth(ctx context.Context, rows []analyticsmodel.NodeEdgeHealth) error {
-	if len(rows) == 0 {
-		return nil
-	}
-	if err := s.ensureWritable(ctx); err != nil {
-		return err
-	}
-	for i := range rows {
-		if rows[i].ID == 0 {
-			rows[i].ID = idgen.NextUint64ID()
-		}
-	}
-	return s.db.WithContext(ctx).CreateInBatches(rows, insertBatchSize).Error
-}
-
 // ListMetricSnapshotsForMigration 按 id 升序分页读取（迁移复制用）。
 func (s *gormLogStore) ListMetricSnapshotsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeMetricSnapshot, error) {
 	var rows []analyticsmodel.NodeMetricSnapshot
 	q := s.db.WithContext(ctx).Model(&analyticsmodel.NodeMetricSnapshot{}).
-		Where("id > ?", afterID).
-		Order("id ASC").
-		Limit(limitOr(limit, migrationPageSize))
-	if err := q.Find(&rows).Error; err != nil {
-		return nil, err
-	}
-	return rows, nil
-}
-
-// ListEdgeHealthForMigration 按 id 升序分页读取（迁移复制用）。
-func (s *gormLogStore) ListEdgeHealthForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeEdgeHealth, error) {
-	var rows []analyticsmodel.NodeEdgeHealth
-	q := s.db.WithContext(ctx).Model(&analyticsmodel.NodeEdgeHealth{}).
 		Where("id > ?", afterID).
 		Order("id ASC").
 		Limit(limitOr(limit, migrationPageSize))
@@ -1759,16 +1691,6 @@ func (s *userAccessLogGormStore) GetTopActiveUsers(ctx context.Context, startTim
 
 // ---- ObservabilityStore 转换辅助（从旧 openflare_observability_store.go 复制） ----
 
-const edgeHealthStatusUnknown = "unknown"
-
-func normalizeEdgeHealthStatus(status string) string {
-	status = strings.TrimSpace(status)
-	if status == "" {
-		return edgeHealthStatusUnknown
-	}
-	return status
-}
-
 func toAnalyticsNodeMetricSnapshot(record *model.OpenFlareMetricSnapshot) analyticsmodel.NodeMetricSnapshot {
 	return analyticsmodel.NodeMetricSnapshot{
 		ID:                uint64(record.ID),
@@ -1869,32 +1791,6 @@ func clampInt32(v int) int32 {
 		return math.MinInt32
 	}
 	return int32(v)
-}
-
-func toAnalyticsNodeEdgeHealth(record *model.OpenFlareEdgeHealth) analyticsmodel.NodeEdgeHealth {
-	return analyticsmodel.NodeEdgeHealth{
-		ID:          uint64(record.ID),
-		NodeID:      record.NodeID,
-		CapturedAt:  record.CapturedAt,
-		Status:      normalizeEdgeHealthStatus(record.Status),
-		Connections: record.Connections,
-		CreatedAt:   record.CreatedAt,
-	}
-}
-
-func fromAnalyticsNodeEdgeHealths(rows []analyticsmodel.NodeEdgeHealth) []*model.OpenFlareEdgeHealth {
-	result := make([]*model.OpenFlareEdgeHealth, len(rows))
-	for index, row := range rows {
-		result[index] = &model.OpenFlareEdgeHealth{
-			ID:          uint(row.ID),
-			NodeID:      row.NodeID,
-			CapturedAt:  row.CapturedAt,
-			Status:      normalizeEdgeHealthStatus(row.Status),
-			Connections: row.Connections,
-			CreatedAt:   row.CreatedAt,
-		}
-	}
-	return result
 }
 
 func toAnalyticsNetworkQualitySample(record *model.OpenFlareNetworkQualitySample) analyticsmodel.NetworkQualitySample {

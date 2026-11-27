@@ -55,14 +55,6 @@ func (s *clickhouseLogStore) DeleteMetricSnapshotsBefore(ctx context.Context, _ 
 	return s.chMaterializeObsTTL(ctx, chNodeMetricSnapshotTableName(), chTableTTLDaysNodeMetricSnapshots)
 }
 
-func (s *clickhouseLogStore) DeleteAllEdgeHealth(ctx context.Context) (int64, error) {
-	return s.chTruncateTable(ctx, chNodeEdgeHealthTableName())
-}
-
-func (s *clickhouseLogStore) DeleteEdgeHealthBefore(ctx context.Context, _ time.Time) (int64, error) {
-	return s.chMaterializeObsTTL(ctx, chNodeEdgeHealthTableName(), chTableTTLDaysNodeObs)
-}
-
 func (s *clickhouseLogStore) DeleteAllPingRecords(ctx context.Context) (int64, error) {
 	return s.chTruncateTable(ctx, chNodePingRecordTableName())
 }

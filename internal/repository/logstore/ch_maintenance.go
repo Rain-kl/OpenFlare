@@ -20,7 +20,6 @@ const (
 const (
 	chTableTTLDaysNodeAccessLogs        = 90
 	chTableTTLDaysNodeMetricSnapshots   = 30
-	chTableTTLDaysNodeObs               = 30
 	chTableTTLDaysUserAccessLogs        = 180
 	chTableTTLDaysNetworkQualitySamples = 30
 )

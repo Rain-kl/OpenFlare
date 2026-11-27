@@ -501,7 +501,6 @@ func TestBatchInsertGeneratesIDsPostgres(t *testing.T) {
 		postgresNodeAccessLogsDDL,
 		postgresUserAccessLogsDDL,
 		postgresMetricSnapshotsDDL,
-		postgresEdgeHealthDDL,
 	} {
 		if err := gdb.Exec(ddl).Error; err != nil {
 			t.Fatalf("create table: %v", err)
@@ -543,17 +542,6 @@ func TestBatchInsertGeneratesIDsPostgres(t *testing.T) {
 		t.Fatalf("metric snapshot ids not generated: %+v", metricRows)
 	}
 
-	edgeRows := []analyticsmodel.NodeEdgeHealth{
-		{NodeID: "n1", CapturedAt: now, Status: "ok"},
-		{NodeID: "n2", CapturedAt: now, Status: "ok"},
-	}
-	if err := store.BatchInsertNodeEdgeHealth(ctx, edgeRows); err != nil {
-		t.Fatalf("insert edge health with zero ids: %v", err)
-	}
-	if edgeRows[0].ID == 0 || edgeRows[1].ID == 0 || edgeRows[0].ID == edgeRows[1].ID {
-		t.Fatalf("edge health ids not generated: %+v", edgeRows)
-	}
-
 	userRows := []analyticsmodel.UserAccessLog{
 		{UserID: 101, Path: "/a", CreatedAt: now},
 		{UserID: 102, Path: "/b", CreatedAt: now},
@@ -572,7 +560,6 @@ func TestBatchInsertGeneratesIDsPostgres(t *testing.T) {
 	}{
 		{"of_node_access_logs", &analyticsmodel.NodeAccessLog{}, 2},
 		{"of_node_metric_snapshots", &analyticsmodel.NodeMetricSnapshot{}, 2},
-		{"of_node_edge_health", &analyticsmodel.NodeEdgeHealth{}, 2},
 		{"w_user_access_logs", &analyticsmodel.UserAccessLog{}, 2},
 	}
 	for _, e := range expect {
@@ -626,7 +613,7 @@ CREATE TABLE IF NOT EXISTS w_user_access_logs (
     PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at)`
 
-// postgresMetricSnapshotsDDL / postgresEdgeHealthDDL
+// postgresMetricSnapshotsDDL
 // 与 goose/postgres/202608080001_create_log_tables.sql 对齐（普通表，无分区）。
 const postgresMetricSnapshotsDDL = `
 CREATE TABLE IF NOT EXISTS of_node_metric_snapshots (
@@ -656,14 +643,4 @@ CREATE TABLE IF NOT EXISTS of_node_metric_snapshots (
     connections_udp  INTEGER NOT NULL DEFAULT 0,
     uptime           BIGINT NOT NULL DEFAULT 0,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-)`
-
-const postgresEdgeHealthDDL = `
-CREATE TABLE IF NOT EXISTS of_node_edge_health (
-    id          BIGINT NOT NULL PRIMARY KEY,
-    node_id     VARCHAR(64) NOT NULL DEFAULT '',
-    captured_at TIMESTAMPTZ NOT NULL,
-    status      VARCHAR(64) NOT NULL DEFAULT '',
-    connections BIGINT NOT NULL DEFAULT 0,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`

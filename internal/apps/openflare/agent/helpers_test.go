@@ -187,3 +187,46 @@ func TestResolveReportedNodeIP(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyNodeRuntimeUpdatesOpenrestyConnections(t *testing.T) {
+	node := &model.OpenFlareNode{OpenrestyConnections: 15}
+
+	// EdgeHealth nil preserves existing OpenrestyConnections.
+	applyNodeRuntime(context.Background(), node, protocol.NodePayload{
+		IP:      "203.0.113.10",
+		Version: "1.0.0",
+	}, true)
+	if node.OpenrestyConnections != 15 {
+		t.Fatalf("expected existing OpenrestyConnections 15 to be preserved, got %d", node.OpenrestyConnections)
+	}
+
+	// EdgeHealth with valid connections updates the field.
+	applyNodeRuntime(context.Background(), node, protocol.NodePayload{
+		IP:         "203.0.113.10",
+		Version:    "1.0.0",
+		EdgeHealth: &protocol.NodeEdgeHealth{Connections: 42},
+	}, true)
+	if node.OpenrestyConnections != 42 {
+		t.Fatalf("expected OpenrestyConnections 42, got %d", node.OpenrestyConnections)
+	}
+
+	// Negative connections clamp to 0.
+	applyNodeRuntime(context.Background(), node, protocol.NodePayload{
+		IP:         "203.0.113.10",
+		Version:    "1.0.0",
+		EdgeHealth: &protocol.NodeEdgeHealth{Connections: -5},
+	}, true)
+	if node.OpenrestyConnections != 0 {
+		t.Fatalf("expected negative connections to clamp to 0, got %d", node.OpenrestyConnections)
+	}
+}
+
+func TestCollectHeartbeatChangesTracksOpenrestyConnections(t *testing.T) {
+	before := &model.OpenFlareNode{OpenrestyConnections: 10}
+	after := &model.OpenFlareNode{OpenrestyConnections: 25}
+
+	changes := collectHeartbeatChanges(before, after)
+	if changes["openresty_connections"] != int64(25) {
+		t.Fatalf("expected openresty_connections change to 25, got %+v", changes)
+	}
+}

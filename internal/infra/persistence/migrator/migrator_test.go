@@ -230,10 +230,13 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 			t.Errorf("Migrate() did not create %s", table)
 		}
 	}
-	for _, col := range []string{"geo_source", "network_group"} {
+	for _, col := range []string{"geo_source", "network_group", "openresty_connections"} {
 		if !sqliteDB.Migrator().HasColumn("of_nodes", col) {
 			t.Errorf("Migrate() did not create of_nodes.%s", col)
 		}
+	}
+	if sqliteDB.Migrator().HasTable("of_node_edge_health") {
+		t.Error("Migrate() should have dropped of_node_edge_health")
 	}
 	for _, col := range []string{
 		"client_region", "ip_family", "stats_version", "rtt_hist",

@@ -36229,6 +36229,9 @@ const docTemplate = `{
                 "node_type": {
                     "type": "string"
                 },
+                "openresty_connections": {
+                    "type": "integer"
+                },
                 "openresty_message": {
                     "type": "string"
                 },

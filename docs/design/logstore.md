@@ -30,7 +30,7 @@
 | 域 | 接口 | 表 |
 | --- | --- | --- |
 | 节点访问日志 | `AccessLogStore` | `of_node_access_logs` |
-| 可观测时序 | `ObservabilityStore` | `of_node_metric_snapshots` / `of_node_edge_health` / `of_node_obs_frps` / `of_node_obs_frpc` |
+| 可观测时序 | `ObservabilityStore` | `of_node_metric_snapshots` / `of_node_ping_records` / `of_network_quality_samples` |
 | 用户访问审计 | `UserAccessLogStore` | `w_user_access_logs` |
 
 ClickHouse 上的小时级物化视图（如 `of_access_log_hourly`）只服务 CH 查询加速。PostgreSQL / SQLite **不建**同构聚合表，查询时从原始日志实时聚合。

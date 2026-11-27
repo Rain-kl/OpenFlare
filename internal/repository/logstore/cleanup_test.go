@@ -20,12 +20,11 @@ import (
 	analyticsmodel "github.com/Rain-kl/Wavelet/internal/model/analytics"
 )
 
-// cleanupTestModels 清理涉及的 5 张日志/可观测表。
+// cleanupTestModels 清理涉及的 4 张日志/可观测表。
 func cleanupTestModels() []any {
 	return []any{
 		&analyticsmodel.NodeAccessLog{},
 		&analyticsmodel.NodeMetricSnapshot{},
-		&analyticsmodel.NodeEdgeHealth{},
 		&analyticsmodel.NodePingRecord{},
 		&analyticsmodel.NetworkQualitySample{},
 	}
@@ -48,7 +47,7 @@ func newCleanupTestDB(t *testing.T) *gorm.DB {
 }
 
 // TestCleanupExpiredSQLite 验证 sqlite 激活库的过期日志清理：
-// 注入 log_retention_days_sqlite=30，40 天前的 5 表记录被删、昨天的保留。
+// 注入 log_retention_days_sqlite=30，40 天前的 4 表记录被删、昨天的保留。
 func TestCleanupExpiredSQLite(t *testing.T) {
 	ResetForTest()
 	SetConfigReader(func(_ context.Context, key string) (string, error) {
@@ -81,12 +80,6 @@ func TestCleanupExpiredSQLite(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("seed metric snapshots: %v", err)
 	}
-	if err := gdb.Create([]analyticsmodel.NodeEdgeHealth{
-		{ID: 1, NodeID: "n1", CapturedAt: old},
-		{ID: 2, NodeID: "n1", CapturedAt: recent},
-	}).Error; err != nil {
-		t.Fatalf("seed edge health: %v", err)
-	}
 	if err := gdb.Create([]analyticsmodel.NetworkQualitySample{
 		{ID: 1, NodeID: "n1", ClientASN: 13335, Source: "tcp_passive", SampleCount: 10, CapturedAt: old, CreatedAt: old},
 		{ID: 2, NodeID: "n1", ClientASN: 13335, Source: "tcp_passive", SampleCount: 10, CapturedAt: recent, CreatedAt: recent},
@@ -107,11 +100,11 @@ func TestCleanupExpiredSQLite(t *testing.T) {
 	if summary.MetricRetentionDays != 3 {
 		t.Fatalf("MetricRetentionDays = %d, want 3", summary.MetricRetentionDays)
 	}
-	if summary.Deleted != 4 {
-		t.Fatalf("Deleted = %d, want 4", summary.Deleted)
+	if summary.Deleted != 3 {
+		t.Fatalf("Deleted = %d, want 3", summary.Deleted)
 	}
-	if len(summary.Tables) != 5 {
-		t.Fatalf("Tables = %v, want 5 tables", summary.Tables)
+	if len(summary.Tables) != 4 {
+		t.Fatalf("Tables = %v, want 4 tables", summary.Tables)
 	}
 
 	assertCount := func(m any, want int64, label string) {
@@ -126,7 +119,6 @@ func TestCleanupExpiredSQLite(t *testing.T) {
 	}
 	assertCount(&analyticsmodel.NodeAccessLog{}, 1, "node_access_logs")
 	assertCount(&analyticsmodel.NodeMetricSnapshot{}, 1, "metric_snapshots")
-	assertCount(&analyticsmodel.NodeEdgeHealth{}, 1, "edge_health")
 	assertCount(&analyticsmodel.NetworkQualitySample{}, 1, "network_quality_samples")
 
 	var kept analyticsmodel.NodeAccessLog

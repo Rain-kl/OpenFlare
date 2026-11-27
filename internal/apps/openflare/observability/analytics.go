@@ -39,9 +39,7 @@ type TrafficDistributions struct {
 	SourceCountries []DistributionItem `json:"source_countries"`
 }
 
-const metricSnapshotEdgeHealthMatchWindow = 2 * time.Minute
-
-// NodeMetricSnapshotView is a Komari-aligned metric snapshot enriched with edge health connections.
+// NodeMetricSnapshotView is a Komari-aligned metric snapshot enriched with latest edge connections.
 type NodeMetricSnapshotView struct {
 	ID                   uint      `json:"id,omitempty"`
 	NodeID               string    `json:"node_id,omitempty"`
@@ -179,15 +177,17 @@ func buildTrafficWindowSummaryFromAccessLogs(
 	return summary
 }
 
-// BuildMetricSnapshotViews merges metric snapshots with edge health connections for API responses.
+// BuildMetricSnapshotViews converts metric snapshots for API responses and attaches openrestyConnections to the latest snapshot.
 func BuildMetricSnapshotViews(
 	snapshots []*model.OpenFlareMetricSnapshot,
-	edgeHealth []*model.OpenFlareEdgeHealth,
+	openrestyConnections int64,
 ) []*NodeMetricSnapshotView {
 	if len(snapshots) == 0 {
 		return []*NodeMetricSnapshotView{}
 	}
 	views := make([]*NodeMetricSnapshotView, 0, len(snapshots))
+	latestIdx := -1
+	var latestTime time.Time
 	for _, snapshot := range snapshots {
 		if snapshot == nil {
 			continue
@@ -219,10 +219,14 @@ func BuildMetricSnapshotViews(
 			UDPConnections:    snapshot.UDPConnections,
 			UptimeSeconds:     snapshot.UptimeSeconds,
 		}
-		if matched := matchEdgeHealth(snapshot.CapturedAt, edgeHealth); matched != nil {
-			view.OpenrestyConnections = matched.Connections
+		if latestIdx == -1 || !snapshot.CapturedAt.Before(latestTime) {
+			latestIdx = len(views)
+			latestTime = snapshot.CapturedAt
 		}
 		views = append(views, view)
+	}
+	if latestIdx >= 0 && openrestyConnections > 0 {
+		views[latestIdx].OpenrestyConnections = openrestyConnections
 	}
 	return views
 }
@@ -626,31 +630,6 @@ func latestMetricSnapshot(snapshots []*model.OpenFlareMetricSnapshot) *model.Ope
 		}
 	}
 	return latest
-}
-
-func matchEdgeHealth(
-	capturedAt time.Time,
-	health []*model.OpenFlareEdgeHealth,
-) *model.OpenFlareEdgeHealth {
-	var matched *model.OpenFlareEdgeHealth
-	bestDelta := metricSnapshotEdgeHealthMatchWindow + time.Second
-	for _, row := range health {
-		if row == nil {
-			continue
-		}
-		delta := capturedAt.Sub(row.CapturedAt)
-		if delta < 0 {
-			delta = -delta
-		}
-		if delta > metricSnapshotEdgeHealthMatchWindow {
-			continue
-		}
-		if matched == nil || delta < bestDelta {
-			matched = row
-			bestDelta = delta
-		}
-	}
-	return matched
 }
 
 // LatestMetricSnapshotsByNode returns the latest snapshot per node.

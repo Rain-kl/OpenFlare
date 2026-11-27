@@ -438,7 +438,6 @@ func SetupLogStoresForTest(t *testing.T) {
 		&analyticsmodel.NodeAccessLog{},
 		&analyticsmodel.UserAccessLog{},
 		&analyticsmodel.NodeMetricSnapshot{},
-		&analyticsmodel.NodeEdgeHealth{},
 		&analyticsmodel.NetworkQualitySample{},
 	))
 
@@ -463,11 +462,6 @@ func SetupLogStoresForTest(t *testing.T) {
 		QueueMetricSnapshot: func(record analyticsmodel.NodeMetricSnapshot) {
 			if err := store.Observability.BatchInsertNodeMetricSnapshots(context.Background(), []analyticsmodel.NodeMetricSnapshot{record}); err != nil {
 				t.Errorf("batch insert node metric snapshots failed in test hook: %v", err)
-			}
-		},
-		QueueEdgeHealth: func(record analyticsmodel.NodeEdgeHealth) {
-			if err := store.Observability.BatchInsertNodeEdgeHealth(context.Background(), []analyticsmodel.NodeEdgeHealth{record}); err != nil {
-				t.Errorf("batch insert node edge health failed in test hook: %v", err)
 			}
 		},
 		QueueNetworkQualitySample: func(record analyticsmodel.NetworkQualitySample) {

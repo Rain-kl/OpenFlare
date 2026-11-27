@@ -25,7 +25,7 @@ description: "OpenFlare / Wavelet：当新增或修改日志/分析用途表（�
 | 域 | 接口 | 表 |
 | :--- | :--- | :--- |
 | 节点访问日志 | `AccessLogStore` | `of_node_access_logs` |
-| 可观测 | `ObservabilityStore` | `of_node_metric_snapshots` / `of_node_edge_health` / `of_node_obs_frps` / `of_node_obs_frpc` |
+| 可观测 | `ObservabilityStore` | `of_node_metric_snapshots` / `of_node_ping_records` / `of_network_quality_samples` |
 | 用户访问审计 | `UserAccessLogStore` | `w_user_access_logs` |
 
 ## 分层

@@ -43,7 +43,7 @@ func TestBuildTrafficTrendPointsFromHourlyBucketsByHour(t *testing.T) {
 	}
 }
 
-func TestBuildMetricSnapshotViewsMergesEdgeHealthConnections(t *testing.T) {
+func TestBuildMetricSnapshotViewsAttachesLatestConnections(t *testing.T) {
 	t.Parallel()
 
 	capturedAt := time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)
@@ -51,25 +51,26 @@ func TestBuildMetricSnapshotViewsMergesEdgeHealthConnections(t *testing.T) {
 		{
 			ID:              1,
 			NodeID:          "node-a",
+			CapturedAt:      capturedAt.Add(-time.Minute),
+			CPUUsagePercent: 10.0,
+		},
+		{
+			ID:              2,
+			NodeID:          "node-a",
 			CapturedAt:      capturedAt,
 			CPUUsagePercent: 12.5,
 		},
 	}
-	edgeHealth := []*model.OpenFlareEdgeHealth{
-		{
-			NodeID:      "node-a",
-			CapturedAt:  capturedAt.Add(5 * time.Second),
-			Status:      "healthy",
-			Connections: 7,
-		},
-	}
 
-	views := BuildMetricSnapshotViews(snapshots, edgeHealth)
-	if len(views) != 1 {
-		t.Fatalf("BuildMetricSnapshotViews() len = %d, want 1", len(views))
+	views := BuildMetricSnapshotViews(snapshots, 7)
+	if len(views) != 2 {
+		t.Fatalf("BuildMetricSnapshotViews() len = %d, want 2", len(views))
 	}
-	if views[0].OpenrestyConnections != 7 {
-		t.Fatalf("OpenrestyConnections = %d, want 7", views[0].OpenrestyConnections)
+	if views[0].OpenrestyConnections != 0 {
+		t.Fatalf("older snapshot OpenrestyConnections = %d, want 0", views[0].OpenrestyConnections)
+	}
+	if views[1].OpenrestyConnections != 7 {
+		t.Fatalf("latest snapshot OpenrestyConnections = %d, want 7", views[1].OpenrestyConnections)
 	}
 }
 

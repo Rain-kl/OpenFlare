@@ -81,21 +81,23 @@ func normalizeNodePayload(payload protocol.NodePayload) protocol.NodePayload {
 	if payload.ContractVersion < 0 {
 		payload.ContractVersion = 0
 	}
-	// Align L2 edge_health with top-level status/message (PG is latest-state authority).
-	if payload.EdgeHealth != nil {
-		if s := strings.TrimSpace(payload.EdgeHealth.Status); s != "" {
-			if payload.OpenrestyStatus == "" || payload.OpenrestyStatus == openrestyStatusUnknown {
-				payload.OpenrestyStatus = normalizeOpenrestyStatus(s)
-			}
-		}
-		if m := strings.TrimSpace(payload.EdgeHealth.Message); m != "" && payload.OpenrestyMessage == "" {
-			payload.OpenrestyMessage = truncateForDatabase(m, maxDatabaseTextLength)
-		}
-		// CH series status must match the same authority as PG after normalize.
-		payload.EdgeHealth.Status = payload.OpenrestyStatus
-		payload.EdgeHealth.Message = payload.OpenrestyMessage
-	}
+	normalizeEdgeHealthPayload(&payload)
 	return payload
+}
+
+func normalizeEdgeHealthPayload(payload *protocol.NodePayload) {
+	if payload == nil || payload.EdgeHealth == nil {
+		return
+	}
+	if s := strings.TrimSpace(payload.EdgeHealth.Status); s != "" && (payload.OpenrestyStatus == "" || payload.OpenrestyStatus == openrestyStatusUnknown) {
+		payload.OpenrestyStatus = normalizeOpenrestyStatus(s)
+	}
+	if m := strings.TrimSpace(payload.EdgeHealth.Message); m != "" && payload.OpenrestyMessage == "" {
+		payload.OpenrestyMessage = truncateForDatabase(m, maxDatabaseTextLength)
+	}
+	payload.EdgeHealth.Connections = max(payload.EdgeHealth.Connections, 0)
+	payload.EdgeHealth.Status = payload.OpenrestyStatus
+	payload.EdgeHealth.Message = payload.OpenrestyMessage
 }
 
 func normalizeEngine(engine string) string {
@@ -153,6 +155,9 @@ func applyNodeRuntime(ctx context.Context, node *model.OpenFlareNode, payload pr
 	updateEdgeCapability(ctx, node, payload.EdgeUpdateSupported)
 	node.OpenrestyStatus = normalizeOpenrestyStatus(payload.OpenrestyStatus)
 	node.OpenrestyMessage = truncateForDatabase(payload.OpenrestyMessage, maxDatabaseTextLength)
+	if payload.EdgeHealth != nil {
+		node.OpenrestyConnections = max(payload.EdgeHealth.Connections, 0)
+	}
 	node.Status = nodeStatusOnline
 	node.CurrentVersion = strings.TrimSpace(payload.CurrentVersion)
 	now := time.Now()
@@ -278,6 +283,7 @@ func collectHeartbeatChanges(previous *model.OpenFlareNode, current *model.OpenF
 	appendIfChanged("capabilities_json", previous.CapabilitiesJSON, current.CapabilitiesJSON)
 	appendIfChanged("openresty_status", previous.OpenrestyStatus, current.OpenrestyStatus)
 	appendIfChanged("openresty_message", previous.OpenrestyMessage, current.OpenrestyMessage)
+	appendIfChanged("openresty_connections", previous.OpenrestyConnections, current.OpenrestyConnections)
 	appendIfChanged("status", previous.Status, current.Status)
 	appendIfChanged("current_version", previous.CurrentVersion, current.CurrentVersion)
 	appendIfChanged("last_error", previous.LastError, current.LastError)

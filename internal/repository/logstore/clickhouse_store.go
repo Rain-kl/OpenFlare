@@ -108,54 +108,6 @@ func (s *clickhouseLogStore) ListMetricSnapshotsForMigration(ctx context.Context
 		scanNodeMetricSnapshotRows)
 }
 
-// chObsRow 迁移读取共用的双字段观测行（字符串状态 + 数值计数）：
-// edge_health（status/connections）。
-type chObsRow struct {
-	ID         uint64
-	NodeID     string
-	CapturedAt time.Time
-	Status     string
-	Count      int64
-	CreatedAt  time.Time
-}
-
-func scanChObsRow(rows driver.Rows) ([]chObsRow, error) {
-	var result []chObsRow
-	for rows.Next() {
-		var item chObsRow
-		if err := rows.Scan(
-			&item.ID,
-			&item.NodeID,
-			&item.CapturedAt,
-			&item.Status,
-			&item.Count,
-			&item.CreatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan observation row: %w", err)
-		}
-		item.CapturedAt = item.CapturedAt.UTC()
-		item.CreatedAt = item.CreatedAt.UTC()
-		result = append(result, item)
-	}
-	return result, nil
-}
-
-// ListEdgeHealthForMigration 按 id 升序分页读取（迁移复制用）。
-func (s *clickhouseLogStore) ListEdgeHealthForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeEdgeHealth, error) {
-	rows, err := chListForMigration(ctx, afterID, limit,
-		analyticsmodel.NodeEdgeHealth{}.TableName(),
-		analyticsmodel.NodeEdgeHealth{}.InsertColumns(),
-		scanChObsRow)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]analyticsmodel.NodeEdgeHealth, len(rows))
-	for i, r := range rows {
-		out[i] = analyticsmodel.NodeEdgeHealth{ID: r.ID, NodeID: r.NodeID, CapturedAt: r.CapturedAt, Status: r.Status, Connections: r.Count, CreatedAt: r.CreatedAt}
-	}
-	return out, nil
-}
-
 // ListPingRecordsForMigration 按 id 升序分页读取（迁移复制用）。
 func (s *clickhouseLogStore) ListPingRecordsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodePingRecord, error) {
 	return chListForMigration(ctx, afterID, limit,

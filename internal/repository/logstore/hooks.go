@@ -17,7 +17,6 @@ type AccessLogHooks struct {
 // ObservabilityHooks 可观测异步入队回调（由 logwriter 装配）。
 type ObservabilityHooks struct {
 	QueueMetricSnapshot       func(record analyticsmodel.NodeMetricSnapshot)
-	QueueEdgeHealth           func(record analyticsmodel.NodeEdgeHealth)
 	QueuePingRecord           func(record analyticsmodel.NodePingRecord)
 	QueueNetworkQualitySample func(record analyticsmodel.NetworkQualitySample)
 }

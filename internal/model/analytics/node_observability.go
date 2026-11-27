@@ -12,9 +12,6 @@ const (
 	nodeMetricSnapshotTableName     = "of_node_metric_snapshots"
 	nodeMetricSnapshotInsertColumns = "id, node_id, captured_at, cpu, gpu, ram, ram_total, swap, swap_total, load, load5, load15, temp, disk, disk_total, disk_read_bytes, disk_write_bytes, net_in, net_out, net_total_up, net_total_down, process, connections, connections_udp, uptime, created_at"
 
-	nodeEdgeHealthTableName     = "of_node_edge_health"
-	nodeEdgeHealthInsertColumns = "id, node_id, captured_at, status, connections, created_at"
-
 	nodePingRecordTableName     = "of_node_ping_records"
 	nodePingRecordInsertColumns = "id, node_id, task_id, recorded_at, value, created_at"
 )
@@ -87,31 +84,6 @@ func (NodePingRecord) InsertColumns() string {
 // BatchInsertSQL returns the INSERT prefix used by native batch writers.
 func (NodePingRecord) BatchInsertSQL() string {
 	return fmt.Sprintf("INSERT INTO %s (%s)", nodePingRecordTableName, nodePingRecordInsertColumns)
-}
-
-// NodeEdgeHealth stores L2 OpenResty/Edge health snapshots (connections + status).
-type NodeEdgeHealth struct {
-	ID          uint64    `gorm:"column:id"`
-	NodeID      string    `gorm:"column:node_id"`
-	CapturedAt  time.Time `gorm:"column:captured_at"`
-	Status      string    `gorm:"column:status"`
-	Connections int64     `gorm:"column:connections"`
-	CreatedAt   time.Time `gorm:"column:created_at"`
-}
-
-// TableName returns the table name.
-func (NodeEdgeHealth) TableName() string {
-	return nodeEdgeHealthTableName
-}
-
-// InsertColumns returns comma-separated column names for batch insert.
-func (NodeEdgeHealth) InsertColumns() string {
-	return nodeEdgeHealthInsertColumns
-}
-
-// BatchInsertSQL returns the INSERT prefix used by native batch writers.
-func (NodeEdgeHealth) BatchInsertSQL() string {
-	return fmt.Sprintf("INSERT INTO %s (%s)", nodeEdgeHealthTableName, nodeEdgeHealthInsertColumns)
 }
 
 // AccessLogHourly is a Server-side hourly rollup of access logs.

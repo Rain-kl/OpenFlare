@@ -38,6 +38,7 @@ type OpenFlareNode struct {
 	ExtVersion                string     `json:"ext_version" gorm:"size:64;not null;default:''"`
 	OpenrestyStatus           string     `json:"openresty_status" gorm:"size:16;not null;default:'unknown'"`
 	OpenrestyMessage          string     `json:"openresty_message" gorm:"type:text"`
+	OpenrestyConnections      int64      `json:"openresty_connections" gorm:"column:openresty_connections;not null;default:0"`
 	Engine                    string     `json:"engine" gorm:"size:32;not null;default:'pingora';index"`
 	ContractVersion           int        `json:"contract_version" gorm:"not null;default:0"`
 	Status                    string     `json:"status" gorm:"size:16;not null;default:'offline'"`
