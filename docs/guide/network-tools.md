@@ -45,7 +45,7 @@ OpenFlare「网络工具」子系统提供控制平面与多边缘节点协同�
 | `/network-tools/traceroute` | **路由追踪（Traceroute）**：支持 ICMP、UDP 与 TCP 模式的多轮次路径探测，逐跳自动标注地理位置、ASN、组织名称与 `bgp.tools` 标签，并记录历史与观测到的 AS 跳边（`of_as_topology_edges`）。 |
 | `/network-tools/asn` | **ASN 情报查询**：输入任意公网 IP、域名或 AS 编号（如 `AS13335`），查看地理位置、最长匹配 BGP 前缀、IPv4/IPv6 宣告前缀分页、**上游路由接线拓扑图**（展示 `Origins → Upstreams → Tier 1 ISPs` 分层上游与骨干连接，支持下钻跳转与导出 SVG）、AS 邻接关系与接入 5 级预测器的多边缘节点路径与质量对比。 |
 | `/network-tools/dns` | **DNS 诊断查询**：支持控制平面直查与多边缘节点并发探测，可指定解析器与 EDNS0 客户端子网（ECS）CIDR 模拟不同访客区域的权威返回，并自动富化应答 IP 的 ASN 与地区归属。 |
-| `/network-tools/quality` | **网络质量矩阵与探测靶点**：支持按国家/地区、聚合层级（`country`/`region`）、IP 地址族及实测来源筛选质量矩阵；内置 **客户端网络质量模拟预测面板**（调用 `POST /api/v1/d/network-tools/quality-matrix/predict` 实时演练 5 级预测器打分与校准误差）；提供 **「探测靶点」** 管理页签管理公网靶点、Anycast 隔离状态及各节点退避明细；同时支持查看情报数据库状态与一键触发同步（Data powered by [bgp.tools](https://bgp.tools)）。 |
+| `/network-tools/quality` | **网络质量矩阵与探测靶点**：在 **「质量融合矩阵」** 页签中支持按国家/地区、聚合层级（`country`/`region`）、IP 地址族及实测来源筛选质量矩阵；在独立的 **「质量模拟预测」** 页签中提供客户端网络质量模拟预测面板（调用 `POST /api/v1/d/network-tools/quality-matrix/predict` 实时演练 5 级预测器打分与校准误差）；提供 **「探测靶点」** 管理页签管理公网靶点、Anycast 隔离状态及各节点退避明细；同时支持在 **「情报数据库状态」** 页签查看数据集状态与一键触发同步（Data powered by [bgp.tools](https://bgp.tools)）。 |
 
 ---
 

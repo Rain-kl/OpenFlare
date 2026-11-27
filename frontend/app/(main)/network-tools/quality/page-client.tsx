@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Crosshair, Database, Gauge, RefreshCw } from 'lucide-react';
+import {
+  Calculator,
+  Crosshair,
+  Database,
+  Gauge,
+  RefreshCw,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
@@ -11,11 +17,14 @@ import { cn } from '@/lib/utils';
 import { DatasetsTab } from './components/datasets-tab';
 import { ProbeTargetsTab } from './components/probe-targets-tab';
 import { QualityMatrixTab } from './components/quality-matrix-tab';
+import { QualityPredictorTab } from './components/quality-predictor-tab';
+
+type QualityTabValue = 'matrix' | 'predictor' | 'targets' | 'datasets';
 
 export function NetworkToolsQualityPageClient() {
   const t = useTranslations('networkTools');
 
-  const [tab, setTab] = useState<'matrix' | 'targets' | 'datasets'>('matrix');
+  const [tab, setTab] = useState<QualityTabValue>('matrix');
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   return (
@@ -44,7 +53,7 @@ export function NetworkToolsQualityPageClient() {
 
       <Tabs
         value={tab}
-        onValueChange={(v) => setTab(v as 'matrix' | 'targets' | 'datasets')}
+        onValueChange={(v) => setTab(v as QualityTabValue)}
         className='w-full gap-0'
       >
         <TabsList
@@ -59,6 +68,16 @@ export function NetworkToolsQualityPageClient() {
             )}
           >
             {t('quality.tabs.matrix')}
+          </TabsTrigger>
+          <TabsTrigger
+            value='predictor'
+            className={cn(
+              'h-auto flex-none rounded-none px-0 pb-3 pt-1 text-sm font-semibold',
+              'data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground',
+            )}
+          >
+            <Calculator className='mr-1.5 size-4' />
+            {t('quality.tabs.predictor')}
           </TabsTrigger>
           <TabsTrigger
             value='targets'
@@ -84,6 +103,10 @@ export function NetworkToolsQualityPageClient() {
 
         <TabsContent value='matrix' className='mt-6 outline-none'>
           <QualityMatrixTab refreshNonce={refreshNonce} />
+        </TabsContent>
+
+        <TabsContent value='predictor' className='mt-6 outline-none'>
+          <QualityPredictorTab />
         </TabsContent>
 
         <TabsContent value='targets' className='mt-6 outline-none'>

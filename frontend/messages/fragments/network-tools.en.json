@@ -220,6 +220,7 @@
       "description": "Inspect the country/region/IP-family precision quality matrix and simulate the five-level latency predictor alongside controlled probe targets.",
       "tabs": {
         "matrix": "Quality Matrix",
+        "predictor": "Quality Predictor",
         "targets": "Probe Targets",
         "datasets": "Datasets & Sync"
       },
