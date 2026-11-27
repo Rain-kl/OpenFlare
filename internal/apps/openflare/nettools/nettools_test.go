@@ -35,7 +35,9 @@ import (
 func setupNetToolsTestEnv(t *testing.T) func() {
 	t.Helper()
 	ResetTaskStoreForTest()
+	ResetUpstreamGraphCacheForTest()
 	netquality.ResetCollectorForTest()
+	restoreRIPE := SetRIPEStatBaseURLForTest("http://127.0.0.1:1")
 
 	sqliteDB, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
@@ -63,8 +65,10 @@ func setupNetToolsTestEnv(t *testing.T) func() {
 	require.NoError(t, netintel.ReloadFromDir(context.Background(), dir))
 
 	return func() {
+		restoreRIPE()
 		restoreMgr()
 		ResetTaskStoreForTest()
+		ResetUpstreamGraphCacheForTest()
 		netquality.ResetCollectorForTest()
 		db.SetDB(nil)
 	}

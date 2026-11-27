@@ -752,6 +752,9 @@ func LookupIP(ctx context.Context, rawQuery string) (*IPLookupResponse, error) {
 		if primary.ASN > 0 {
 			asnInfo = netintel.LookupASN(primary.ASN)
 			neighbors = buildCombinedNeighbors(ctx, primary.ASN, ipNeighborsLimit)
+			if asnInfo != nil && asnInfo.NeighborCnt == 0 && len(neighbors) > 0 {
+				asnInfo.NeighborCnt = len(neighbors)
+			}
 		}
 	}
 	if neighbors == nil {
@@ -776,8 +779,11 @@ func LookupASN(ctx context.Context, asn uint32) (*ASNDetailResponse, error) {
 	}
 	info := netintel.LookupASN(asn)
 	neighbors := buildCombinedNeighbors(ctx, asn, asnNeighborsLimit)
-	if info == nil && len(neighbors) == 0 {
+	if info == nil {
 		info = &pkgnetintel.ASNInfo{ASN: asn}
+	}
+	if info.NeighborCnt == 0 && len(neighbors) > 0 {
+		info.NeighborCnt = len(neighbors)
 	}
 	return &ASNDetailResponse{
 		ASNInfo:     info,
@@ -1068,6 +1074,12 @@ func buildCombinedNeighbors(ctx context.Context, asn uint32, limit int) []ASNeig
 			Relation:    n.Relation,
 			Tags:        n.Tags,
 		})
+	}
+	if len(out) == 0 {
+		for _, n := range getRIPEStatNeighborsCached(ctx, asn, limit) {
+			seen[n.PeerASN] = len(out)
+			out = append(out, n)
+		}
 	}
 
 	if db.DB(ctx) == nil {

@@ -36,9 +36,13 @@ const (
 	upstreamCacheTTL          = 6 * time.Hour
 	upstreamEmptyCacheTTL     = 5 * time.Minute
 	upstreamRedisKeyPrefix    = "nettools:asn_upstream:"
+	neighborsRedisKeyPrefix   = "nettools:asn_neighbors:"
 	upstreamInvalidationChan  = "nettools:asn_upstream_invalidation"
 	upstreamPrefixScanLimit   = 200
 	upstreamObservedEdgeLimit = 200
+	maxCachedNeighbors        = 100
+	ripeRelationLeft          = "left"
+	ripeRelationRight         = "right"
 
 	maxDirectUpstreams    = 12
 	maxTransitHopsPerPath = 2
@@ -120,8 +124,16 @@ type cachedUpstreamEntry struct {
 	ExpiresAt time.Time                `json:"expires_at"`
 }
 
+type cachedNeighborsEntry struct {
+	Items     []ASNeighborItem `json:"items"`
+	ExpiresAt time.Time        `json:"expires_at"`
+}
+
 var (
 	upstreamGraphRAM = ram.MustNew[string, cachedUpstreamEntry](ram.Options{
+		MaximumSize: upstreamCacheMaxEntries,
+	})
+	ripeNeighborsRAM = ram.MustNew[string, cachedNeighborsEntry](ram.Options{
 		MaximumSize: upstreamCacheMaxEntries,
 	})
 	upstreamListenerMu     sync.Mutex
@@ -159,6 +171,7 @@ func currentRIPEStatBaseURL() string {
 // ResetUpstreamGraphCacheForTest clears process-local RAM cache entries for tests.
 func ResetUpstreamGraphCacheForTest() {
 	upstreamGraphRAM.InvalidateAll()
+	ripeNeighborsRAM.InvalidateAll()
 }
 
 func ensureUpstreamCacheInvalidationListener(ctx context.Context) {
@@ -572,7 +585,7 @@ func fetchRIPEStatNeighbourUpstreams(ctx context.Context, originASN uint32) ([]r
 
 	items := make([]ripeNeighbourItem, 0)
 	for _, nb := range env.Data.Neighbours {
-		if nb.Type != "left" || !isPublicRouteASN(nb.ASN) || nb.ASN == originASN {
+		if nb.Type != ripeRelationLeft || !isPublicRouteASN(nb.ASN) || nb.ASN == originASN {
 			continue
 		}
 		items = append(items, ripeNeighbourItem{ASN: nb.ASN, Power: nb.Power})
@@ -1023,4 +1036,164 @@ func buildResponseEdges(
 		return out[i].To < out[j].To
 	})
 	return out
+}
+
+func cloneNeighborItems(items []ASNeighborItem) []ASNeighborItem {
+	out := make([]ASNeighborItem, len(items))
+	for i := range items {
+		out[i] = items[i]
+		if len(items[i].Tags) > 0 {
+			out[i].Tags = append([]string(nil), items[i].Tags...)
+		}
+	}
+	return out
+}
+
+func sliceNeighborItems(items []ASNeighborItem, limit int) []ASNeighborItem {
+	if len(items) == 0 {
+		return nil
+	}
+	n := len(items)
+	if limit > 0 && limit < n {
+		n = limit
+	}
+	return cloneNeighborItems(items[:n])
+}
+
+func getRIPEStatNeighborsCached(ctx context.Context, originASN uint32, limit int) []ASNeighborItem {
+	if originASN == 0 {
+		return nil
+	}
+	cacheKey := fmt.Sprintf("%s%d", neighborsRedisKeyPrefix, originASN)
+	now := time.Now().UTC()
+
+	if entry, ok := ripeNeighborsRAM.GetIfPresent(cacheKey); ok {
+		if now.Before(entry.ExpiresAt) {
+			return sliceNeighborItems(entry.Items, limit)
+		}
+		ripeNeighborsRAM.Invalidate(cacheKey)
+	}
+	if db.Redis != nil {
+		var cached []ASNeighborItem
+		if err := db.GetJSON(ctx, cacheKey, &cached); err == nil {
+			ttl := upstreamCacheTTL
+			if len(cached) == 0 {
+				ttl = upstreamEmptyCacheTTL
+			}
+			ripeNeighborsRAM.Set(cacheKey, cachedNeighborsEntry{
+				Items:     cloneNeighborItems(cached),
+				ExpiresAt: now.Add(ttl),
+			})
+			return sliceNeighborItems(cached, limit)
+		}
+	}
+
+	fetched, err := fetchRIPEStatAllNeighbors(ctx, originASN)
+	if err != nil {
+		logger.WarnF(ctx, "[NetTools] RIPEstat full neighbors fallback for AS%d failed: %v", originASN, err)
+		return nil
+	}
+	ttl := upstreamCacheTTL
+	if len(fetched) == 0 {
+		ttl = upstreamEmptyCacheTTL
+	}
+	ripeNeighborsRAM.Set(cacheKey, cachedNeighborsEntry{
+		Items:     cloneNeighborItems(fetched),
+		ExpiresAt: now.Add(ttl),
+	})
+	if db.Redis != nil {
+		if saveErr := db.SetJSON(ctx, cacheKey, fetched, ttl); saveErr != nil {
+			logger.WarnF(ctx, "[NetTools] persist RIPEstat neighbors cache %s failed: %v", cacheKey, saveErr)
+		}
+	}
+	return sliceNeighborItems(fetched, limit)
+}
+
+type aggregatedNeighbor struct {
+	asn      uint32
+	hasLeft  bool
+	hasRight bool
+	power    int
+}
+
+func fetchRIPEStatAllNeighbors(ctx context.Context, originASN uint32) ([]ASNeighborItem, error) {
+	endpoint, err := buildRIPEStatURL("/data/asn-neighbours/data.json", fmt.Sprintf("AS%d", originASN))
+	if err != nil {
+		return nil, err
+	}
+	body, err := fetchRIPEStatJSON(ctx, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	var env ripeNeighboursEnvelope
+	if err := json.Unmarshal(body, &env); err != nil {
+		return nil, fmt.Errorf("decode ripestat asn-neighbours response: %w", err)
+	}
+
+	byASN := make(map[uint32]*aggregatedNeighbor)
+	for _, nb := range env.Data.Neighbours {
+		if !isPublicRouteASN(nb.ASN) || nb.ASN == originASN {
+			continue
+		}
+		agg := byASN[nb.ASN]
+		if agg == nil {
+			agg = &aggregatedNeighbor{asn: nb.ASN}
+			byASN[nb.ASN] = agg
+		}
+		agg.power += max(0, nb.Power)
+		switch nb.Type {
+		case ripeRelationLeft:
+			agg.hasLeft = true
+		case ripeRelationRight:
+			agg.hasRight = true
+		}
+	}
+
+	sorted := make([]*aggregatedNeighbor, 0, len(byASN))
+	for _, agg := range byASN {
+		sorted = append(sorted, agg)
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].power != sorted[j].power {
+			return sorted[i].power > sorted[j].power
+		}
+		return sorted[i].asn < sorted[j].asn
+	})
+	if len(sorted) > maxCachedNeighbors {
+		sorted = sorted[:maxCachedNeighbors]
+	}
+
+	out := make([]ASNeighborItem, 0, len(sorted))
+	for _, agg := range sorted {
+		out = append(out, buildRIPEStatNeighborItem(agg))
+	}
+	return out, nil
+}
+
+func buildRIPEStatNeighborItem(agg *aggregatedNeighbor) ASNeighborItem {
+	relation := pkgnetintel.RelationPeer
+	switch {
+	case agg.hasLeft && agg.hasRight:
+		relation = pkgnetintel.RelationPeer
+	case agg.hasLeft:
+		relation = pkgnetintel.RelationProvider
+	case agg.hasRight:
+		relation = pkgnetintel.RelationCustomer
+	}
+	item := ASNeighborItem{
+		PeerASN:  agg.asn,
+		Relation: relation,
+	}
+	if info := netintel.LookupASN(agg.asn); info != nil {
+		item.PeerName = info.Name
+		item.PeerCountry = info.Country
+		item.PeerClass = info.Class
+		if len(info.Tags) > 0 {
+			item.Tags = append([]string(nil), info.Tags...)
+		}
+	}
+	if strings.TrimSpace(item.PeerName) == "" {
+		item.PeerName = pkgnetintel.ShortASNLabel(agg.asn, "")
+	}
+	return item
 }

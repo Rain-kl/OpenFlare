@@ -530,7 +530,13 @@ export function NetworkToolsAsnPageClient() {
                     {neighbors.map((nb) => (
                       <TableRow key={`${nb.peer_asn}-${nb.relation}`}>
                         <TableCell className='font-mono text-xs'>
-                          AS{nb.peer_asn}
+                          <button
+                            type='button'
+                            onClick={() => handleSelectUpstreamAsn(nb.peer_asn)}
+                            className='font-mono text-xs text-primary underline-offset-4 hover:underline'
+                          >
+                            {`AS${nb.peer_asn}`}
+                          </button>
                         </TableCell>
                         <TableCell className='text-xs'>
                           <div className='font-medium'>

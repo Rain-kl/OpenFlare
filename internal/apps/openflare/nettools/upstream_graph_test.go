@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netintel"
+	"github.com/Rain-kl/Wavelet/internal/repository"
 	pkgnetintel "github.com/Rain-kl/Wavelet/pkg/netintel"
 	"github.com/stretchr/testify/require"
 )
@@ -151,4 +152,51 @@ func TestGetASNUpstreamGraphCAIDAAndNeighboursFallback(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, upstreamSourceRIPENeigh, fbResp.DataSource)
 	require.Len(t, fbResp.Edges, 2)
+}
+
+func TestLookupASNNeighborsRIPEStatFallbackAndObservedOverlay(t *testing.T) {
+	cleanup := setupNetToolsTestEnv(t)
+	defer cleanup()
+
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		require.Contains(t, r.URL.Path, "asn-neighbours")
+		require.Equal(t, "AS13335", r.URL.Query().Get("resource"))
+		_, _ = w.Write([]byte(`{"data":{"neighbours":[
+			{"asn":174,"type":"left","power":120},
+			{"asn":1299,"type":"left","power":50},
+			{"asn":1299,"type":"right","power":30},
+			{"asn":4134,"type":"right","power":40}
+		]}}`))
+	}))
+	defer srv.Close()
+	restoreBase := SetRIPEStatBaseURLForTest(srv.URL)
+	defer restoreBase()
+
+	ctx := context.Background()
+	require.NoError(t, repository.UpsertOpenFlareASTopologyEdges(ctx, []repository.ObservedASEdge{
+		{SrcASN: 13335, DstASN: 174, HopRTTMs: 14.5},
+	}))
+
+	detail, err := LookupASN(ctx, 13335)
+	require.NoError(t, err)
+	require.NotNil(t, detail.ASNInfo)
+	require.Equal(t, 3, detail.ASNInfo.NeighborCnt)
+	require.Len(t, detail.Neighbors, 3)
+
+	byPeer := make(map[uint32]ASNeighborItem, len(detail.Neighbors))
+	for _, nb := range detail.Neighbors {
+		byPeer[nb.PeerASN] = nb
+	}
+	require.Equal(t, pkgnetintel.RelationProvider, byPeer[174].Relation)
+	require.Equal(t, 14.5, byPeer[174].ObservedRTT)
+	require.Equal(t, 1, byPeer[174].SampleCount)
+	require.Equal(t, pkgnetintel.RelationPeer, byPeer[1299].Relation)
+	require.Equal(t, pkgnetintel.RelationCustomer, byPeer[4134].Relation)
+
+	// Second lookup serves RIPEstat neighbors from L1 RAM cache without another HTTP call.
+	_, err = LookupASN(ctx, 13335)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), calls.Load())
 }
