@@ -35,7 +35,7 @@ import {
 import {
   SmartDNSService,
   smartdnsQueryKey,
-  type SmartDNSSimulateResult,
+  type SmartDNSSimulateInput,
 } from '@/lib/services/openflare';
 import { getErrorMessage } from '../../websites/components/website-utils';
 
@@ -53,7 +53,6 @@ export function SmartDNSSimulatorDrawer({
   const [qtype, setQType] = useState<'A' | 'AAAA'>('A');
   const [clientIP, setClientIP] = useState('223.5.5.5');
   const [policyId, setPolicyId] = useState<string>('auto');
-  const [result, setResult] = useState<SmartDNSSimulateResult | null>(null);
 
   const policiesQuery = useQuery({
     queryKey: [...smartdnsQueryKey, 'policies'],
@@ -62,25 +61,39 @@ export function SmartDNSSimulatorDrawer({
   });
 
   useEffect(() => {
-    if (open && initialPolicyId) {
-      setPolicyId(String(initialPolicyId));
-    }
+    if (open) setPolicyId(initialPolicyId ? String(initialPolicyId) : 'auto');
   }, [initialPolicyId, open]);
 
   const simulateMutation = useMutation({
-    mutationFn: () =>
-      SmartDNSService.simulate({
-        domain: domain.trim(),
-        qtype,
-        client_ip: clientIP.trim(),
-        policy_id: policyId !== 'auto' ? Number(policyId) : undefined,
-      }),
-    onSuccess: (res) => setResult(res),
-    onError: (err) => toast.error(getErrorMessage(err)),
+    mutationFn: (input: SmartDNSSimulateInput) =>
+      SmartDNSService.simulate(input),
+    onError: (error) => toast.error(getErrorMessage(error)),
   });
+  const input: SmartDNSSimulateInput = {
+    domain: domain.trim(),
+    qtype,
+    client_ip: clientIP.trim(),
+    policy_id: policyId === 'auto' ? undefined : Number(policyId),
+  };
+  const submitted = simulateMutation.variables;
+  const result =
+    submitted?.domain === input.domain &&
+    submitted?.qtype === input.qtype &&
+    submitted?.client_ip === input.client_ip &&
+    submitted?.policy_id === input.policy_id
+      ? simulateMutation.data
+      : undefined;
+  const canRun =
+    !!input.domain && !!input.client_ip && !simulateMutation.isPending;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) simulateMutation.reset();
+        onOpenChange(next);
+      }}
+    >
       <SheetContent className='w-full overflow-y-auto sm:max-w-3xl'>
         <SheetHeader>
           <SheetTitle>{t('title')}</SheetTitle>
@@ -88,7 +101,13 @@ export function SmartDNSSimulatorDrawer({
         </SheetHeader>
 
         <div className='space-y-5 px-4 pb-6'>
-          <div className='grid gap-3 rounded-lg border border-dashed p-4 sm:grid-cols-2'>
+          <form
+            className='grid gap-3 rounded-lg border border-dashed p-4 sm:grid-cols-2'
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canRun) simulateMutation.mutate(input);
+            }}
+          >
             <div className='space-y-1.5'>
               <Label htmlFor='sim-domain'>{t('domain')}</Label>
               <Input
@@ -139,14 +158,7 @@ export function SmartDNSSimulatorDrawer({
               </Select>
             </div>
             <div className='sm:col-span-2 flex justify-end'>
-              <Button
-                disabled={
-                  simulateMutation.isPending ||
-                  !domain.trim() ||
-                  !clientIP.trim()
-                }
-                onClick={() => simulateMutation.mutate()}
-              >
+              <Button type='submit' disabled={!canRun}>
                 {simulateMutation.isPending ? (
                   <Loader2 data-icon='inline-start' className='animate-spin' />
                 ) : (
@@ -155,7 +167,7 @@ export function SmartDNSSimulatorDrawer({
                 {t('run')}
               </Button>
             </div>
-          </div>
+          </form>
 
           {result ? (
             <div className='space-y-4'>
@@ -191,16 +203,15 @@ export function SmartDNSSimulatorDrawer({
                   {result.selection.hysteresis_applied ? (
                     <Badge variant='secondary'>{t('hysteresisBadge')}</Badge>
                   ) : null}
-                  {result.selection.fallback_used ? (
-                    <Badge variant='destructive'>
-                      {t('fallbackBadge')}: {result.selection.fallback_reason}
-                    </Badge>
+                  {result.selection.fallback_used &&
+                  result.selection.answers.length > 0 ? (
+                    <Badge variant='destructive'>{t('fallbackBadge')}</Badge>
                   ) : null}
                 </div>
               </div>
 
               <div className='space-y-2'>
-                <h4 className='text-sm font-medium'>{t('selectedAnswers')}</h4>
+                <h3 className='text-sm font-medium'>{t('selectedAnswers')}</h3>
                 {result.selection.answers.length === 0 ? (
                   <p className='text-xs text-muted-foreground'>
                     {t('noAnswers')}
@@ -220,65 +231,67 @@ export function SmartDNSSimulatorDrawer({
                 )}
               </div>
 
-              <div className='space-y-2'>
-                <h4 className='text-sm font-medium'>{t('candidateTrace')}</h4>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('colNode')}</TableHead>
-                      <TableHead>{t('colTier')}</TableHead>
-                      <TableHead>{t('colRttLoss')}</TableHead>
-                      <TableHead>{t('colLoad')}</TableHead>
-                      <TableHead>{t('colScore')}</TableHead>
-                      <TableHead>{t('colState')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {result.selection.candidates.map((c) => (
-                      <TableRow key={c.node_id}>
-                        <TableCell>
-                          <div className='font-medium text-xs'>{c.name}</div>
-                          <div className='font-mono text-[11px] text-muted-foreground'>
-                            {c.ip || '-'}
-                          </div>
-                        </TableCell>
-                        <TableCell className='text-xs'>
-                          {c.source_tier || '-'}
-                        </TableCell>
-                        <TableCell className='text-xs tabular-nums'>
-                          {c.effective_rtt_ms.toFixed(1)} ms /{' '}
-                          {(c.loss_rate * 100).toFixed(1)}%
-                        </TableCell>
-                        <TableCell className='text-xs tabular-nums'>
-                          {(c.load_index * 100).toFixed(0)}%
-                        </TableCell>
-                        <TableCell className='font-mono text-xs tabular-nums'>
-                          {c.final_score.toFixed(3)}
-                        </TableCell>
-                        <TableCell>
-                          {c.selected ? (
-                            <Badge variant='default'>
-                              {t('stateSelected')}
-                            </Badge>
-                          ) : c.overloaded ? (
-                            <Badge variant='destructive'>
-                              {t('stateOverloaded')}
-                            </Badge>
-                          ) : c.exclusion_reason ? (
-                            <Badge variant='outline'>
-                              {c.exclusion_reason}
-                            </Badge>
-                          ) : (
-                            <Badge variant='secondary'>
-                              {t('stateCandidate')}
-                            </Badge>
-                          )}
-                        </TableCell>
+              {result.selection.candidates.length > 0 && (
+                <div className='space-y-2'>
+                  <h3 className='text-sm font-medium'>{t('candidateTrace')}</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t('colNode')}</TableHead>
+                        <TableHead>{t('colTier')}</TableHead>
+                        <TableHead>{t('colRttLoss')}</TableHead>
+                        <TableHead>{t('colLoad')}</TableHead>
+                        <TableHead>{t('colScore')}</TableHead>
+                        <TableHead>{t('colState')}</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {result.selection.candidates.map((c) => (
+                        <TableRow key={c.node_id}>
+                          <TableCell>
+                            <div className='font-medium text-xs'>{c.name}</div>
+                            <div className='font-mono text-[11px] text-muted-foreground'>
+                              {c.ip || '-'}
+                            </div>
+                          </TableCell>
+                          <TableCell className='text-xs'>
+                            {c.source_tier || '-'}
+                          </TableCell>
+                          <TableCell className='text-xs tabular-nums'>
+                            {c.effective_rtt_ms.toFixed(1)} ms /{' '}
+                            {(c.loss_rate * 100).toFixed(1)}%
+                          </TableCell>
+                          <TableCell className='text-xs tabular-nums'>
+                            {(c.load_index * 100).toFixed(0)}%
+                          </TableCell>
+                          <TableCell className='font-mono text-xs tabular-nums'>
+                            {c.final_score.toFixed(3)}
+                          </TableCell>
+                          <TableCell>
+                            {c.selected ? (
+                              <Badge variant='default'>
+                                {t('stateSelected')}
+                              </Badge>
+                            ) : c.overloaded ? (
+                              <Badge variant='destructive'>
+                                {t('stateOverloaded')}
+                              </Badge>
+                            ) : c.exclusion_reason ? (
+                              <Badge variant='outline'>
+                                {c.exclusion_reason}
+                              </Badge>
+                            ) : (
+                              <Badge variant='secondary'>
+                                {t('stateCandidate')}
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </div>
           ) : null}
         </div>

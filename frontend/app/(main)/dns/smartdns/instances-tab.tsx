@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Copy,
   KeyRound,
   Plus,
   RefreshCw,
@@ -27,6 +26,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { SmartDNSEnrollmentSheet } from './enrollment-sheet';
+import { DnsActionMenu } from '../components/dns-action-menu';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,7 +56,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   SmartDNSService,
   smartdnsQueryKey,
@@ -62,11 +63,7 @@ import {
 } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 import { getErrorMessage } from '../../websites/components/website-utils';
-import {
-  buildSmartDNSDockerCommand,
-  buildSmartDNSInstallCommand,
-  type SmartDNSReleaseChannel,
-} from './install-command';
+import { SmartDNSDeploymentCommands } from './deployment-commands';
 
 export function SmartDNSInstancesTab() {
   const t = useTranslations('smartdns.instances');
@@ -80,20 +77,17 @@ export function SmartDNSInstancesTab() {
   const [listenAddr, setListenAddr] = useState('0.0.0.0:53');
   const [geoName, setGeoName] = useState('');
 
+  const [enrollmentOpen, setEnrollmentOpen] = useState(false);
+  const [rotateTarget, setRotateTarget] = useState<SmartDNSInstance | null>(
+    null,
+  );
   const [secretView, setSecretView] = useState<SmartDNSInstance | null>(null);
-  const [deployChannel, setDeployChannel] =
-    useState<SmartDNSReleaseChannel>('stable');
   const [quarantineTarget, setQuarantineTarget] =
     useState<SmartDNSInstance | null>(null);
   const [quarantineReason, setQuarantineReason] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<SmartDNSInstance | null>(
     null,
   );
-
-  const discoveryQuery = useQuery({
-    queryKey: [...smartdnsQueryKey, 'discovery-token'],
-    queryFn: () => SmartDNSService.getDiscoveryToken(),
-  });
 
   const instancesQuery = useQuery({
     queryKey: [...smartdnsQueryKey, 'instances'],
@@ -104,15 +98,6 @@ export function SmartDNSInstancesTab() {
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: smartdnsQueryKey });
   };
-
-  const rotateDiscoveryMutation = useMutation({
-    mutationFn: () => SmartDNSService.rotateDiscoveryToken(),
-    onSuccess: async () => {
-      toast.success(t('discoveryRotated'));
-      await refresh();
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -141,6 +126,7 @@ export function SmartDNSInstancesTab() {
   const rotateTokenMutation = useMutation({
     mutationFn: (id: number) => SmartDNSService.rotateInstanceToken(id),
     onSuccess: async (inst) => {
+      setRotateTarget(null);
       toast.success(t('tokenRotated'));
       setSecretView(inst);
       await refresh();
@@ -197,164 +183,23 @@ export function SmartDNSInstancesTab() {
     setEditOpen(true);
   };
 
-  const copyText = async (value: string, successMessage: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success(successMessage);
-    } catch {
-      toast.error(t('copyFailed'));
-    }
-  };
-
-  const discoveryToken = discoveryQuery.data?.discovery_token ?? '';
-  const originUrl =
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : 'https://controller.example.com';
-  const discoveryScriptCommand = discoveryToken
-    ? buildSmartDNSInstallCommand({
-        controllerUrl: originUrl,
-        token: discoveryToken,
-        tokenType: 'discovery',
-        channel: deployChannel,
-      })
-    : '';
-  const discoveryDockerCommand = discoveryToken
-    ? buildSmartDNSDockerCommand({
-        controllerUrl: originUrl,
-        token: discoveryToken,
-        tokenType: 'discovery',
-        channel: deployChannel,
-      })
-    : '';
-
-  const instanceScriptCommand = secretView?.access_token
-    ? buildSmartDNSInstallCommand({
-        controllerUrl: originUrl,
-        token: secretView.access_token,
-        tokenType: 'instance',
-        instanceId: secretView.instance_id,
-        listenAddr: secretView.listen_addr,
-        publicAddr: secretView.public_addr,
-        channel: deployChannel,
-      })
-    : '';
-  const instanceDockerCommand = secretView?.access_token
-    ? buildSmartDNSDockerCommand({
-        controllerUrl: originUrl,
-        token: secretView.access_token,
-        tokenType: 'instance',
-        instanceId: secretView.instance_id,
-        publicAddr: secretView.public_addr,
-        channel: deployChannel,
-      })
-    : '';
-
   return (
-    <div className='space-y-6'>
-      <Card>
-        <CardHeader className='flex flex-row flex-wrap items-center justify-between gap-3'>
-          <div>
-            <CardTitle className='text-base'>{t('discoveryTitle')}</CardTitle>
-            <CardDescription>{t('discoveryDesc')}</CardDescription>
-          </div>
-          <div className='flex flex-wrap items-center gap-2'>
-            <div className='flex items-center gap-1'>
-              <Button
-                variant={deployChannel === 'stable' ? 'default' : 'outline'}
-                size='sm'
-                onClick={() => setDeployChannel('stable')}
-              >
-                {t('channelStable')}
-              </Button>
-              <Button
-                variant={deployChannel === 'canary' ? 'default' : 'outline'}
-                size='sm'
-                onClick={() => setDeployChannel('canary')}
-              >
-                {t('channelCanary')}
-              </Button>
-            </div>
-            <Button
-              variant='outline'
-              size='sm'
-              disabled={rotateDiscoveryMutation.isPending}
-              onClick={() => rotateDiscoveryMutation.mutate()}
-            >
-              <RefreshCw data-icon='inline-start' />
-              {t('rotateDiscovery')}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className='space-y-3'>
-          <div className='flex flex-wrap items-center gap-2'>
-            <Input
-              readOnly
-              className='max-w-md font-mono text-xs'
-              value={discoveryToken}
-            />
-            <Button
-              variant='outline'
-              size='sm'
-              disabled={!discoveryToken}
-              onClick={() => copyText(discoveryToken, t('copied'))}
-            >
-              <Copy data-icon='inline-start' />
-              {t('copyToken')}
-            </Button>
-          </div>
-          {discoveryScriptCommand ? (
-            <Tabs defaultValue='script' className='space-y-2'>
-              <TabsList>
-                <TabsTrigger value='script'>{t('deployScriptTab')}</TabsTrigger>
-                <TabsTrigger value='docker'>{t('deployDockerTab')}</TabsTrigger>
-              </TabsList>
-              <TabsContent value='script'>
-                <div className='flex flex-wrap items-start justify-between gap-2 rounded-lg border border-dashed bg-muted/40 p-3'>
-                  <pre className='overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs'>
-                    {discoveryScriptCommand}
-                  </pre>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={() =>
-                      copyText(discoveryScriptCommand, t('copied'))
-                    }
-                  >
-                    <Copy data-icon='inline-start' />
-                    {t('copyCommand')}
-                  </Button>
-                </div>
-              </TabsContent>
-              <TabsContent value='docker'>
-                <div className='flex flex-wrap items-start justify-between gap-2 rounded-lg border border-dashed bg-muted/40 p-3'>
-                  <pre className='overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs'>
-                    {discoveryDockerCommand}
-                  </pre>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={() =>
-                      copyText(discoveryDockerCommand, t('copied'))
-                    }
-                  >
-                    <Copy data-icon='inline-start' />
-                    {t('copyCommand')}
-                  </Button>
-                </div>
-              </TabsContent>
-            </Tabs>
-          ) : null}
-        </CardContent>
-      </Card>
-
+    <div className='flex flex-col gap-5'>
       <Card>
         <CardHeader className='flex flex-row flex-wrap items-center justify-between gap-3'>
           <div>
             <CardTitle className='text-base'>{t('listTitle')}</CardTitle>
             <CardDescription>{t('listDesc')}</CardDescription>
           </div>
-          <div className='flex items-center gap-2'>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => setEnrollmentOpen(true)}
+            >
+              <KeyRound data-icon='inline-start' />
+              {t('openEnrollment')}
+            </Button>
             <Button
               variant='outline'
               size='sm'
@@ -382,9 +227,9 @@ export function SmartDNSInstancesTab() {
               onRetry={() => void instancesQuery.refetch()}
             />
           ) : (instancesQuery.data ?? []).length === 0 ? (
-            <p className='py-8 text-center text-sm text-muted-foreground'>
-              {t('empty')}
-            </p>
+            <div className='flex flex-col items-start gap-2 rounded-lg border border-dashed p-4'>
+              <p className='text-sm text-muted-foreground'>{t('empty')}</p>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -460,56 +305,50 @@ export function SmartDNSInstancesTab() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className='flex justify-end gap-1.5'>
+                      <div className='flex justify-end gap-1'>
                         <Button
-                          variant='outline'
+                          variant='ghost'
                           size='sm'
                           onClick={() => openEdit(inst)}
                         >
                           {t('edit')}
                         </Button>
-                        <Button
-                          variant='outline'
-                          size='icon-sm'
-                          title={t('rotateToken')}
-                          aria-label={t('rotateToken')}
-                          onClick={() => rotateTokenMutation.mutate(inst.id)}
-                        >
-                          <KeyRound className='size-3.5' />
-                        </Button>
-                        {inst.quarantined_at ? (
-                          <Button
-                            variant='outline'
-                            size='icon-sm'
-                            title={t('unquarantine')}
-                            aria-label={t('unquarantine')}
-                            onClick={() => unquarantineMutation.mutate(inst.id)}
+                        <DnsActionMenu name={inst.name}>
+                          <DropdownMenuItem
+                            onSelect={() => setRotateTarget(inst)}
                           >
-                            <ShieldCheck className='size-3.5' />
-                          </Button>
-                        ) : (
-                          <Button
-                            variant='outline'
-                            size='icon-sm'
-                            title={t('quarantine')}
-                            aria-label={t('quarantine')}
-                            onClick={() => {
-                              setQuarantineTarget(inst);
-                              setQuarantineReason('');
-                            }}
+                            <KeyRound />
+                            {t('rotateToken')}
+                          </DropdownMenuItem>
+                          {inst.quarantined_at ? (
+                            <DropdownMenuItem
+                              disabled={unquarantineMutation.isPending}
+                              onSelect={() =>
+                                unquarantineMutation.mutate(inst.id)
+                              }
+                            >
+                              <ShieldCheck />
+                              {t('unquarantine')}
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setQuarantineTarget(inst);
+                                setQuarantineReason('');
+                              }}
+                            >
+                              <ShieldAlert />
+                              {t('quarantine')}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            variant='destructive'
+                            onSelect={() => setDeleteTarget(inst)}
                           >
-                            <ShieldAlert className='size-3.5' />
-                          </Button>
-                        )}
-                        <Button
-                          variant='destructive'
-                          size='icon-sm'
-                          title={t('delete')}
-                          aria-label={t('delete')}
-                          onClick={() => setDeleteTarget(inst)}
-                        >
-                          <Trash2 className='size-3.5' />
-                        </Button>
+                            <Trash2 />
+                            {t('delete')}
+                          </DropdownMenuItem>
+                        </DnsActionMenu>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -519,6 +358,40 @@ export function SmartDNSInstancesTab() {
           )}
         </CardContent>
       </Card>
+
+      <SmartDNSEnrollmentSheet
+        open={enrollmentOpen}
+        onOpenChange={setEnrollmentOpen}
+      />
+      <AlertDialog
+        open={rotateTarget !== null}
+        onOpenChange={(open) =>
+          !open && !rotateTokenMutation.isPending && setRotateTarget(null)
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('rotateToken')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('rotateAccessDescription', { name: rotateTarget?.name ?? '' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rotateTokenMutation.isPending}>
+              {tc('cancel')}
+            </AlertDialogCancel>
+            <Button
+              variant='destructive'
+              disabled={rotateTokenMutation.isPending}
+              onClick={() =>
+                rotateTarget && rotateTokenMutation.mutate(rotateTarget.id)
+              }
+            >
+              {t('rotateToken')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
@@ -584,108 +457,21 @@ export function SmartDNSInstancesTab() {
         open={secretView !== null}
         onOpenChange={(open) => !open && setSecretView(null)}
       >
-        <DialogContent className='sm:max-w-xl'>
+        <DialogContent className='max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl'>
           <DialogHeader>
             <DialogTitle>{t('credentialsTitle')}</DialogTitle>
             <DialogDescription>{t('credentialsDesc')}</DialogDescription>
           </DialogHeader>
-          {secretView ? (
-            <div className='space-y-3'>
-              <div className='space-y-1.5'>
-                <Label>{t('accessTokenLabel')}</Label>
-                <div className='flex gap-2'>
-                  <Input
-                    readOnly
-                    className='font-mono text-xs'
-                    value={secretView.access_token ?? ''}
-                  />
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={() =>
-                      copyText(secretView.access_token ?? '', t('copied'))
-                    }
-                  >
-                    <Copy />
-                  </Button>
-                </div>
-              </div>
-              {instanceScriptCommand || secretView.install_command ? (
-                <div className='space-y-2'>
-                  <div className='flex flex-wrap items-center justify-between gap-2'>
-                    <Label>{t('installCommandLabel')}</Label>
-                    <div className='flex items-center gap-1'>
-                      <Button
-                        variant={
-                          deployChannel === 'stable' ? 'default' : 'outline'
-                        }
-                        size='sm'
-                        onClick={() => setDeployChannel('stable')}
-                      >
-                        {t('channelStable')}
-                      </Button>
-                      <Button
-                        variant={
-                          deployChannel === 'canary' ? 'default' : 'outline'
-                        }
-                        size='sm'
-                        onClick={() => setDeployChannel('canary')}
-                      >
-                        {t('channelCanary')}
-                      </Button>
-                    </div>
-                  </div>
-                  <Tabs defaultValue='script' className='space-y-2'>
-                    <TabsList>
-                      <TabsTrigger value='script'>
-                        {t('deployScriptTab')}
-                      </TabsTrigger>
-                      <TabsTrigger value='docker'>
-                        {t('deployDockerTab')}
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value='script'>
-                      <div className='flex items-start justify-between gap-2 rounded-lg border border-dashed bg-muted/40 p-3'>
-                        <pre className='overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs'>
-                          {instanceScriptCommand || secretView.install_command}
-                        </pre>
-                        <Button
-                          variant='outline'
-                          size='icon-sm'
-                          onClick={() =>
-                            copyText(
-                              instanceScriptCommand ||
-                                secretView.install_command ||
-                                '',
-                              t('copied'),
-                            )
-                          }
-                        >
-                          <Copy />
-                        </Button>
-                      </div>
-                    </TabsContent>
-                    <TabsContent value='docker'>
-                      <div className='flex items-start justify-between gap-2 rounded-lg border border-dashed bg-muted/40 p-3'>
-                        <pre className='overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs'>
-                          {instanceDockerCommand}
-                        </pre>
-                        <Button
-                          variant='outline'
-                          size='icon-sm'
-                          onClick={() =>
-                            copyText(instanceDockerCommand, t('copied'))
-                          }
-                        >
-                          <Copy />
-                        </Button>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+          {secretView?.access_token && (
+            <SmartDNSDeploymentCommands
+              tokenLabel={t('accessTokenLabel')}
+              token={secretView.access_token}
+              tokenType='instance'
+              instanceId={secretView.instance_id}
+              listenAddr={secretView.listen_addr}
+              publicAddr={secretView.public_addr}
+            />
+          )}
           <DialogFooter>
             <Button onClick={() => setSecretView(null)}>{tc('close')}</Button>
           </DialogFooter>

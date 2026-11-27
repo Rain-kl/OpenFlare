@@ -158,8 +158,8 @@ export function GroupDialog({
         : !smartdnsPolicyID);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={(next) => !pending && onOpenChange(next)}>
+      <DialogContent className='max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg'>
         <DialogHeader>
           <DialogTitle>{group ? t('editTitle') : t('createTitle')}</DialogTitle>
           <DialogDescription>{t('description')}</DialogDescription>
@@ -180,7 +180,7 @@ export function GroupDialog({
               variant='outline'
               value={targetMode}
               aria-labelledby='cf-target-mode-label'
-              className='grid w-full grid-cols-3'
+              className='grid w-full grid-cols-1 sm:grid-cols-3'
               onValueChange={(value) => {
                 if (
                   value === 'node' ||
@@ -189,8 +189,6 @@ export function GroupDialog({
                 ) {
                   setTargetMode(value);
                   if (value === 'smartdns') {
-                    setDefaultProxied(false);
-                    setRecordType('CNAME');
                     if (!smartdnsPolicyID && smartdnsPolicies.length > 0) {
                       const def =
                         smartdnsPolicies.find((p) => p.is_default) ??
@@ -340,72 +338,81 @@ export function GroupDialog({
               </Field>
             </>
           )}
-          <Field>
-            <FieldLabel id='cf-ttl-mode-label'>{t('ttl')}</FieldLabel>
-            <ToggleGroup
-              type='single'
-              variant='outline'
-              value={ttlMode}
-              aria-labelledby='cf-ttl-mode-label'
-              aria-describedby='cf-ttl-hint'
-              className='grid w-full grid-cols-2'
-              onValueChange={(value) => {
-                if (value === 'auto' || value === 'manual') {
-                  setTtlMode(value);
-                }
-              }}
-            >
-              <ToggleGroupItem value='auto' className='w-full'>
-                {t('ttlAuto')}
-              </ToggleGroupItem>
-              <ToggleGroupItem value='manual' className='w-full'>
-                {t('ttlManual')}
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <FieldDescription id='cf-ttl-hint'>{t('ttlHint')}</FieldDescription>
-          </Field>
-          {ttlMode === 'manual' && (
-            <Field data-invalid={invalidTTL}>
-              <FieldLabel htmlFor='cf-ttl-seconds'>
-                {t('ttlSeconds')}
-              </FieldLabel>
-              <Input
-                id='cf-ttl-seconds'
-                type='number'
-                min={60}
-                max={86400}
-                step={1}
-                required
-                value={manualTTL}
-                aria-invalid={invalidTTL}
-                aria-describedby={
-                  invalidTTL ? 'cf-ttl-hint cf-ttl-error' : 'cf-ttl-hint'
-                }
-                onChange={(event) => setManualTTL(event.target.value)}
-              />
-              {invalidTTL && (
-                <FieldError id='cf-ttl-error'>{t('ttlError')}</FieldError>
+          <details className='rounded-lg border border-dashed px-4 py-3'>
+            <summary className='cursor-pointer text-sm font-medium'>
+              {t('recordSettings')}
+            </summary>
+            <FieldGroup className='mt-4'>
+              <Field>
+                <FieldLabel id='cf-ttl-mode-label'>{t('ttl')}</FieldLabel>
+                <ToggleGroup
+                  type='single'
+                  variant='outline'
+                  value={ttlMode}
+                  aria-labelledby='cf-ttl-mode-label'
+                  aria-describedby='cf-ttl-hint'
+                  className='grid w-full grid-cols-2'
+                  onValueChange={(value) => {
+                    if (value === 'auto' || value === 'manual') {
+                      setTtlMode(value);
+                    }
+                  }}
+                >
+                  <ToggleGroupItem value='auto' className='w-full'>
+                    {t('ttlAuto')}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value='manual' className='w-full'>
+                    {t('ttlManual')}
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <FieldDescription id='cf-ttl-hint'>
+                  {t('ttlHint')}
+                </FieldDescription>
+              </Field>
+              {ttlMode === 'manual' && (
+                <Field data-invalid={invalidTTL}>
+                  <FieldLabel htmlFor='cf-ttl-seconds'>
+                    {t('ttlSeconds')}
+                  </FieldLabel>
+                  <Input
+                    id='cf-ttl-seconds'
+                    type='number'
+                    min={60}
+                    max={86400}
+                    step={1}
+                    required
+                    value={manualTTL}
+                    aria-invalid={invalidTTL}
+                    aria-describedby={
+                      invalidTTL ? 'cf-ttl-hint cf-ttl-error' : 'cf-ttl-hint'
+                    }
+                    onChange={(event) => setManualTTL(event.target.value)}
+                  />
+                  {invalidTTL && (
+                    <FieldError id='cf-ttl-error'>{t('ttlError')}</FieldError>
+                  )}
+                </Field>
               )}
-            </Field>
-          )}
-          <Field>
-            <div className='flex items-center justify-between gap-2'>
-              <FieldLabel htmlFor='cf-default-proxied'>
-                {t('defaultProxied')}
-              </FieldLabel>
-              <Switch
-                id='cf-default-proxied'
-                checked={effectiveDefaultProxied}
-                disabled={targetMode === 'smartdns'}
-                onCheckedChange={setDefaultProxied}
-              />
-            </div>
-            {targetMode === 'smartdns' ? (
-              <FieldDescription>
-                {t('smartdnsProxyDisabledHint')}
-              </FieldDescription>
-            ) : null}
-          </Field>
+              <Field>
+                <div className='flex items-center justify-between gap-2'>
+                  <FieldLabel htmlFor='cf-default-proxied'>
+                    {t('defaultProxied')}
+                  </FieldLabel>
+                  <Switch
+                    id='cf-default-proxied'
+                    checked={effectiveDefaultProxied}
+                    disabled={targetMode === 'smartdns'}
+                    onCheckedChange={setDefaultProxied}
+                  />
+                </div>
+                {targetMode === 'smartdns' ? (
+                  <FieldDescription>
+                    {t('smartdnsProxyDisabledHint')}
+                  </FieldDescription>
+                ) : null}
+              </Field>
+            </FieldGroup>
+          </details>
           <Field orientation='horizontal'>
             <FieldLabel htmlFor='cf-enabled'>{t('enableSync')}</FieldLabel>
             <Switch
@@ -416,7 +423,11 @@ export function GroupDialog({
           </Field>
         </FieldGroup>
         <DialogFooter>
-          <Button variant='outline' onClick={() => onOpenChange(false)}>
+          <Button
+            variant='outline'
+            disabled={pending}
+            onClick={() => onOpenChange(false)}
+          >
             {tCommon('cancel')}
           </Button>
           <Button

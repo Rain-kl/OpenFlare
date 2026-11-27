@@ -10,6 +10,7 @@ import {
   Plus,
   RefreshCw,
   Settings,
+  Search,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -37,16 +38,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import {
@@ -55,16 +47,19 @@ import {
   NodeService,
   SmartDNSService,
   smartdnsQueryKey,
+  type CloudflareGroup,
   type CloudflareGroupPayload,
   type CloudflareMember,
   type SmartDNSPolicy,
 } from '@/lib/services/openflare';
 
-const emptySmartDNSPolicies: SmartDNSPolicy[] = [];
 import { getErrorMessage } from '../../../websites/components/website-utils';
 import { GroupDialog } from '../../components/group-dialog';
 import { MemberAddDialog } from '../../components/member-add-dialog';
+import { MemberTable } from '../../components/member-table';
 import { MemberMoveDialog } from '../../components/member-move-dialog';
+
+const emptySmartDNSPolicies: SmartDNSPolicy[] = [];
 
 function getGroupIdFromPathname(pathname: string | null): number {
   const match = pathname?.match(/^\/cloudflare\/groups\/([^/]+)$/);
@@ -72,8 +67,6 @@ function getGroupIdFromPathname(pathname: string | null): number {
 }
 
 export function CloudflareGroupDetailPageClient() {
-  const uiText = useTranslations('runtime');
-
   const t = useTranslations('cloudflare');
   const tCommon = useTranslations('common');
   const [mounted, setMounted] = useState(false);
@@ -84,7 +77,10 @@ export function CloudflareGroupDetailPageClient() {
   const pathname = usePathname();
   const groupID = useMemo(() => getGroupIdFromPathname(pathname), [pathname]);
   const queryClient = useQueryClient();
-  const [editOpen, setEditOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<CloudflareGroup | null>(
+    null,
+  );
+  const editOpen = editingGroup !== null;
   const [addOpen, setAddOpen] = useState(false);
   const [selectedMemberIDs, setSelectedMemberIDs] = useState<Set<number>>(
     () => new Set(),
@@ -92,6 +88,10 @@ export function CloudflareGroupDetailPageClient() {
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [movingMembers, setMovingMembers] = useState<CloudflareMember[]>([]);
   const [batchRemoveOpen, setBatchRemoveOpen] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [removeTarget, setRemoveTarget] = useState<CloudflareMember | null>(
+    null,
+  );
 
   const detailQuery = useQuery({
     queryKey: [...cloudflareQueryKey, 'groups', groupID],
@@ -102,14 +102,17 @@ export function CloudflareGroupDetailPageClient() {
   const domainsQuery = useQuery({
     queryKey: [...cloudflareQueryKey, 'domains', 'available'],
     queryFn: () => CloudflareService.listAvailableDomains(),
+    enabled: addOpen,
   });
   const nodesQuery = useQuery({
     queryKey: ['openflare', 'nodes'],
     queryFn: () => NodeService.listNodes(),
+    enabled: editOpen,
   });
   const groupsQuery = useQuery({
     queryKey: [...cloudflareQueryKey, 'groups'],
     queryFn: () => CloudflareService.listGroups(),
+    enabled: moveDialogOpen,
   });
   const smartdnsPoliciesQuery = useQuery({
     queryKey: [...smartdnsQueryKey, 'policies'],
@@ -124,7 +127,7 @@ export function CloudflareGroupDetailPageClient() {
       CloudflareService.updateGroup(groupID, payload),
     onSuccess: async () => {
       toast.success(t('groupUpdated'));
-      setEditOpen(false);
+      setEditingGroup(null);
       await invalidate();
     },
     onError: (error) => toast.error(getErrorMessage(error)),
@@ -183,7 +186,12 @@ export function CloudflareGroupDetailPageClient() {
   const syncMutation = useMutation({
     mutationFn: (memberID: number) =>
       CloudflareService.syncMember(groupID, memberID),
-    onSuccess: () => toast.success(t('memberSyncQueued')),
+    onSuccess: async () => {
+      toast.success(t('memberSyncQueued'));
+      await queryClient.invalidateQueries({
+        queryKey: [...cloudflareQueryKey, 'sync-executions'],
+      });
+    },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
   const removeMutation = useMutation({
@@ -191,6 +199,7 @@ export function CloudflareGroupDetailPageClient() {
       CloudflareService.removeMember(groupID, memberID),
     onSuccess: async (_, memberID) => {
       toast.success(t('memberDeleted'));
+      setRemoveTarget(null);
       setSelectedMemberIDs((prev) => {
         const next = new Set(prev);
         next.delete(memberID);
@@ -292,21 +301,30 @@ export function CloudflareGroupDetailPageClient() {
   const { group, members } = detailQuery.data;
 
   const selectedMembers = members.filter((m) => selectedMemberIDs.has(m.id));
-  const allSelected =
-    members.length > 0 && selectedMembers.length === members.length;
-  const isIndeterminate =
-    selectedMembers.length > 0 && selectedMembers.length < members.length;
+  const visibleMembers = members.filter((member) =>
+    member.domain.toLowerCase().includes(memberSearch.trim().toLowerCase()),
+  );
+  const selectMembers = (ids: number[], checked: boolean) => {
+    setSelectedMemberIDs((previous) => {
+      const next = new Set(previous);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className='flex w-full flex-col gap-6 py-6 px-1'>
-      <div className='flex flex-col gap-4'>
+      <div className='flex flex-col gap-3'>
         <Button variant='ghost' size='sm' className='self-start' asChild>
           <Link href='/cloudflare'>
             <ArrowLeft data-icon='inline-start' />
             {t('back')}
           </Link>
         </Button>
-        <div className='flex items-center justify-between gap-3'>
+        <div className='flex flex-wrap items-center justify-between gap-3'>
           <div className='flex items-center gap-2'>
             <Cloud className='size-5 text-primary' />
             <h1 className='text-2xl font-semibold tracking-tight'>
@@ -330,23 +348,22 @@ export function CloudflareGroupDetailPageClient() {
             <Button
               variant='outline'
               size='sm'
-              onClick={() => setEditOpen(true)}
+              onClick={() => setEditingGroup(group)}
             >
               <Settings data-icon='inline-start' />
               {t('edit')}
-            </Button>
-            <Button size='sm' onClick={() => setAddOpen(true)}>
-              <Plus data-icon='inline-start' />
-              {t('addDomain')}
             </Button>
           </div>
         </div>
       </div>
 
-      <Card className='border-dashed shadow-none'>
-        <CardHeader>
-          <CardTitle className='text-base'>{t('currentPoint')}</CardTitle>
-          <CardDescription>
+      <section
+        className='flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3'
+        aria-label={t('currentPoint')}
+      >
+        <div className='min-w-0'>
+          <p className='text-xs text-muted-foreground'>{t('currentPoint')}</p>
+          <p className='break-all text-sm font-medium'>
             {group.target_mode === 'smartdns'
               ? t('smartdnsTargetSummary', {
                   policy:
@@ -366,9 +383,9 @@ export function CloudflareGroupDetailPageClient() {
                     name: group.active_node.name,
                     ip: group.active_node.ip,
                   })}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className='flex flex-wrap gap-2'>
+          </p>
+        </div>
+        <div className='flex flex-wrap gap-2'>
           <Badge variant={group.enabled ? 'default' : 'secondary'}>
             {group.enabled ? t('syncEnabled') : t('syncDisabled')}
           </Badge>
@@ -398,14 +415,37 @@ export function CloudflareGroupDetailPageClient() {
               ? t('ttlAutoSummary')
               : t('ttlSecondsSummary', { seconds: group.ttl ?? 300 })}
           </Badge>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       <Card className='border-dashed shadow-none'>
-        <CardHeader className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-          <div>
-            <CardTitle className='text-base'>{t('members')}</CardTitle>
-            <CardDescription>{t('membersDesc')}</CardDescription>
+        <CardHeader className='flex flex-col gap-4'>
+          <div className='flex flex-wrap items-center justify-between gap-3'>
+            <div>
+              <CardTitle className='text-base'>{t('members')}</CardTitle>
+              <CardDescription>
+                {t('domainCount', { count: members.length })}
+              </CardDescription>
+            </div>
+            <div className='flex w-full flex-wrap items-center gap-2 sm:w-auto'>
+              {members.length > 0 && (
+                <div className='relative min-w-40 flex-1'>
+                  <Search className='pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground' />
+                  <Input
+                    type='search'
+                    className='pl-9'
+                    aria-label={t('searchMembers')}
+                    placeholder={t('searchMembers')}
+                    value={memberSearch}
+                    onChange={(event) => setMemberSearch(event.target.value)}
+                  />
+                </div>
+              )}
+              <Button size='sm' onClick={() => setAddOpen(true)}>
+                <Plus data-icon='inline-start' />
+                {t('addDomain')}
+              </Button>
+            </div>
           </div>
           {selectedMembers.length > 0 && (
             <div className='flex flex-wrap items-center gap-2'>
@@ -458,153 +498,33 @@ export function CloudflareGroupDetailPageClient() {
             <p className='py-8 text-center text-sm text-muted-foreground'>
               {t('noMembers')}
             </p>
+          ) : visibleMembers.length === 0 ? (
+            <p className='py-8 text-center text-sm text-muted-foreground'>
+              {t('noMatchingMembers')}
+            </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className='w-12'>
-                    <Checkbox
-                      checked={
-                        allSelected
-                          ? true
-                          : isIndeterminate
-                            ? 'indeterminate'
-                            : false
-                      }
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedMemberIDs(
-                            new Set(members.map((m) => m.id)),
-                          );
-                        } else {
-                          setSelectedMemberIDs(new Set());
-                        }
-                      }}
-                      aria-label={uiText('ui_selectAll')}
-                    />
-                  </TableHead>
-                  <TableHead>{t('columns.domain')}</TableHead>
-                  <TableHead>{t('columns.desiredIp')}</TableHead>
-                  <TableHead>{t('columns.status')}</TableHead>
-                  <TableHead>{t('columns.proxied')}</TableHead>
-                  <TableHead className='text-right'>
-                    {t('columns.actions')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((member) => (
-                  <TableRow
-                    key={member.id}
-                    data-state={
-                      selectedMemberIDs.has(member.id) ? 'selected' : undefined
-                    }
-                  >
-                    <TableCell className='w-12'>
-                      <Checkbox
-                        checked={selectedMemberIDs.has(member.id)}
-                        onCheckedChange={(checked) => {
-                          setSelectedMemberIDs((prev) => {
-                            const next = new Set(prev);
-                            if (checked) {
-                              next.add(member.id);
-                            } else {
-                              next.delete(member.id);
-                            }
-                            return next;
-                          });
-                        }}
-                        aria-label={`Select ${member.domain}`}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className='font-medium'>{member.domain}</div>
-                      {member.last_error ? (
-                        <p className='max-w-md text-xs text-destructive'>
-                          {member.last_error}
-                        </p>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>
-                      {member.desired_ip || t('pendingSync')}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          member.sync_status === 'ok'
-                            ? 'default'
-                            : member.sync_status === 'error'
-                              ? 'destructive'
-                              : 'secondary'
-                        }
-                      >
-                        {member.sync_status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={
-                          group.target_mode === 'smartdns'
-                            ? false
-                            : member.proxied
-                        }
-                        disabled={group.target_mode === 'smartdns'}
-                        title={
-                          group.target_mode === 'smartdns'
-                            ? t('smartdnsProxyLocked')
-                            : undefined
-                        }
-                        onCheckedChange={(proxied) =>
-                          proxiedMutation.mutate({
-                            memberID: member.id,
-                            proxied,
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className='flex justify-end gap-2'>
-                        <Button
-                          variant='outline'
-                          size='icon'
-                          title={t('move')}
-                          aria-label={t('move')}
-                          onClick={() => handleSingleMove(member)}
-                        >
-                          <ArrowRightLeft />
-                        </Button>
-                        <Button
-                          variant='outline'
-                          size='icon'
-                          title={t('sync')}
-                          aria-label={t('sync')}
-                          onClick={() => syncMutation.mutate(member.id)}
-                        >
-                          <RefreshCw />
-                        </Button>
-                        <Button
-                          variant='destructive'
-                          size='icon'
-                          title={t('remove')}
-                          aria-label={t('remove')}
-                          onClick={() => removeMutation.mutate(member.id)}
-                        >
-                          <Trash2 />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <MemberTable
+              members={visibleMembers}
+              selectedMemberIDs={selectedMemberIDs}
+              dnsOnly={group.target_mode === 'smartdns'}
+              updatingProxy={proxiedMutation.isPending}
+              syncing={!group.enabled || syncMutation.isPending}
+              onSelect={selectMembers}
+              onProxy={(memberID, proxied) =>
+                proxiedMutation.mutate({ memberID, proxied })
+              }
+              onMove={handleSingleMove}
+              onSync={(memberID) => syncMutation.mutate(memberID)}
+              onRemove={setRemoveTarget}
+            />
           )}
         </CardContent>
       </Card>
 
       <GroupDialog
         open={editOpen}
-        onOpenChange={setEditOpen}
-        group={group}
+        onOpenChange={(open) => !open && setEditingGroup(null)}
+        group={editingGroup}
         nodes={nodesQuery.data ?? []}
         smartdnsPolicies={smartdnsPoliciesQuery.data ?? emptySmartDNSPolicies}
         pending={updateGroupMutation.isPending}
@@ -637,6 +557,36 @@ export function CloudflareGroupDetailPageClient() {
           })
         }
       />
+      <AlertDialog
+        open={removeTarget !== null}
+        onOpenChange={(open) =>
+          !open && !removeMutation.isPending && setRemoveTarget(null)
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('removeMemberTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('removeMemberDesc', { name: removeTarget?.domain ?? '' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeMutation.isPending}>
+              {tCommon('cancel')}
+            </AlertDialogCancel>
+            <Button
+              variant='destructive'
+              disabled={removeMutation.isPending}
+              onClick={() =>
+                removeTarget && removeMutation.mutate(removeTarget.id)
+              }
+            >
+              {t('remove')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={batchRemoveOpen} onOpenChange={setBatchRemoveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -2818,7 +2818,7 @@ export interface SmartDNSPolicy {
   description: string;
   scope_type: 'all' | 'domains' | string;
   scope_domains: string[];
-  strategy_type: 'smart' | 'load_balance' | 'custom_jdm' | string;
+  strategy_type: 'smart' | 'load_balance' | 'custom' | string;
   priority: number;
   ttl: number;
   max_answers: number;

@@ -1,26 +1,30 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Cloud,
-  Globe2,
-  Save,
-  ShieldCheck,
-  Trash2,
-} from 'lucide-react';
+import { ArrowLeft, Cloud, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ErrorInline } from '@/components/layout/error';
+import { LoadingStateWithBorder } from '@/components/layout/loading';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -39,249 +43,341 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ErrorInline } from '@/components/layout/error';
+import { Spinner } from '@/components/ui/spinner';
 import {
   CloudflareService,
   cloudflareQueryKey,
   DnsAccountService,
   type CloudflareConnectionSource,
 } from '@/lib/services/openflare';
+import { formatDateTime } from '@/lib/utils';
 import { getErrorMessage } from '../../websites/components/website-utils';
 
-const dnsAccountsQueryKey = ['openflare', 'dns-accounts'] as const;
+const connectionKey = [...cloudflareQueryKey, 'connection'] as const;
 
 export default function DNSSettingsPage() {
   const t = useTranslations('cloudflare.settings');
-  const tSmart = useTranslations('smartdns');
+  const common = useTranslations('common');
   const queryClient = useQueryClient();
-  const [source, setSource] =
-    useState<CloudflareConnectionSource>('dns_account');
-  const [dnsAccountID, setDNSAccountID] = useState('');
+  const [draftSource, setSource] = useState<CloudflareConnectionSource>();
+  const [draftAccountID, setAccountID] = useState<string>();
   const [apiToken, setAPIToken] = useState('');
+  const [clearOpen, setClearOpen] = useState(false);
 
   const connectionQuery = useQuery({
-    queryKey: [...cloudflareQueryKey, 'connection'],
+    queryKey: connectionKey,
     queryFn: () => CloudflareService.getConnection(),
   });
+  const connection = connectionQuery.data;
+  const source = draftSource ?? (connection?.source || 'dns_account');
+  const savedAccountID = connection?.dns_account_id
+    ? String(connection.dns_account_id)
+    : '';
+  const accountID = draftAccountID ?? savedAccountID;
   const accountsQuery = useQuery({
-    queryKey: dnsAccountsQueryKey,
+    queryKey: ['openflare', 'dns-accounts'],
     queryFn: () => DnsAccountService.list(),
+    enabled: source === 'dns_account',
   });
-
-  const cloudflareAccounts = useMemo(
-    () =>
-      (accountsQuery.data ?? []).filter(
-        (account) => account.type === 'cloudflare',
-      ),
-    [accountsQuery.data],
+  const accounts = (accountsQuery.data ?? []).filter(
+    (account) => account.type === 'cloudflare',
   );
+  const isAccountSource = source === 'dns_account';
+  const dirty =
+    source !== connection?.source ||
+    (isAccountSource ? accountID !== savedAccountID : !!apiToken.trim());
+  const valid = isAccountSource
+    ? accountsQuery.isSuccess &&
+      accounts.some((account) => String(account.id) === accountID)
+    : !!apiToken.trim();
 
-  useEffect(() => {
-    const connection = connectionQuery.data;
-    if (!connection?.configured) return;
-    if (connection.source) setSource(connection.source);
-    if (connection.dns_account_id)
-      setDNSAccountID(String(connection.dns_account_id));
-  }, [connectionQuery.data]);
-
-  const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: cloudflareQueryKey });
+  const resetDraft = () => {
+    setSource(undefined);
+    setAccountID(undefined);
+    setAPIToken('');
   };
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: cloudflareQueryKey });
 
+  const verifyMutation = useMutation({
+    mutationFn: () => CloudflareService.verifyConnection(),
+    onSuccess: (data) => {
+      queryClient.setQueryData(connectionKey, data);
+      toast.success(t('verified'));
+    },
+    onSettled: refresh,
+  });
   const saveMutation = useMutation({
     mutationFn: () =>
       CloudflareService.saveConnection({
         source,
-        dns_account_id: source === 'dns_account' ? Number(dnsAccountID) : 0,
-        api_token: source === 'standalone' ? apiToken : '',
+        dns_account_id: isAccountSource ? Number(accountID) : 0,
+        api_token: isAccountSource ? '' : apiToken.trim(),
       }),
-    onSuccess: async () => {
+    onSuccess: (data) => {
+      queryClient.setQueryData(connectionKey, data);
+      resetDraft();
       toast.success(t('saved'));
-      setAPIToken('');
-      await refresh();
+      verifyMutation.mutate();
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
-
-  const verifyMutation = useMutation({
-    mutationFn: () => CloudflareService.verifyConnection(),
-    onSuccess: async () => {
-      toast.success(t('verified'));
-      await refresh();
-    },
-    onError: (error) => toast.error(getErrorMessage(error)),
-  });
-
   const clearMutation = useMutation({
     mutationFn: () => CloudflareService.clearConnection(),
     onSuccess: async () => {
-      toast.success(t('cleared'));
-      setDNSAccountID('');
-      setAPIToken('');
+      resetDraft();
+      verifyMutation.reset();
       await refresh();
+      setClearOpen(false);
+      toast.success(t('cleared'));
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
+  const saving = saveMutation.isPending;
+  const busy = saving || verifyMutation.isPending || clearMutation.isPending;
+  const status = connection?.ready
+    ? 'ready'
+    : connection?.status === 'error'
+      ? 'failed'
+      : connection?.configured
+        ? 'unverified'
+        : 'unconfigured';
 
   return (
     <div className='flex w-full flex-col gap-6 py-6 px-1'>
-      <div className='flex flex-col gap-4'>
-        <Button variant='ghost' size='sm' className='self-start' asChild>
-          <Link href='/cloudflare'>
-            <ArrowLeft data-icon='inline-start' />
-            {t('back')}
-          </Link>
-        </Button>
+      <div className='flex flex-wrap items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
           <Cloud className='size-5 text-primary' />
           <h1 className='text-2xl font-semibold tracking-tight'>
             {t('title')}
           </h1>
         </div>
+        <Button asChild variant='ghost' size='sm'>
+          <Link href='/cloudflare'>
+            <ArrowLeft data-icon='inline-start' />
+            {t('back')}
+          </Link>
+        </Button>
       </div>
 
-      {connectionQuery.isError ? (
+      {connectionQuery.isPending ? (
+        <LoadingStateWithBorder icon={Cloud} description={t('loading')} />
+      ) : connectionQuery.isError ? (
         <ErrorInline
           message={getErrorMessage(connectionQuery.error)}
           onRetry={() => void connectionQuery.refetch()}
         />
-      ) : null}
+      ) : (
+        <div className='grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
+          <Card>
+            <CardHeader>
+              <CardTitle className='text-base'>{t('sourceTitle')}</CardTitle>
+              <CardDescription>{t('sourceDesc')}</CardDescription>
+            </CardHeader>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (dirty && valid && !busy) saveMutation.mutate();
+              }}
+            >
+              <CardContent>
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel htmlFor='cf-source'>{t('source')}</FieldLabel>
+                    <Select
+                      value={source}
+                      disabled={busy}
+                      onValueChange={(value) => {
+                        setSource(value as CloudflareConnectionSource);
+                        setAPIToken('');
+                      }}
+                    >
+                      <SelectTrigger id='cf-source' className='w-full'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value='dns_account'>
+                            {t('importDns')}
+                          </SelectItem>
+                          <SelectItem value='standalone'>
+                            {t('standalone')}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  {isAccountSource ? (
+                    <Field>
+                      <FieldLabel htmlFor='cf-dns-account'>
+                        {t('dnsAccount')}
+                      </FieldLabel>
+                      <Select
+                        value={accountID}
+                        onValueChange={setAccountID}
+                        disabled={
+                          busy || !accounts.length || accountsQuery.isError
+                        }
+                      >
+                        <SelectTrigger id='cf-dns-account' className='w-full'>
+                          <SelectValue placeholder={t('selectAccount')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {accounts.map((account) => (
+                              <SelectItem
+                                key={account.id}
+                                value={String(account.id)}
+                              >
+                                {account.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      {accountsQuery.isError ? (
+                        <ErrorInline
+                          message={getErrorMessage(accountsQuery.error)}
+                          onRetry={() => void accountsQuery.refetch()}
+                        />
+                      ) : (
+                        <FieldDescription>
+                          {accountsQuery.isPending
+                            ? t('loading')
+                            : accounts.length
+                              ? null
+                              : t('noAccounts')}{' '}
+                          <Link href='/dns-accounts'>
+                            {t('manageAccounts')}
+                          </Link>
+                        </FieldDescription>
+                      )}
+                    </Field>
+                  ) : (
+                    <Field>
+                      <FieldLabel htmlFor='cf-api-token'>API Token</FieldLabel>
+                      <Input
+                        id='cf-api-token'
+                        type='password'
+                        autoComplete='new-password'
+                        value={apiToken}
+                        disabled={busy}
+                        onChange={(event) => setAPIToken(event.target.value)}
+                        placeholder={t('tokenEnter')}
+                      />
+                    </Field>
+                  )}
+                </FieldGroup>
+              </CardContent>
+              <CardFooter className='mt-5 flex-wrap gap-2'>
+                {dirty || !connection?.configured ? (
+                  <Button type='submit' disabled={!dirty || !valid || busy}>
+                    {saving ? (
+                      <Spinner />
+                    ) : (
+                      <ShieldCheck data-icon='inline-start' />
+                    )}
+                    {t('saveAndTest')}
+                  </Button>
+                ) : (
+                  <Button
+                    type='button'
+                    variant={connection.ready ? 'outline' : 'default'}
+                    disabled={busy}
+                    onClick={() => verifyMutation.mutate()}
+                  >
+                    {verifyMutation.isPending ? (
+                      <Spinner />
+                    ) : (
+                      <ShieldCheck data-icon='inline-start' />
+                    )}
+                    {t('test')}
+                  </Button>
+                )}
+                {dirty && connection?.configured && (
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    disabled={busy}
+                    onClick={resetDraft}
+                  >
+                    {t('discard')}
+                  </Button>
+                )}
+              </CardFooter>
+            </form>
+          </Card>
 
-      <Card className='border-dashed shadow-none'>
-        <CardHeader>
-          <CardTitle className='text-base'>{t('sourceTitle')}</CardTitle>
-          <CardDescription>{t('sourceDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor='cf-source'>{t('source')}</FieldLabel>
-              <Select
-                value={source}
-                onValueChange={(value) =>
-                  setSource(value as CloudflareConnectionSource)
-                }
-              >
-                <SelectTrigger id='cf-source' className='w-full'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value='dns_account'>
-                      {t('importDns')}
-                    </SelectItem>
-                    <SelectItem value='standalone'>
-                      {t('standalone')}
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            {source === 'dns_account' ? (
-              <Field>
-                <FieldLabel htmlFor='cf-dns-account'>
-                  {t('dnsAccount')}
-                </FieldLabel>
-                <Select value={dnsAccountID} onValueChange={setDNSAccountID}>
-                  <SelectTrigger id='cf-dns-account' className='w-full'>
-                    <SelectValue placeholder={t('selectAccount')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {cloudflareAccounts.map((account) => (
-                        <SelectItem key={account.id} value={String(account.id)}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  {t('dnsHint')}{' '}
-                  <Link href='/dns-accounts'>{t('dnsLink')}</Link>
-                  {t('dnsHintAfter')}
-                </FieldDescription>
-              </Field>
-            ) : (
-              <Field>
-                <FieldLabel htmlFor='cf-api-token'>API Token</FieldLabel>
-                <Input
-                  id='cf-api-token'
-                  type='password'
-                  autoComplete='new-password'
-                  value={apiToken}
-                  onChange={(event) => setAPIToken(event.target.value)}
-                  placeholder={
-                    connectionQuery.data?.configured
-                      ? t('tokenKeep')
-                      : t('tokenEnter')
-                  }
-                />
-              </Field>
+          <Card>
+            <CardHeader>
+              <div className='flex flex-wrap items-center justify-between gap-2'>
+                <CardTitle className='text-base'>{t('statusTitle')}</CardTitle>
+                <Badge variant={status === 'ready' ? 'default' : 'secondary'}>
+                  {t(`${status}Label`)}
+                </Badge>
+              </div>
+              <CardDescription>
+                {t(status === 'unverified' ? 'notReady' : status)}
+              </CardDescription>
+            </CardHeader>
+            {(connection?.verified_at || verifyMutation.error) && (
+              <CardContent className='flex flex-col gap-2 text-sm text-muted-foreground'>
+                {connection?.verified_at && (
+                  <p>
+                    {t('verifiedAt', {
+                      date: formatDateTime(connection.verified_at),
+                    })}
+                  </p>
+                )}
+                {verifyMutation.error && (
+                  <p role='alert' className='text-destructive'>
+                    {getErrorMessage(verifyMutation.error)}
+                  </p>
+                )}
+              </CardContent>
             )}
+            {connection?.configured && (
+              <CardFooter>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  disabled={busy}
+                  onClick={() => setClearOpen(true)}
+                >
+                  {t('clear')}
+                </Button>
+              </CardFooter>
+            )}
+          </Card>
+        </div>
+      )}
 
-            <div className='flex flex-wrap items-center gap-2'>
-              <Button
-                onClick={() => saveMutation.mutate()}
-                disabled={
-                  saveMutation.isPending ||
-                  (source === 'dns_account' ? !dnsAccountID : !apiToken.trim())
-                }
-              >
-                <Save data-icon='inline-start' />
-                {t('save')}
-              </Button>
-              <Button
-                variant='outline'
-                onClick={() => verifyMutation.mutate()}
-                disabled={
-                  !connectionQuery.data?.configured || verifyMutation.isPending
-                }
-              >
-                <ShieldCheck data-icon='inline-start' />
-                {t('test')}
-              </Button>
-              <Button
-                variant='destructive'
-                onClick={() => clearMutation.mutate()}
-                disabled={
-                  !connectionQuery.data?.configured || clearMutation.isPending
-                }
-              >
-                <Trash2 data-icon='inline-start' />
-                {t('clear')}
-              </Button>
-            </div>
-          </FieldGroup>
-        </CardContent>
-      </Card>
-
-      <Alert>
-        <ShieldCheck />
-        <AlertTitle>{t('statusTitle')}</AlertTitle>
-        <AlertDescription>
-          {connectionQuery.data?.ready ? t('ready') : t('notReady')}
-        </AlertDescription>
-      </Alert>
-
-      <Card className='border-dashed shadow-none'>
-        <CardHeader className='flex flex-row items-center justify-between gap-3'>
-          <div>
-            <CardTitle className='flex items-center gap-2 text-base'>
-              <Globe2 className='size-4 text-primary' />
-              {tSmart('delegationCardTitle')}
-            </CardTitle>
-            <CardDescription>{tSmart('delegationCardDesc')}</CardDescription>
-          </div>
-          <Button variant='outline' size='sm' asChild>
-            <Link href='/dns/smartdns'>
-              {tSmart('openSmartDns')}
-              <ArrowRight data-icon='inline-end' />
-            </Link>
-          </Button>
-        </CardHeader>
-      </Card>
+      <AlertDialog
+        open={clearOpen}
+        onOpenChange={(open) => !busy && setClearOpen(open)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('clear')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('clearDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>
+              {common('cancel')}
+            </AlertDialogCancel>
+            <Button
+              variant='destructive'
+              disabled={busy}
+              onClick={() => clearMutation.mutate()}
+            >
+              {clearMutation.isPending && <Spinner />}
+              {t('clear')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

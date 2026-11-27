@@ -19,13 +19,6 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -198,6 +191,15 @@ export function SyncTasksPanel() {
     manual: t('manual'),
     retry: t('retry'),
     schedule: t('schedule'),
+    cloudflare_manual_group_sync: t('manual'),
+    cloudflare_manual_member_sync: t('manual'),
+    cloudflare_group_update: t('triggerGroupUpdate'),
+    cloudflare_member_create: t('triggerDomainAdded'),
+    cloudflare_member_move: t('triggerDomainMoved'),
+    cloudflare_member_update: t('triggerProxyChanged'),
+    cloudflare_member_batch_proxy: t('triggerProxyChanged'),
+    cloudflare_node_failover: t('triggerNodeChanged'),
+    cloudflare_node_quarantine: t('triggerNodeChanged'),
   };
 
   const openDetail = (execution: TaskExecution) => {
@@ -207,15 +209,9 @@ export function SyncTasksPanel() {
   };
 
   return (
-    <Card className='border-dashed shadow-none'>
-      <CardHeader className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
-        <div className='space-y-1'>
-          <CardTitle className='flex items-center gap-2 text-base'>
-            <Activity className='size-4 text-primary' />
-            {t('title')}
-          </CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
-        </div>
+    <div className='flex flex-col gap-4'>
+      <div className='flex flex-wrap items-center justify-between gap-3'>
+        <p className='text-sm text-muted-foreground'>{t('description')}</p>
         <div className='flex flex-wrap items-center gap-2'>
           <Select
             value={status}
@@ -253,95 +249,89 @@ export function SyncTasksPanel() {
             {t('refresh')}
           </Button>
         </div>
-      </CardHeader>
-      <CardContent className='space-y-4'>
-        {executionsQuery.isError ? (
-          <ErrorInline
-            message={
-              executionsQuery.error instanceof Error
-                ? executionsQuery.error.message
-                : t('loadFailed')
-            }
-            onRetry={() => void executionsQuery.refetch()}
-          />
-        ) : loading && executions.length === 0 ? (
-          <LoadingStateWithBorder icon={Activity} description={t('loading')} />
-        ) : executions.length === 0 ? (
-          <EmptyStateWithBorder
-            icon={Activity}
-            title={t('emptyTitle')}
-            description={t('emptyDesc')}
-          />
-        ) : (
-          <div className='rounded-lg border'>
-            <Table className='min-w-[720px]'>
-              <TableHeader>
-                <TableRow className='hover:bg-transparent'>
-                  <TableHead className='w-[200px]'>
-                    {t('columns.task')}
-                  </TableHead>
-                  <TableHead className='w-[100px]'>
-                    {t('columns.status')}
-                  </TableHead>
-                  <TableHead className='w-[100px]'>
-                    {t('columns.trigger')}
-                  </TableHead>
-                  <TableHead className='w-[100px]'>
-                    {t('columns.duration')}
-                  </TableHead>
-                  <TableHead className='min-w-[180px]'>
-                    {t('columns.result')}
-                  </TableHead>
-                  <TableHead className='w-[160px]'>
-                    {t('columns.createdAt')}
-                  </TableHead>
+      </div>
+      {executionsQuery.isError ? (
+        <ErrorInline
+          message={
+            executionsQuery.error instanceof Error
+              ? executionsQuery.error.message
+              : t('loadFailed')
+          }
+          onRetry={() => void executionsQuery.refetch()}
+        />
+      ) : loading && executions.length === 0 ? (
+        <LoadingStateWithBorder icon={Activity} description={t('loading')} />
+      ) : executions.length === 0 ? (
+        <EmptyStateWithBorder
+          icon={Activity}
+          className='py-8'
+          title={t(status === 'all' ? 'emptyTitle' : 'noMatchingTasks')}
+          description={status === 'all' ? t('emptyDesc') : undefined}
+        />
+      ) : (
+        <div className='rounded-lg border border-dashed'>
+          <Table className='min-w-[720px]'>
+            <TableHeader>
+              <TableRow className='hover:bg-transparent'>
+                <TableHead className='w-[200px]'>{t('columns.task')}</TableHead>
+                <TableHead className='w-[100px]'>
+                  {t('columns.status')}
+                </TableHead>
+                <TableHead className='w-[100px]'>
+                  {t('columns.trigger')}
+                </TableHead>
+                <TableHead className='w-[100px]'>
+                  {t('columns.duration')}
+                </TableHead>
+                <TableHead className='min-w-[180px]'>
+                  {t('columns.result')}
+                </TableHead>
+                <TableHead className='w-[160px]'>
+                  {t('columns.createdAt')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {executions.map((execution) => (
+                <TableRow key={execution.id}>
+                  <TableCell>
+                    <Button
+                      variant='link'
+                      className='h-auto p-0 text-foreground'
+                      onClick={() => openDetail(execution)}
+                    >
+                      {execution.task_name || execution.task_type}
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant(execution.status)}>
+                      {statusLabels[execution.status] || execution.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant='outline'>
+                      {triggerLabels[execution.triggered_by] ||
+                        execution.triggered_by}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className='font-mono text-xs text-muted-foreground'>
+                    {formatDuration(execution.duration)}
+                  </TableCell>
+                  <TableCell className='max-w-[280px] truncate text-xs text-muted-foreground'>
+                    {execution.error_message || execution.result || '-'}
+                  </TableCell>
+                  <TableCell className='font-mono text-[11px] text-muted-foreground'>
+                    {formatDateTime(execution.created_at)}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {executions.map((execution) => (
-                  <TableRow
-                    key={execution.id}
-                    className='cursor-pointer'
-                    onClick={() => openDetail(execution)}
-                  >
-                    <TableCell>
-                      <div className='flex flex-col gap-1'>
-                        <span className='text-sm font-medium'>
-                          {execution.task_name || execution.task_type}
-                        </span>
-                        <span className='font-mono text-[11px] text-muted-foreground'>
-                          {execution.task_type}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(execution.status)}>
-                        {statusLabels[execution.status] || execution.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant='outline'>
-                        {triggerLabels[execution.triggered_by] ||
-                          execution.triggered_by}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className='font-mono text-xs text-muted-foreground'>
-                      {formatDuration(execution.duration)}
-                    </TableCell>
-                    <TableCell className='max-w-[280px] truncate text-xs text-muted-foreground'>
-                      {execution.error_message || execution.result || '-'}
-                    </TableCell>
-                    <TableCell className='font-mono text-[11px] text-muted-foreground'>
-                      {formatDateTime(execution.created_at)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
-        <div className='flex items-center justify-between gap-2'>
+      {total > 0 && (
+        <div className='flex flex-wrap items-center justify-between gap-2'>
           <div className='text-xs text-muted-foreground'>
             {t('pageSummary', { total, page, pages: totalPages })}
           </div>
@@ -366,7 +356,7 @@ export function SyncTasksPanel() {
             </Button>
           </div>
         </div>
-      </CardContent>
+      )}
 
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
         <SheetContent className='w-full p-0 sm:max-w-[560px]'>
@@ -385,7 +375,7 @@ export function SyncTasksPanel() {
             ) : selected ? (
               <>
                 <div className='grid grid-cols-2 gap-3'>
-                  <div className='rounded-lg border p-3'>
+                  <div className='rounded-lg border border-dashed p-3'>
                     <div className='text-xs text-muted-foreground'>
                       {t('status')}
                     </div>
@@ -395,7 +385,7 @@ export function SyncTasksPanel() {
                       </Badge>
                     </div>
                   </div>
-                  <div className='rounded-lg border p-3'>
+                  <div className='rounded-lg border border-dashed p-3'>
                     <div className='text-xs text-muted-foreground'>
                       {t('trigger')}
                     </div>
@@ -404,7 +394,7 @@ export function SyncTasksPanel() {
                         selected.triggered_by}
                     </div>
                   </div>
-                  <div className='rounded-lg border p-3'>
+                  <div className='rounded-lg border border-dashed p-3'>
                     <div className='text-xs text-muted-foreground'>
                       {t('retries')}
                     </div>
@@ -412,7 +402,7 @@ export function SyncTasksPanel() {
                       {selected.retry_count}/{selected.max_retry}
                     </div>
                   </div>
-                  <div className='rounded-lg border p-3'>
+                  <div className='rounded-lg border border-dashed p-3'>
                     <div className='text-xs text-muted-foreground'>
                       {t('duration')}
                     </div>
@@ -513,6 +503,6 @@ export function SyncTasksPanel() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
-    </Card>
+    </div>
   );
 }

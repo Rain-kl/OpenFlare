@@ -46,18 +46,28 @@ function renderDialog(
     </NextIntlClientProvider>
   );
   const result = render(view(props));
+  if (props.open) openRecordSettings();
   return {
     ...props,
-    rerenderDialog: (nextProps: Partial<ComponentProps<typeof GroupDialog>>) =>
-      result.rerender(view({ ...props, ...nextProps })),
+    rerenderDialog: (
+      nextProps: Partial<ComponentProps<typeof GroupDialog>>,
+    ) => {
+      result.rerender(view({ ...props, ...nextProps }));
+      if (nextProps.open ?? props.open) openRecordSettings();
+    },
   };
+}
+
+function openRecordSettings() {
+  const summary = screen.getByText('记录设置');
+  if (!summary.closest('details')?.open) fireEvent.click(summary);
 }
 
 function fillCustomTarget() {
   fireEvent.change(screen.getByLabelText('分组名称'), {
     target: { value: '自定义分组' },
   });
-  fireEvent.click(screen.getByRole('radio', { name: '自定义' }));
+  fireEvent.click(screen.getByRole('radio', { name: '自定义记录' }));
   fireEvent.change(screen.getByLabelText('记录值'), {
     target: { value: '192.0.2.10' },
   });

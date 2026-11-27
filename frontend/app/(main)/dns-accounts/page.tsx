@@ -1,13 +1,13 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
-import { Cloud, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { KeyRound, Plus, Settings, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -16,18 +16,26 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { DnsActionMenu } from '../dns/components/dns-action-menu';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import type { DnsAccountItem } from '@/lib/services/openflare';
-import { DnsAccountService } from '@/lib/services/openflare';
+import {
+  CloudflareService,
+  cloudflareQueryKey,
+  DnsAccountService,
+} from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 
 import { useTranslations } from 'next-intl';
@@ -49,6 +57,11 @@ export default function DnsAccountsPage() {
     queryFn: () => DnsAccountService.list(),
   });
 
+  const connectionQuery = useQuery({
+    queryKey: [...cloudflareQueryKey, 'connection'],
+    queryFn: () => CloudflareService.getConnection(),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: number) => DnsAccountService.deleteById(id),
     onSuccess: async () => {
@@ -59,92 +72,117 @@ export default function DnsAccountsPage() {
     onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
-  const accounts = useMemo(
-    () => dnsAccountsQuery.data ?? [],
-    [dnsAccountsQuery.data],
-  );
+  const accounts = dnsAccountsQuery.data ?? [];
+  const linkedID = connectionQuery.data?.dns_account_id;
 
   return (
-    <div className='py-6 px-1 space-y-6'>
-      <div className='flex items-center justify-between gap-3'>
+    <div className='flex w-full flex-col gap-5 py-6 px-1'>
+      <div className='flex flex-wrap items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
-          <Cloud className='size-5 text-primary' />
+          <KeyRound className='size-5 text-primary' />
           <h1 className='text-2xl font-semibold tracking-tight'>
             {t('title')}
           </h1>
         </div>
-        <div className='flex items-center gap-2'>
-          <Button
-            size='sm'
-            className='h-7 text-xs'
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className='size-3.5 mr-1' />
+        <div className='flex flex-wrap items-center gap-2'>
+          <Button variant='outline' size='sm' asChild>
+            <Link href='/dns/settings'>
+              <Settings data-icon='inline-start' />
+              {t('connectionSettings')}
+            </Link>
+          </Button>
+          <Button size='sm' onClick={() => setCreateOpen(true)}>
+            <Plus data-icon='inline-start' />
             {t('addAccount')}
           </Button>
         </div>
       </div>
+      <p className='text-sm text-muted-foreground'>{t('listDesc')}</p>
 
-      <Card className='border-dashed shadow-none'>
-        <CardHeader className='pb-3'>
-          <CardTitle className='text-base font-semibold'>
-            {t('listTitle')}
-          </CardTitle>
-          <CardDescription>{t('listDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {dnsAccountsQuery.isLoading ? (
-            <LoadingStateWithBorder
-              icon={Cloud}
-              description={t('loadingList')}
-            />
-          ) : dnsAccountsQuery.isError ? (
-            <div className='p-8 border border-dashed rounded-lg'>
-              <ErrorInline
-                message={getErrorMessage(
-                  dnsAccountsQuery.error,
-                  t('requestFailed'),
-                )}
-                onRetry={() => void dnsAccountsQuery.refetch()}
-                className='justify-center'
-              />
-            </div>
-          ) : accounts.length === 0 ? (
-            <EmptyStateWithBorder icon={Cloud} description={t('emptyList')} />
-          ) : (
-            <div className='space-y-3'>
+      {connectionQuery.isError && (
+        <ErrorInline
+          message={t('connectionStatusError')}
+          onRetry={() => void connectionQuery.refetch()}
+        />
+      )}
+      {dnsAccountsQuery.isPending ? (
+        <LoadingStateWithBorder
+          icon={KeyRound}
+          description={t('loadingList')}
+        />
+      ) : dnsAccountsQuery.isError ? (
+        <ErrorInline
+          message={getErrorMessage(dnsAccountsQuery.error, t('requestFailed'))}
+          onRetry={() => void dnsAccountsQuery.refetch()}
+        />
+      ) : accounts.length === 0 ? (
+        <EmptyStateWithBorder
+          icon={KeyRound}
+          description={t('emptyList')}
+          actionText={t('addAccount')}
+          onAction={() => setCreateOpen(true)}
+        />
+      ) : (
+        <div className='rounded-lg border border-dashed'>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className='pl-4'>{t('accountName')}</TableHead>
+                <TableHead>{t('provider')}</TableHead>
+                <TableHead>{t('createdColumn')}</TableHead>
+                <TableHead className='pr-4 text-right'>
+                  {t('actionsColumn')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {accounts.map((account) => (
-                <div
-                  key={account.id}
-                  className='flex items-start justify-between gap-3 rounded-lg border bg-card px-4 py-3'
-                >
-                  <div className='space-y-1'>
-                    <p className='text-sm font-semibold'>
-                      {account.name}{' '}
-                      <span className='text-xs font-normal text-muted-foreground'>
-                        ({account.type})
-                      </span>
-                    </p>
-                    <p className='text-xs text-muted-foreground'>
-                      {t('createdAt', {
-                        date: formatDateTime(account.created_at),
-                      })}
-                    </p>
-                  </div>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    className='h-7 text-xs text-destructive'
-                    onClick={() => setDeleteTarget(account)}
-                  >
-                    <Trash2 className='size-3' />
-                  </Button>
-                </div>
+                <TableRow key={account.id}>
+                  <TableCell className='py-3 pl-4'>
+                    <div className='flex flex-wrap items-center gap-2'>
+                      <span className='font-medium'>{account.name}</span>
+                      {linkedID === account.id && (
+                        <Link href='/dns/settings'>
+                          <Badge variant='secondary'>{t('linked')}</Badge>
+                        </Link>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {account.type === 'cloudflare'
+                      ? 'Cloudflare'
+                      : account.type}
+                  </TableCell>
+                  <TableCell className='text-muted-foreground tabular-nums'>
+                    {formatDateTime(account.created_at)}
+                  </TableCell>
+                  <TableCell className='pr-4 text-right'>
+                    <DnsActionMenu name={account.name}>
+                      {linkedID === account.id ? (
+                        <DropdownMenuItem asChild>
+                          <Link href='/dns/settings'>
+                            <Settings />
+                            {t('connectionSettings')}
+                          </Link>
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem
+                          variant='destructive'
+                          disabled={!connectionQuery.isSuccess}
+                          onSelect={() => setDeleteTarget(account)}
+                        >
+                          <Trash2 />
+                          {tc('delete')}
+                        </DropdownMenuItem>
+                      )}
+                    </DnsActionMenu>
+                  </TableCell>
+                </TableRow>
               ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       <DnsAccountCreateDialog
         open={createOpen}
@@ -154,7 +192,9 @@ export default function DnsAccountsPage() {
 
       <AlertDialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onOpenChange={(open) =>
+          !open && !deleteMutation.isPending && setDeleteTarget(null)
+        }
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -164,15 +204,20 @@ export default function DnsAccountsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{tc('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              {tc('cancel')}
+            </AlertDialogCancel>
+            <Button
+              variant='destructive'
+              disabled={
+                deleteMutation.isPending || linkedID === deleteTarget?.id
+              }
               onClick={() =>
                 deleteTarget && deleteMutation.mutate(deleteTarget.id)
               }
             >
               {tc('delete')}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

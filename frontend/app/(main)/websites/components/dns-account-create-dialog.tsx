@@ -17,14 +17,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field';
 import type { DnsAccountMutationPayload } from '@/lib/services/openflare';
 import { DnsAccountService } from '@/lib/services/openflare';
 
@@ -36,7 +34,6 @@ const dnsAccountsQueryKey = ['openflare', 'dns-accounts'];
 
 type DnsAccountFormValues = {
   name: string;
-  type: string;
   authorization: string;
 };
 
@@ -57,12 +54,11 @@ export function DnsAccountCreateDialog({
   const [error, setError] = useState('');
   const dnsAccountSchema = z.object({
     name: z.string().trim().min(1, t('nameRequired')).max(255),
-    type: z.string().min(1),
     authorization: z.string().trim().min(1, t('tokenRequired')),
   });
   const form = useForm<DnsAccountFormValues>({
     resolver: zodResolver(dnsAccountSchema),
-    defaultValues: { name: '', type: 'cloudflare', authorization: '' },
+    defaultValues: { name: '', authorization: '' },
   });
 
   const createMutation = useMutation({
@@ -84,10 +80,15 @@ export function DnsAccountCreateDialog({
     if (!auth.startsWith('{')) {
       auth = JSON.stringify({ api_token: values.authorization });
     }
-    createMutation.mutate({ ...values, authorization: auth });
+    createMutation.mutate({
+      ...values,
+      type: 'cloudflare',
+      authorization: auth,
+    });
   });
 
   const handleClose = () => {
+    if (createMutation.isPending) return;
     form.reset();
     setError('');
     onOpenChange(false);
@@ -101,52 +102,47 @@ export function DnsAccountCreateDialog({
           <DialogDescription>{t('createDesc')}</DialogDescription>
         </DialogHeader>
 
-        <form className='space-y-4' onSubmit={onSubmit}>
-          {error ? <p className='text-sm text-destructive'>{error}</p> : null}
-
-          <div className='space-y-2'>
-            <Label>{t('accountName')}</Label>
-            <Input
-              placeholder={t('accountNamePlaceholder')}
-              {...form.register('name')}
-            />
-            {form.formState.errors.name ? (
-              <p className='text-xs text-destructive'>
-                {form.formState.errors.name.message}
-              </p>
-            ) : null}
-          </div>
-
-          <div className='space-y-2'>
-            <Label>{t('provider')}</Label>
-            <Select
-              value={form.watch('type')}
-              onValueChange={(value) => form.setValue('type', value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='cloudflare'>Cloudflare</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className='space-y-2'>
-            <Label>API Token</Label>
-            <Input
-              {...form.register('authorization')}
-              placeholder={t('tokenPlaceholder')}
-            />
-            {form.formState.errors.authorization ? (
-              <p className='text-xs text-destructive'>
-                {form.formState.errors.authorization.message}
-              </p>
-            ) : null}
-          </div>
-
+        <form className='flex flex-col gap-5' onSubmit={onSubmit}>
+          {error && (
+            <p role='alert' className='text-sm text-destructive'>
+              {error}
+            </p>
+          )}
+          <FieldGroup>
+            <Field data-invalid={!!form.formState.errors.name}>
+              <FieldLabel htmlFor='dns-account-name'>
+                {t('accountName')}
+              </FieldLabel>
+              <Input
+                id='dns-account-name'
+                placeholder={t('accountNamePlaceholder')}
+                aria-invalid={!!form.formState.errors.name}
+                {...form.register('name')}
+              />
+              <FieldError errors={[form.formState.errors.name]} />
+            </Field>
+            <Field data-invalid={!!form.formState.errors.authorization}>
+              <FieldLabel htmlFor='dns-account-token'>
+                Cloudflare API Token
+              </FieldLabel>
+              <Input
+                id='dns-account-token'
+                type='password'
+                autoComplete='new-password'
+                aria-invalid={!!form.formState.errors.authorization}
+                {...form.register('authorization')}
+                placeholder={t('tokenPlaceholder')}
+              />
+              <FieldError errors={[form.formState.errors.authorization]} />
+            </Field>
+          </FieldGroup>
           <DialogFooter>
-            <Button type='button' variant='outline' onClick={handleClose}>
+            <Button
+              type='button'
+              variant='outline'
+              disabled={createMutation.isPending}
+              onClick={handleClose}
+            >
               {tc('cancel')}
             </Button>
             <Button type='submit' disabled={createMutation.isPending}>

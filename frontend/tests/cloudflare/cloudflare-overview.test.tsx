@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import CloudflarePage from '@/app/(main)/cloudflare/page';
@@ -57,6 +57,7 @@ function renderPage() {
 
 describe('Cloudflare overview', () => {
   beforeEach(() => {
+    window.history.replaceState(null, '', '/cloudflare');
     vi.mocked(CloudflareService.listGroups).mockResolvedValue([]);
     vi.mocked(NodeService.listNodes).mockResolvedValue([]);
     vi.mocked(AdminTaskService.listTaskExecutions).mockResolvedValue({
@@ -89,7 +90,7 @@ describe('Cloudflare overview', () => {
     expect(screen.queryByText('同步边界')).not.toBeInTheDocument();
   });
 
-  it('renders pointing groups directly on the overview page', async () => {
+  it('opens pointing groups and sync history from their tabs', async () => {
     vi.mocked(CloudflareService.getOverview).mockResolvedValue({
       connection: {
         configured: true,
@@ -127,10 +128,18 @@ describe('Cloudflare overview', () => {
     renderPage();
 
     expect(await screen.findByText('生产节点')).toBeVisible();
-    expect(screen.getByRole('link', { name: '管理' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: '生产节点' })).toHaveAttribute(
       'href',
       '/cloudflare/groups/7',
     );
-    expect(await screen.findByText('同步任务')).toBeVisible();
+    fireEvent.mouseDown(screen.getByRole('tab', { name: '同步记录' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    expect(await screen.findByText('暂无同步任务')).toBeVisible();
+    expect(window.location.hash).toBe('#sync-history');
+    expect(
+      screen.queryByRole('link', { name: '生产节点' }),
+    ).not.toBeInTheDocument();
   });
 });

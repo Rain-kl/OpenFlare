@@ -6,16 +6,18 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDnsTab } from '../components/use-dns-tab';
+import { SmartDNSSettingsTab } from './settings-tab';
 import { SmartDNSInstancesTab } from './instances-tab';
 import { SmartDNSOverviewTab } from './overview-tab';
 import { SmartDNSPoliciesTab } from './policies-tab';
 import { SmartDNSSimulatorDrawer } from './simulator-drawer';
 
+const tabs = ['overview', 'instances', 'policies', 'delegation'] as const;
+
 export default function SmartDNSPage() {
   const t = useTranslations('smartdns');
-  const [activeTab, setActiveTab] = useState<
-    'overview' | 'instances' | 'policies'
-  >('overview');
+  const { activeTab, setActiveTab } = useDnsTab(tabs, 'overview');
   const [simulatorOpen, setSimulatorOpen] = useState(false);
   const [simulatorPolicyId, setSimulatorPolicyId] = useState<
     number | undefined
@@ -45,18 +47,25 @@ export default function SmartDNSPage() {
 
       <Tabs
         value={activeTab}
-        onValueChange={(v) =>
-          setActiveTab(v as 'overview' | 'instances' | 'policies')
-        }
+        onValueChange={setActiveTab}
+        activationMode='manual'
       >
-        <TabsList>
-          <TabsTrigger value='overview'>{t('tabs.overview')}</TabsTrigger>
-          <TabsTrigger value='instances'>{t('tabs.instances')}</TabsTrigger>
-          <TabsTrigger value='policies'>{t('tabs.policies')}</TabsTrigger>
-        </TabsList>
-
+        <div className='overflow-x-auto border-b border-dashed pb-1'>
+          <TabsList variant='line'>
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab} value={tab}>
+                {t(`tabs.${tab}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
         <TabsContent value='overview' className='pt-4'>
-          <SmartDNSOverviewTab />
+          <SmartDNSOverviewTab
+            onOpenInstances={() => setActiveTab('instances')}
+          />
+        </TabsContent>
+        <TabsContent value='delegation' className='pt-4'>
+          <SmartDNSSettingsTab />
         </TabsContent>
         <TabsContent value='instances' className='pt-4'>
           <SmartDNSInstancesTab />

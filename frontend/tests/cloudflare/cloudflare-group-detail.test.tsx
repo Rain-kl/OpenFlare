@@ -270,23 +270,25 @@ describe('Cloudflare group detail move and batch operations', () => {
     );
   });
 
-  it('supports selecting all members and toggling selection', async () => {
+  it('selects only domains matching the current search and clears selection', async () => {
     renderPage();
 
     expect(await screen.findByText('a.example.com')).toBeVisible();
     expect(screen.getByText('b.example.com')).toBeVisible();
 
-    // Initially batch toolbar is not visible
-    expect(screen.queryByText(/已选择/)).not.toBeInTheDocument();
-
-    // Select all via header checkbox
-    const selectAllCheckbox = screen.getByRole('checkbox', {
-      name: zhCN.runtime.ui_selectAll,
-    });
-    fireEvent.click(selectAllCheckbox);
-
-    // Batch toolbar should appear with count 2
-    expect(await screen.findByText('已选择 2 项')).toBeVisible();
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: '搜索分组内域名' }),
+      {
+        target: { value: 'a.example.com' },
+      },
+    );
+    expect(screen.queryByText('b.example.com')).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: zhCN.cloudflare.selectVisibleMembers,
+      }),
+    );
+    expect(await screen.findByText('已选择 1 项')).toBeVisible();
     expect(screen.getByRole('button', { name: '批量移动' })).toBeVisible();
     expect(screen.getByRole('button', { name: '批量删除' })).toBeVisible();
 
@@ -312,7 +314,7 @@ describe('Cloudflare group detail move and batch operations', () => {
     ).toBeVisible();
 
     // Open target group select
-    const selectTrigger = screen.getByRole('combobox');
+    const selectTrigger = await screen.findByRole('combobox');
     fireEvent.keyDown(selectTrigger, { key: 'ArrowDown' });
 
     // Select target group
@@ -336,7 +338,9 @@ describe('Cloudflare group detail move and batch operations', () => {
 
     // Select all members
     fireEvent.click(
-      screen.getByRole('checkbox', { name: zhCN.runtime.ui_selectAll }),
+      screen.getByRole('checkbox', {
+        name: zhCN.cloudflare.selectVisibleMembers,
+      }),
     );
     expect(await screen.findByText('已选择 2 项')).toBeVisible();
 
@@ -351,7 +355,7 @@ describe('Cloudflare group detail move and batch operations', () => {
     ).toBeVisible();
 
     // Open target group select
-    const selectTrigger = screen.getByRole('combobox');
+    const selectTrigger = await screen.findByRole('combobox');
     fireEvent.keyDown(selectTrigger, { key: 'ArrowDown' });
 
     // Select target group
@@ -379,7 +383,7 @@ describe('Cloudflare group detail move and batch operations', () => {
 
     // Select first member only
     fireEvent.click(
-      screen.getByRole('checkbox', { name: 'Select a.example.com' }),
+      screen.getByRole('checkbox', { name: '选择 a.example.com' }),
     );
     expect(await screen.findByText('已选择 1 项')).toBeVisible();
 
