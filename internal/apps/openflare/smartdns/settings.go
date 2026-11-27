@@ -25,6 +25,10 @@ import (
 const (
 	defaultSmartDNSUpdateRepo = "Rain-kl/OpenFlare"
 	defaultSmartDNSTTL        = 60
+	minPolicyTTL              = 10
+	maxPolicyTTL              = 86400
+	maxFQDNLength             = 253
+	delegationLookupTimeout   = 5 * time.Second
 )
 
 var fqdnPattern = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))+$`)
@@ -52,14 +56,14 @@ type SettingsInput struct {
 
 // DelegationVerifyResult reports live DNS NS/A resolution verification for the delegation domain.
 type DelegationVerifyResult struct {
-	DelegationDomain string   `json:"delegation_domain"`
-	ConfiguredNSHost []string `json:"configured_ns_hosts"`
-	ObservedNSRecords []string `json:"observed_ns_records"`
-	MatchedNSHosts   []string `json:"matched_ns_hosts"`
-	MissingNSHosts   []string `json:"missing_ns_hosts"`
-	Verified         bool     `json:"verified"`
-	CheckedAt        time.Time `json:"checked_at"`
-	Error            string   `json:"error,omitempty"`
+	DelegationDomain  string    `json:"delegation_domain"`
+	ConfiguredNSHost  []string  `json:"configured_ns_hosts"`
+	ObservedNSRecords []string  `json:"observed_ns_records"`
+	MatchedNSHosts    []string  `json:"matched_ns_hosts"`
+	MissingNSHosts    []string  `json:"missing_ns_hosts"`
+	Verified          bool      `json:"verified"`
+	CheckedAt         time.Time `json:"checked_at"`
+	Error             string    `json:"error,omitempty"`
 }
 
 // DNSLookupFunc abstracts NS record lookups for delegation verification tests.
@@ -110,7 +114,7 @@ func readSmartDNSSettingsMap(ctx context.Context) SettingsView {
 		}
 	}
 	if rawTTL := readStr(model.ConfigKeySmartDNSDefaultTTL); rawTTL != "" {
-		if ttl, err := strconv.Atoi(rawTTL); err == nil && ttl >= 10 && ttl <= 86400 {
+		if ttl, err := strconv.Atoi(rawTTL); err == nil && ttl >= minPolicyTTL && ttl <= maxPolicyTTL {
 			view.DefaultTTL = ttl
 		}
 	}
@@ -141,34 +145,51 @@ func GetSettings(ctx context.Context) (*SettingsView, error) {
 // SaveSettings validates and persists SmartDNS configuration changes, triggering snapshot invalidation.
 func SaveSettings(ctx context.Context, input SettingsInput) (*SettingsView, error) {
 	cur := readSmartDNSSettingsMap(ctx)
+	if err := applySettingsInput(&cur, input); err != nil {
+		return nil, err
+	}
+	updates, err := buildSettingsUpdates(cur)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range updates {
+		if err := repository.SaveOrUpdateSystemConfig(ctx, k, v); err != nil {
+			return nil, err
+		}
+	}
+	NotifySnapshotDirty(ctx)
+	return GetSettings(ctx)
+}
+
+func applySettingsInput(cur *SettingsView, input SettingsInput) error {
 	if input.Enabled != nil {
 		cur.Enabled = *input.Enabled
 	}
 	if input.DelegationDomain != nil {
 		d := normalizeDomain(*input.DelegationDomain)
-		if d != "" && (!fqdnPattern.MatchString(d) || len(d) > 253) {
-			return nil, newLogicError(http.StatusBadRequest, errDelegationDomainInvalid)
+		if d != "" && (!fqdnPattern.MatchString(d) || len(d) > maxFQDNLength) {
+			return newLogicError(http.StatusBadRequest, errDelegationDomainInvalid)
 		}
 		cur.DelegationDomain = d
 	}
 	if input.NSHosts != nil {
 		hosts := normalizeDomainList(input.NSHosts)
 		for _, h := range hosts {
-			if !fqdnPattern.MatchString(h) || len(h) > 253 {
-				return nil, newLogicError(http.StatusBadRequest, errSettingsInvalid)
+			if !fqdnPattern.MatchString(h) || len(h) > maxFQDNLength {
+				return newLogicError(http.StatusBadRequest, errSettingsInvalid)
 			}
 		}
 		cur.NSHosts = hosts
 	}
 	if input.DefaultTTL != nil {
-		if *input.DefaultTTL < 10 || *input.DefaultTTL > 86400 {
-			return nil, newLogicError(http.StatusBadRequest, errSettingsInvalid)
+		if *input.DefaultTTL < minPolicyTTL || *input.DefaultTTL > maxPolicyTTL {
+			return newLogicError(http.StatusBadRequest, errSettingsInvalid)
 		}
 		cur.DefaultTTL = *input.DefaultTTL
 	}
 	if input.SnapshotIntervalSeconds != nil {
 		if *input.SnapshotIntervalSeconds < minSnapshotIntervalSec || *input.SnapshotIntervalSeconds > maxSnapshotIntervalSec {
-			return nil, newLogicError(http.StatusBadRequest, errSettingsInvalid)
+			return newLogicError(http.StatusBadRequest, errSettingsInvalid)
 		}
 		cur.SnapshotIntervalSeconds = *input.SnapshotIntervalSeconds
 	}
@@ -179,26 +200,22 @@ func SaveSettings(ctx context.Context, input SettingsInput) (*SettingsView, erro
 		}
 		cur.UpdateRepo = repo
 	}
+	return nil
+}
 
+func buildSettingsUpdates(cur SettingsView) (map[string]string, error) {
 	nsJSON, err := json.Marshal(cur.NSHosts)
 	if err != nil {
 		return nil, err
 	}
-	updates := map[string]string{
+	return map[string]string{
 		model.ConfigKeySmartDNSEnabled:                 strconv.FormatBool(cur.Enabled),
 		model.ConfigKeySmartDNSDelegationDomain:        cur.DelegationDomain,
 		model.ConfigKeySmartDNSNSHosts:                 string(nsJSON),
 		model.ConfigKeySmartDNSDefaultTTL:              strconv.Itoa(cur.DefaultTTL),
 		model.ConfigKeySmartDNSSnapshotIntervalSeconds: strconv.Itoa(cur.SnapshotIntervalSeconds),
 		model.ConfigKeySmartDNSUpdateRepo:              cur.UpdateRepo,
-	}
-	for k, v := range updates {
-		if err := repository.SaveOrUpdateSystemConfig(ctx, k, v); err != nil {
-			return nil, err
-		}
-	}
-	NotifySnapshotDirty(ctx)
-	return GetSettings(ctx)
+	}, nil
 }
 
 // VerifyDelegation verifies public DNS NS delegation for the configured SmartDNS delegation domain.
@@ -212,7 +229,7 @@ func VerifyDelegation(ctx context.Context, overrideDomain string) (*DelegationVe
 		return nil, newLogicError(http.StatusBadRequest, errDelegationDomainInvalid)
 	}
 
-	lookupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	lookupCtx, cancel := context.WithTimeout(ctx, delegationLookupTimeout)
 	defer cancel()
 	observed, err := lookupNSRecords(lookupCtx, domain)
 	res := &DelegationVerifyResult{
@@ -256,7 +273,7 @@ func ensureSmartDNSDiscoveryToken(ctx context.Context) (string, error) {
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", err
 	}
-	tok, err := generateHexToken(16)
+	tok, err := generateHexToken(discoveryTokenBytes)
 	if err != nil {
 		return "", err
 	}

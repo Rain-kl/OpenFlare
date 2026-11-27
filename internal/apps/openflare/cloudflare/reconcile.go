@@ -142,7 +142,7 @@ func desiredRecordInput(state *repository.CFPointingMemberContext) (RecordInput,
 		if !validCNAMEContent(host) {
 			return RecordInput{}, errors.New(errSmartDNSHostInvalid)
 		}
-		return RecordInput{Type: "CNAME", Content: host}, nil
+		return RecordInput{Type: recordTypeCNAME, Content: host}, nil
 	}
 	if state.Group.TargetMode == model.CFPointingTargetModeCustom {
 		recordType := strings.ToUpper(strings.TrimSpace(state.Group.RecordType))
@@ -202,7 +202,7 @@ func DeleteManagedRecord(ctx context.Context, memberID uint) error {
 	recordType := "A"
 	switch state.Group.TargetMode {
 	case model.CFPointingTargetModeSmartDNS:
-		recordType = "CNAME"
+		recordType = recordTypeCNAME
 	case model.CFPointingTargetModeCustom:
 		recordType = state.Group.RecordType
 		if recordType == "" {

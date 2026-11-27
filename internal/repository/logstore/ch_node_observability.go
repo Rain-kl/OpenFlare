@@ -264,8 +264,8 @@ func (s *clickhouseLogStore) ListDNSMetricSnapshots(ctx context.Context, instanc
 	if err != nil {
 		return nil, err
 	}
-	parts := make([]string, 0, 2)
-	args := make([]any, 0, 3)
+	var parts []string
+	var args []any
 	if trimmed := strings.TrimSpace(instanceID); trimmed != "" {
 		parts = append(parts, "instance_id = ?")
 		args = append(args, trimmed)

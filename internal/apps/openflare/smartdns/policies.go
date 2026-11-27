@@ -218,65 +218,119 @@ func ValidatePolicyGraph(input PolicyValidateInput) (*PolicyValidateResult, erro
 	}, nil
 }
 
+const (
+	maxPolicyNameLength     = 128
+	defaultPolicyPriority   = 100
+	defaultPolicyMaxAnswers = 1
+	minPolicyMaxAnswers     = 1
+	maxPolicyMaxAnswers     = 16
+)
+
+type normalizedPolicyCore struct {
+	name         string
+	scopeType    string
+	scopeDomains []string
+	strategyType string
+	fallback     string
+	ttl          int
+	maxAnswers   int
+	priority     int
+}
+
 func buildPolicyModel(existing *model.OpenFlareDNSPolicy, input PolicyInput) (*model.OpenFlareDNSPolicy, error) {
+	core, err := validatePolicyCore(input)
+	if err != nil {
+		return nil, err
+	}
+	jdmJSON, err := resolveAndCompilePolicyJDM(core.strategyType, input.Config, input.JDMJSON)
+	if err != nil {
+		return nil, err
+	}
+	cfg := normalizePolicyConfig(core.strategyType, input.Config)
+	return assemblePolicyModel(existing, input, core, cfg, jdmJSON), nil
+}
+
+func validatePolicyCore(input PolicyInput) (normalizedPolicyCore, error) {
 	name := strings.TrimSpace(input.Name)
-	if name == "" || len([]rune(name)) > 128 {
-		return nil, newLogicError(http.StatusBadRequest, errPolicyNameRequired)
+	if name == "" || len([]rune(name)) > maxPolicyNameLength {
+		return normalizedPolicyCore{}, newLogicError(http.StatusBadRequest, errPolicyNameRequired)
 	}
 	scopeType := strings.ToLower(strings.TrimSpace(input.ScopeType))
 	if scopeType == "" {
 		scopeType = model.DNSPolicyScopeAll
 	}
 	if scopeType != model.DNSPolicyScopeAll && scopeType != model.DNSPolicyScopeDomains {
-		return nil, newLogicError(http.StatusBadRequest, errPolicyScopeInvalid)
+		return normalizedPolicyCore{}, newLogicError(http.StatusBadRequest, errPolicyScopeInvalid)
 	}
 	scopeDomains := normalizeDomainList(input.ScopeDomains)
 	if scopeType == model.DNSPolicyScopeDomains && len(scopeDomains) == 0 {
-		return nil, newLogicError(http.StatusBadRequest, errPolicyScopeDomainEmpty)
+		return normalizedPolicyCore{}, newLogicError(http.StatusBadRequest, errPolicyScopeDomainEmpty)
 	}
-	strategyType := strings.ToLower(strings.TrimSpace(input.StrategyType))
-	if strategyType == "" {
-		strategyType = model.DNSPolicyStrategySmart
+	strategyType, err := validateStrategyType(input.StrategyType)
+	if err != nil {
+		return normalizedPolicyCore{}, err
 	}
-	switch strategyType {
-	case model.DNSPolicyStrategySmart, model.DNSPolicyStrategyLoadBalance, model.DNSPolicyStrategyCustom:
-	default:
-		return nil, newLogicError(http.StatusBadRequest, errPolicyStrategyInvalid)
-	}
-	fallback := strings.ToLower(strings.TrimSpace(input.FallbackStrategy))
-	if fallback == "" {
-		fallback = model.DNSPolicyFallbackSmart
-	}
-	switch fallback {
-	case model.DNSPolicyFallbackSmart, model.DNSPolicyFallbackLoadBalance, model.DNSPolicyFallbackStaticNodes, model.DNSPolicyFallbackAllHealthy:
-	default:
-		return nil, newLogicError(http.StatusBadRequest, errPolicyFallbackInvalid)
+	fallback, err := validateFallbackStrategy(input.FallbackStrategy)
+	if err != nil {
+		return normalizedPolicyCore{}, err
 	}
 	ttl := input.TTL
 	if ttl == 0 {
 		ttl = defaultSmartDNSTTL
 	}
-	if ttl < 10 || ttl > 86400 {
-		return nil, newLogicError(http.StatusBadRequest, errPolicyTTLInvalid)
+	if ttl < minPolicyTTL || ttl > maxPolicyTTL {
+		return normalizedPolicyCore{}, newLogicError(http.StatusBadRequest, errPolicyTTLInvalid)
 	}
 	maxAnswers := input.MaxAnswers
 	if maxAnswers == 0 {
-		maxAnswers = 1
+		maxAnswers = defaultPolicyMaxAnswers
 	}
-	if maxAnswers < 1 || maxAnswers > 16 {
-		return nil, newLogicError(http.StatusBadRequest, errPolicyMaxAnswersInvalid)
+	if maxAnswers < minPolicyMaxAnswers || maxAnswers > maxPolicyMaxAnswers {
+		return normalizedPolicyCore{}, newLogicError(http.StatusBadRequest, errPolicyMaxAnswersInvalid)
 	}
 	priority := input.Priority
 	if priority <= 0 {
-		priority = 100
+		priority = defaultPolicyPriority
 	}
+	return normalizedPolicyCore{
+		name:         name,
+		scopeType:    scopeType,
+		scopeDomains: scopeDomains,
+		strategyType: strategyType,
+		fallback:     fallback,
+		ttl:          ttl,
+		maxAnswers:   maxAnswers,
+		priority:     priority,
+	}, nil
+}
 
-	jdmJSON, err := resolveAndCompilePolicyJDM(strategyType, input.Config, input.JDMJSON)
-	if err != nil {
-		return nil, err
+func validateStrategyType(raw string) (string, error) {
+	strategyType := strings.ToLower(strings.TrimSpace(raw))
+	if strategyType == "" {
+		return model.DNSPolicyStrategySmart, nil
 	}
+	switch strategyType {
+	case model.DNSPolicyStrategySmart, model.DNSPolicyStrategyLoadBalance, model.DNSPolicyStrategyCustom:
+		return strategyType, nil
+	default:
+		return "", newLogicError(http.StatusBadRequest, errPolicyStrategyInvalid)
+	}
+}
 
-	cfg := input.Config
+func validateFallbackStrategy(raw string) (string, error) {
+	fallback := strings.ToLower(strings.TrimSpace(raw))
+	if fallback == "" {
+		return model.DNSPolicyFallbackSmart, nil
+	}
+	switch fallback {
+	case model.DNSPolicyFallbackSmart, model.DNSPolicyFallbackLoadBalance, model.DNSPolicyFallbackStaticNodes, model.DNSPolicyFallbackAllHealthy:
+		return fallback, nil
+	default:
+		return "", newLogicError(http.StatusBadRequest, errPolicyFallbackInvalid)
+	}
+}
+
+func normalizePolicyConfig(strategyType string, cfg PolicyConfig) PolicyConfig {
 	if strings.TrimSpace(cfg.Mode) == "" {
 		if strategyType == model.DNSPolicyStrategyLoadBalance {
 			cfg.Mode = model.DNSPolicyStrategyLoadBalance
@@ -299,8 +353,17 @@ func buildPolicyModel(existing *model.OpenFlareDNSPolicy, input PolicyInput) (*m
 	if cfg.Filters.NetworkGroups == nil {
 		cfg.Filters.NetworkGroups = []string{}
 	}
+	return cfg
+}
 
-	scopeJSON, _ := json.Marshal(scopeDomains)
+func assemblePolicyModel(
+	existing *model.OpenFlareDNSPolicy,
+	input PolicyInput,
+	core normalizedPolicyCore,
+	cfg PolicyConfig,
+	jdmJSON string,
+) *model.OpenFlareDNSPolicy {
+	scopeJSON, _ := json.Marshal(core.scopeDomains)
 	fbIDs := normalizeStringSlice(input.FallbackNodeIDs)
 	fbJSON, _ := json.Marshal(fbIDs)
 	cfgJSON, _ := json.Marshal(cfg)
@@ -309,14 +372,14 @@ func buildPolicyModel(existing *model.OpenFlareDNSPolicy, input PolicyInput) (*m
 	if existing != nil {
 		*item = *existing
 	}
-	item.Name = name
+	item.Name = core.name
 	item.Description = strings.TrimSpace(input.Description)
-	item.ScopeType = scopeType
+	item.ScopeType = core.scopeType
 	item.ScopeDomainsJSON = string(scopeJSON)
-	item.StrategyType = strategyType
-	item.Priority = priority
-	item.TTL = ttl
-	item.MaxAnswers = maxAnswers
+	item.StrategyType = core.strategyType
+	item.Priority = core.priority
+	item.TTL = core.ttl
+	item.MaxAnswers = core.maxAnswers
 	if input.Enabled != nil {
 		item.Enabled = *input.Enabled
 	} else if existing == nil {
@@ -328,14 +391,14 @@ func buildPolicyModel(existing *model.OpenFlareDNSPolicy, input PolicyInput) (*m
 	if item.IsDefault {
 		item.Enabled = true
 	}
-	item.FallbackStrategy = fallback
+	item.FallbackStrategy = core.fallback
 	item.FallbackNodeIDsJSON = string(fbJSON)
 	item.ConfigJSON = string(cfgJSON)
 	item.JDMJSON = jdmJSON
 	if item.Revision <= 0 {
 		item.Revision = 1
 	}
-	return item, nil
+	return item
 }
 
 func resolveAndCompilePolicyJDM(strategyType string, cfg PolicyConfig, rawJDM string) (string, error) {

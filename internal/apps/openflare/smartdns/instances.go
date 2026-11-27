@@ -127,7 +127,7 @@ func buildInstallCommand(inst *model.OpenFlareDNSInstance) string {
 	}
 	listen := strings.TrimSpace(inst.ListenAddr)
 	if listen == "" {
-		listen = ":53"
+		listen = defaultDNSListenAddr
 	}
 	return fmt.Sprintf("openflare-dns serve --controller-url <CONTROLLER_URL> --instance-id %s --token %s --listen %s", inst.InstanceID, inst.AccessToken, listen)
 }
@@ -173,13 +173,13 @@ func CreateInstance(ctx context.Context, input InstanceInput) (*InstanceView, er
 	}
 	listenAddr := strings.TrimSpace(input.ListenAddr)
 	if listenAddr == "" {
-		listenAddr = ":53"
+		listenAddr = defaultDNSListenAddr
 	}
-	suffix, err := generateHexToken(4)
+	suffix, err := generateHexToken(instanceIDRandomBytes)
 	if err != nil {
 		return nil, err
 	}
-	token, err := generateHexToken(24)
+	token, err := generateHexToken(instanceTokenBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func QuarantineInstance(ctx context.Context, id uint, reason string) (*InstanceV
 	inst.QuarantinedAt = &now
 	inst.QuarantineReason = strings.TrimSpace(reason)
 	inst.Status = model.DNSInstanceStatusQuarantined
-	if err := repository.UpdateDNSInstanceFields(ctx, inst, "quarantined_at", "quarantine_reason", "status"); err != nil {
+	if err := repository.UpdateDNSInstanceFields(ctx, inst, "quarantined_at", "quarantine_reason", colInstanceStatus); err != nil {
 		return nil, err
 	}
 	websocket.DisconnectDNSInstance(ctx, inst.InstanceID, inst.QuarantineReason)
@@ -277,7 +277,7 @@ func UnquarantineInstance(ctx context.Context, id uint) (*InstanceView, error) {
 	inst.QuarantineReason = ""
 	inst.LastSeenAt = nil
 	inst.Status = model.DNSInstanceStatusOffline
-	if err := repository.UpdateDNSInstanceFields(ctx, inst, "quarantined_at", "quarantine_reason", "last_seen_at", "status"); err != nil {
+	if err := repository.UpdateDNSInstanceFields(ctx, inst, "quarantined_at", "quarantine_reason", "last_seen_at", colInstanceStatus); err != nil {
 		return nil, err
 	}
 	return toInstanceView(inst, time.Now().UTC(), false), nil
@@ -292,7 +292,7 @@ func RotateInstanceToken(ctx context.Context, id uint) (*InstanceView, error) {
 		}
 		return nil, err
 	}
-	token, err := generateHexToken(24)
+	token, err := generateHexToken(instanceTokenBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +315,7 @@ func GetDiscoveryToken(ctx context.Context) (*DiscoveryTokenView, error) {
 
 // RotateDiscoveryToken rotates the global standalone DNS registration token.
 func RotateDiscoveryToken(ctx context.Context) (*DiscoveryTokenView, error) {
-	tok, err := generateHexToken(16)
+	tok, err := generateHexToken(discoveryTokenBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -328,31 +328,7 @@ func RotateDiscoveryToken(ctx context.Context) (*DiscoveryTokenView, error) {
 // RegisterDNSInstance handles self-registration or credential refresh for standalone openflare-dns nodes.
 func RegisterDNSInstance(ctx context.Context, existing *model.OpenFlareDNSInstance, req protocol.DNSInstanceRegisterRequest) (*protocol.DNSInstanceRegisterResponse, error) {
 	if existing != nil {
-		updates := map[string]any{
-			"version": strings.TrimSpace(req.Version),
-		}
-		if strings.TrimSpace(req.PublicAddr) != "" {
-			updates["public_addr"] = strings.TrimSpace(req.PublicAddr)
-		}
-		if strings.TrimSpace(req.ListenAddr) != "" {
-			updates["listen_addr"] = strings.TrimSpace(req.ListenAddr)
-		}
-		if strings.TrimSpace(req.GeoName) != "" {
-			updates["geo_name"] = strings.TrimSpace(req.GeoName)
-		}
-		if req.GeoLatitude != nil {
-			updates["geo_latitude"] = req.GeoLatitude
-		}
-		if req.GeoLongitude != nil {
-			updates["geo_longitude"] = req.GeoLongitude
-		}
-		_ = repository.UpdateDNSInstanceRuntime(ctx, existing.InstanceID, updates)
-		return &protocol.DNSInstanceRegisterResponse{
-			ID:          existing.ID,
-			InstanceID:  existing.InstanceID,
-			Name:        existing.Name,
-			AccessToken: existing.AccessToken,
-		}, nil
+		return updateRegisteredInstance(ctx, existing, req), nil
 	}
 
 	instanceID := strings.TrimSpace(req.InstanceID)
@@ -362,7 +338,7 @@ func RegisterDNSInstance(ctx context.Context, existing *model.OpenFlareDNSInstan
 			if found.IsQuarantined() {
 				return nil, newLogicError(http.StatusForbidden, errInstanceQuarantined)
 			}
-			return RegisterDNSInstance(ctx, found, req)
+			return updateRegisteredInstance(ctx, found, req), nil
 		}
 	}
 
@@ -371,19 +347,19 @@ func RegisterDNSInstance(ctx context.Context, existing *model.OpenFlareDNSInstan
 		name = "Standalone SmartDNS"
 	}
 	if instanceID == "" {
-		suffix, err := generateHexToken(4)
+		suffix, err := generateHexToken(instanceIDRandomBytes)
 		if err != nil {
 			return nil, err
 		}
 		instanceID = "dns-" + suffix
 	}
-	token, err := generateHexToken(24)
+	token, err := generateHexToken(instanceTokenBytes)
 	if err != nil {
 		return nil, err
 	}
 	listen := strings.TrimSpace(req.ListenAddr)
 	if listen == "" {
-		listen = ":53"
+		listen = defaultDNSListenAddr
 	}
 	now := time.Now().UTC()
 	item := &model.OpenFlareDNSInstance{
@@ -411,6 +387,38 @@ func RegisterDNSInstance(ctx context.Context, existing *model.OpenFlareDNSInstan
 	}, nil
 }
 
+func updateRegisteredInstance(
+	ctx context.Context,
+	existing *model.OpenFlareDNSInstance,
+	req protocol.DNSInstanceRegisterRequest,
+) *protocol.DNSInstanceRegisterResponse {
+	updates := map[string]any{
+		"version": strings.TrimSpace(req.Version),
+	}
+	if strings.TrimSpace(req.PublicAddr) != "" {
+		updates["public_addr"] = strings.TrimSpace(req.PublicAddr)
+	}
+	if strings.TrimSpace(req.ListenAddr) != "" {
+		updates["listen_addr"] = strings.TrimSpace(req.ListenAddr)
+	}
+	if strings.TrimSpace(req.GeoName) != "" {
+		updates["geo_name"] = strings.TrimSpace(req.GeoName)
+	}
+	if req.GeoLatitude != nil {
+		updates["geo_latitude"] = req.GeoLatitude
+	}
+	if req.GeoLongitude != nil {
+		updates["geo_longitude"] = req.GeoLongitude
+	}
+	_ = repository.UpdateDNSInstanceRuntime(ctx, existing.InstanceID, updates)
+	return &protocol.DNSInstanceRegisterResponse{
+		ID:          existing.ID,
+		InstanceID:  existing.InstanceID,
+		Name:        existing.Name,
+		AccessToken: existing.AccessToken,
+	}
+}
+
 // RecordDNSHeartbeat updates instance runtime columns and enqueues an analytics DNSMetricSnapshot row.
 func RecordDNSHeartbeat(ctx context.Context, inst *model.OpenFlareDNSInstance, req protocol.DNSHeartbeatRequest) (*protocol.DNSHeartbeatResponse, error) {
 	if inst == nil {
@@ -423,7 +431,7 @@ func RecordDNSHeartbeat(ctx context.Context, inst *model.OpenFlareDNSInstance, r
 	}
 
 	updates := map[string]any{
-		"status":               model.DNSInstanceStatusOnline,
+		colInstanceStatus:      model.DNSInstanceStatusOnline,
 		"snapshot_version":     req.SnapshotVersion,
 		"snapshot_etag":        strings.TrimSpace(req.SnapshotETag),
 		"qps":                  req.QPS,
@@ -436,7 +444,7 @@ func RecordDNSHeartbeat(ctx context.Context, inst *model.OpenFlareDNSInstance, r
 		"cpu_usage_percent":    req.CPUUsagePercent,
 		"memory_usage_percent": req.MemoryUsagePercent,
 		"last_seen_at":         &now,
-		"last_error":           strings.TrimSpace(req.LastError),
+		colInstanceLastError:   strings.TrimSpace(req.LastError),
 	}
 	if strings.TrimSpace(req.Version) != "" {
 		updates["version"] = strings.TrimSpace(req.Version)

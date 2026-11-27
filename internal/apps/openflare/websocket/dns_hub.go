@@ -102,6 +102,10 @@ func wakeAllDNSInstances() {
 	}
 }
 
+type dnsDisconnectPayload struct {
+	Reason string `json:"reason"`
+}
+
 func disconnectLocalDNSInstance(instanceID, reason string) bool {
 	defaultDNSInstanceHub.mu.Lock()
 	client := defaultDNSInstanceHub.clients[instanceID]
@@ -114,7 +118,7 @@ func disconnectLocalDNSInstance(instanceID, reason string) bool {
 	}
 	client.enqueue(Message{
 		Type:    protocol.DNSWSMessageTypeDisconnect,
-		Payload: map[string]string{"reason": reason},
+		Payload: dnsDisconnectPayload{Reason: reason},
 	})
 	go func() {
 		time.Sleep(disconnectFlushGrace)

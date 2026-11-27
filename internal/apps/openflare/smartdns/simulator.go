@@ -16,6 +16,15 @@ import (
 	pkgnetintel "github.com/Rain-kl/Wavelet/pkg/netintel"
 )
 
+const (
+	qtypeA            = "A"
+	qtypeAAAA         = "AAAA"
+	ecsIPv4PrefixBits = 24
+	ecsIPv6PrefixBits = 48
+	ipv4TotalBits     = 32
+	ipv6TotalBits     = 128
+)
+
 // SimulateInput requests an offline/debug SmartDNS routing simulation for a client IP and domain.
 type SimulateInput struct {
 	Domain   string `json:"domain"`
@@ -61,9 +70,9 @@ func SimulateResolution(ctx context.Context, input SimulateInput) (*SimulateResu
 	}
 	qtype := strings.ToUpper(strings.TrimSpace(input.QType))
 	if qtype == "" {
-		qtype = "A"
+		qtype = qtypeA
 	}
-	if qtype != "A" && qtype != "AAAA" {
+	if qtype != qtypeA && qtype != qtypeAAAA {
 		return nil, newLogicError(http.StatusBadRequest, errSimulatorQTypeInvalid)
 	}
 
@@ -72,30 +81,9 @@ func SimulateResolution(ctx context.Context, input SimulateInput) (*SimulateResu
 		return nil, err
 	}
 
-	var matchedPolicy protocol.DNSSnapshotPolicy
-	if input.PolicyID != nil && *input.PolicyID > 0 {
-		found := false
-		for _, p := range bundle.Envelope.Policies {
-			if p.ID == *input.PolicyID {
-				matchedPolicy = p
-				found = true
-				break
-			}
-		}
-		if !found {
-			// Allow simulating disabled policies stored in DB too.
-			pv, gErr := GetPolicy(ctx, *input.PolicyID)
-			if gErr != nil {
-				return nil, gErr
-			}
-			matchedPolicy = policyViewToSnapshotPolicy(pv)
-		}
-	} else {
-		p, ok := matchPolicyForDomain(&bundle.Envelope, domain)
-		if !ok {
-			return nil, newLogicError(http.StatusNotFound, errPolicyNotFound)
-		}
-		matchedPolicy = p
+	matchedPolicy, err := resolveSimulatorPolicy(ctx, bundle, input.PolicyID, domain)
+	if err != nil {
+		return nil, err
 	}
 
 	clientProfile, clientCtx := buildClientProfileFromIP(parsedIP, familyForQType(qtype))
@@ -166,16 +154,42 @@ func buildClientProfileFromIP(ip net.IP, answerFamily string) (qualityapi.Client
 	return profile, simClient
 }
 
+func resolveSimulatorPolicy(
+	ctx context.Context,
+	bundle *CompiledSnapshotBundle,
+	policyID *uint,
+	domain string,
+) (protocol.DNSSnapshotPolicy, error) {
+	if policyID != nil && *policyID > 0 {
+		for _, p := range bundle.Envelope.Policies {
+			if p.ID == *policyID {
+				return p, nil
+			}
+		}
+		// Allow simulating disabled policies stored in DB too.
+		pv, err := GetPolicy(ctx, *policyID)
+		if err != nil {
+			return protocol.DNSSnapshotPolicy{}, err
+		}
+		return policyViewToSnapshotPolicy(pv), nil
+	}
+	p, ok := matchPolicyForDomain(&bundle.Envelope, domain)
+	if !ok {
+		return protocol.DNSSnapshotPolicy{}, newLogicError(http.StatusNotFound, errPolicyNotFound)
+	}
+	return p, nil
+}
+
 func normalizeClientPrefix(ip net.IP) string {
 	if ip == nil {
 		return ""
 	}
 	if v4 := ip.To4(); v4 != nil {
-		masked := v4.Mask(net.CIDRMask(24, 32))
+		masked := v4.Mask(net.CIDRMask(ecsIPv4PrefixBits, ipv4TotalBits))
 		return masked.String() + "/24"
 	}
 	if v6 := ip.To16(); v6 != nil {
-		masked := v6.Mask(net.CIDRMask(48, 128))
+		masked := v6.Mask(net.CIDRMask(ecsIPv6PrefixBits, ipv6TotalBits))
 		return masked.String() + "/48"
 	}
 	return ip.String()

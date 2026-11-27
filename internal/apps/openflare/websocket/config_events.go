@@ -324,101 +324,141 @@ func StartConfigChangeListener(ctx context.Context) {
 			return subscription.Close()
 		})
 		go func() {
+			handlers := buildConfigChangeHandlers(
+				subscriberCtx,
+				configKey, quarantineKey, pingTaskKey, netProbeTaskKey, remoteExecKey,
+				pingReloadKey, relayWakeKey, connectorWakeKey, tunnelDisconnectKey,
+				dnsSnapshotKey, dnsDisconnectKey,
+			)
 			for message := range subscription.Channel() {
-				switch message.Channel {
-				case configKey:
-					if message.Payload != configPublisherID {
-						wakeAgents()
-					}
-				case pingTaskKey:
-					var event pingTaskDispatchEvent
-					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil || event.PublisherID == configPublisherID || event.NodeID == "" {
-						continue
-					}
-					sendLocalPingTask(event.NodeID, event.Task)
-				case netProbeTaskKey:
-					var event netProbeTaskDispatchEvent
-					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil || event.PublisherID == configPublisherID || event.NodeID == "" {
-						continue
-					}
-					sendLocalNetProbeTask(event.NodeID, event.Task)
-				case remoteExecKey:
-					var event remoteExecDispatchEvent
-					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil || event.PublisherID == configPublisherID || event.NodeID == "" {
-						continue
-					}
-					sendLocalRemoteExec(event.NodeID, event.Task)
-				case pingReloadKey:
-					if message.Payload != configPublisherID {
-						if handler := currentPingScheduleReloadHandler(); handler != nil {
-							handler(subscriberCtx)
-						}
-					}
-				case quarantineKey:
-					var event nodeQuarantinedEvent
-					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil {
-						continue
-					}
-					if event.PublisherID != configPublisherID && event.NodeID != "" {
-						disconnectLocalAgent(event.NodeID, event.Reason)
-						listener.EmitNodeTokenRevoked(subscriberCtx, listener.NodeTokenRevoked{
-							NodeID: event.NodeID,
-							Reason: event.Reason,
-						})
-					}
-				case relayWakeKey:
-					var event tunnelWakeEvent
-					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil || event.PublisherID == configPublisherID {
-						continue
-					}
-					if event.All || event.RelayID == "" {
-						wakeAllRelays()
-					} else {
-						wakeRelay(event.RelayID)
-					}
-				case connectorWakeKey:
-					var event tunnelWakeEvent
-					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil || event.PublisherID == configPublisherID {
-						continue
-					}
-					if event.All || event.TunnelID == 0 {
-						wakeAllConnectors()
-					} else {
-						wakeTunnelConnectors(event.TunnelID)
-					}
-				case tunnelDisconnectKey:
-					var event tunnelDisconnectEvent
-					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil || event.PublisherID == configPublisherID {
-						continue
-					}
-					switch event.Kind {
-					case "relay":
-						if event.TargetID != "" {
-							disconnectLocalRelay(event.TargetID, event.Reason)
-						}
-					case "connector":
-						if event.TargetID != "" {
-							disconnectLocalConnector(event.TargetID, event.Reason, event.Revoked)
-						}
-					case "tunnel":
-						if event.TunnelID > 0 {
-							disconnectLocalTunnelConnectors(event.TunnelID, event.Reason)
-						}
-					}
-				case dnsSnapshotKey:
-					if message.Payload != configPublisherID {
-						wakeAllDNSInstances()
-					}
-				case dnsDisconnectKey:
-					var event nodeQuarantinedEvent
-					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil {
-						continue
-					}
-					if event.PublisherID != configPublisherID && event.NodeID != "" {
-						disconnectLocalDNSInstance(event.NodeID, event.Reason)
-					}
+				if handler := handlers[message.Channel]; handler != nil {
+					handler(message.Payload)
 				}
 			}
 		}()
 	})
+}
+
+func buildConfigChangeHandlers(
+	subscriberCtx context.Context,
+	configKey, quarantineKey, pingTaskKey, netProbeTaskKey, remoteExecKey string,
+	pingReloadKey, relayWakeKey, connectorWakeKey, tunnelDisconnectKey string,
+	dnsSnapshotKey, dnsDisconnectKey string,
+) map[string]func(string) {
+	return map[string]func(string){
+		configKey: func(payload string) {
+			if payload != configPublisherID {
+				wakeAgents()
+			}
+		},
+		pingTaskKey:      handlePingTaskPayload,
+		netProbeTaskKey:  handleNetProbeTaskPayload,
+		remoteExecKey:    handleRemoteExecPayload,
+		pingReloadKey:    func(payload string) { handlePingReloadPayload(subscriberCtx, payload) },
+		quarantineKey:    func(payload string) { handleQuarantinePayload(subscriberCtx, payload) },
+		relayWakeKey:     handleRelayWakePayload,
+		connectorWakeKey: handleConnectorWakePayload,
+		tunnelDisconnectKey: func(payload string) {
+			handleTunnelDisconnectPayload(payload)
+		},
+		dnsSnapshotKey: func(payload string) {
+			if payload != configPublisherID {
+				wakeAllDNSInstances()
+			}
+		},
+		dnsDisconnectKey: handleDNSDisconnectPayload,
+	}
+}
+
+func handlePingTaskPayload(payload string) {
+	var event pingTaskDispatchEvent
+	if err := json.Unmarshal([]byte(payload), &event); err == nil && event.PublisherID != configPublisherID && event.NodeID != "" {
+		sendLocalPingTask(event.NodeID, event.Task)
+	}
+}
+
+func handleNetProbeTaskPayload(payload string) {
+	var event netProbeTaskDispatchEvent
+	if err := json.Unmarshal([]byte(payload), &event); err == nil && event.PublisherID != configPublisherID && event.NodeID != "" {
+		sendLocalNetProbeTask(event.NodeID, event.Task)
+	}
+}
+
+func handleRemoteExecPayload(payload string) {
+	var event remoteExecDispatchEvent
+	if err := json.Unmarshal([]byte(payload), &event); err == nil && event.PublisherID != configPublisherID && event.NodeID != "" {
+		sendLocalRemoteExec(event.NodeID, event.Task)
+	}
+}
+
+func handlePingReloadPayload(subscriberCtx context.Context, payload string) {
+	if payload == configPublisherID {
+		return
+	}
+	if handler := currentPingScheduleReloadHandler(); handler != nil {
+		handler(subscriberCtx)
+	}
+}
+
+func handleQuarantinePayload(subscriberCtx context.Context, payload string) {
+	var event nodeQuarantinedEvent
+	if err := json.Unmarshal([]byte(payload), &event); err == nil && event.PublisherID != configPublisherID && event.NodeID != "" {
+		disconnectLocalAgent(event.NodeID, event.Reason)
+		listener.EmitNodeTokenRevoked(subscriberCtx, listener.NodeTokenRevoked{
+			NodeID: event.NodeID,
+			Reason: event.Reason,
+		})
+	}
+}
+
+func handleRelayWakePayload(payload string) {
+	var event tunnelWakeEvent
+	if err := json.Unmarshal([]byte(payload), &event); err != nil || event.PublisherID == configPublisherID {
+		return
+	}
+	if event.All || event.RelayID == "" {
+		wakeAllRelays()
+		return
+	}
+	wakeRelay(event.RelayID)
+}
+
+func handleConnectorWakePayload(payload string) {
+	var event tunnelWakeEvent
+	if err := json.Unmarshal([]byte(payload), &event); err != nil || event.PublisherID == configPublisherID {
+		return
+	}
+	if event.All || event.TunnelID == 0 {
+		wakeAllConnectors()
+		return
+	}
+	wakeTunnelConnectors(event.TunnelID)
+}
+
+func handleDNSDisconnectPayload(payload string) {
+	var event nodeQuarantinedEvent
+	if err := json.Unmarshal([]byte(payload), &event); err == nil && event.PublisherID != configPublisherID && event.NodeID != "" {
+		disconnectLocalDNSInstance(event.NodeID, event.Reason)
+	}
+}
+
+func handleTunnelDisconnectPayload(payload string) {
+	var event tunnelDisconnectEvent
+	if err := json.Unmarshal([]byte(payload), &event); err != nil || event.PublisherID == configPublisherID {
+		return
+	}
+	switch event.Kind {
+	case "relay":
+		if event.TargetID != "" {
+			disconnectLocalRelay(event.TargetID, event.Reason)
+		}
+	case "connector":
+		if event.TargetID != "" {
+			disconnectLocalConnector(event.TargetID, event.Reason, event.Revoked)
+		}
+	case "tunnel":
+		if event.TunnelID > 0 {
+			disconnectLocalTunnelConnectors(event.TunnelID, event.Reason)
+		}
+	}
 }

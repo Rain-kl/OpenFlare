@@ -23,24 +23,26 @@ import (
 )
 
 const (
-	errTagIDInvalid        = "标签 ID 格式无效"
-	errTagNameRequired     = "标签名称不能为空且不能超过 64 个字符"
-	errTagSlugInvalid      = "标签标识符仅支持小写字母、数字与连字符"
-	errTagColorInvalid     = "标签颜色不在允许范围内"
-	errTagWeightInvalid    = "标签权重必须在 0.01 到 100 之间"
-	errTagNotFound         = "节点标签不存在"
-	errTagSlugConflict     = "标签标识符已存在"
-	errTagUnknownSlug      = "包含不存在的节点标签标识符"
-	errNodeCapacityInvalid = "节点容量配置（带宽、连接数或权重）不能为负数"
-	errListNodeTagsFailed  = "获取节点标签列表失败"
-	errCreateNodeTagFailed = "创建节点标签失败"
-	errUpdateNodeTagFailed = "更新节点标签失败"
-	errDeleteNodeTagFailed = "删除节点标签失败"
+	errTagIDInvalid        = "invalid tag ID"
+	errTagNameRequired     = "tag name is required and must not exceed 64 characters"
+	errTagSlugInvalid      = "tag slug must contain only lowercase letters, digits, and hyphens"
+	errTagColorInvalid     = "tag color is not allowed"
+	errTagWeightInvalid    = "tag weight must be between 0.01 and 100"
+	errTagNotFound         = "node tag not found"
+	errTagSlugConflict     = "tag slug already exists"
+	errTagUnknownSlug      = "unknown node tag slug"
+	errNodeCapacityInvalid = "node capacity values must be non-negative"
+	errListNodeTagsFailed  = "failed to list node tags"
+	errCreateNodeTagFailed = "failed to create node tag"
+	errUpdateNodeTagFailed = "failed to update node tag"
+	errDeleteNodeTagFailed = "failed to delete node tag"
 	defaultTagColor        = "blue"
 	defaultTagWeight       = 1.0
 	defaultNodeCapacityWt  = 100
 	minTagWeight           = 0.01
 	maxTagWeight           = 100.0
+	maxTagNameLength       = 64
+	maxTagDescLength       = 255
 )
 
 type tagLogicError struct {
@@ -119,7 +121,7 @@ func validateWeight(w float64) error {
 
 func normalizeAndValidateTagInput(input TagInput) (name, slug, color, desc string, weight float64, err error) {
 	name = strings.TrimSpace(input.Name)
-	if name == "" || len([]rune(name)) > 64 {
+	if name == "" || len([]rune(name)) > maxTagNameLength {
 		return "", "", "", "", 0, newTagLogicError(http.StatusBadRequest, errTagNameRequired)
 	}
 	slug = strings.ToLower(strings.TrimSpace(input.Slug))
@@ -134,8 +136,8 @@ func normalizeAndValidateTagInput(input TagInput) (name, slug, color, desc strin
 		return "", "", "", "", 0, newTagLogicError(http.StatusBadRequest, errTagColorInvalid)
 	}
 	desc = strings.TrimSpace(input.Description)
-	if len([]rune(desc)) > 255 {
-		desc = string([]rune(desc)[:255])
+	if len([]rune(desc)) > maxTagDescLength {
+		desc = string([]rune(desc)[:maxTagDescLength])
 	}
 	weight = defaultTagWeight
 	if input.DefaultWeight != nil {

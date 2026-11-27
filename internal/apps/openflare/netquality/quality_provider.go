@@ -24,6 +24,7 @@ const (
 	QualityProviderName = "netquality_5level"
 
 	cachedPredictorMaxAge = 60 * time.Second
+	medianDivisor         = 2.0
 )
 
 type predictorSnapshot struct {
@@ -114,6 +115,32 @@ func (p *QualityProvider) EvaluateNodes(ctx context.Context, nodeIDs []string, c
 
 // ExportSnapshot exports measured matrix rows and per-node priors in CompactQualitySnapshot v1 format.
 func (p *QualityProvider) ExportSnapshot(ctx context.Context, nodeIDs []string) (*qualityapi.CompactQualitySnapshot, error) {
+	nodes, measuredRows, fallback, err := p.loadSnapshotInputs(ctx, nodeIDs)
+	if err != nil {
+		return nil, err
+	}
+	if fallback != nil {
+		return fallback, nil
+	}
+
+	allowed := makeNodeFilterSet(nodeIDs)
+	entries, extrasByNode := buildCompactQualityEntries(measuredRows, allowed)
+	nodeDefaults := buildCompactNodePriors(nodes, allowed, extrasByNode)
+
+	return &qualityapi.CompactQualitySnapshot{
+		SchemaVersion: qualityapi.CompactSnapshotSchemaVersion,
+		Generation:    p.Generation(),
+		GeneratedAt:   time.Now().UTC(),
+		ProviderName:  QualityProviderName,
+		Entries:       entries,
+		NodeDefaults:  nodeDefaults,
+	}, nil
+}
+
+func (p *QualityProvider) loadSnapshotInputs(
+	ctx context.Context,
+	nodeIDs []string,
+) ([]model.OpenFlareNode, []*model.OpenFlareNetworkQualityMatrix, *qualityapi.CompactQualitySnapshot, error) {
 	if p.loader != nil && db.DB(ctx) != nil {
 		if loaded, err := p.loader(ctx); err == nil && loaded != nil {
 			p.snapshot.Store(&predictorSnapshot{
@@ -125,38 +152,39 @@ func (p *QualityProvider) ExportSnapshot(ctx context.Context, nodeIDs []string) 
 	}
 
 	snap := p.snapshot.Load()
-	var (
-		nodes        []model.OpenFlareNode
-		measuredRows []*model.OpenFlareNetworkQualityMatrix
-		err          error
-	)
 	if snap != nil && snap.predictor != nil && p.loader == nil {
-		nodes = make([]model.OpenFlareNode, 0, len(snap.predictor.nodes))
+		nodes := make([]model.OpenFlareNode, 0, len(snap.predictor.nodes))
 		for _, n := range snap.predictor.nodes {
 			nodes = append(nodes, n)
 		}
+		var measuredRows []*model.OpenFlareNetworkQualityMatrix
 		for _, rows := range snap.predictor.rowsByNode {
 			measuredRows = append(measuredRows, rows...)
 		}
-	} else {
-		if db.DB(ctx) == nil {
-			return qualityapi.FallbackProvider{}.ExportSnapshot(ctx, nodeIDs)
-		}
-		nodes, err = repository.ListOpenFlareNodes(ctx)
-		if err != nil {
-			return nil, err
-		}
-		measuredRows, err = repository.ListOpenFlareNetworkQualityMatrixMeasured(ctx)
-		if err != nil {
-			return nil, err
-		}
+		return nodes, measuredRows, nil, nil
 	}
 
-	allowed := makeNodeFilterSet(nodeIDs)
-	nodeDefaults := make(map[string]qualityapi.CompactNodePrior, len(nodes))
-	extrasByNode := make(map[string][]float64, len(nodes))
+	if db.DB(ctx) == nil {
+		fb, err := qualityapi.FallbackProvider{}.ExportSnapshot(ctx, nodeIDs)
+		return nil, nil, fb, err
+	}
+	nodes, err := repository.ListOpenFlareNodes(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	measuredRows, err := repository.ListOpenFlareNetworkQualityMatrixMeasured(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return nodes, measuredRows, nil, nil
+}
 
+func buildCompactQualityEntries(
+	measuredRows []*model.OpenFlareNetworkQualityMatrix,
+	allowed map[string]bool,
+) ([]qualityapi.CompactQualityEntry, map[string][]float64) {
 	entries := make([]qualityapi.CompactQualityEntry, 0, len(measuredRows))
+	extrasByNode := make(map[string][]float64)
 	for _, row := range measuredRows {
 		if row == nil || row.NodeID == "" || row.ClientASN == 0 || row.DataSource != model.QualityMatrixDataSourceMeasured {
 			continue
@@ -191,7 +219,15 @@ func (p *QualityProvider) ExportSnapshot(ctx context.Context, nodeIDs []string) 
 			SourceTier:     tierFromAggregationLevel(row.AggregationLevel),
 		})
 	}
+	return entries, extrasByNode
+}
 
+func buildCompactNodePriors(
+	nodes []model.OpenFlareNode,
+	allowed map[string]bool,
+	extrasByNode map[string][]float64,
+) map[string]qualityapi.CompactNodePrior {
+	nodeDefaults := make(map[string]qualityapi.CompactNodePrior, len(nodes))
 	for _, n := range nodes {
 		if len(allowed) > 0 && !allowed[n.NodeID] {
 			continue
@@ -204,15 +240,7 @@ func (p *QualityProvider) ExportSnapshot(ctx context.Context, nodeIDs []string) 
 			MedianExtra:  round2(medianFloat64(extrasByNode[n.NodeID])),
 		}
 	}
-
-	return &qualityapi.CompactQualitySnapshot{
-		SchemaVersion: qualityapi.CompactSnapshotSchemaVersion,
-		Generation:    p.Generation(),
-		GeneratedAt:   time.Now().UTC(),
-		ProviderName:  QualityProviderName,
-		Entries:       entries,
-		NodeDefaults:  nodeDefaults,
-	}, nil
+	return nodeDefaults
 }
 
 func (p *QualityProvider) getPredictor(ctx context.Context) *Predictor {
@@ -339,5 +367,5 @@ func medianFloat64(values []float64) float64 {
 	if len(sorted)%2 == 1 {
 		return sorted[mid]
 	}
-	return (sorted[mid-1] + sorted[mid]) / 2.0
+	return (sorted[mid-1] + sorted[mid]) / medianDivisor
 }

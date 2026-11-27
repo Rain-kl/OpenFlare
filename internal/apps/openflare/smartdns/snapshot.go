@@ -34,6 +34,11 @@ const (
 	minSnapshotIntervalSec     = 3
 	maxSnapshotIntervalSec     = 300
 	snapshotDirtyDebounce      = 250 * time.Millisecond
+	metricsLookbackWindow      = 5 * time.Minute
+	nodeStaleOnlineWindow      = 90 * time.Second
+	bitsPerByte                = 8.0
+	bitsPerMegabit             = 1_000_000.0
+	snapshotETagByteLen        = 16
 )
 
 // CompiledSnapshotBundle holds an immutable serialized snapshot plus its pre-compressed payload.
@@ -228,10 +233,38 @@ func readSnapshotInterval(ctx context.Context) time.Duration {
 
 func assembleSnapshotEnvelope(ctx context.Context) (*protocol.DNSSnapshotEnvelope, string, error) {
 	settings := readSmartDNSSettingsMap(ctx)
-
-	nodes, err := repository.ListOpenFlareNodes(ctx)
+	snapNodes, edgeNodeIDs, err := collectSnapshotNodes(ctx)
 	if err != nil {
 		return nil, "", err
+	}
+	snapPolicies, err := collectSnapshotPolicies(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	domainRoutes := assembleDomainRoutes(ctx)
+	qualitySnap := loadQualitySnapshotWithFallback(ctx, edgeNodeIDs)
+
+	env := &protocol.DNSSnapshotEnvelope{
+		GeneratedAt:      time.Now().UTC(),
+		DelegationDomain: settings.DelegationDomain,
+		NSHosts:          settings.NSHosts,
+		DefaultTTL:       settings.DefaultTTL,
+		Nodes:            snapNodes,
+		Policies:         snapPolicies,
+		DomainRoutes:     domainRoutes,
+		Quality:          qualitySnap,
+	}
+	etag, err := computeSnapshotContentETag(env)
+	if err != nil {
+		return nil, "", err
+	}
+	return env, etag, nil
+}
+
+func collectSnapshotNodes(ctx context.Context) ([]protocol.DNSSnapshotNode, []string, error) {
+	nodes, err := repository.ListOpenFlareNodes(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
 	edgeNodes := make([]model.OpenFlareNode, 0, len(nodes))
 	edgeNodeIDs := make([]string, 0, len(nodes))
@@ -247,90 +280,122 @@ func assembleSnapshotEnvelope(ctx context.Context) (*protocol.DNSSnapshotEnvelop
 	if err != nil {
 		tagMap = map[string][]model.NodeTagSummary{}
 	}
-	metricsByNode := map[string]*model.OpenFlareMetricSnapshot{}
-	if len(edgeNodeIDs) > 0 {
-		if latest, mErr := repository.ListOpenFlareLatestMetricSnapshotsByNodeIDs(ctx, edgeNodeIDs, time.Now().Add(-5*time.Minute)); mErr == nil {
-			for _, m := range latest {
-				if m != nil {
-					metricsByNode[m.NodeID] = m
-				}
-			}
-		}
-	}
+	metricsByNode := loadLatestSnapshotMetrics(ctx, edgeNodeIDs)
 
 	snapNodes := make([]protocol.DNSSnapshotNode, 0, len(edgeNodes))
 	now := time.Now()
 	for _, n := range edgeNodes {
-		ipv4, ipv6 := splitNodeIPs(n.IP)
-		status := n.Status
-		if n.IsQuarantined() {
-			status = "quarantined"
-		} else if n.LastSeenAt != nil && now.Sub(*n.LastSeenAt) > 90*time.Second && status == "online" {
-			status = "offline"
-		}
+		snapNodes = append(snapNodes, buildSnapshotNode(n, tagMap[n.NodeID], metricsByNode[n.NodeID], now))
+	}
+	return snapNodes, edgeNodeIDs, nil
+}
 
-		var country string
-		if strings.TrimSpace(n.IP) != "" {
-			if lookup := netintel.LookupIP(n.IP); lookup != nil {
-				country = lookup.CountryISO
-			}
+func loadLatestSnapshotMetrics(ctx context.Context, edgeNodeIDs []string) map[string]*model.OpenFlareMetricSnapshot {
+	metricsByNode := map[string]*model.OpenFlareMetricSnapshot{}
+	if len(edgeNodeIDs) == 0 {
+		return metricsByNode
+	}
+	latest, err := repository.ListOpenFlareLatestMetricSnapshotsByNodeIDs(ctx, edgeNodeIDs, time.Now().Add(-metricsLookbackWindow))
+	if err != nil {
+		return metricsByNode
+	}
+	for _, m := range latest {
+		if m != nil {
+			metricsByNode[m.NodeID] = m
 		}
+	}
+	return metricsByNode
+}
 
-		snapTags := make([]protocol.DNSSnapshotTag, 0, len(tagMap[n.NodeID]))
-		for _, t := range tagMap[n.NodeID] {
-			snapTags = append(snapTags, protocol.DNSSnapshotTag{
-				Slug:            t.Slug,
-				Name:            t.Name,
-				EffectiveWeight: t.EffectiveWeight,
-			})
-		}
-
-		var cpuPct, memPct, bwMbps float64
-		activeConn := n.OpenrestyConnections
-		if m := metricsByNode[n.NodeID]; m != nil {
-			cpuPct = m.CPUUsagePercent
-			if m.MemoryTotalBytes > 0 {
-				memPct = float64(m.MemoryUsedBytes) / float64(m.MemoryTotalBytes) * 100.0
-			}
-			if m.NetOut > 0 {
-				bwMbps = float64(m.NetOut) * 8.0 / 1_000_000.0
-			}
-			if int64(m.TCPConnections) > activeConn {
-				activeConn = int64(m.TCPConnections)
-			}
-		}
-
-		capWeight := n.CapacityWeight
-		if capWeight <= 0 {
-			capWeight = 100
-		}
-
-		snapNodes = append(snapNodes, protocol.DNSSnapshotNode{
-			NodeID:                n.NodeID,
-			Name:                  n.Name,
-			IPv4:                  ipv4,
-			IPv6:                  ipv6,
-			Status:                status,
-			Quarantined:           n.IsQuarantined(),
-			NetworkGroup:          strings.TrimSpace(n.NetworkGroup),
-			ASN:                   n.ASN,
-			Country:               country,
-			GeoLatitude:           n.GeoLatitude,
-			GeoLongitude:          n.GeoLongitude,
-			CapacityBandwidthMbps: n.CapacityBandwidthMbps,
-			CapacityConnections:   n.CapacityConnections,
-			CapacityWeight:        capWeight,
-			CPUUsagePercent:       cpuPct,
-			MemoryUsagePercent:    memPct,
-			BandwidthMbps:         bwMbps,
-			ActiveConnections:     activeConn,
-			Tags:                  snapTags,
+func buildSnapshotNode(
+	n model.OpenFlareNode,
+	tags []model.NodeTagSummary,
+	metric *model.OpenFlareMetricSnapshot,
+	now time.Time,
+) protocol.DNSSnapshotNode {
+	ipv4, ipv6 := splitNodeIPs(n.IP)
+	status := resolveSnapshotNodeStatus(n, now)
+	country := lookupNodeCountry(n.IP)
+	snapTags := make([]protocol.DNSSnapshotTag, 0, len(tags))
+	for _, t := range tags {
+		snapTags = append(snapTags, protocol.DNSSnapshotTag{
+			Slug:            t.Slug,
+			Name:            t.Name,
+			EffectiveWeight: t.EffectiveWeight,
 		})
 	}
 
+	cpuPct, memPct, bwMbps, activeConn := extractSnapshotNodeLoad(n, metric)
+	capWeight := n.CapacityWeight
+	if capWeight <= 0 {
+		capWeight = defaultCapacityWeight
+	}
+
+	return protocol.DNSSnapshotNode{
+		NodeID:                n.NodeID,
+		Name:                  n.Name,
+		IPv4:                  ipv4,
+		IPv6:                  ipv6,
+		Status:                status,
+		Quarantined:           n.IsQuarantined(),
+		NetworkGroup:          strings.TrimSpace(n.NetworkGroup),
+		ASN:                   n.ASN,
+		Country:               country,
+		GeoLatitude:           n.GeoLatitude,
+		GeoLongitude:          n.GeoLongitude,
+		CapacityBandwidthMbps: n.CapacityBandwidthMbps,
+		CapacityConnections:   n.CapacityConnections,
+		CapacityWeight:        capWeight,
+		CPUUsagePercent:       cpuPct,
+		MemoryUsagePercent:    memPct,
+		BandwidthMbps:         bwMbps,
+		ActiveConnections:     activeConn,
+		Tags:                  snapTags,
+	}
+}
+
+func resolveSnapshotNodeStatus(n model.OpenFlareNode, now time.Time) string {
+	if n.IsQuarantined() {
+		return model.DNSInstanceStatusQuarantined
+	}
+	if n.LastSeenAt != nil && now.Sub(*n.LastSeenAt) > nodeStaleOnlineWindow && n.Status == model.DNSInstanceStatusOnline {
+		return model.DNSInstanceStatusOffline
+	}
+	return n.Status
+}
+
+func lookupNodeCountry(ip string) string {
+	if strings.TrimSpace(ip) == "" {
+		return ""
+	}
+	if lookup := netintel.LookupIP(ip); lookup != nil {
+		return lookup.CountryISO
+	}
+	return ""
+}
+
+func extractSnapshotNodeLoad(n model.OpenFlareNode, m *model.OpenFlareMetricSnapshot) (cpuPct, memPct, bwMbps float64, activeConn int64) {
+	activeConn = n.OpenrestyConnections
+	if m == nil {
+		return 0, 0, 0, activeConn
+	}
+	cpuPct = m.CPUUsagePercent
+	if m.MemoryTotalBytes > 0 {
+		memPct = float64(m.MemoryUsedBytes) / float64(m.MemoryTotalBytes) * percentScale
+	}
+	if m.NetOut > 0 {
+		bwMbps = float64(m.NetOut) * bitsPerByte / bitsPerMegabit
+	}
+	if int64(m.TCPConnections) > activeConn {
+		activeConn = int64(m.TCPConnections)
+	}
+	return cpuPct, memPct, bwMbps, activeConn
+}
+
+func collectSnapshotPolicies(ctx context.Context) ([]protocol.DNSSnapshotPolicy, error) {
 	dbPolicies, err := repository.ListEnabledDNSPolicies(ctx)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	snapPolicies := make([]protocol.DNSSnapshotPolicy, 0, len(dbPolicies))
 	for _, p := range dbPolicies {
@@ -367,31 +432,19 @@ func assembleSnapshotEnvelope(ctx context.Context) (*protocol.DNSSnapshotEnvelop
 			Revision:        p.Revision,
 		})
 	}
+	return snapPolicies, nil
+}
 
-	domainRoutes := assembleDomainRoutes(ctx)
+func loadQualitySnapshotWithFallback(ctx context.Context, edgeNodeIDs []string) *qualityapi.CompactQualitySnapshot {
 	qualitySnap, qErr := qualityapi.Default().ExportSnapshot(ctx, edgeNodeIDs)
-	if qErr != nil || qualitySnap == nil {
-		if qErr != nil && !errors.Is(qErr, gorm.ErrRecordNotFound) {
-			logger.WarnF(ctx, "[SmartDNS] qualityapi ExportSnapshot warning: %v", qErr)
-		}
-		qualitySnap, _ = qualityapi.FallbackProvider{}.ExportSnapshot(ctx, edgeNodeIDs)
+	if qErr == nil && qualitySnap != nil {
+		return qualitySnap
 	}
-
-	env := &protocol.DNSSnapshotEnvelope{
-		GeneratedAt:      time.Now().UTC(),
-		DelegationDomain: settings.DelegationDomain,
-		NSHosts:          settings.NSHosts,
-		DefaultTTL:       settings.DefaultTTL,
-		Nodes:            snapNodes,
-		Policies:         snapPolicies,
-		DomainRoutes:     domainRoutes,
-		Quality:          qualitySnap,
+	if qErr != nil && !errors.Is(qErr, gorm.ErrRecordNotFound) {
+		logger.WarnF(ctx, "[SmartDNS] qualityapi ExportSnapshot warning: %v", qErr)
 	}
-	etag, err := computeSnapshotContentETag(env)
-	if err != nil {
-		return nil, "", err
-	}
-	return env, etag, nil
+	fallback, _ := qualityapi.FallbackProvider{}.ExportSnapshot(ctx, edgeNodeIDs)
+	return fallback
 }
 
 func assembleDomainRoutes(ctx context.Context) []protocol.DNSSnapshotDomainRoute {
@@ -468,5 +521,5 @@ func computeSnapshotContentETag(env *protocol.DNSSnapshotEnvelope) (string, erro
 		return "", err
 	}
 	sum := sha256.Sum256(b)
-	return `"` + hex.EncodeToString(sum[:16]) + `"`, nil
+	return `"` + hex.EncodeToString(sum[:snapshotETagByteLen]) + `"`, nil
 }

@@ -1,11 +1,13 @@
 // Copyright 2026 Arctel.net
 // SPDX-License-Identifier: Apache-2.0
 
+// Package smartdns implements SmartDNS control-plane APIs, decision compilation, node scoring, and the embedded Go authoritative DNS server.
 package smartdns
 
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"sort"
 	"strconv"
@@ -24,10 +26,27 @@ import (
 )
 
 const (
-	embeddedCacheMaxSize   = 8192
-	embeddedCacheMaxTTL    = 5 * time.Second
-	embeddedRRLLimitPerSec = 1000.0
-	embeddedRRLBurst       = 2000.0
+	embeddedCacheMaxSize       = 8192
+	embeddedCacheMaxTTL        = 5 * time.Second
+	embeddedRRLLimitPerSec     = 1000.0
+	embeddedRRLBurst           = 2000.0
+	embeddedRRLMaxBuckets      = 4096
+	embeddedRRLStaleWindow     = 10 * time.Second
+	embeddedMetricsRingCap     = 512
+	microsecondsPerMillisecond = 1000.0
+	percentileP50              = 0.50
+	percentileP95              = 0.95
+	percentileP99              = 0.99
+	embeddedHysteresisMax      = 16384
+	embeddedHeartbeatInterval  = 10 * time.Second
+	minEmbeddedDNSAnswerTTL    = 10
+	defaultEmbeddedSOARefresh  = 300
+	defaultEmbeddedSOARetry    = 60
+	defaultEmbeddedSOAExpire   = 604800
+	edns0UDPSize               = 4096
+	edns0FamilyIPv6            = 2
+	embeddedCacheKeyExtraBytes = 16
+	defaultSOASerial           = 1
 )
 
 type cachedDNSAnswer struct {
@@ -59,8 +78,8 @@ func (r *prefixRRL) allow(prefix string, now time.Time) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if len(r.buckets) > 4096 {
-		cutoff := now.Add(-10 * time.Second)
+	if len(r.buckets) > embeddedRRLMaxBuckets {
+		cutoff := now.Add(-embeddedRRLStaleWindow)
 		for k, b := range r.buckets {
 			if b.lastRefill.Before(cutoff) {
 				delete(r.buckets, k)
@@ -109,15 +128,15 @@ type dnsMetricsCollector struct {
 
 func newDNSMetricsCollector() *dnsMetricsCollector {
 	return &dnsMetricsCollector{
-		latRing:   make([]float64, 0, 512),
+		latRing:   make([]float64, 0, embeddedMetricsRingCap),
 		lastFlush: time.Now().UTC(),
 	}
 }
 
 func (m *dnsMetricsCollector) recordLatency(d time.Duration) {
-	ms := float64(d.Microseconds()) / 1000.0
+	ms := float64(d.Microseconds()) / microsecondsPerMillisecond
 	m.latMu.Lock()
-	if len(m.latRing) >= 512 {
+	if len(m.latRing) >= embeddedMetricsRingCap {
 		copy(m.latRing, m.latRing[1:])
 		m.latRing[len(m.latRing)-1] = ms
 	} else {
@@ -159,7 +178,7 @@ func (m *dnsMetricsCollector) snapshotHeartbeat(snapVer uint64, etag, listenAddr
 	p50, p95, p99 := latencyPercentiles(samples)
 
 	return protocol.DNSHeartbeatRequest{
-		Version:            "embedded-go",
+		Version:            embeddedGoVersion,
 		ListenAddr:         listenAddr,
 		SnapshotVersion:    snapVer,
 		SnapshotETag:       etag,
@@ -192,7 +211,7 @@ func latencyPercentiles(samples []float64) (p50, p95, p99 float64) {
 		}
 		return samples[idx]
 	}
-	return pct(0.50), pct(0.95), pct(0.99)
+	return pct(percentileP50), pct(percentileP95), pct(percentileP99)
 }
 
 // EmbeddedGoDNSServer runs a pure-Go authoritative miekg/dns UDP+TCP server fed by SnapshotManager.
@@ -221,7 +240,7 @@ func NewEmbeddedGoDNSServer(listenAddr string, snapshots *SnapshotManager) *Embe
 		listenAddr: listenAddr,
 		snapshots:  snapshots,
 		cache:      ram.MustNew[string, cachedDNSAnswer](ram.Options{MaximumSize: embeddedCacheMaxSize}),
-		hysteresis: NewHysteresisTracker(16384),
+		hysteresis: NewHysteresisTracker(embeddedHysteresisMax),
 		rrl:        newPrefixRRL(),
 		metrics:    newDNSMetricsCollector(),
 	}
@@ -232,11 +251,12 @@ func (s *EmbeddedGoDNSServer) Start(ctx context.Context) error {
 	mux := dns.NewServeMux()
 	mux.HandleFunc(".", s.serveDNS)
 
-	pc, err := net.ListenPacket("udp", s.listenAddr)
+	var lc net.ListenConfig
+	pc, err := lc.ListenPacket(ctx, "udp", s.listenAddr)
 	if err != nil {
 		return err
 	}
-	ln, err := net.Listen("tcp", pc.LocalAddr().String())
+	ln, err := lc.Listen(ctx, "tcp", pc.LocalAddr().String())
 	if err != nil {
 		_ = pc.Close()
 		return err
@@ -311,7 +331,7 @@ func (s *EmbeddedGoDNSServer) Stop(ctx context.Context) error {
 }
 
 func (s *EmbeddedGoDNSServer) runHeartbeatLoop(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(embeddedHeartbeatInterval)
 	defer ticker.Stop()
 
 	for {
@@ -356,10 +376,7 @@ func (s *EmbeddedGoDNSServer) serveDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	q := r.Question[0]
 	qname := normalizeDomain(q.Name)
-	qtypeName := dns.TypeToString[q.Qtype]
-	if qtypeName == "" {
-		qtypeName = strconv.Itoa(int(q.Qtype))
-	}
+	qtypeName := formatQTypeName(q.Qtype)
 
 	bundle, err := s.snapshots.EnsureCurrent(context.Background())
 	if err != nil || bundle == nil {
@@ -377,27 +394,7 @@ func (s *EmbeddedGoDNSServer) serveDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	if q.Qtype == dns.TypeSOA {
-		resp.Answer = []dns.RR{buildSOARecord(q.Name, env)}
-		s.metrics.queriesSuccess.Add(1)
-		_ = w.WriteMsg(resp)
-		return
-	}
-	if q.Qtype == dns.TypeNS {
-		ttl := uint32(maxInt(env.DefaultTTL, 60))
-		for _, nsHost := range effectiveNSHosts(env) {
-			resp.Answer = append(resp.Answer, &dns.NS{
-				Hdr: dns.RR_Header{Name: q.Name, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: ttl},
-				Ns:  dns.Fqdn(nsHost),
-			})
-		}
-		s.metrics.queriesSuccess.Add(1)
-		_ = w.WriteMsg(resp)
-		return
-	}
-
-	if q.Qtype != dns.TypeA && q.Qtype != dns.TypeAAAA {
-		resp.Ns = []dns.RR{buildSOARecord(zoneApexForQuery(env, q.Name), env)}
+	if s.handleNonDataQuery(resp, q, env) {
 		s.metrics.queriesSuccess.Add(1)
 		_ = w.WriteMsg(resp)
 		return
@@ -415,19 +412,7 @@ func (s *EmbeddedGoDNSServer) serveDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	cacheKey := fmt.Sprintf("%d|%s|%s|%s", env.Version, qname, qtypeName, clientPrefix)
-	s.metrics.cacheLookups.Add(1)
-	if cached, ok := s.cache.GetIfPresent(cacheKey); ok && cached.version == env.Version && now.Before(cached.expiresAt) {
-		s.metrics.cacheHits.Add(1)
-		resp.Rcode = cached.rcode
-		for _, rr := range cached.answers {
-			cloned := dns.Copy(rr)
-			cloned.Header().Name = q.Name
-			resp.Answer = append(resp.Answer, cloned)
-		}
-		for _, rr := range cached.authority {
-			resp.Ns = append(resp.Ns, dns.Copy(rr))
-		}
-		attachECSScopeReply(resp, ecsReq)
+	if s.tryPopulateCachedReply(resp, q, env.Version, cacheKey, ecsReq, now) {
 		s.metrics.queriesSuccess.Add(1)
 		_ = w.WriteMsg(resp)
 		return
@@ -442,24 +427,80 @@ func (s *EmbeddedGoDNSServer) serveDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	profile := qualityapi.ClientProfile{
-		ClientIP: clientIP.String(),
-		IPFamily: familyForQType(qtypeName),
-	}
-	if clientIP != nil {
-		if lookup := netintel.LookupIP(clientIP.String()); lookup != nil {
-			profile.ASN = lookup.ASN
-			profile.CountryISO = lookup.CountryISO
-			profile.RegionCode = lookup.RegionCode
-			profile.ContinentCode = lookup.ContinentCode
-			profile.Latitude = lookup.Latitude
-			profile.Longitude = lookup.Longitude
-			profile.GeoAccuracyKm = lookup.AccuracyRadiusKm
-			profile.GeoSource = lookup.GeoSource
-			profile.AnycastStatus = lookup.AnycastStatus
-		}
-	}
+	s.resolveAndCacheAddressQuery(resp, q, qname, qtypeName, env, policy, clientIP, clientPrefix, ecsReq, cacheKey, now)
+	s.metrics.queriesSuccess.Add(1)
+	_ = w.WriteMsg(resp)
+}
 
+func formatQTypeName(qtype uint16) string {
+	if name := dns.TypeToString[qtype]; name != "" {
+		return name
+	}
+	return strconv.Itoa(int(qtype))
+}
+
+func (s *EmbeddedGoDNSServer) handleNonDataQuery(resp *dns.Msg, q dns.Question, env *protocol.DNSSnapshotEnvelope) bool {
+	switch q.Qtype {
+	case dns.TypeSOA:
+		resp.Answer = []dns.RR{buildSOARecord(q.Name, env)}
+		return true
+	case dns.TypeNS:
+		ttl := clampTTLToUint32(env.DefaultTTL, defaultSmartDNSTTL)
+		for _, nsHost := range effectiveNSHosts(env) {
+			resp.Answer = append(resp.Answer, &dns.NS{
+				Hdr: dns.RR_Header{Name: q.Name, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: ttl},
+				Ns:  dns.Fqdn(nsHost),
+			})
+		}
+		return true
+	case dns.TypeA, dns.TypeAAAA:
+		return false
+	default:
+		resp.Ns = []dns.RR{buildSOARecord(zoneApexForQuery(env, q.Name), env)}
+		return true
+	}
+}
+
+func (s *EmbeddedGoDNSServer) tryPopulateCachedReply(
+	resp *dns.Msg,
+	q dns.Question,
+	snapVersion uint64,
+	cacheKey string,
+	ecsReq *dns.EDNS0_SUBNET,
+	now time.Time,
+) bool {
+	s.metrics.cacheLookups.Add(1)
+	cached, ok := s.cache.GetIfPresent(cacheKey)
+	if !ok || cached.version != snapVersion || !now.Before(cached.expiresAt) {
+		return false
+	}
+	s.metrics.cacheHits.Add(1)
+	resp.Rcode = cached.rcode
+	for _, rr := range cached.answers {
+		cloned := dns.Copy(rr)
+		cloned.Header().Name = q.Name
+		resp.Answer = append(resp.Answer, cloned)
+	}
+	for _, rr := range cached.authority {
+		resp.Ns = append(resp.Ns, dns.Copy(rr))
+	}
+	attachECSScopeReply(resp, ecsReq)
+	return true
+}
+
+func (s *EmbeddedGoDNSServer) resolveAndCacheAddressQuery(
+	resp *dns.Msg,
+	q dns.Question,
+	qname, qtypeName string,
+	env *protocol.DNSSnapshotEnvelope,
+	policy protocol.DNSSnapshotPolicy,
+	clientIP net.IP,
+	clientPrefix string,
+	ecsReq *dns.EDNS0_SUBNET,
+	cacheKey string,
+	now time.Time,
+) {
+	profile := buildEmbeddedClientProfile(clientIP, qtypeName)
 	nodeIDs := make([]string, 0, len(env.Nodes))
 	for _, n := range env.Nodes {
 		nodeIDs = append(nodeIDs, n.NodeID)
@@ -478,28 +519,8 @@ func (s *EmbeddedGoDNSServer) serveDNS(w dns.ResponseWriter, r *dns.Msg) {
 		Now:        now,
 	})
 
-	ttl := uint32(maxInt(sel.TTL, 10))
-	answers := make([]dns.RR, 0, len(sel.Answers))
-	for _, ans := range sel.Answers {
-		parsed := net.ParseIP(ans.IP)
-		if parsed == nil {
-			continue
-		}
-		if q.Qtype == dns.TypeA {
-			if v4 := parsed.To4(); v4 != nil {
-				answers = append(answers, &dns.A{
-					Hdr: dns.RR_Header{Name: q.Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
-					A:   v4,
-				})
-			}
-		} else if q.Qtype == dns.TypeAAAA && parsed.To4() == nil {
-			answers = append(answers, &dns.AAAA{
-				Hdr:  dns.RR_Header{Name: q.Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: ttl},
-				AAAA: parsed,
-			})
-		}
-	}
-
+	ttl := clampTTLToUint32(sel.TTL, minEmbeddedDNSAnswerTTL)
+	answers := buildAddressAnswerRRs(q, sel.Answers, ttl)
 	var authority []dns.RR
 	if len(answers) == 0 {
 		authority = []dns.RR{buildSOARecord(zoneApexForQuery(env, q.Name), env)}
@@ -516,9 +537,54 @@ func (s *EmbeddedGoDNSServer) serveDNS(w dns.ResponseWriter, r *dns.Msg) {
 		version:   env.Version,
 		expiresAt: now.Add(cacheTTL),
 	})
+}
 
-	s.metrics.queriesSuccess.Add(1)
-	_ = w.WriteMsg(resp)
+func buildEmbeddedClientProfile(clientIP net.IP, qtypeName string) qualityapi.ClientProfile {
+	profile := qualityapi.ClientProfile{
+		ClientIP: clientIP.String(),
+		IPFamily: familyForQType(qtypeName),
+	}
+	if clientIP == nil {
+		return profile
+	}
+	if lookup := netintel.LookupIP(clientIP.String()); lookup != nil {
+		profile.ASN = lookup.ASN
+		profile.CountryISO = lookup.CountryISO
+		profile.RegionCode = lookup.RegionCode
+		profile.ContinentCode = lookup.ContinentCode
+		profile.Latitude = lookup.Latitude
+		profile.Longitude = lookup.Longitude
+		profile.GeoAccuracyKm = lookup.AccuracyRadiusKm
+		profile.GeoSource = lookup.GeoSource
+		profile.AnycastStatus = lookup.AnycastStatus
+	}
+	return profile
+}
+
+func buildAddressAnswerRRs(q dns.Question, selected []SelectedAnswer, ttl uint32) []dns.RR {
+	answers := make([]dns.RR, 0, len(selected))
+	for _, ans := range selected {
+		parsed := net.ParseIP(ans.IP)
+		if parsed == nil {
+			continue
+		}
+		if q.Qtype == dns.TypeA {
+			if v4 := parsed.To4(); v4 != nil {
+				answers = append(answers, &dns.A{
+					Hdr: dns.RR_Header{Name: q.Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
+					A:   v4,
+				})
+			}
+			continue
+		}
+		if q.Qtype == dns.TypeAAAA && parsed.To4() == nil {
+			answers = append(answers, &dns.AAAA{
+				Hdr:  dns.RR_Header{Name: q.Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: ttl},
+				AAAA: parsed,
+			})
+		}
+	}
+	return answers
 }
 
 func cloneRRs(items []dns.RR) []dns.RR {
@@ -571,9 +637,9 @@ func attachECSScopeReply(resp *dns.Msg, reqECS *dns.EDNS0_SUBNET) {
 	if reqECS == nil || reqECS.Address == nil {
 		return
 	}
-	scope := uint8(24)
-	if reqECS.Family == 2 || reqECS.Address.To4() == nil {
-		scope = 48
+	scope := uint8(ecsIPv4PrefixBits)
+	if reqECS.Family == edns0FamilyIPv6 || reqECS.Address.To4() == nil {
+		scope = ecsIPv6PrefixBits
 	}
 	if reqECS.SourceNetmask < scope {
 		scope = reqECS.SourceNetmask
@@ -588,7 +654,7 @@ func attachECSScopeReply(resp *dns.Msg, reqECS *dns.EDNS0_SUBNET) {
 	opt := &dns.OPT{
 		Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT},
 	}
-	opt.SetUDPSize(4096)
+	opt.SetUDPSize(edns0UDPSize)
 	opt.Option = append(opt.Option, replyECS)
 	resp.Extra = append(resp.Extra, opt)
 }
@@ -648,14 +714,14 @@ func buildSOARecord(zone string, env *protocol.DNSSnapshotEnvelope) *dns.SOA {
 	if mbox == "hostmaster.." {
 		mbox = "hostmaster.localhost."
 	}
-	serial := uint32(1)
-	minTTL := uint32(60)
+	serial := uint32(defaultSOASerial)
+	minTTL := uint32(defaultSmartDNSTTL)
 	if env != nil {
 		if env.Version > 0 {
-			serial = uint32(env.Version)
+			serial = clampUint64ToUint32(env.Version)
 		}
 		if env.DefaultTTL > 0 {
-			minTTL = uint32(env.DefaultTTL)
+			minTTL = clampTTLToUint32(env.DefaultTTL, 1)
 		}
 	}
 	return &dns.SOA{
@@ -663,9 +729,29 @@ func buildSOARecord(zone string, env *protocol.DNSSnapshotEnvelope) *dns.SOA {
 		Ns:      primaryNS,
 		Mbox:    mbox,
 		Serial:  serial,
-		Refresh: 300,
-		Retry:   60,
-		Expire:  604800,
+		Refresh: defaultEmbeddedSOARefresh,
+		Retry:   defaultEmbeddedSOARetry,
+		Expire:  defaultEmbeddedSOAExpire,
 		Minttl:  minTTL,
 	}
+}
+
+func clampTTLToUint32(v, minVal int) uint32 {
+	if v < minVal {
+		v = minVal
+	}
+	if v < 0 {
+		return 0
+	}
+	if v > math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint32(v)
+}
+
+func clampUint64ToUint32(v uint64) uint32 {
+	if v > math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint32(v)
 }

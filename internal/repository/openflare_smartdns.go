@@ -31,7 +31,7 @@ func EnsureEmbeddedDNSInstance(ctx context.Context, instance *model.OpenFlareDNS
 			return err
 		}
 		updates := map[string]any{
-			"name":          instance.Name,
+			colName:         instance.Name,
 			"mode":          instance.Mode,
 			"listen_addr":   instance.ListenAddr,
 			"public_addr":   instance.PublicAddr,

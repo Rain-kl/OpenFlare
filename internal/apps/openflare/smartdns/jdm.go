@@ -20,6 +20,46 @@ const (
 	jdmNodeOutput     = "outputNode"
 	jdmNodeSwitch     = "switchNode"
 	jdmNodeExpression = "expressionNode"
+
+	jdmNodeIDInput       = "input"
+	jdmNodeIDDefaultExpr = "expr-default"
+	jdmNodeIDOutput      = "output"
+	jdmHitPolicyFirst    = "first"
+	jdmHitPolicyCollect  = "collect"
+
+	jdmKeyMode         = "mode"
+	jdmKeyMaxAnswers   = "max_answers"
+	jdmKeyTTL          = "ttl"
+	jdmKeyUseTags      = "use_tag_weights"
+	jdmKeyWeightLat    = "weights.latency"
+	jdmKeyWeightLoad   = "weights.load"
+	jdmKeyWeightGeo    = "weights.geo"
+	jdmKeyFilterNodes  = "filters.node_ids"
+	jdmKeyFilterCtry   = "filters.countries"
+	jdmKeyFilterTags   = "filters.tags"
+	jdmKeyFilterGroups = "filters.network_groups"
+
+	tokKindIdent  = "ident"
+	tokKindString = "string"
+	tokKindNumber = "number"
+	tokKindOp     = "op"
+	tokKindLParen = "lparen"
+	tokKindRParen = "rparen"
+	tokKindLBrack = "lbrack"
+	tokKindRBrack = "rbrack"
+	tokKindComma  = "comma"
+
+	opContains          = "contains"
+	opIn                = "in"
+	boolLiteralTrue     = dnsQuarantinedHeaderTrue
+	boolLiteralFalse    = "false"
+	minJDMDocumentNodes = 2
+	minFlowGraphNodes   = 3
+	defaultExprCap      = 10
+	minQuotedStringLen  = 2
+	dfsVisiting         = 1
+	dfsVisited          = 2
+	twoCharOpLen        = 2
 )
 
 var validJDMIdentifier = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
@@ -213,18 +253,18 @@ func CompilePresetJDM(strategy string, cfg PolicyConfig) (string, error) {
 	})
 	doc := JDMDocument{
 		Nodes: []JDMNode{
-			{ID: "input", Name: "Request", Type: jdmNodeInput},
+			{ID: jdmNodeIDInput, Name: "Request", Type: jdmNodeInput},
 			{
-				ID:      "expr-default",
+				ID:      jdmNodeIDDefaultExpr,
 				Name:    "Preset Policy",
 				Type:    jdmNodeExpression,
 				Content: JDMExpressionContent{Expressions: exps},
 			},
-			{ID: "output", Name: "Decision", Type: jdmNodeOutput},
+			{ID: jdmNodeIDOutput, Name: "Decision", Type: jdmNodeOutput},
 		},
 		Edges: []JDMEdge{
-			{ID: "e-in", SourceID: "input", TargetID: "expr-default"},
-			{ID: "e-out", SourceID: "expr-default", TargetID: "output"},
+			{ID: "e-in", SourceID: jdmNodeIDInput, TargetID: jdmNodeIDDefaultExpr},
+			{ID: "e-out", SourceID: jdmNodeIDDefaultExpr, TargetID: jdmNodeIDOutput},
 		},
 	}
 	if err := validateJDMDocument(&doc); err != nil {
@@ -239,7 +279,7 @@ func CompilePresetJDM(strategy string, cfg PolicyConfig) (string, error) {
 
 // CompileFlowGraphToJDM converts the frontend ReactFlow visual graph into validated zen-engine JDM JSON.
 func CompileFlowGraphToJDM(graph FlowGraph) (string, error) {
-	if len(graph.Nodes) < 3 {
+	if len(graph.Nodes) < minFlowGraphNodes {
 		return "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
 	}
 	doc := JDMDocument{
@@ -247,54 +287,9 @@ func CompileFlowGraphToJDM(graph FlowGraph) (string, error) {
 		Edges: make([]JDMEdge, 0, len(graph.Edges)),
 	}
 	for _, n := range graph.Nodes {
-		id := strings.TrimSpace(n.ID)
-		if id == "" || !validJDMIdentifier.MatchString(id) {
-			return "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-		}
-		name := strings.TrimSpace(n.Label)
-		if name == "" {
-			name = id
-		}
-		jNode := JDMNode{
-			ID:       id,
-			Name:     name,
-			Position: map[string]any{"x": n.Position.X, "y": n.Position.Y},
-		}
-		switch strings.ToLower(strings.TrimSpace(n.Type)) {
-		case "input", "inputnode":
-			jNode.Type = jdmNodeInput
-		case "output", "outputnode":
-			jNode.Type = jdmNodeOutput
-		case "condition", "switch", "switchnode":
-			jNode.Type = jdmNodeSwitch
-			hitPolicy := strings.ToLower(strings.TrimSpace(n.Data.HitPolicy))
-			if hitPolicy == "" {
-				hitPolicy = "first"
-			}
-			if hitPolicy != "first" && hitPolicy != "collect" {
-				return "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-			}
-			if len(n.Data.Cases) == 0 {
-				return "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-			}
-			stmts := make([]JDMStatement, 0, len(n.Data.Cases))
-			for _, c := range n.Data.Cases {
-				cid := strings.TrimSpace(c.ID)
-				if cid == "" || !validJDMIdentifier.MatchString(cid) {
-					return "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-				}
-				stmts = append(stmts, JDMStatement{
-					ID:        cid,
-					Condition: strings.TrimSpace(c.Condition),
-				})
-			}
-			jNode.Content = JDMSwitchContent{HitPolicy: hitPolicy, Statements: stmts}
-		case "action", "expression", "expressionnode":
-			jNode.Type = jdmNodeExpression
-			exps := buildExpressionsFromAction(n.Data)
-			jNode.Content = JDMExpressionContent{Expressions: exps}
-		default:
-			return "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+		jNode, err := compileFlowNode(n)
+		if err != nil {
+			return "", err
 		}
 		doc.Nodes = append(doc.Nodes, jNode)
 	}
@@ -320,6 +315,66 @@ func CompileFlowGraphToJDM(graph FlowGraph) (string, error) {
 	return string(raw), nil
 }
 
+func compileFlowNode(n FlowNode) (JDMNode, error) {
+	id := strings.TrimSpace(n.ID)
+	if id == "" || !validJDMIdentifier.MatchString(id) {
+		return JDMNode{}, newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+	}
+	name := strings.TrimSpace(n.Label)
+	if name == "" {
+		name = id
+	}
+	jNode := JDMNode{
+		ID:       id,
+		Name:     name,
+		Position: map[string]any{"x": n.Position.X, "y": n.Position.Y},
+	}
+	switch strings.ToLower(strings.TrimSpace(n.Type)) {
+	case jdmNodeIDInput, "inputnode":
+		jNode.Type = jdmNodeInput
+	case jdmNodeIDOutput, "outputnode":
+		jNode.Type = jdmNodeOutput
+	case "condition", "switch", "switchnode":
+		sw, err := compileSwitchFlowContent(n.Data)
+		if err != nil {
+			return JDMNode{}, err
+		}
+		jNode.Type = jdmNodeSwitch
+		jNode.Content = sw
+	case "action", "expression", "expressionnode":
+		jNode.Type = jdmNodeExpression
+		jNode.Content = JDMExpressionContent{Expressions: buildExpressionsFromAction(n.Data)}
+	default:
+		return JDMNode{}, newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+	}
+	return jNode, nil
+}
+
+func compileSwitchFlowContent(data FlowNodeData) (JDMSwitchContent, error) {
+	hitPolicy := strings.ToLower(strings.TrimSpace(data.HitPolicy))
+	if hitPolicy == "" {
+		hitPolicy = jdmHitPolicyFirst
+	}
+	if hitPolicy != jdmHitPolicyFirst && hitPolicy != jdmHitPolicyCollect {
+		return JDMSwitchContent{}, newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+	}
+	if len(data.Cases) == 0 {
+		return JDMSwitchContent{}, newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+	}
+	stmts := make([]JDMStatement, 0, len(data.Cases))
+	for _, c := range data.Cases {
+		cid := strings.TrimSpace(c.ID)
+		if cid == "" || !validJDMIdentifier.MatchString(cid) {
+			return JDMSwitchContent{}, newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+		}
+		stmts = append(stmts, JDMStatement{
+			ID:        cid,
+			Condition: strings.TrimSpace(c.Condition),
+		})
+	}
+	return JDMSwitchContent{HitPolicy: hitPolicy, Statements: stmts}, nil
+}
+
 // ValidateJDMJSON parses and validates a JDM JSON string (structural, acyclic, valid switch/expression payloads).
 func ValidateJDMJSON(jdmJSON string) (*JDMDocument, error) {
 	var doc JDMDocument
@@ -333,64 +388,93 @@ func ValidateJDMJSON(jdmJSON string) (*JDMDocument, error) {
 }
 
 func validateJDMDocument(doc *JDMDocument) error {
-	if doc == nil || len(doc.Nodes) < 2 {
+	if doc == nil || len(doc.Nodes) < minJDMDocumentNodes {
 		return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
 	}
-	byID := make(map[string]JDMNode, len(doc.Nodes))
+	byID, inputID, outputID, err := validateJDMNodes(doc.Nodes)
+	if err != nil {
+		return err
+	}
+	return validateJDMGraphDAG(doc, byID, inputID, outputID)
+}
+
+func validateJDMNodes(nodes []JDMNode) (map[string]JDMNode, string, string, error) {
+	byID := make(map[string]JDMNode, len(nodes))
 	inputID := ""
 	outputID := ""
-	for _, n := range doc.Nodes {
+	for _, n := range nodes {
 		if n.ID == "" {
-			return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+			return nil, "", "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
 		}
 		if _, dup := byID[n.ID]; dup {
-			return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+			return nil, "", "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
 		}
 		byID[n.ID] = n
-		switch n.Type {
-		case jdmNodeInput:
-			if inputID != "" {
-				return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-			}
-			inputID = n.ID
-		case jdmNodeOutput:
-			if outputID != "" {
-				return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-			}
-			outputID = n.ID
-		case jdmNodeSwitch:
-			sw, err := parseSwitchContent(n.Content)
-			if err != nil || len(sw.Statements) == 0 {
-				return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-			}
-			for _, st := range sw.Statements {
-				if st.ID == "" {
-					return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-				}
-				if strings.TrimSpace(st.Condition) != "" {
-					if _, err := parseConditionTokens(st.Condition); err != nil {
-						return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-					}
-				}
-			}
-		case jdmNodeExpression:
-			ex, err := parseExpressionContent(n.Content)
-			if err != nil {
-				return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-			}
-			for _, item := range ex.Expressions {
-				if strings.TrimSpace(item.Key) == "" {
-					return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
-				}
-			}
-		default:
-			return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+		var err error
+		inputID, outputID, err = validateSingleJDMNode(n, inputID, outputID)
+		if err != nil {
+			return nil, "", "", err
 		}
 	}
 	if inputID == "" || outputID == "" {
+		return nil, "", "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+	}
+	return byID, inputID, outputID, nil
+}
+
+func validateSingleJDMNode(n JDMNode, inputID, outputID string) (string, string, error) {
+	switch n.Type {
+	case jdmNodeInput:
+		if inputID != "" {
+			return "", "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+		}
+		return n.ID, outputID, nil
+	case jdmNodeOutput:
+		if outputID != "" {
+			return "", "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+		}
+		return inputID, n.ID, nil
+	case jdmNodeSwitch:
+		return inputID, outputID, validateJDMSwitchNode(n.Content)
+	case jdmNodeExpression:
+		return inputID, outputID, validateJDMExpressionNode(n.Content)
+	default:
+		return "", "", newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+	}
+}
+
+func validateJDMSwitchNode(content any) error {
+	sw, err := parseSwitchContent(content)
+	if err != nil || len(sw.Statements) == 0 {
 		return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
 	}
+	for _, st := range sw.Statements {
+		if st.ID == "" {
+			return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+		}
+		if strings.TrimSpace(st.Condition) != "" {
+			if _, tokErr := parseConditionTokens(st.Condition); tokErr != nil {
+				return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+			}
+		}
+	}
+	return nil
+}
 
+func validateJDMExpressionNode(content any) error {
+	ex, err := parseExpressionContent(content)
+	if err != nil {
+		return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+	}
+	for _, item := range ex.Expressions {
+		if strings.TrimSpace(item.Key) == "" {
+			return newLogicError(http.StatusBadRequest, errPolicyGraphInvalid)
+		}
+	}
+	return nil
+}
+
+func validateJDMGraphDAG(doc *JDMDocument, byID map[string]JDMNode, inputID, outputID string) error {
 	adj := make(map[string][]string, len(doc.Nodes))
 	for _, e := range doc.Edges {
 		src, okSrc := byID[e.SourceID]
@@ -409,21 +493,19 @@ func validateJDMDocument(doc *JDMDocument) error {
 	reachedOutput := false
 	var dfs func(string) bool
 	dfs = func(u string) bool {
-		state[u] = 1
+		state[u] = dfsVisiting
 		if u == outputID {
 			reachedOutput = true
 		}
 		for _, v := range adj[u] {
-			if state[v] == 1 {
+			if state[v] == dfsVisiting {
 				return false // cycle detected
 			}
-			if state[v] == 0 {
-				if !dfs(v) {
-					return false
-				}
+			if state[v] == 0 && !dfs(v) {
+				return false
 			}
 		}
-		state[u] = 2
+		state[u] = dfsVisited
 		return true
 	}
 	if !dfs(inputID) || !reachedOutput {
@@ -438,18 +520,7 @@ func EvaluateJDM(jdmJSON string, base PolicyDecision, ctx EvalContext) (PolicyDe
 	if err != nil {
 		return base, err
 	}
-	byID := make(map[string]JDMNode, len(doc.Nodes))
-	outEdges := make(map[string][]JDMEdge, len(doc.Nodes))
-	var inputID string
-	for _, n := range doc.Nodes {
-		byID[n.ID] = n
-		if n.Type == jdmNodeInput {
-			inputID = n.ID
-		}
-	}
-	for _, e := range doc.Edges {
-		outEdges[e.SourceID] = append(outEdges[e.SourceID], e)
-	}
+	byID, outEdges, inputID := indexJDMGraph(doc)
 
 	res := base
 	queue := []string{inputID}
@@ -464,93 +535,136 @@ func EvaluateJDM(jdmJSON string, base PolicyDecision, ctx EvalContext) (PolicyDe
 		}
 		visitedOrder = append(visitedOrder, node.ID)
 
-		switch node.Type {
-		case jdmNodeInput:
-			for _, e := range outEdges[node.ID] {
-				queue = append(queue, e.TargetID)
-			}
-		case jdmNodeOutput:
+		if node.Type == jdmNodeOutput {
 			res.MatchedNodes = visitedOrder
 			return res, nil
-		case jdmNodeExpression:
-			ex, err := parseExpressionContent(node.Content)
-			if err == nil {
-				applyExpressionItems(&res, ex.Expressions)
-			}
-			for _, e := range outEdges[node.ID] {
-				queue = append(queue, e.TargetID)
-			}
-		case jdmNodeSwitch:
-			sw, err := parseSwitchContent(node.Content)
-			if err != nil {
-				return res, err
-			}
-			matchedHandles := make(map[string]bool)
-			for _, st := range sw.Statements {
-				matched, evalErr := evalCondition(st.Condition, ctx)
-				if evalErr != nil {
-					return res, evalErr
-				}
-				if matched {
-					matchedHandles[st.ID] = true
-					condLabel := st.Condition
-					if strings.TrimSpace(condLabel) == "" {
-						condLabel = "default"
-					}
-					res.MatchedConditions = append(res.MatchedConditions, fmt.Sprintf("%s:%s", node.ID, condLabel))
-					if sw.HitPolicy == "first" {
-						break
-					}
-				}
-			}
-			for _, e := range outEdges[node.ID] {
-				if e.SourceHandle == "" || matchedHandles[e.SourceHandle] {
-					queue = append(queue, e.TargetID)
-				}
-			}
+		}
+		var stepErr error
+		queue, stepErr = stepJDMNode(node, outEdges[node.ID], queue, &res, ctx)
+		if stepErr != nil {
+			return res, stepErr
 		}
 	}
 	res.MatchedNodes = visitedOrder
 	return res, nil
 }
 
+func indexJDMGraph(doc *JDMDocument) (map[string]JDMNode, map[string][]JDMEdge, string) {
+	byID := make(map[string]JDMNode, len(doc.Nodes))
+	outEdges := make(map[string][]JDMEdge, len(doc.Nodes))
+	var inputID string
+	for _, n := range doc.Nodes {
+		byID[n.ID] = n
+		if n.Type == jdmNodeInput {
+			inputID = n.ID
+		}
+	}
+	for _, e := range doc.Edges {
+		outEdges[e.SourceID] = append(outEdges[e.SourceID], e)
+	}
+	return byID, outEdges, inputID
+}
+
+func stepJDMNode(
+	node JDMNode,
+	edges []JDMEdge,
+	queue []string,
+	res *PolicyDecision,
+	ctx EvalContext,
+) ([]string, error) {
+	switch node.Type {
+	case jdmNodeInput:
+		for _, e := range edges {
+			queue = append(queue, e.TargetID)
+		}
+	case jdmNodeExpression:
+		if ex, err := parseExpressionContent(node.Content); err == nil {
+			applyExpressionItems(res, ex.Expressions)
+		}
+		for _, e := range edges {
+			queue = append(queue, e.TargetID)
+		}
+	case jdmNodeSwitch:
+		return evalSwitchEdges(node, edges, queue, res, ctx)
+	}
+	return queue, nil
+}
+
+func evalSwitchEdges(
+	node JDMNode,
+	edges []JDMEdge,
+	queue []string,
+	res *PolicyDecision,
+	ctx EvalContext,
+) ([]string, error) {
+	sw, err := parseSwitchContent(node.Content)
+	if err != nil {
+		return queue, err
+	}
+	matchedHandles := make(map[string]bool)
+	for _, st := range sw.Statements {
+		matched, evalErr := evalCondition(st.Condition, ctx)
+		if evalErr != nil {
+			return queue, evalErr
+		}
+		if !matched {
+			continue
+		}
+		matchedHandles[st.ID] = true
+		condLabel := st.Condition
+		if strings.TrimSpace(condLabel) == "" {
+			condLabel = "default"
+		}
+		res.MatchedConditions = append(res.MatchedConditions, fmt.Sprintf("%s:%s", node.ID, condLabel))
+		if sw.HitPolicy == jdmHitPolicyFirst {
+			break
+		}
+	}
+	for _, e := range edges {
+		if e.SourceHandle == "" || matchedHandles[e.SourceHandle] {
+			queue = append(queue, e.TargetID)
+		}
+	}
+	return queue, nil
+}
+
 func buildExpressionsFromAction(data FlowNodeData) []JDMExpressionItem {
-	exps := make([]JDMExpressionItem, 0, 10)
+	exps := make([]JDMExpressionItem, 0, defaultExprCap)
 	mode := strings.TrimSpace(data.Mode)
 	if mode == "" {
 		mode = model.DNSPolicyStrategySmart
 	}
-	exps = append(exps, JDMExpressionItem{ID: "mode", Key: "mode", Value: strconv.Quote(mode)})
+	exps = append(exps, JDMExpressionItem{ID: jdmKeyMode, Key: jdmKeyMode, Value: strconv.Quote(mode)})
 
 	if data.Weights != nil {
 		exps = append(exps,
-			JDMExpressionItem{ID: "w_lat", Key: "weights.latency", Value: formatFloatExpr(data.Weights.Latency)},
-			JDMExpressionItem{ID: "w_load", Key: "weights.load", Value: formatFloatExpr(data.Weights.Load)},
-			JDMExpressionItem{ID: "w_geo", Key: "weights.geo", Value: formatFloatExpr(data.Weights.Geo)},
+			JDMExpressionItem{ID: "w_lat", Key: jdmKeyWeightLat, Value: formatFloatExpr(data.Weights.Latency)},
+			JDMExpressionItem{ID: "w_load", Key: jdmKeyWeightLoad, Value: formatFloatExpr(data.Weights.Load)},
+			JDMExpressionItem{ID: "w_geo", Key: jdmKeyWeightGeo, Value: formatFloatExpr(data.Weights.Geo)},
 		)
 	}
 	if data.UseTagWeights != nil {
-		exps = append(exps, JDMExpressionItem{ID: "use_tags", Key: "use_tag_weights", Value: strconv.FormatBool(*data.UseTagWeights)})
+		exps = append(exps, JDMExpressionItem{ID: "use_tags", Key: jdmKeyUseTags, Value: strconv.FormatBool(*data.UseTagWeights)})
 	}
 	if data.Filters != nil {
 		if len(data.Filters.NodeIDs) > 0 {
-			exps = append(exps, JDMExpressionItem{ID: "f_nodes", Key: "filters.node_ids", Value: marshalStringSliceExpr(data.Filters.NodeIDs)})
+			exps = append(exps, JDMExpressionItem{ID: "f_nodes", Key: jdmKeyFilterNodes, Value: marshalStringSliceExpr(data.Filters.NodeIDs)})
 		}
 		if len(data.Filters.Countries) > 0 {
-			exps = append(exps, JDMExpressionItem{ID: "f_countries", Key: "filters.countries", Value: marshalStringSliceExpr(data.Filters.Countries)})
+			exps = append(exps, JDMExpressionItem{ID: "f_countries", Key: jdmKeyFilterCtry, Value: marshalStringSliceExpr(data.Filters.Countries)})
 		}
 		if len(data.Filters.Tags) > 0 {
-			exps = append(exps, JDMExpressionItem{ID: "f_tags", Key: "filters.tags", Value: marshalStringSliceExpr(data.Filters.Tags)})
+			exps = append(exps, JDMExpressionItem{ID: "f_tags", Key: jdmKeyFilterTags, Value: marshalStringSliceExpr(data.Filters.Tags)})
 		}
 		if len(data.Filters.NetworkGroups) > 0 {
-			exps = append(exps, JDMExpressionItem{ID: "f_groups", Key: "filters.network_groups", Value: marshalStringSliceExpr(data.Filters.NetworkGroups)})
+			exps = append(exps, JDMExpressionItem{ID: "f_groups", Key: jdmKeyFilterGroups, Value: marshalStringSliceExpr(data.Filters.NetworkGroups)})
 		}
 	}
 	if data.MaxAnswers != nil && *data.MaxAnswers > 0 {
-		exps = append(exps, JDMExpressionItem{ID: "max_answers", Key: "max_answers", Value: strconv.Itoa(*data.MaxAnswers)})
+		exps = append(exps, JDMExpressionItem{ID: jdmKeyMaxAnswers, Key: jdmKeyMaxAnswers, Value: strconv.Itoa(*data.MaxAnswers)})
 	}
 	if data.TTL != nil && *data.TTL > 0 {
-		exps = append(exps, JDMExpressionItem{ID: "ttl", Key: "ttl", Value: strconv.Itoa(*data.TTL)})
+		exps = append(exps, JDMExpressionItem{ID: jdmKeyTTL, Key: jdmKeyTTL, Value: strconv.Itoa(*data.TTL)})
 	}
 	return exps
 }
@@ -591,7 +705,7 @@ func parseSwitchContent(raw any) (*JDMSwitchContent, error) {
 		return nil, err
 	}
 	if out.HitPolicy == "" {
-		out.HitPolicy = "first"
+		out.HitPolicy = jdmHitPolicyFirst
 	}
 	return &out, nil
 }
@@ -610,54 +724,70 @@ func parseExpressionContent(raw any) (*JDMExpressionContent, error) {
 
 func applyExpressionItems(res *PolicyDecision, items []JDMExpressionItem) {
 	for _, item := range items {
-		val := strings.TrimSpace(item.Value)
-		switch strings.TrimSpace(item.Key) {
-		case "mode":
-			if s, ok := parseJSONOrQuotedString(val); ok && (s == model.DNSPolicyStrategySmart || s == model.DNSPolicyStrategyLoadBalance) {
-				res.Mode = s
-			}
-		case "weights.latency":
-			if f, err := strconv.ParseFloat(val, 64); err == nil && f >= 0 {
-				res.Weights.Latency = f
-			}
-		case "weights.load":
-			if f, err := strconv.ParseFloat(val, 64); err == nil && f >= 0 {
-				res.Weights.Load = f
-			}
-		case "weights.geo":
-			if f, err := strconv.ParseFloat(val, 64); err == nil && f >= 0 {
-				res.Weights.Geo = f
-			}
-		case "use_tag_weights":
-			if b, err := strconv.ParseBool(val); err == nil {
-				res.UseTagWeights = b
-			}
-		case "filters.node_ids":
-			if slice, ok := parseStringSliceLiteral(val); ok {
-				res.Filters.NodeIDs = slice
-			}
-		case "filters.countries":
-			if slice, ok := parseStringSliceLiteral(val); ok {
-				res.Filters.Countries = slice
-			}
-		case "filters.tags":
-			if slice, ok := parseStringSliceLiteral(val); ok {
-				res.Filters.Tags = slice
-			}
-		case "filters.network_groups":
-			if slice, ok := parseStringSliceLiteral(val); ok {
-				res.Filters.NetworkGroups = slice
-			}
-		case "max_answers":
-			if n, err := strconv.Atoi(val); err == nil && n > 0 && n <= 16 {
-				res.MaxAnswers = n
-			}
-		case "ttl":
-			if n, err := strconv.Atoi(val); err == nil && n >= 10 && n <= 86400 {
-				res.TTL = n
-			}
+		applySingleExpression(res, strings.TrimSpace(item.Key), strings.TrimSpace(item.Value))
+	}
+}
+
+func applySingleExpression(res *PolicyDecision, key, val string) {
+	if applyWeightExpression(res, key, val) || applyFilterExpression(res, key, val) {
+		return
+	}
+	switch key {
+	case jdmKeyMode:
+		if s, ok := parseJSONOrQuotedString(val); ok && (s == model.DNSPolicyStrategySmart || s == model.DNSPolicyStrategyLoadBalance) {
+			res.Mode = s
+		}
+	case jdmKeyUseTags:
+		if b, err := strconv.ParseBool(val); err == nil {
+			res.UseTagWeights = b
+		}
+	case jdmKeyMaxAnswers:
+		if n, err := strconv.Atoi(val); err == nil && n >= minPolicyMaxAnswers && n <= maxPolicyMaxAnswers {
+			res.MaxAnswers = n
+		}
+	case jdmKeyTTL:
+		if n, err := strconv.Atoi(val); err == nil && n >= minPolicyTTL && n <= maxPolicyTTL {
+			res.TTL = n
 		}
 	}
+}
+
+func applyWeightExpression(res *PolicyDecision, key, val string) bool {
+	var target *float64
+	switch key {
+	case jdmKeyWeightLat:
+		target = &res.Weights.Latency
+	case jdmKeyWeightLoad:
+		target = &res.Weights.Load
+	case jdmKeyWeightGeo:
+		target = &res.Weights.Geo
+	default:
+		return false
+	}
+	if f, err := strconv.ParseFloat(val, 64); err == nil && f >= 0 {
+		*target = f
+	}
+	return true
+}
+
+func applyFilterExpression(res *PolicyDecision, key, val string) bool {
+	var target *[]string
+	switch key {
+	case jdmKeyFilterNodes:
+		target = &res.Filters.NodeIDs
+	case jdmKeyFilterCtry:
+		target = &res.Filters.Countries
+	case jdmKeyFilterTags:
+		target = &res.Filters.Tags
+	case jdmKeyFilterGroups:
+		target = &res.Filters.NetworkGroups
+	default:
+		return false
+	}
+	if slice, ok := parseStringSliceLiteral(val); ok {
+		*target = slice
+	}
+	return true
 }
 
 func parseJSONOrQuotedString(raw string) (string, bool) {
@@ -665,7 +795,7 @@ func parseJSONOrQuotedString(raw string) (string, bool) {
 	if err := json.Unmarshal([]byte(raw), &s); err == nil {
 		return s, true
 	}
-	if len(raw) >= 2 && raw[0] == '\'' && raw[len(raw)-1] == '\'' {
+	if len(raw) >= minQuotedStringLen && raw[0] == '\'' && raw[len(raw)-1] == '\'' {
 		return raw[1 : len(raw)-1], true
 	}
 	return raw, raw != ""
@@ -698,99 +828,125 @@ func parseConditionTokens(expr string) ([]condToken, error) {
 			i++
 			continue
 		}
-		switch ch {
-		case '(':
-			tokens = append(tokens, condToken{kind: "lparen", val: "("})
-			i++
-		case ')':
-			tokens = append(tokens, condToken{kind: "rparen", val: ")"})
-			i++
-		case '[':
-			tokens = append(tokens, condToken{kind: "lbrack", val: "["})
-			i++
-		case ']':
-			tokens = append(tokens, condToken{kind: "rbrack", val: "]"})
-			i++
-		case ',':
-			tokens = append(tokens, condToken{kind: "comma", val: ","})
-			i++
-		case '&':
-			if i+1 < len(expr) && expr[i+1] == '&' {
-				tokens = append(tokens, condToken{kind: "op", val: "&&"})
-				i += 2
-				continue
-			}
-			return nil, fmt.Errorf("unexpected char '&'")
-		case '|':
-			if i+1 < len(expr) && expr[i+1] == '|' {
-				tokens = append(tokens, condToken{kind: "op", val: "||"})
-				i += 2
-				continue
-			}
-			return nil, fmt.Errorf("unexpected char '|'")
-		case '=':
-			if i+1 < len(expr) && expr[i+1] == '=' {
-				tokens = append(tokens, condToken{kind: "op", val: "=="})
-				i += 2
-				continue
-			}
-			return nil, fmt.Errorf("unexpected char '='")
-		case '!':
-			if i+1 < len(expr) && expr[i+1] == '=' {
-				tokens = append(tokens, condToken{kind: "op", val: "!="})
-				i += 2
-				continue
-			}
-			tokens = append(tokens, condToken{kind: "op", val: "!"})
-			i++
-		case '"', '\'':
-			quote := ch
-			i++
-			start := i
-			for i < len(expr) && expr[i] != quote {
-				if expr[i] == '\\' && i+1 < len(expr) {
-					i++
-				}
-				i++
-			}
-			if i >= len(expr) {
-				return nil, fmt.Errorf("unterminated string")
-			}
-			tokens = append(tokens, condToken{kind: "string", val: expr[start:i]})
-			i++
-		default:
-			if ch >= '0' && ch <= '9' {
-				start := i
-				for i < len(expr) && (expr[i] >= '0' && expr[i] <= '9') {
-					i++
-				}
-				tokens = append(tokens, condToken{kind: "number", val: expr[start:i]})
-				continue
-			}
-			if isIdentStart(ch) {
-				start := i
-				for i < len(expr) && (isIdentPart(expr[i])) {
-					i++
-				}
-				word := expr[start:i]
-				switch word {
-				case "and":
-					tokens = append(tokens, condToken{kind: "op", val: "&&"})
-				case "or":
-					tokens = append(tokens, condToken{kind: "op", val: "||"})
-				case "not":
-					tokens = append(tokens, condToken{kind: "op", val: "!"})
-				case "in", "contains":
-					tokens = append(tokens, condToken{kind: "op", val: word})
-				default:
-					tokens = append(tokens, condToken{kind: "ident", val: word})
-				}
-				continue
-			}
-			return nil, fmt.Errorf("unexpected character %q", ch)
+		tok, nextIdx, err := nextConditionToken(expr, i)
+		if err != nil {
+			return nil, err
 		}
+		tokens = append(tokens, tok)
+		i = nextIdx
 	}
 	return tokens, nil
+}
+
+func nextConditionToken(expr string, i int) (condToken, int, error) {
+	ch := expr[i]
+	if tok, ok := delimiterToken(ch); ok {
+		return tok, i + 1, nil
+	}
+	if ch == '"' || ch == '\'' {
+		return scanQuotedConditionToken(expr, i, ch)
+	}
+	if tok, nextIdx, handled, err := scanOperatorToken(expr, i, ch); handled || err != nil {
+		return tok, nextIdx, err
+	}
+	if ch >= '0' && ch <= '9' {
+		end := i
+		for end < len(expr) && expr[end] >= '0' && expr[end] <= '9' {
+			end++
+		}
+		return condToken{kind: tokKindNumber, val: expr[i:end]}, end, nil
+	}
+	if isIdentStart(ch) {
+		return scanWordConditionToken(expr, i), scanWordEnd(expr, i), nil
+	}
+	return condToken{}, i, fmt.Errorf("unexpected character %q", ch)
+}
+
+func delimiterToken(ch byte) (condToken, bool) {
+	switch ch {
+	case '(':
+		return condToken{kind: tokKindLParen, val: "("}, true
+	case ')':
+		return condToken{kind: tokKindRParen, val: ")"}, true
+	case '[':
+		return condToken{kind: tokKindLBrack, val: "["}, true
+	case ']':
+		return condToken{kind: tokKindRBrack, val: "]"}, true
+	case ',':
+		return condToken{kind: tokKindComma, val: ","}, true
+	default:
+		return condToken{}, false
+	}
+}
+
+func scanOperatorToken(expr string, i int, ch byte) (condToken, int, bool, error) {
+	nextCh := byte(0)
+	if i+1 < len(expr) {
+		nextCh = expr[i+1]
+	}
+	switch ch {
+	case '&':
+		if nextCh == '&' {
+			return condToken{kind: tokKindOp, val: "&&"}, i + twoCharOpLen, true, nil
+		}
+		return condToken{}, i, true, fmt.Errorf("unexpected char '&'")
+	case '|':
+		if nextCh == '|' {
+			return condToken{kind: tokKindOp, val: "||"}, i + twoCharOpLen, true, nil
+		}
+		return condToken{}, i, true, fmt.Errorf("unexpected char '|'")
+	case '=':
+		if nextCh == '=' {
+			return condToken{kind: tokKindOp, val: "=="}, i + twoCharOpLen, true, nil
+		}
+		return condToken{}, i, true, fmt.Errorf("unexpected char '='")
+	case '!':
+		if nextCh == '=' {
+			return condToken{kind: tokKindOp, val: "!="}, i + twoCharOpLen, true, nil
+		}
+		return condToken{kind: tokKindOp, val: "!"}, i + 1, true, nil
+	default:
+		return condToken{}, i, false, nil
+	}
+}
+
+func scanQuotedConditionToken(expr string, i int, quote byte) (condToken, int, error) {
+	pos := i + 1
+	start := pos
+	for pos < len(expr) && expr[pos] != quote {
+		if expr[pos] == '\\' && pos+1 < len(expr) {
+			pos++
+		}
+		pos++
+	}
+	if pos >= len(expr) {
+		return condToken{}, pos, fmt.Errorf("unterminated string")
+	}
+	return condToken{kind: tokKindString, val: expr[start:pos]}, pos + 1, nil
+}
+
+func scanWordEnd(expr string, i int) int {
+	pos := i
+	for pos < len(expr) && isIdentPart(expr[pos]) {
+		pos++
+	}
+	return pos
+}
+
+func scanWordConditionToken(expr string, i int) condToken {
+	word := expr[i:scanWordEnd(expr, i)]
+	switch word {
+	case "and":
+		return condToken{kind: tokKindOp, val: "&&"}
+	case "or":
+		return condToken{kind: tokKindOp, val: "||"}
+	case "not":
+		return condToken{kind: tokKindOp, val: "!"}
+	case opIn, opContains:
+		return condToken{kind: tokKindOp, val: word}
+	default:
+		return condToken{kind: tokKindIdent, val: word}
+	}
 }
 
 func isIdentStart(c byte) bool {
@@ -803,10 +959,10 @@ func isIdentPart(c byte) bool {
 
 func evalCondition(expr string, ctx EvalContext) (bool, error) {
 	trimmed := strings.TrimSpace(expr)
-	if trimmed == "" || trimmed == "true" {
+	if trimmed == "" || trimmed == boolLiteralTrue {
 		return true, nil
 	}
-	if trimmed == "false" {
+	if trimmed == boolLiteralFalse {
 		return false, nil
 	}
 	tokens, err := parseConditionTokens(trimmed)
@@ -853,7 +1009,7 @@ func (p *condParser) parseOr() (bool, error) {
 	}
 	for {
 		tok, ok := p.peek()
-		if !ok || tok.kind != "op" || tok.val != "||" {
+		if !ok || tok.kind != tokKindOp || tok.val != "||" {
 			break
 		}
 		p.pos++
@@ -873,7 +1029,7 @@ func (p *condParser) parseAnd() (bool, error) {
 	}
 	for {
 		tok, ok := p.peek()
-		if !ok || tok.kind != "op" || tok.val != "&&" {
+		if !ok || tok.kind != tokKindOp || tok.val != "&&" {
 			break
 		}
 		p.pos++
@@ -887,7 +1043,7 @@ func (p *condParser) parseAnd() (bool, error) {
 }
 
 func (p *condParser) parseUnary() (bool, error) {
-	if tok, ok := p.peek(); ok && tok.kind == "op" && tok.val == "!" {
+	if tok, ok := p.peek(); ok && tok.kind == tokKindOp && tok.val == "!" {
 		p.pos++
 		val, err := p.parseUnary()
 		return !val, err
@@ -900,94 +1056,109 @@ func (p *condParser) parsePrimary() (bool, error) {
 	if !ok {
 		return false, fmt.Errorf("unexpected end of condition")
 	}
-	if tok.kind == "lparen" {
-		p.pos++
-		val, err := p.parseOr()
-		if err != nil {
-			return false, err
-		}
-		closeTok, ok := p.next()
-		if !ok || closeTok.kind != "rparen" {
-			return false, fmt.Errorf("missing ')'")
-		}
-		return val, nil
+	if tok.kind == tokKindLParen {
+		return p.parseGroupedExpr()
 	}
-	if tok.kind == "ident" && tok.val == "contains" {
-		p.pos++
-		if openTok, ok := p.next(); !ok || openTok.kind != "lparen" {
-			return false, fmt.Errorf("expected '(' after contains")
-		}
-		aTok, ok := p.next()
-		if !ok {
-			return false, fmt.Errorf("expected arg1")
-		}
-		if commaTok, ok := p.next(); !ok || commaTok.kind != "comma" {
-			return false, fmt.Errorf("expected ',' in contains")
-		}
-		bTok, ok := p.next()
-		if !ok {
-			return false, fmt.Errorf("expected arg2")
-		}
-		if closeTok, ok := p.next(); !ok || closeTok.kind != "rparen" {
-			return false, fmt.Errorf("expected ')' after contains")
-		}
-		leftVal := p.resolveValue(aTok)
-		rightVal := p.resolveValue(bTok)
-		return strings.Contains(strings.ToLower(leftVal), strings.ToLower(rightVal)), nil
+	if tok.kind == tokKindIdent && tok.val == opContains {
+		return p.parseContainsCall()
 	}
-	// Boolean literal or comparison: lhs op rhs
+	return p.parseComparisonExpr()
+}
+
+func (p *condParser) parseGroupedExpr() (bool, error) {
+	p.pos++
+	val, err := p.parseOr()
+	if err != nil {
+		return false, err
+	}
+	closeTok, ok := p.next()
+	if !ok || closeTok.kind != tokKindRParen {
+		return false, fmt.Errorf("missing ')'")
+	}
+	return val, nil
+}
+
+func (p *condParser) parseContainsCall() (bool, error) {
+	p.pos++
+	if openTok, ok := p.next(); !ok || openTok.kind != tokKindLParen {
+		return false, fmt.Errorf("expected '(' after contains")
+	}
+	aTok, ok := p.next()
+	if !ok {
+		return false, fmt.Errorf("expected arg1")
+	}
+	if commaTok, ok := p.next(); !ok || commaTok.kind != tokKindComma {
+		return false, fmt.Errorf("expected ',' in contains")
+	}
+	bTok, ok := p.next()
+	if !ok {
+		return false, fmt.Errorf("expected arg2")
+	}
+	if closeTok, ok := p.next(); !ok || closeTok.kind != tokKindRParen {
+		return false, fmt.Errorf("expected ')' after contains")
+	}
+	return strings.Contains(strings.ToLower(p.resolveValue(aTok)), strings.ToLower(p.resolveValue(bTok))), nil
+}
+
+func (p *condParser) parseComparisonExpr() (bool, error) {
 	lhs, ok := p.next()
 	if !ok {
 		return false, fmt.Errorf("expected operand")
 	}
-	if lhs.kind == "ident" && (lhs.val == "true" || lhs.val == "false") {
-		if op, hasOp := p.peek(); !hasOp || op.kind != "op" {
-			return lhs.val == "true", nil
+	if lhs.kind == tokKindIdent && (lhs.val == boolLiteralTrue || lhs.val == boolLiteralFalse) {
+		if op, hasOp := p.peek(); !hasOp || op.kind != tokKindOp {
+			return lhs.val == boolLiteralTrue, nil
 		}
 	}
 	opTok, ok := p.next()
-	if !ok || opTok.kind != "op" {
+	if !ok || opTok.kind != tokKindOp {
 		return false, fmt.Errorf("expected comparison operator")
 	}
 	leftStr := p.resolveValue(lhs)
 	switch opTok.val {
 	case "==", "!=":
+		return p.evalEqualityOp(leftStr, opTok.val)
+	case opContains:
 		rhs, ok := p.next()
 		if !ok {
 			return false, fmt.Errorf("expected rhs value")
 		}
-		rightStr := p.resolveValue(rhs)
-		eq := strings.EqualFold(leftStr, rightStr)
-		if opTok.val == "!=" {
-			return !eq, nil
-		}
-		return eq, nil
-	case "contains":
-		rhs, ok := p.next()
-		if !ok {
-			return false, fmt.Errorf("expected rhs value")
-		}
-		rightStr := p.resolveValue(rhs)
-		return strings.Contains(strings.ToLower(leftStr), strings.ToLower(rightStr)), nil
-	case "in":
-		listVals, err := p.parseList()
-		if err != nil {
-			return false, err
-		}
-		for _, item := range listVals {
-			if strings.EqualFold(leftStr, item) {
-				return true, nil
-			}
-		}
-		return false, nil
+		return strings.Contains(strings.ToLower(leftStr), strings.ToLower(p.resolveValue(rhs))), nil
+	case opIn:
+		return p.evalInListOp(leftStr)
 	default:
 		return false, fmt.Errorf("unsupported operator %q", opTok.val)
 	}
 }
 
+func (p *condParser) evalEqualityOp(leftStr, op string) (bool, error) {
+	rhs, ok := p.next()
+	if !ok {
+		return false, fmt.Errorf("expected rhs value")
+	}
+	eq := strings.EqualFold(leftStr, p.resolveValue(rhs))
+	if op == "!=" {
+		return !eq, nil
+	}
+	return eq, nil
+}
+
+func (p *condParser) evalInListOp(leftStr string) (bool, error) {
+	listVals, err := p.parseList()
+	if err != nil {
+		return false, err
+	}
+	for _, item := range listVals {
+		if strings.EqualFold(leftStr, item) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (p *condParser) parseList() ([]string, error) {
 	openTok, ok := p.next()
-	if !ok || openTok.kind != "lbrack" {
+	if !ok || openTok.kind != tokKindLBrack {
 		return nil, fmt.Errorf("expected '[' after in")
 	}
 	var values []string
@@ -996,13 +1167,13 @@ func (p *condParser) parseList() ([]string, error) {
 		if !ok {
 			return nil, fmt.Errorf("unterminated '['")
 		}
-		if tok.kind == "rbrack" {
+		if tok.kind == tokKindRBrack {
 			p.pos++
 			break
 		}
 		valTok, _ := p.next()
 		values = append(values, p.resolveValue(valTok))
-		if nextTok, ok := p.peek(); ok && nextTok.kind == "comma" {
+		if nextTok, ok := p.peek(); ok && nextTok.kind == tokKindComma {
 			p.pos++
 		}
 	}
@@ -1010,7 +1181,7 @@ func (p *condParser) parseList() ([]string, error) {
 }
 
 func (p *condParser) resolveValue(tok condToken) string {
-	if tok.kind == "string" || tok.kind == "number" {
+	if tok.kind == tokKindString || tok.kind == tokKindNumber {
 		return tok.val
 	}
 	switch strings.ToLower(tok.val) {
@@ -1019,7 +1190,7 @@ func (p *condParser) resolveValue(tok condToken) string {
 	case "client.region":
 		return strings.ToUpper(strings.TrimSpace(p.ctx.Region))
 	case "client.asn":
-		return strconv.FormatUint(uint64(p.ctx.ASN), 10)
+		return strconv.FormatUint(uint64(p.ctx.ASN), decimalBase)
 	case "client.ip_family":
 		return strings.ToLower(strings.TrimSpace(p.ctx.IPFamily))
 	case "domain":

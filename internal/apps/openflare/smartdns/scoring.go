@@ -21,11 +21,37 @@ import (
 )
 
 const (
-	overloadLoadThreshold = 0.92
-	hysteresisMargin      = 1.05
-	hysteresisTTL         = 10 * time.Minute
-	minTagMultiplier      = 0.25
-	maxTagMultiplier      = 4.0
+	overloadLoadThreshold    = 0.92
+	hysteresisMargin         = 1.05
+	hysteresisTTL            = 10 * time.Minute
+	minTagMultiplier         = 0.25
+	maxTagMultiplier         = 4.0
+	defaultHysteresisEntries = 16384
+	maxLoadRatio             = 1.5
+	percentScale             = 100.0
+	cpuLoadWeight            = 0.45
+	memLoadWeight            = 0.25
+	capLoadWeight            = 0.30
+	loadPenaltyExponent      = 1.8
+	defaultGeoScore          = 0.5
+	geoDistScaleKm           = 2000.0
+	rttScaleMs               = 80.0
+	defaultFallbackLatScore  = 0.4
+	defaultCapacityWeight    = 100
+	minLoadFloor             = 0.05
+	minNegLogU               = 1e-6
+	defaultWeightLatency     = 0.55
+	defaultWeightLoad        = 0.30
+	defaultWeightGeo         = 0.15
+	capacityExponent         = 0.15
+	scoreTieEpsilon          = 1e-9
+	selectionKeyPadding      = 16
+	uintDecimalBufSize       = 20
+	decimalBase              = 10
+	hashPrefixBytes          = 8
+	hashUnitModulo           = 1000000
+	hashUnitDivisor          = 1000002.0
+	scoreRoundFactor         = 10000
 )
 
 type hysteresisEntry struct {
@@ -42,7 +68,7 @@ type HysteresisTracker struct {
 // NewHysteresisTracker creates a bounded process-local sticky route cache.
 func NewHysteresisTracker(maxEntries int) *HysteresisTracker {
 	if maxEntries <= 0 {
-		maxEntries = 16384
+		maxEntries = defaultHysteresisEntries
 	}
 	return &HysteresisTracker{
 		cache: ram.MustNew[string, hysteresisEntry](ram.Options{MaximumSize: maxEntries}),
@@ -71,15 +97,15 @@ func (h *HysteresisTracker) set(key, nodeID string, now time.Time) {
 
 // SelectInput encapsulates everything needed for deterministic 4-stage SmartDNS node selection.
 type SelectInput struct {
-	Domain    string
-	QType     string // "A" or "AAAA"
-	ClientKey string // normalized /24 or /48 client prefix
-	Client    qualityapi.ClientProfile
-	Nodes     []protocol.DNSSnapshotNode
-	Policy    protocol.DNSSnapshotPolicy
-	Quality   map[string]qualityapi.NodeLinkQuality
+	Domain     string
+	QType      string // "A" or "AAAA"
+	ClientKey  string // normalized /24 or /48 client prefix
+	Client     qualityapi.ClientProfile
+	Nodes      []protocol.DNSSnapshotNode
+	Policy     protocol.DNSSnapshotPolicy
+	Quality    map[string]qualityapi.NodeLinkQuality
 	Hysteresis *HysteresisTracker
-	Now       time.Time
+	Now        time.Time
 }
 
 // SelectedAnswer represents a chosen node IP answer and its telemetry attribution.
@@ -132,43 +158,23 @@ type scoredNode struct {
 	rank  float64 // sorting rank (may differ slightly from FinalScore for deterministic weighted LB)
 }
 
+type candidatePools struct {
+	traces            []CandidateTrace
+	primary           []scoredNode
+	overloaded        []scoredNode
+	unfilteredOnline  []scoredNode
+	anyNonQuarantined []scoredNode
+}
+
 // SelectNodes runs JDM policy evaluation followed by the 4-stage SmartDNS selection algorithm.
 func SelectNodes(in SelectInput) SelectionResult {
 	now := in.Now
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
-	qtype := strings.ToUpper(strings.TrimSpace(in.QType))
-	if qtype != "AAAA" {
-		qtype = "A"
-	}
-	baseDecision := PolicyDecision{
-		Mode:          normalizeMode(in.Policy.StrategyType),
-		Weights:       defaultPolicyConfig(in.Policy.StrategyType).Weights,
-		UseTagWeights: true,
-		MaxAnswers:    maxInt(in.Policy.MaxAnswers, 1),
-		TTL:           maxInt(in.Policy.TTL, 60),
-	}
-	evalCtx := EvalContext{
-		Country:  strings.ToUpper(strings.TrimSpace(in.Client.CountryISO)),
-		Region:   strings.ToUpper(strings.TrimSpace(in.Client.RegionCode)),
-		ASN:      in.Client.ASN,
-		IPFamily: familyForQType(qtype),
-		Domain:   strings.TrimSuffix(strings.ToLower(strings.TrimSpace(in.Domain)), "."),
-		QType:    qtype,
-	}
-	decision := baseDecision
-	if strings.TrimSpace(in.Policy.JDMJSON) != "" {
-		if evaluated, err := EvaluateJDM(in.Policy.JDMJSON, baseDecision, evalCtx); err == nil {
-			decision = evaluated
-		}
-	}
-	if decision.MaxAnswers <= 0 {
-		decision.MaxAnswers = 1
-	}
-	if decision.TTL <= 0 {
-		decision.TTL = 60
-	}
+	qtype := normalizeQueryType(in.QType)
+	domainNorm := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(in.Domain)), ".")
+	decision := evaluateSelectionDecision(in, qtype, domainNorm)
 
 	out := SelectionResult{
 		PolicyID:          in.Policy.ID,
@@ -179,88 +185,161 @@ func SelectNodes(in SelectInput) SelectionResult {
 		MatchedConditions: decision.MatchedConditions,
 	}
 
-	// Stage 1 + Stage 2 + Stage 3 evaluation over all snapshot nodes.
-	traces := make([]CandidateTrace, 0, len(in.Nodes))
-	primary := make([]scoredNode, 0, len(in.Nodes))
-	overloaded := make([]scoredNode, 0)
-	unfilteredOnline := make([]scoredNode, 0, len(in.Nodes))
-	anyNonQuarantined := make([]scoredNode, 0, len(in.Nodes))
+	pools := evaluateCandidatePools(in, qtype, domainNorm, decision)
+	sortScoredNodes(pools.primary)
 
+	var chosen []scoredNode
+	if len(pools.primary) > 0 {
+		chosen, out.HysteresisApplied = choosePrimaryAnswers(in, qtype, decision, pools.primary, now)
+	} else {
+		// Stage 4: Mandatory Fallback Chain.
+		out.FallbackUsed = true
+		chosen, out.FallbackReason = runFallback(in, decision, pools.overloaded, pools.unfilteredOnline, pools.anyNonQuarantined)
+	}
+
+	populateSelectedAnswers(&out, pools.traces, chosen)
+	return out
+}
+
+func normalizeQueryType(raw string) string {
+	qtype := strings.ToUpper(strings.TrimSpace(raw))
+	if qtype != qtypeAAAA {
+		return qtypeA
+	}
+	return qtype
+}
+
+func evaluateSelectionDecision(in SelectInput, qtype, domainNorm string) PolicyDecision {
+	decision := PolicyDecision{
+		Mode:          normalizeMode(in.Policy.StrategyType),
+		Weights:       defaultPolicyConfig(in.Policy.StrategyType).Weights,
+		UseTagWeights: true,
+		MaxAnswers:    maxInt(in.Policy.MaxAnswers, 1),
+		TTL:           maxInt(in.Policy.TTL, defaultSmartDNSTTL),
+	}
+	evalCtx := EvalContext{
+		Country:  strings.ToUpper(strings.TrimSpace(in.Client.CountryISO)),
+		Region:   strings.ToUpper(strings.TrimSpace(in.Client.RegionCode)),
+		ASN:      in.Client.ASN,
+		IPFamily: familyForQType(qtype),
+		Domain:   domainNorm,
+		QType:    qtype,
+	}
+	if strings.TrimSpace(in.Policy.JDMJSON) != "" {
+		if evaluated, err := EvaluateJDM(in.Policy.JDMJSON, decision, evalCtx); err == nil {
+			decision = evaluated
+		}
+	}
+	if decision.MaxAnswers <= 0 {
+		decision.MaxAnswers = 1
+	}
+	if decision.TTL <= 0 {
+		decision.TTL = defaultSmartDNSTTL
+	}
+	return decision
+}
+
+func evaluateCandidatePools(in SelectInput, qtype, domainNorm string, decision PolicyDecision) candidatePools {
+	pools := candidatePools{
+		traces:            make([]CandidateTrace, 0, len(in.Nodes)),
+		primary:           make([]scoredNode, 0, len(in.Nodes)),
+		unfilteredOnline:  make([]scoredNode, 0, len(in.Nodes)),
+		anyNonQuarantined: make([]scoredNode, 0, len(in.Nodes)),
+	}
 	for _, node := range in.Nodes {
 		ip := pickNodeIP(node, qtype)
-		trace := CandidateTrace{
-			NodeID: node.NodeID,
-			Name:   node.Name,
-			IP:     ip,
-		}
+		trace := CandidateTrace{NodeID: node.NodeID, Name: node.Name, IP: ip}
 		if node.Quarantined {
-			trace.ExclusionReason = "quarantined"
-			traces = append(traces, trace)
+			trace.ExclusionReason = model.DNSInstanceStatusQuarantined
+			pools.traces = append(pools.traces, trace)
 			continue
 		}
 		if ip == "" {
 			trace.ExclusionReason = "missing_" + strings.ToLower(qtype)
-			traces = append(traces, trace)
+			pools.traces = append(pools.traces, trace)
 			continue
 		}
 
-		sn := scoreCandidate(node, ip, decision, in.Client, in.Quality[node.NodeID], in.ClientKey, evalCtx.Domain)
-		anyNonQuarantined = append(anyNonQuarantined, sn)
+		sn := scoreCandidate(node, ip, decision, in.Client, in.Quality[node.NodeID], in.ClientKey, domainNorm)
+		pools.anyNonQuarantined = append(pools.anyNonQuarantined, sn)
 
-		if !strings.EqualFold(node.Status, "online") {
-			sn.trace.ExclusionReason = "offline"
-			traces = append(traces, sn.trace)
+		if !strings.EqualFold(node.Status, model.DNSInstanceStatusOnline) {
+			sn.trace.ExclusionReason = model.DNSInstanceStatusOffline
+			pools.traces = append(pools.traces, sn.trace)
 			continue
 		}
-		unfilteredOnline = append(unfilteredOnline, sn)
+		pools.unfilteredOnline = append(pools.unfilteredOnline, sn)
 
 		if reason := checkFilters(node, decision.Filters); reason != "" {
 			sn.trace.ExclusionReason = reason
-			traces = append(traces, sn.trace)
+			pools.traces = append(pools.traces, sn.trace)
 			continue
 		}
 		sn.trace.Eligible = true
 		if sn.trace.LoadIndex > overloadLoadThreshold {
 			sn.trace.Overloaded = true
 			sn.trace.ExclusionReason = "load_above_0.92"
-			overloaded = append(overloaded, sn)
-			traces = append(traces, sn.trace)
+			pools.overloaded = append(pools.overloaded, sn)
+			pools.traces = append(pools.traces, sn.trace)
 			continue
 		}
-		primary = append(primary, sn)
-		traces = append(traces, sn.trace)
+		pools.primary = append(pools.primary, sn)
+		pools.traces = append(pools.traces, sn.trace)
 	}
+	return pools
+}
 
-	sortScoredNodes(primary)
+func choosePrimaryAnswers(
+	in SelectInput,
+	qtype string,
+	decision PolicyDecision,
+	primary []scoredNode,
+	now time.Time,
+) ([]scoredNode, bool) {
+	applied := applyPrimaryHysteresis(in, qtype, decision.Mode, primary, now)
+	limit := minInt(decision.MaxAnswers, len(primary))
+	chosen := make([]scoredNode, 0, limit)
+	chosen = append(chosen, primary[:limit]...)
+	return chosen, applied
+}
 
-	var chosen []scoredNode
-	if len(primary) > 0 {
-		if decision.Mode == model.DNSPolicyStrategySmart && in.Hysteresis != nil {
-			hystKey := hysteresisKey(in.Policy.ID, in.ClientKey, qtype)
-			prevID := in.Hysteresis.get(hystKey, now)
-			if prevID != "" && primary[0].node.NodeID != prevID {
-				for idx := 1; idx < len(primary); idx++ {
-					if primary[idx].node.NodeID == prevID {
-						if primary[0].trace.FinalScore <= primary[idx].trace.FinalScore*hysteresisMargin {
-							promoted := primary[idx]
-							copy(primary[1:idx+1], primary[0:idx])
-							primary[0] = promoted
-							out.HysteresisApplied = true
-						}
-						break
-					}
-				}
-			}
-			in.Hysteresis.set(hystKey, primary[0].node.NodeID, now)
+func applyPrimaryHysteresis(
+	in SelectInput,
+	qtype string,
+	mode string,
+	primary []scoredNode,
+	now time.Time,
+) bool {
+	if mode != model.DNSPolicyStrategySmart || in.Hysteresis == nil || len(primary) == 0 {
+		return false
+	}
+	hystKey := hysteresisKey(in.Policy.ID, in.ClientKey, qtype)
+	prevID := in.Hysteresis.get(hystKey, now)
+	applied := false
+	if prevID != "" && primary[0].node.NodeID != prevID {
+		applied = promoteStickyPrimary(primary, prevID)
+	}
+	in.Hysteresis.set(hystKey, primary[0].node.NodeID, now)
+	return applied
+}
+
+func promoteStickyPrimary(primary []scoredNode, prevID string) bool {
+	for idx := 1; idx < len(primary); idx++ {
+		if primary[idx].node.NodeID != prevID {
+			continue
 		}
-		limit := minInt(decision.MaxAnswers, len(primary))
-		chosen = append(chosen, primary[:limit]...)
-	} else {
-		// Stage 4: Mandatory Fallback Chain.
-		out.FallbackUsed = true
-		chosen, out.FallbackReason = runFallback(in, decision, overloaded, unfilteredOnline, anyNonQuarantined)
+		if primary[0].trace.FinalScore <= primary[idx].trace.FinalScore*hysteresisMargin {
+			promoted := primary[idx]
+			copy(primary[1:idx+1], primary[0:idx])
+			primary[0] = promoted
+			return true
+		}
+		return false
 	}
+	return false
+}
 
+func populateSelectedAnswers(out *SelectionResult, traces []CandidateTrace, chosen []scoredNode) {
 	selectedSet := make(map[string]bool, len(chosen))
 	out.Answers = make([]SelectedAnswer, 0, len(chosen))
 	for _, item := range chosen {
@@ -278,7 +357,6 @@ func SelectNodes(in SelectInput) SelectionResult {
 		}
 	}
 	out.Candidates = traces
-	return out
 }
 
 func runFallback(
@@ -337,32 +415,33 @@ func scoreCandidate(
 ) scoredNode {
 	var bwUtil, connUtil float64
 	if node.CapacityBandwidthMbps > 0 && node.BandwidthMbps > 0 {
-		bwUtil = clampFloat(node.BandwidthMbps/float64(node.CapacityBandwidthMbps), 0, 1.5)
+		bwUtil = clampFloat(node.BandwidthMbps/float64(node.CapacityBandwidthMbps), 0, maxLoadRatio)
 	}
 	if node.CapacityConnections > 0 && node.ActiveConnections > 0 {
-		connUtil = clampFloat(float64(node.ActiveConnections)/float64(node.CapacityConnections), 0, 1.5)
+		connUtil = clampFloat(float64(node.ActiveConnections)/float64(node.CapacityConnections), 0, maxLoadRatio)
 	}
 	capUtil := math.Max(bwUtil, connUtil)
-	cpuRatio := clampFloat(node.CPUUsagePercent, 0, 100) / 100.0
-	memRatio := clampFloat(node.MemoryUsagePercent, 0, 100) / 100.0
-	loadIndex := 0.45*cpuRatio + 0.25*memRatio + 0.30*capUtil
-	sLoad := math.Max(0, 1.0-math.Pow(clampFloat(loadIndex, 0, 1.5), 1.8))
+	cpuRatio := clampFloat(node.CPUUsagePercent, 0, percentScale) / percentScale
+	memRatio := clampFloat(node.MemoryUsagePercent, 0, percentScale) / percentScale
+	loadIndex := cpuLoadWeight*cpuRatio + memLoadWeight*memRatio + capLoadWeight*capUtil
+	sLoad := math.Max(0, 1.0-math.Pow(clampFloat(loadIndex, 0, maxLoadRatio), loadPenaltyExponent))
 
-	sGeo := 0.5
+	sGeo := defaultGeoScore
 	if client.Latitude != nil && client.Longitude != nil && node.GeoLatitude != nil && node.GeoLongitude != nil {
 		distKm := pkgnetintel.DistanceKm(*client.Latitude, *client.Longitude, *node.GeoLatitude, *node.GeoLongitude)
-		sGeo = 1.0 / (1.0 + distKm/2000.0)
+		sGeo = 1.0 / (1.0 + distKm/geoDistScaleKm)
 	}
 
 	effRTT := link.EffectiveRTTMs
 	loss := clampFloat(link.LossRate, 0, 1)
 	var sLat float64
-	if effRTT > 0 {
-		sLat = clampFloat((1.0/(1.0+effRTT/80.0))*(1.0-loss), 0, 1)
-	} else if link.QualityScore > 0 {
-		sLat = clampFloat(link.QualityScore/100.0, 0, 1)
-	} else {
-		sLat = 0.4
+	switch {
+	case effRTT > 0:
+		sLat = clampFloat((1.0/(1.0+effRTT/rttScaleMs))*(1.0-loss), 0, 1)
+	case link.QualityScore > 0:
+		sLat = clampFloat(link.QualityScore/percentScale, 0, 1)
+	default:
+		sLat = defaultFallbackLatScore
 	}
 
 	tagMult := 1.0
@@ -376,26 +455,26 @@ func scoreCandidate(
 		tagMult = clampFloat(prod, minTagMultiplier, maxTagMultiplier)
 	}
 
-	capWt := float64(maxInt(node.CapacityWeight, 100))
+	capWt := float64(maxInt(node.CapacityWeight, defaultCapacityWeight))
 	if node.CapacityWeight > 0 {
 		capWt = float64(node.CapacityWeight)
 	}
 
 	var finalScore, sortRank float64
 	if decision.Mode == model.DNSPolicyStrategyLoadBalance {
-		g := (capWt / 100.0) * math.Max(0.05, sLoad) * tagMult
+		g := (capWt / percentScale) * math.Max(minLoadFloor, sLoad) * tagMult
 		finalScore = g
 		u := deterministicUnitFloat(clientKey, domain, node.NodeID)
-		sortRank = g / math.Max(1e-6, -math.Log(u))
+		sortRank = g / math.Max(minNegLogU, -math.Log(u))
 	} else {
 		wLat, wLoad, wGeo := decision.Weights.Latency, decision.Weights.Load, decision.Weights.Geo
 		wSum := wLat + wLoad + wGeo
 		if wSum <= 0 {
-			wLat, wLoad, wGeo = 0.55, 0.30, 0.15
+			wLat, wLoad, wGeo = defaultWeightLatency, defaultWeightLoad, defaultWeightGeo
 		} else {
 			wLat, wLoad, wGeo = wLat/wSum, wLoad/wSum, wGeo/wSum
 		}
-		finalScore = (wLat*sLat + wLoad*sLoad + wGeo*sGeo) * tagMult * math.Pow(capWt/100.0, 0.15)
+		finalScore = (wLat*sLat + wLoad*sLoad + wGeo*sGeo) * tagMult * math.Pow(capWt/percentScale, capacityExponent)
 		sortRank = finalScore
 	}
 
@@ -422,7 +501,7 @@ func scoreCandidate(
 
 func sortScoredNodes(items []scoredNode) {
 	sort.Slice(items, func(i, j int) bool {
-		if math.Abs(items[i].rank-items[j].rank) > 1e-9 {
+		if math.Abs(items[i].rank-items[j].rank) > scoreTieEpsilon {
 			return items[i].rank > items[j].rank
 		}
 		return items[i].node.NodeID < items[j].node.NodeID
@@ -455,7 +534,7 @@ func checkFilters(node protocol.DNSSnapshotNode, filters PolicyFilters) string {
 }
 
 func pickNodeIP(node protocol.DNSSnapshotNode, qtype string) string {
-	if qtype == "AAAA" {
+	if qtype == qtypeAAAA {
 		if ip := net.ParseIP(strings.TrimSpace(node.IPv6)); ip != nil && ip.To4() == nil {
 			return ip.String()
 		}
@@ -475,7 +554,7 @@ func normalizeMode(strategy string) string {
 }
 
 func familyForQType(qtype string) string {
-	if qtype == "AAAA" {
+	if qtype == qtypeAAAA {
 		return "ipv6"
 	}
 	return "ipv4"
@@ -483,7 +562,7 @@ func familyForQType(qtype string) string {
 
 func hysteresisKey(policyID uint, clientKey, qtype string) string {
 	var b strings.Builder
-	b.Grow(len(clientKey) + len(qtype) + 16)
+	b.Grow(len(clientKey) + len(qtype) + selectionKeyPadding)
 	b.WriteString(strconvUint(uint64(policyID)))
 	b.WriteByte(':')
 	b.WriteString(clientKey)
@@ -496,21 +575,21 @@ func strconvUint(v uint64) string {
 	if v == 0 {
 		return "0"
 	}
-	var buf [20]byte
+	var buf [uintDecimalBufSize]byte
 	i := len(buf)
 	for v > 0 {
 		i--
-		buf[i] = byte('0' + v%10)
-		v /= 10
+		buf[i] = byte('0' + v%decimalBase)
+		v /= decimalBase
 	}
 	return string(buf[i:])
 }
 
 func deterministicUnitFloat(clientKey, domain, nodeID string) float64 {
 	sum := sha256.Sum256([]byte(clientKey + "|" + domain + "|" + nodeID))
-	raw := binary.BigEndian.Uint64(sum[:8])
+	raw := binary.BigEndian.Uint64(sum[:hashPrefixBytes])
 	// Map onto (0, 1) strictly away from 0 and 1.
-	return (float64(raw%1000000) + 1.0) / 1000002.0
+	return (float64(raw%hashUnitModulo) + 1.0) / hashUnitDivisor
 }
 
 func containsIgnoreCase(slice []string, target string) bool {
@@ -543,7 +622,7 @@ func round4(v float64) float64 {
 	if math.IsNaN(v) || math.IsInf(v, 0) {
 		return 0
 	}
-	return math.Round(v*10000) / 10000
+	return math.Round(v*scoreRoundFactor) / scoreRoundFactor
 }
 
 func maxInt(a, b int) int {

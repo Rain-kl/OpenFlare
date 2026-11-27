@@ -23,10 +23,11 @@ import (
 )
 
 const (
-	configTypeSystem   = "system"
-	configTypeBusiness = "business"
-	configValueTrue    = "true"
-	configValueFalse   = "false"
+	configTypeSystem     = "system"
+	configTypeBusiness   = "business"
+	configValueTrue      = "true"
+	configValueFalse     = "false"
+	defaultOpenFlareRepo = "Rain-kl/OpenFlare"
 )
 
 // SetupTestEnvironment initializes an in-memory SQLite DB, seeds default configurations,
@@ -278,7 +279,7 @@ func getSeedConfigsPart2() []model.SystemConfig {
 		},
 		{
 			Key:         model.ConfigKeyUpdateUpstreamRepository,
-			Value:       "Rain-kl/OpenFlare",
+			Value:       defaultOpenFlareRepo,
 			Type:        configTypeSystem,
 			Description: "GitHub Actions Release 上游仓库（owner/repo 或 GitHub 仓库地址）",
 		},
@@ -296,7 +297,7 @@ func getSeedConfigsPart2() []model.SystemConfig {
 		},
 		{
 			Key:         model.ConfigKeyTunnelUpdateRepo,
-			Value:       "Rain-kl/OpenFlare",
+			Value:       defaultOpenFlareRepo,
 			Type:        configTypeSystem,
 			Description: "隧道组件（openflare-relay / openflared）GitHub Release 更新仓库",
 		},
@@ -378,6 +379,11 @@ func getSeedConfigsPart2() []model.SystemConfig {
 			Type:        configTypeSystem,
 			Description: "是否启用边缘节点后台自动路由探测",
 		},
+	}
+}
+
+func getSeedConfigsPart3() []model.SystemConfig {
+	return []model.SystemConfig{
 		{
 			Key:         model.ConfigKeySmartDNSEnabled,
 			Value:       configValueTrue,
@@ -416,7 +422,7 @@ func getSeedConfigsPart2() []model.SystemConfig {
 		},
 		{
 			Key:         model.ConfigKeySmartDNSUpdateRepo,
-			Value:       "Rain-kl/OpenFlare",
+			Value:       defaultOpenFlareRepo,
 			Type:        configTypeSystem,
 			Description: "独立 SmartDNS 实例发布版本查询仓库",
 		},
@@ -426,6 +432,7 @@ func getSeedConfigsPart2() []model.SystemConfig {
 func seedDefaultConfigs(t *testing.T, tx *gorm.DB) {
 	t.Helper()
 	defaultConfigs := append(getSeedConfigsPart1(), getSeedConfigsPart2()...)
+	defaultConfigs = append(defaultConfigs, getSeedConfigsPart3()...)
 	defaultConfigs = append(defaultConfigs, model.SystemConfig{Key: model.ConfigKeyPoWPage, Value: `{"template":"shield","widget":"progress"}`, Type: configTypeBusiness})
 	defaultConfigs = append(defaultConfigs, model.SystemConfig{Key: model.ConfigKeySiteAuthHTML, Type: configTypeBusiness})
 

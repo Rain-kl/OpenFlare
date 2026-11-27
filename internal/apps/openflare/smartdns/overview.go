@@ -15,6 +15,17 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 )
 
+const (
+	overviewWindow1h           = "1h"
+	overviewWindow6h           = "6h"
+	overviewWindow24h          = "24h"
+	overviewWindow7d           = "7d"
+	maxOverviewMetricSnapshots = 1000
+	overviewHours6             = 6
+	overviewHours24            = 24
+	overviewDays7              = 7
+)
+
 // OverviewSeriesPoint represents one aggregated DNS metrics point for overview charts.
 type OverviewSeriesPoint struct {
 	Timestamp     time.Time `json:"timestamp"`
@@ -115,7 +126,7 @@ func GetOverview(ctx context.Context, instanceID, window string) (*OverviewResul
 
 	since := now.Add(-overviewWindowDuration(out.Window))
 	if store, sErr := logstore.Active(ctx); sErr == nil && store != nil {
-		if rows, lErr := store.Observability.ListDNSMetricSnapshots(ctx, strings.TrimSpace(instanceID), since, 1000); lErr == nil {
+		if rows, lErr := store.Observability.ListDNSMetricSnapshots(ctx, strings.TrimSpace(instanceID), since, maxOverviewMetricSnapshots); lErr == nil {
 			series := aggregateOverviewSeries(rows)
 			out.Series = series
 		}
@@ -148,25 +159,25 @@ func aggregateOverviewSeries(rows []analyticsmodel.DNSMetricSnapshot) []Overview
 
 func normalizeOverviewWindow(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "6h":
-		return "6h"
-	case "24h":
-		return "24h"
-	case "7d":
-		return "7d"
+	case overviewWindow6h:
+		return overviewWindow6h
+	case overviewWindow24h:
+		return overviewWindow24h
+	case overviewWindow7d:
+		return overviewWindow7d
 	default:
-		return "1h"
+		return overviewWindow1h
 	}
 }
 
 func overviewWindowDuration(window string) time.Duration {
 	switch window {
-	case "6h":
-		return 6 * time.Hour
-	case "24h":
-		return 24 * time.Hour
-	case "7d":
-		return 7 * 24 * time.Hour
+	case overviewWindow6h:
+		return overviewHours6 * time.Hour
+	case overviewWindow24h:
+		return overviewHours24 * time.Hour
+	case overviewWindow7d:
+		return overviewDays7 * overviewHours24 * time.Hour
 	default:
 		return time.Hour
 	}

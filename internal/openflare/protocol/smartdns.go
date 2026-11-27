@@ -13,8 +13,8 @@ import (
 const (
 	SmartDNSContractVersion = 1
 
-	HeaderDNSToken          = "X-DNS-Token"
-	HeaderDNSDiscoveryToken = "X-DNS-Discovery-Token"
+	HeaderDNSToken          = "X-DNS-Token"           //nolint:gosec // HTTP header name, not a credential
+	HeaderDNSDiscoveryToken = "X-DNS-Discovery-Token" //nolint:gosec // HTTP header name, not a credential
 
 	DNSWSMessageTypeSnapshotChanged = "dns_snapshot_changed"
 	DNSWSMessageTypeDisconnect      = "dns_disconnect"
