@@ -36,7 +36,7 @@ interface FlowInspectorProps {
   ) => void;
   onConnect: (source: string, target: string, handle?: string) => void;
   onSelectEdge: (id: string) => void;
-  onClearSelection: () => void;
+  onRemoveSelection: () => void;
 }
 
 export function FlowInspector({
@@ -46,7 +46,7 @@ export function FlowInspector({
   onGraphChange,
   onConnect,
   onSelectEdge,
-  onClearSelection,
+  onRemoveSelection,
 }: FlowInspectorProps) {
   const t = useTranslations('smartdns.flow');
   const type = node ? flowNodeType(node) : undefined;
@@ -78,22 +78,6 @@ export function FlowInspector({
       ),
     }));
   };
-  const remove = () => {
-    if (edge) {
-      onGraphChange((current) => ({
-        ...current,
-        edges: current.edges.filter((item) => item.id !== edge.id),
-      }));
-    } else if (node && (type === 'condition' || type === 'action')) {
-      onGraphChange((current) => ({
-        nodes: current.nodes.filter((item) => item.id !== node.id),
-        edges: current.edges.filter(
-          (item) => item.source !== node.id && item.target !== node.id,
-        ),
-      }));
-    }
-    onClearSelection();
-  };
   const removable = edge || type === 'condition' || type === 'action';
   const branchName = (connection: SmartDNSFlowEdge) => {
     const source = graph.nodes.find((item) => item.id === connection.source);
@@ -117,7 +101,7 @@ export function FlowInspector({
               : t('properties')}
         </h2>
         {removable && (
-          <Button size='sm' variant='ghost' onClick={remove}>
+          <Button size='sm' variant='ghost' onClick={onRemoveSelection}>
             <Trash2 data-icon='inline-start' />
             {edge ? t('removeEdge') : t('removeNode')}
           </Button>

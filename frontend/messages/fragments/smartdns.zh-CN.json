@@ -246,7 +246,10 @@
         "condition": "条件分支",
         "action": "调度动作",
         "output": "DNS 应答"
-      }
+      },
+      "canvasLabel": "决策流画布",
+      "canvasKeyboardHint": "将节点拖入画布。选中节点或连线后，按 Delete 或 Backspace 删除。",
+      "placeNodeHint": "在画布中选择放置位置，或按 Enter 放在画布中央。按 Esc 取消。"
     },
     "simulator": {
       "title": "SmartDNS 决策模拟器",
@@ -280,6 +283,17 @@
     "advancedSettings": "高级运行参数",
     "settingsLoading": "正在加载 SmartDNS 设置…",
     "saveBeforeVerify": "请先保存委派子域及 NS 主机名，再检查公网记录。",
-    "monitoringWindow": "监控时段"
+    "monitoringWindow": "监控时段",
+    "filters": {
+      "any": "不限",
+      "search": "搜索名称或代码",
+      "searchField": "在「{label}」中搜索",
+      "selectedCount": "已选 {count} 项",
+      "loading": "正在加载选项…",
+      "noMatches": "没有匹配的选项",
+      "selected": "已选中",
+      "clear": "清除已选",
+      "retry": "重新加载选项"
+    }
   }
 }

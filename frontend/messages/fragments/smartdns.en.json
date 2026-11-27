@@ -246,7 +246,10 @@
         "condition": "Branch condition",
         "action": "Routing action",
         "output": "DNS answer"
-      }
+      },
+      "canvasLabel": "Decision flow canvas",
+      "canvasKeyboardHint": "Drag nodes onto the canvas. Select a node or connection and press Delete or Backspace to remove it.",
+      "placeNodeHint": "Choose a position on the canvas or press Enter to place the node in the center. Press Esc to cancel."
     },
     "simulator": {
       "title": "SmartDNS Decision Simulator",
@@ -280,6 +283,17 @@
     "advancedSettings": "Advanced service settings",
     "settingsLoading": "Loading SmartDNS settings…",
     "saveBeforeVerify": "Save the delegated subdomain and name servers before checking the public records.",
-    "monitoringWindow": "Monitoring period"
+    "monitoringWindow": "Monitoring period",
+    "filters": {
+      "any": "Any",
+      "search": "Search names or codes",
+      "searchField": "Search {label}",
+      "selectedCount": "{count} selected",
+      "loading": "Loading options…",
+      "noMatches": "No matching options",
+      "selected": "Selected",
+      "clear": "Clear selection",
+      "retry": "Reload options"
+    }
   }
 }

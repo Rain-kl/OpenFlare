@@ -10,12 +10,20 @@ import {
   useNodesState,
   type Connection,
   type Edge,
+  type EdgeChange,
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react';
-import { Focus, Plus } from 'lucide-react';
+import { Focus, GripVertical } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+} from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +53,10 @@ const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed, width: 15, height: 15 },
 };
 type Selection = { type: 'node' | 'edge'; id: string } | null;
+type AddableNode = 'condition' | 'action';
+
+const dragType = 'application/x-openflare-smartdns-node';
+const addableNodes: AddableNode[] = ['condition', 'action'];
 
 function canvasNodes(
   graph: SmartDNSFlowGraph,
@@ -74,12 +86,14 @@ export function PolicyFlowEditor({
 }) {
   const t = useTranslations('smartdns.flow');
   const [selection, setSelection] = useState<Selection>(null);
+  const [placement, setPlacement] = useState<AddableNode | null>(null);
   const [nodes, setNodes, updateCanvasNodes] = useNodesState<CanvasNode>(
     canvasNodes(graph),
   );
   const instance = useRef<ReactFlowInstance<CanvasNode, Edge> | null>(null);
   const canvas = useRef<HTMLDivElement>(null);
   const fitAfterAdd = useRef(false);
+  const focusAfterJump = useRef(false);
   const nodeID = selection?.type === 'node' ? selection.id : undefined;
   const edgeID = selection?.type === 'edge' ? selection.id : undefined;
   const selectedNode = graph.nodes.find((node) => node.id === nodeID);
@@ -115,6 +129,11 @@ export function PolicyFlowEditor({
   const handleNodeChanges = useCallback(
     (changes: NodeChange<CanvasNode>[]) => {
       updateCanvasNodes(changes);
+      const selected = changes.find(
+        (change) => change.type === 'select' && change.selected,
+      );
+      if (selected?.type === 'select')
+        setSelection({ type: 'node', id: selected.id });
       const positions = changes.flatMap((change) =>
         change.type === 'position' && change.position && !change.dragging
           ? [[change.id, change.position] as const]
@@ -144,20 +163,22 @@ export function PolicyFlowEditor({
     onChange((current) => ({ ...current, edges: [...current.edges, edge] }));
   };
 
-  const addNode = (type: 'condition' | 'action') => {
+  const addNode = (type: AddableNode, point?: { x: number; y: number }) => {
     const rect = canvas.current?.getBoundingClientRect();
     const center =
       rect &&
-      instance.current?.screenToFlowPosition({
-        x: rect.x + rect.width / 2,
-        y: rect.y + rect.height / 2,
-      });
+      instance.current?.screenToFlowPosition(
+        point ?? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
+      );
     const id = flowId(type);
     const node: SmartDNSFlowNode = {
       id,
       type,
       label: t(type === 'condition' ? 'newConditionLabel' : 'newActionLabel'),
-      position: availableNodePosition(graph, center ?? { x: 150, y: 150 }),
+      position:
+        point && center
+          ? { x: Math.round(center.x - 104), y: Math.round(center.y - 28) }
+          : availableNodePosition(graph, center ?? { x: 150, y: 150 }),
       data:
         type === 'condition'
           ? {
@@ -176,13 +197,77 @@ export function PolicyFlowEditor({
               use_tag_weights: true,
             },
     };
-    fitAfterAdd.current = true;
+    fitAfterAdd.current = !point;
+    setPlacement(null);
     onChange((current) => ({ ...current, nodes: [...current.nodes, node] }));
     setSelection({ type: 'node', id });
   };
 
+  const removeSelection = () => {
+    if (selectedEdge) {
+      onChange((current) => ({
+        ...current,
+        edges: current.edges.filter((edge) => edge.id !== selectedEdge.id),
+      }));
+    } else if (
+      selectedNode &&
+      ['condition', 'action'].includes(flowNodeType(selectedNode))
+    ) {
+      onChange((current) => ({
+        nodes: current.nodes.filter((node) => node.id !== selectedNode.id),
+        edges: current.edges.filter(
+          (edge) =>
+            edge.source !== selectedNode.id && edge.target !== selectedNode.id,
+        ),
+      }));
+    } else {
+      return;
+    }
+    setSelection(null);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer.types.includes(dragType)) return;
+    event.preventDefault();
+    const type = event.dataTransfer.getData(dragType);
+    if (type === 'condition' || type === 'action') {
+      addNode(type, { x: event.clientX, y: event.clientY });
+      canvas.current?.focus({ preventScroll: true });
+    }
+  };
+
+  const handleCanvasKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (
+      event.defaultPrevented ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.nativeEvent.isComposing
+    )
+      return;
+    if (event.key === 'Escape') {
+      setPlacement(null);
+      setSelection(null);
+    } else if (
+      event.target === event.currentTarget &&
+      placement &&
+      (event.key === 'Enter' || event.key === ' ')
+    ) {
+      event.preventDefault();
+      addNode(placement);
+    } else if (
+      selection &&
+      (event.key === 'Delete' || event.key === 'Backspace')
+    ) {
+      event.preventDefault();
+      removeSelection();
+    }
+  };
+
   const focusNode = (id: string) => {
+    setPlacement(null);
     setSelection({ type: 'node', id });
+    focusAfterJump.current = true;
     void instance.current?.fitView({
       nodes: [{ id }],
       maxZoom: 1,
@@ -194,18 +279,30 @@ export function PolicyFlowEditor({
     <div className='flex min-w-0 flex-col gap-3'>
       <div className='flex flex-wrap items-center justify-between gap-2'>
         <div className='flex flex-wrap gap-2'>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => addNode('condition')}
-          >
-            <Plus data-icon='inline-start' />
-            {t('addCondition')}
-          </Button>
-          <Button variant='outline' size='sm' onClick={() => addNode('action')}>
-            <Plus data-icon='inline-start' />
-            {t('addAction')}
-          </Button>
+          {addableNodes.map((type) => (
+            <Button
+              key={type}
+              type='button'
+              size='sm'
+              variant={placement === type ? 'secondary' : 'outline'}
+              draggable
+              className='cursor-grab active:cursor-grabbing'
+              data-flow-palette={type}
+              aria-pressed={placement === type}
+              onDragStart={(event) => {
+                event.dataTransfer.setData(dragType, type);
+                event.dataTransfer.effectAllowed = 'copy';
+                setPlacement(null);
+              }}
+              onClick={() => {
+                setPlacement(placement === type ? null : type);
+                canvas.current?.focus({ preventScroll: true });
+              }}
+            >
+              <GripVertical data-icon='inline-start' />
+              {t(`nodeTypes.${type}`)}
+            </Button>
+          ))}
         </div>
         <div className='flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto'>
           <Select value={nodeID ?? ''} onValueChange={focusNode}>
@@ -216,7 +313,14 @@ export function PolicyFlowEditor({
             >
               <SelectValue placeholder={t('jumpToNode')} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent
+              onCloseAutoFocus={(event) => {
+                if (!focusAfterJump.current) return;
+                focusAfterJump.current = false;
+                event.preventDefault();
+                canvas.current?.focus({ preventScroll: true });
+              }}
+            >
               <SelectGroup>
                 {graph.nodes.map((node) => (
                   <SelectItem key={node.id} value={node.id}>
@@ -232,9 +336,27 @@ export function PolicyFlowEditor({
           </Button>
         </div>
       </div>
+      <p
+        id='sdns-flow-keyboard-hint'
+        className='text-xs text-muted-foreground'
+        aria-live='polite'
+      >
+        {t(placement ? 'placeNodeHint' : 'canvasKeyboardHint')}
+      </p>
       <div className='grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,29%)]'>
         <div
           ref={canvas}
+          role='region'
+          aria-label={t('canvasLabel')}
+          aria-describedby='sdns-flow-keyboard-hint'
+          tabIndex={0}
+          onKeyDown={handleCanvasKeyDown}
+          onDragOver={(event) => {
+            if (!event.dataTransfer.types.includes(dragType)) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+          }}
+          onDrop={handleDrop}
           className='h-[24rem] min-w-0 overflow-hidden rounded-lg border border-dashed xl:h-[max(32rem,calc(100dvh-21rem))]'
         >
           <ReactFlow<CanvasNode, Edge>
@@ -247,6 +369,13 @@ export function PolicyFlowEditor({
               instance.current = flow;
             }}
             onNodesChange={handleNodeChanges}
+            onEdgesChange={(changes: EdgeChange<Edge>[]) => {
+              const selected = changes.find(
+                (change) => change.type === 'select' && change.selected,
+              );
+              if (selected?.type === 'select')
+                setSelection({ type: 'edge', id: selected.id });
+            }}
             isValidConnection={({ source, target, sourceHandle }) =>
               canConnectFlow(graph, source, target, sourceHandle)
             }
@@ -262,7 +391,13 @@ export function PolicyFlowEditor({
             onEdgeClick={(_, edge) =>
               setSelection({ type: 'edge', id: edge.id })
             }
-            onPaneClick={() => setSelection(null)}
+            onPaneClick={(event) => {
+              if (placement)
+                addNode(placement, { x: event.clientX, y: event.clientY });
+              else setSelection(null);
+              canvas.current?.focus({ preventScroll: true });
+            }}
+            multiSelectionKeyCode={null}
             deleteKeyCode={null}
             minZoom={0.15}
             maxZoom={1.8}
@@ -281,7 +416,7 @@ export function PolicyFlowEditor({
           onGraphChange={onChange}
           onConnect={connect}
           onSelectEdge={(id) => setSelection({ type: 'edge', id })}
-          onClearSelection={() => setSelection(null)}
+          onRemoveSelection={removeSelection}
         />
       </div>
     </div>

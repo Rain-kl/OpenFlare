@@ -1,12 +1,9 @@
 import { allCountries } from 'country-region-data';
 
-export interface GeoOption {
-  value: string;
-  label: string;
-  searchText: string;
-}
+import { createCountryOptions, type GeoOption } from '@/lib/utils/geo-options';
 
-const countryCodePattern = /^[A-Z]{2}$/;
+export type { GeoOption } from '@/lib/utils/geo-options';
+
 const regionCodePattern = /^[A-Z0-9]{1,3}$/;
 export function createGeoOptions(locale: string) {
   const countryDisplayNames = new Intl.DisplayNames([locale], {
@@ -18,17 +15,7 @@ export function createGeoOptions(locale: string) {
     return !localized || localized === code ? fallback : localized;
   }
 
-  const countryOptions: GeoOption[] = allCountries
-    .filter(([, code]) => countryCodePattern.test(code))
-    .map(([englishName, code]) => {
-      const label = localizedCountryName(code, englishName);
-      return {
-        value: code,
-        label,
-        searchText: `${label} ${englishName} ${code}`,
-      };
-    })
-    .sort((left, right) => left.label.localeCompare(right.label, locale));
+  const countryOptions = createCountryOptions(locale);
 
   const regionOptions: GeoOption[] = allCountries.flatMap(
     ([englishCountryName, countryCode, regions]) => {

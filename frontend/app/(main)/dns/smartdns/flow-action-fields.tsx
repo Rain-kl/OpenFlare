@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import type { SmartDNSFlowNodeData } from '@/lib/services/openflare';
+import { PolicyFilterFields } from './policy-filter-fields';
 
 const defaultWeights = { latency: 0.55, load: 0.3, geo: 0.15 };
 
@@ -32,11 +33,6 @@ export function FlowActionFields({
     network_groups: data.filters?.network_groups ?? [],
   };
   const weights = data.weights ?? defaultWeights;
-  const [filterText, setFilterText] = useState({
-    countries: filters.countries.join(', '),
-    tags: filters.tags.join(', '),
-    network_groups: filters.network_groups.join(', '),
-  });
   const [weightText, setWeightText] = useState({
     latency: String(weights.latency),
     load: String(weights.load),
@@ -47,16 +43,6 @@ export function FlowActionFields({
     { key: 'load', label: t('wLoad') },
     { key: 'geo', label: t('wGeo') },
   ] as const;
-  const filterFields = [
-    { key: 'countries', label: t('filterCountries'), placeholder: 'CN, SG' },
-    { key: 'tags', label: t('filterTags'), placeholder: 'optimized, high-bw' },
-    {
-      key: 'network_groups',
-      label: t('filterGroups'),
-      placeholder: 'cn2-gia, bgp',
-    },
-  ] as const;
-
   return (
     <FieldGroup className='gap-4'>
       <Field>
@@ -113,29 +99,11 @@ export function FlowActionFields({
           onCheckedChange={(use_tag_weights) => onChange({ use_tag_weights })}
         />
       </Field>
-      {filterFields.map(({ key, label, placeholder }) => (
-        <Field key={key}>
-          <FieldLabel htmlFor={`sdns-flow-${key}`}>{label}</FieldLabel>
-          <Input
-            id={`sdns-flow-${key}`}
-            value={filterText[key]}
-            placeholder={placeholder}
-            onChange={(event) => {
-              const value = event.target.value;
-              setFilterText((previous) => ({ ...previous, [key]: value }));
-              onChange({
-                filters: {
-                  ...filters,
-                  [key]: value
-                    .split(',')
-                    .map((item) => item.trim())
-                    .filter(Boolean),
-                },
-              });
-            }}
-          />
-        </Field>
-      ))}
+      <PolicyFilterFields
+        id='sdns-flow-filter'
+        value={filters}
+        onChange={(patch) => onChange({ filters: { ...filters, ...patch } })}
+      />
     </FieldGroup>
   );
 }

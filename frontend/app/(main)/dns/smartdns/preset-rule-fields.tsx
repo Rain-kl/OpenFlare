@@ -3,15 +3,16 @@ import { useTranslations } from 'next-intl';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import {
+  PolicyFilterFields,
+  type PolicyFilterValues,
+} from './policy-filter-fields';
 
-export type PresetRules = {
+export type PresetRules = PolicyFilterValues & {
   latency: string;
   load: string;
   geo: string;
   useTagWeights: boolean;
-  countries: string;
-  tags: string;
-  groups: string;
 };
 
 export function PresetRuleFields({
@@ -27,12 +28,6 @@ export function PresetRuleFields({
     { key: 'load', label: t('wLoad') },
     { key: 'geo', label: t('wGeo') },
   ] as const;
-  const filters = [
-    { key: 'countries', label: t('filterCountries'), placeholder: 'CN, SG' },
-    { key: 'tags', label: t('filterTags'), placeholder: 'optimized, bgp' },
-    { key: 'groups', label: t('filterGroups'), placeholder: 'cn2-gia' },
-  ] as const;
-
   return (
     <FieldGroup className='gap-4'>
       <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
@@ -61,17 +56,11 @@ export function PresetRuleFields({
         />
       </Field>
       <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
-        {filters.map(({ key, label, placeholder }) => (
-          <Field key={key}>
-            <FieldLabel htmlFor={`sdns-filter-${key}`}>{label}</FieldLabel>
-            <Input
-              id={`sdns-filter-${key}`}
-              placeholder={placeholder}
-              value={rules[key]}
-              onChange={(event) => onChange({ [key]: event.target.value })}
-            />
-          </Field>
-        ))}
+        <PolicyFilterFields
+          id='sdns-preset-filter'
+          value={rules}
+          onChange={onChange}
+        />
       </div>
     </FieldGroup>
   );
