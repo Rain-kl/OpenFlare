@@ -86,7 +86,7 @@ export function RelayEditorDialog({
   const t = useTranslations('tunnels');
   const tc = useTranslations('common');
   const [createMode, setCreateMode] = useState<'manual' | 'discovery'>(
-    'manual'
+    'manual',
   );
 
   const handleCopy = async (text: string, label: string) => {
@@ -178,159 +178,156 @@ export function RelayEditorDialog({
   });
 
   const manualForm = (
-    <form
-      onSubmit={(event) => void handleSubmit(event)}
-      className='space-y-4'
-    >
-          <div className='grid gap-3 sm:grid-cols-2'>
-            <div className='space-y-2'>
-              <Label htmlFor='relay-name'>{t('relays.name')}</Label>
-              <Input
-                id='relay-name'
-                placeholder='relay-hk-01'
-                {...form.register('name')}
-              />
-              {form.formState.errors.name ? (
-                <p className='text-xs text-destructive'>
-                  {form.formState.errors.name.message}
-                </p>
-              ) : null}
-            </div>
+    <form onSubmit={(event) => void handleSubmit(event)} className='space-y-4'>
+      <div className='grid gap-3 sm:grid-cols-2'>
+        <div className='space-y-2'>
+          <Label htmlFor='relay-name'>{t('relays.name')}</Label>
+          <Input
+            id='relay-name'
+            placeholder='relay-hk-01'
+            {...form.register('name')}
+          />
+          {form.formState.errors.name ? (
+            <p className='text-xs text-destructive'>
+              {form.formState.errors.name.message}
+            </p>
+          ) : null}
+        </div>
 
-            <div className='space-y-2'>
-              <Label>{t('relays.pool')}</Label>
-              <Select
-                value={form.watch('pool_id') || 'default'}
-                onValueChange={(value) =>
-                  form.setValue('pool_id', value === 'default' ? '' : value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {pools.map((pool) => (
-                    <SelectItem key={pool.id} value={String(pool.id)}>
-                      {pool.name} ({pool.pool_key})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        <div className='space-y-2'>
+          <Label>{t('relays.pool')}</Label>
+          <Select
+            value={form.watch('pool_id') || 'default'}
+            onValueChange={(value) =>
+              form.setValue('pool_id', value === 'default' ? '' : value)
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {pools.map((pool) => (
+                <SelectItem key={pool.id} value={String(pool.id)}>
+                  {pool.name} ({pool.pool_key})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-          <div className='grid gap-3 sm:grid-cols-2'>
-            <div className='space-y-2'>
-              <Label htmlFor='relay-pub-addr'>{t('relays.publicAddr')}</Label>
-              <Input
-                id='relay-pub-addr'
-                placeholder='203.0.113.10'
-                {...form.register('public_addr')}
-              />
-              {form.formState.errors.public_addr ? (
-                <p className='text-xs text-destructive'>
-                  {form.formState.errors.public_addr.message}
-                </p>
-              ) : null}
-            </div>
+      <div className='grid gap-3 sm:grid-cols-2'>
+        <div className='space-y-2'>
+          <Label htmlFor='relay-pub-addr'>{t('relays.publicAddr')}</Label>
+          <Input
+            id='relay-pub-addr'
+            placeholder='203.0.113.10'
+            {...form.register('public_addr')}
+          />
+          {form.formState.errors.public_addr ? (
+            <p className='text-xs text-destructive'>
+              {form.formState.errors.public_addr.message}
+            </p>
+          ) : null}
+        </div>
 
-            <div className='space-y-2'>
-              <Label htmlFor='relay-gw-addr'>{t('relays.gatewayAddr')}</Label>
-              <Input
-                id='relay-gw-addr'
-                placeholder='10.0.0.2'
-                {...form.register('gateway_addr')}
-              />
-            </div>
-          </div>
+        <div className='space-y-2'>
+          <Label htmlFor='relay-gw-addr'>{t('relays.gatewayAddr')}</Label>
+          <Input
+            id='relay-gw-addr'
+            placeholder='10.0.0.2'
+            {...form.register('gateway_addr')}
+          />
+        </div>
+      </div>
 
-          <div className='grid gap-3 sm:grid-cols-3'>
-            <div className='space-y-2'>
-              <Label htmlFor='relay-tport'>{t('relays.transportPort')}</Label>
-              <Input id='relay-tport' {...form.register('transport_port')} />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='relay-wport'>{t('relays.wsPort')}</Label>
-              <Input id='relay-wport' {...form.register('ws_port')} />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='relay-gport'>{t('relays.gatewayPort')}</Label>
-              <Input id='relay-gport' {...form.register('gateway_port')} />
-            </div>
-          </div>
+      <div className='grid gap-3 sm:grid-cols-3'>
+        <div className='space-y-2'>
+          <Label htmlFor='relay-tport'>{t('relays.transportPort')}</Label>
+          <Input id='relay-tport' {...form.register('transport_port')} />
+        </div>
+        <div className='space-y-2'>
+          <Label htmlFor='relay-wport'>{t('relays.wsPort')}</Label>
+          <Input id='relay-wport' {...form.register('ws_port')} />
+        </div>
+        <div className='space-y-2'>
+          <Label htmlFor='relay-gport'>{t('relays.gatewayPort')}</Label>
+          <Input id='relay-gport' {...form.register('gateway_port')} />
+        </div>
+      </div>
 
-          <div className='grid gap-3 sm:grid-cols-3'>
-            <div className='space-y-2 sm:col-span-2'>
-              <Label htmlFor='relay-zone'>{t('relays.zoneTag')}</Label>
-              <Input
-                id='relay-zone'
-                placeholder='ap-east-1a'
-                {...form.register('zone_tag')}
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='relay-weight'>{t('relays.weight')}</Label>
-              <Input id='relay-weight' {...form.register('weight')} />
-            </div>
-          </div>
+      <div className='grid gap-3 sm:grid-cols-3'>
+        <div className='space-y-2 sm:col-span-2'>
+          <Label htmlFor='relay-zone'>{t('relays.zoneTag')}</Label>
+          <Input
+            id='relay-zone'
+            placeholder='ap-east-1a'
+            {...form.register('zone_tag')}
+          />
+        </div>
+        <div className='space-y-2'>
+          <Label htmlFor='relay-weight'>{t('relays.weight')}</Label>
+          <Input id='relay-weight' {...form.register('weight')} />
+        </div>
+      </div>
 
-          <div className='grid gap-3 sm:grid-cols-2'>
-            <div className='space-y-2'>
-              <Label htmlFor='relay-transports'>
-                {t('relays.supportedTransports')}
-              </Label>
-              <Input
-                id='relay-transports'
-                placeholder='noise, websocket, tcp'
-                {...form.register('supported_transports')}
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='relay-colocated'>
-                {t('relays.colocatedEdgeNodeId')}
-              </Label>
-              <Input
-                id='relay-colocated'
-                {...form.register('colocated_edge_node_id')}
-              />
-            </div>
-          </div>
+      <div className='grid gap-3 sm:grid-cols-2'>
+        <div className='space-y-2'>
+          <Label htmlFor='relay-transports'>
+            {t('relays.supportedTransports')}
+          </Label>
+          <Input
+            id='relay-transports'
+            placeholder='noise, websocket, tcp'
+            {...form.register('supported_transports')}
+          />
+        </div>
+        <div className='space-y-2'>
+          <Label htmlFor='relay-colocated'>
+            {t('relays.colocatedEdgeNodeId')}
+          </Label>
+          <Input
+            id='relay-colocated'
+            {...form.register('colocated_edge_node_id')}
+          />
+        </div>
+      </div>
 
-          <div className='grid gap-3 sm:grid-cols-2'>
-            <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
-              <p className='text-sm font-medium'>{t('relays.lockIp')}</p>
-              <Switch
-                checked={form.watch('ip_manual_override')}
-                onCheckedChange={(checked) =>
-                  form.setValue('ip_manual_override', checked)
-                }
-              />
-            </div>
-            <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
-              <p className='text-sm font-medium'>{t('relays.autoUpdate')}</p>
-              <Switch
-                checked={form.watch('auto_update_enabled')}
-                onCheckedChange={(checked) =>
-                  form.setValue('auto_update_enabled', checked)
-                }
-              />
-            </div>
-          </div>
+      <div className='grid gap-3 sm:grid-cols-2'>
+        <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
+          <p className='text-sm font-medium'>{t('relays.lockIp')}</p>
+          <Switch
+            checked={form.watch('ip_manual_override')}
+            onCheckedChange={(checked) =>
+              form.setValue('ip_manual_override', checked)
+            }
+          />
+        </div>
+        <div className='flex items-center justify-between rounded-lg border px-3 py-2'>
+          <p className='text-sm font-medium'>{t('relays.autoUpdate')}</p>
+          <Switch
+            checked={form.watch('auto_update_enabled')}
+            onCheckedChange={(checked) =>
+              form.setValue('auto_update_enabled', checked)
+            }
+          />
+        </div>
+      </div>
 
-          <DialogFooter>
-            <Button
-              type='button'
-              variant='outline'
-              onClick={onClose}
-              disabled={submitting}
-            >
-              {tc('cancel')}
-            </Button>
-            <Button type='submit' disabled={submitting}>
-              {submitting ? t('common.saving') : t('common.save')}
-            </Button>
-          </DialogFooter>
-        </form>
+      <DialogFooter>
+        <Button
+          type='button'
+          variant='outline'
+          onClick={onClose}
+          disabled={submitting}
+        >
+          {tc('cancel')}
+        </Button>
+        <Button type='submit' disabled={submitting}>
+          {submitting ? t('common.saving') : t('common.save')}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 
   const resolvedServerUrl =
@@ -414,7 +411,7 @@ export function RelayEditorDialog({
                         onClick={() =>
                           void handleCopy(
                             effectiveToken,
-                            t('deploy.bootstrapToken')
+                            t('deploy.bootstrapToken'),
                           )
                         }
                       >
@@ -486,7 +483,7 @@ export function RelayEditorDialog({
                         onClick={() =>
                           void handleCopy(
                             bootstrap.deploy_command,
-                            t('deploy.cliCommand')
+                            t('deploy.cliCommand'),
                           )
                         }
                       >

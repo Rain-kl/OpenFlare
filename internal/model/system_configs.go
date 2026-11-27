@@ -100,13 +100,13 @@ const (
 	ConfigKeyNetIntelAutoProbeEnabled = "netintel_auto_probe_enabled"  // 是否启用边缘节点后台自动路由探测
 
 	// SmartDNS 权威智能解析配置
-	ConfigKeySmartDNSEnabled                 = "smartdns_enabled"                  // SmartDNS 服务总开关
-	ConfigKeySmartDNSDelegationDomain        = "smartdns_delegation_domain"        // SmartDNS 全局委派主域名（如 edge.example.com）
-	ConfigKeySmartDNSNSHosts                 = "smartdns_ns_hosts"                 // SmartDNS 权威 NS 主机名列表 JSON 数组
-	ConfigKeySmartDNSDefaultTTL              = "smartdns_default_ttl"              // SmartDNS 默认解析应答 TTL（秒）
-	ConfigKeySmartDNSDiscoveryToken          = "smartdns_discovery_token"          //nolint:gosec // false positive: config key name. SmartDNS 实例自动发现注册令牌
+	ConfigKeySmartDNSEnabled                 = "smartdns_enabled"                   // SmartDNS 服务总开关
+	ConfigKeySmartDNSDelegationDomain        = "smartdns_delegation_domain"         // SmartDNS 全局委派主域名（如 edge.example.com）
+	ConfigKeySmartDNSNSHosts                 = "smartdns_ns_hosts"                  // SmartDNS 权威 NS 主机名列表 JSON 数组
+	ConfigKeySmartDNSDefaultTTL              = "smartdns_default_ttl"               // SmartDNS 默认解析应答 TTL（秒）
+	ConfigKeySmartDNSDiscoveryToken          = "smartdns_discovery_token"           //nolint:gosec // false positive: config key name. SmartDNS 实例自动发现注册令牌
 	ConfigKeySmartDNSSnapshotIntervalSeconds = "smartdns_snapshot_interval_seconds" // SmartDNS 快照刷新周期（秒）
-	ConfigKeySmartDNSUpdateRepo              = "smartdns_update_repo"              // SmartDNS 独立节点更新仓库
+	ConfigKeySmartDNSUpdateRepo              = "smartdns_update_repo"               // SmartDNS 独立节点更新仓库
 )
 
 // 日志数据库解耦

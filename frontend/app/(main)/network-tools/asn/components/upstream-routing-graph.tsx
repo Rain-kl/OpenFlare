@@ -1,13 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import {
-  Download,
-  Loader2,
-  RefreshCw,
-  ZoomIn,
-  ZoomOut,
-} from 'lucide-react';
+import { Download, Loader2, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Badge } from '@/components/ui/badge';
@@ -104,7 +98,9 @@ function computeColumnOffsets(
           curRoles[0]?.role === 'tier1_upstream' &&
           nextRoles[0]?.role === 'tier1'
         );
-      const extra = crossesGroupBoundary ? GROUP_PAD_X * 2 + GROUP_GAP_EXTRA : 0;
+      const extra = crossesGroupBoundary
+        ? GROUP_PAD_X * 2 + GROUP_GAP_EXTRA
+        : 0;
       const gutter = Math.max(BASE_GUTTER, 44 + laneSpan) + extra;
       curX += NODE_W + gutter;
     }
@@ -150,7 +146,8 @@ function buildGraphLayout(
     const lTo = nodeLayer.get(e.to) ?? 0;
     return lTo - lFrom > 1;
   }).length;
-  const skipReserve = skipEdgesCount > 0 ? 18 + skipEdgesCount * SKIP_CORRIDOR_STEP : 0;
+  const skipReserve =
+    skipEdgesCount > 0 ? 18 + skipEdgesCount * SKIP_CORRIDOR_STEP : 0;
 
   const { colX, totalWidth } = computeColumnOffsets(
     layerIndices,
@@ -196,7 +193,8 @@ function buildGraphLayout(
     const minX = Math.min(...members.map((m) => m.x)) - GROUP_PAD_X;
     const maxX = Math.max(...members.map((m) => m.x + m.width)) + GROUP_PAD_X;
     const minY = Math.min(...members.map((m) => m.y)) - GROUP_PAD_TOP;
-    const maxY = Math.max(...members.map((m) => m.y + m.height)) + GROUP_PAD_BOTTOM;
+    const maxY =
+      Math.max(...members.map((m) => m.y + m.height)) + GROUP_PAD_BOTTOM;
     groups.push({
       key,
       kind,
@@ -240,8 +238,8 @@ function buildGraphLayout(
   for (const list of inByAsn.values()) {
     list.sort(
       (a, b) =>
-        (placedByAsn.get(a.from)?.y ?? 0) -
-          (placedByAsn.get(b.from)?.y ?? 0) || a.from - b.from,
+        (placedByAsn.get(a.from)?.y ?? 0) - (placedByAsn.get(b.from)?.y ?? 0) ||
+        a.from - b.from,
     );
   }
 
@@ -271,7 +269,8 @@ function buildGraphLayout(
   const gutterNextX = (layerIdx: number): number => {
     const nextLayer = layerIndices.find((l) => l > layerIdx);
     const x1 = (colX.get(layerIdx) ?? 0) + NODE_W;
-    const x2 = nextLayer !== undefined ? (colX.get(nextLayer) ?? x1 + 80) : x1 + 80;
+    const x2 =
+      nextLayer !== undefined ? (colX.get(nextLayer) ?? x1 + 80) : x1 + 80;
     return (x1 + x2) / 2;
   };
 
@@ -281,8 +280,14 @@ function buildGraphLayout(
     const dst = placedByAsn.get(edge.to)!;
     const outs = outByAsn.get(edge.from) ?? [edge];
     const ins = inByAsn.get(edge.to) ?? [edge];
-    const outIdx = Math.max(0, outs.findIndex((x) => x.to === edge.to));
-    const inIdx = Math.max(0, ins.findIndex((x) => x.from === edge.from));
+    const outIdx = Math.max(
+      0,
+      outs.findIndex((x) => x.to === edge.to),
+    );
+    const inIdx = Math.max(
+      0,
+      ins.findIndex((x) => x.from === edge.from),
+    );
 
     const startX = src.x + src.width;
     const startY = distributePortY(src.y, outIdx, outs.length);
@@ -290,7 +295,8 @@ function buildGraphLayout(
     const endY = distributePortY(dst.y, inIdx, ins.length);
 
     const bucketLen = gutterEdges.get(src.node.layer)?.length ?? 1;
-    const laneIdx = edgeLaneIndex.get(`${src.node.layer}:${edge.from}-${edge.to}`) ?? 0;
+    const laneIdx =
+      edgeLaneIndex.get(`${src.node.layer}:${edge.from}-${edge.to}`) ?? 0;
     const centerX = gutterNextX(src.node.layer);
     const laneOffset = (laneIdx - (bucketLen - 1) / 2) * LANE_SPACING;
     const minSafeX = startX + 12;
@@ -306,7 +312,10 @@ function buildGraphLayout(
       skipCorridorIdx += 1;
       const entryPrevGutter = dst.node.layer - 1;
       const entryCenterX = gutterNextX(entryPrevGutter);
-      const entryX = Math.min(endX - 14, Math.max((colX.get(entryPrevGutter) ?? 0) + NODE_W + 14, entryCenterX));
+      const entryX = Math.min(
+        endX - 14,
+        Math.max((colX.get(entryPrevGutter) ?? 0) + NODE_W + 14, entryCenterX),
+      );
       d = `M ${startX} ${startY} L ${laneX} ${startY} L ${laneX} ${bypassY} L ${entryX} ${bypassY} L ${entryX} ${endY} L ${endX} ${endY}`;
     }
 
@@ -405,7 +414,9 @@ export function UpstreamRoutingGraph({
     return t('asn.upstreamGraph.groups.tier1');
   };
 
-  const sourceLabel = (src: NetToolsASNUpstreamGraphResponse['data_source']) => {
+  const sourceLabel = (
+    src: NetToolsASNUpstreamGraphResponse['data_source'],
+  ) => {
     return t(`asn.upstreamGraph.sources.${src}`);
   };
 
@@ -446,7 +457,9 @@ export function UpstreamRoutingGraph({
             variant='outline'
             size='sm'
             disabled={zoom <= 0.6}
-            onClick={() => setZoom((z) => Math.max(0.6, Number((z - 0.15).toFixed(2))))}
+            onClick={() =>
+              setZoom((z) => Math.max(0.6, Number((z - 0.15).toFixed(2))))
+            }
             aria-label={t('asn.upstreamGraph.zoomOut')}
           >
             <ZoomOut className='size-3.5' />
@@ -465,7 +478,9 @@ export function UpstreamRoutingGraph({
             variant='outline'
             size='sm'
             disabled={zoom >= 1.8}
-            onClick={() => setZoom((z) => Math.min(1.8, Number((z + 0.15).toFixed(2))))}
+            onClick={() =>
+              setZoom((z) => Math.min(1.8, Number((z + 0.15).toFixed(2))))
+            }
             aria-label={t('asn.upstreamGraph.zoomIn')}
           >
             <ZoomIn className='size-3.5' />
@@ -586,7 +601,8 @@ export function UpstreamRoutingGraph({
                 })}
 
                 {layout.edges.map(({ key, edge, d }) => {
-                  const isHighlighted = activeHighlight.highlightedEdges.has(key);
+                  const isHighlighted =
+                    activeHighlight.highlightedEdges.has(key);
                   const opacity = activeHighlight.hasActive
                     ? isHighlighted
                       ? 1

@@ -2,10 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const root = new URL('../../', import.meta.url);
 const brandMark = readFileSync(
-  new URL(
-    'shared/edgeassets/pow_static/img/openflare-mark.svg',
-    root,
-  ),
+  new URL('shared/edgeassets/pow_static/img/openflare-mark.svg', root),
   'utf8',
 ).trim();
 
@@ -32,9 +29,7 @@ function syncAsset(filename, value) {
 const templates = Object.fromEntries(
   ['classic', 'shield'].map((id) => [
     id,
-    readBrandedTemplate(
-      `shared/edgeassets/pow_templates/${id}.html`,
-    ),
+    readBrandedTemplate(`shared/edgeassets/pow_templates/${id}.html`),
   ]),
 );
 const widget = readFileSync(
