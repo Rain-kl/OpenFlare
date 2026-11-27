@@ -32,7 +32,8 @@
       "pageSummary": "Страница {page} из {totalPages} (всего {total})",
       "prevPage": "Назад",
       "nextPage": "Вперёд",
-      "attributionPrefix": "Источник данных: "
+      "attributionPrefix": "Источник данных: ",
+      "targetNormalized": "Адрес цели автоматически исправлен на {target}"
     },
     "ping": {
       "title": "Мульти-пинг / TCPing",
@@ -40,7 +41,7 @@
       "count": "Число пакетов",
       "intervalMs": "Интервал (мс)",
       "timeoutMs": "Тайм-аут (мс)",
-      "targetHint": "Поддерживаются публичные IP-адреса, домены или URL http(s):// (для режима HTTP). Частные сети запрещены.",
+      "targetHint": "Поддерживаются публичные IP-адреса, домены или URL http(s):// (для режима HTTP). В режимах ICMP / TCPing вставленный URL автоматически сокращается до адреса узла. Частные сети запрещены.",
       "summary": {
         "responded": "Ответившие узлы",
         "minLatency": "Минимальный ср. RTT",

@@ -41,6 +41,7 @@ import { NetworkToolsService } from '@/lib/services/openflare';
 
 import { NodeSelector } from '../shared/node-selector';
 import {
+  extractNetToolsTargetHost,
   formatNetToolsMs,
   formatNetToolsPercent,
   getNetToolsErrorMessage,
@@ -115,9 +116,29 @@ export function NetworkToolsPingPageClient() {
     if (!trimmed) {
       return;
     }
-    const parsedPort = port.trim() ? Number(port.trim()) : undefined;
+
+    // HTTP probes accept full URLs; for ICMP / TCPing reduce pasted URLs and
+    // host:port forms to the bare host so validation never rejects them.
+    let effectiveTarget = trimmed;
+    let effectivePort = port;
+    if (protocol !== 'http') {
+      const normalized = extractNetToolsTargetHost(trimmed);
+      if (normalized && normalized.host && normalized.host !== trimmed) {
+        setTarget(normalized.host);
+        effectiveTarget = normalized.host;
+        if (protocol === 'tcp' && normalized.port !== null && !port.trim()) {
+          setPort(String(normalized.port));
+          effectivePort = String(normalized.port);
+        }
+        toast.info(t('common.targetNormalized', { target: normalized.host }));
+      }
+    }
+
+    const parsedPort = effectivePort.trim()
+      ? Number(effectivePort.trim())
+      : undefined;
     dispatchMutation.mutate({
-      target: trimmed,
+      target: effectiveTarget,
       protocol,
       port:
         parsedPort && Number.isInteger(parsedPort) && parsedPort > 0

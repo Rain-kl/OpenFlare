@@ -27,6 +27,10 @@ sidebar: false
   - Edge 访问日志链路在有界队列富余时轻量采集内核 `TCP_INFO`（RTT/MinRTT/重传）与 TLS 握手耗时；服务端结合 `bgp.tools` 与 GeoIP 数据库无锁识别访客 `client_asn`，通过 1 分钟有界分桶及 6 小时衰减融合任务（`of_netquality_rollup`）生成 `节点 × 访客 ASN` 网络质量矩阵与 `of_as_topology_edges` AS 拓扑边表。
   - 新增构建与定时增量同步任务 `of_netintel_sync`（支持 GeoLite2/sapics 与 `bgp.tools`，默认关闭 CAIDA 并仅在运行期配置 `netintel_caida_enabled=true` 时按需拉取）。
 
+### ⚡️ 优化与改进
+
+- **多点 Ping / TCPing** 目标地址输入支持自动纠正：ICMP / TCPing 模式下粘贴完整 URL（含协议、路径、查询参数或凭据）时，将自动仅保留主机地址并发起探测；URL 中显式声明的端口会自动填入端口输入框。不再因输入 URL 形态而报「invalid target hostname or IP address」错误。
+
 ## [v4.1.1] - 2026-11-25
 
 ### 💥 变更说明
