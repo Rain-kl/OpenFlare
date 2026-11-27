@@ -26,6 +26,15 @@ const (
 	DefaultUnknownP95Ms = 150.0
 	// DefaultUnknownConfidence is the floor confidence when no evidence exists.
 	DefaultUnknownConfidence = 0.05
+
+	// QualityStateHealthy indicates fresh measurements consistent with normal uncongested routing.
+	QualityStateHealthy = "healthy"
+	// QualityStateDegraded indicates acute or sustained latency/retransmission degradation.
+	QualityStateDegraded = "degraded"
+	// QualityStateRecovering indicates an impaired link showing initial normal observations awaiting confirmation.
+	QualityStateRecovering = "recovering"
+	// QualityStateStale indicates no recent fresh measurements are available for the node-client slice.
+	QualityStateStale = "stale"
 )
 
 // ClientProfile describes normalized client network identity and location for quality evaluation.
@@ -41,17 +50,23 @@ type ClientProfile struct {
 	GeoAccuracyKm float64
 	GeoSource     string
 	AnycastStatus string
+	FromECS       bool
 }
 
 // NodeLinkQuality represents the unified network quality metrics from a candidate edge node to a client network.
 type NodeLinkQuality struct {
 	NodeID          string     `json:"node_id"`
 	EffectiveRTTMs  float64    `json:"effective_rtt_ms"`
+	ObservedRTTMs   float64    `json:"observed_rtt_ms,omitempty"`
+	PredictedRTTMs  float64    `json:"predicted_rtt_ms,omitempty"`
 	RTTP95Ms        float64    `json:"rtt_p95_ms"`
+	P95Weight       float64    `json:"p95_weight,omitempty"`
 	DispersionMs    float64    `json:"dispersion_ms"`
 	LossRate        float64    `json:"loss_rate"`
 	Confidence      float64    `json:"confidence"`
 	QualityScore    float64    `json:"quality_score"`
+	QualityState    string     `json:"quality_state,omitempty"`
+	ExplorePriority float64    `json:"explore_priority,omitempty"`
 	GeoBaseRTTMs    float64    `json:"geo_base_rtt_ms"`
 	GeoBaseKnown    bool       `json:"geo_base_known"`
 	SourceTier      string     `json:"source_tier"`
@@ -72,20 +87,25 @@ type CompactQualitySnapshot struct {
 
 // CompactQualityEntry encodes one measured matrix slice with compact JSON field names.
 type CompactQualityEntry struct {
-	NodeID         string  `json:"n"`
-	ClientASN      uint32  `json:"a"`
-	ClientCountry  string  `json:"c"`
-	ClientRegion   string  `json:"r,omitempty"`
-	IPFamily       string  `json:"f"`
-	Level          string  `json:"l"`
-	EffectiveRTTMs float64 `json:"rtt"`
-	RTTP95Ms       float64 `json:"p95"`
-	DispersionMs   float64 `json:"disp,omitempty"`
-	LossRate       float64 `json:"loss,omitempty"`
-	Confidence     float64 `json:"conf"`
-	GeoBaseRTTMs   float64 `json:"geo_rtt,omitempty"`
-	GeoBaseKnown   bool    `json:"geo_ok,omitempty"`
-	SourceTier     string  `json:"tier"`
+	NodeID          string  `json:"n"`
+	ClientASN       uint32  `json:"a"`
+	ClientCountry   string  `json:"c"`
+	ClientRegion    string  `json:"r,omitempty"`
+	IPFamily        string  `json:"f"`
+	Level           string  `json:"l"`
+	EffectiveRTTMs  float64 `json:"rtt"`
+	ObservedRTTMs   float64 `json:"obs_rtt,omitempty"`
+	PredictedRTTMs  float64 `json:"pred_rtt,omitempty"`
+	RTTP95Ms        float64 `json:"p95"`
+	P95Weight       float64 `json:"p95w,omitempty"`
+	DispersionMs    float64 `json:"disp,omitempty"`
+	LossRate        float64 `json:"loss,omitempty"`
+	Confidence      float64 `json:"conf"`
+	QualityState    string  `json:"st,omitempty"`
+	ExplorePriority float64 `json:"exp,omitempty"`
+	GeoBaseRTTMs    float64 `json:"geo_rtt,omitempty"`
+	GeoBaseKnown    bool    `json:"geo_ok,omitempty"`
+	SourceTier      string  `json:"tier"`
 }
 
 // CompactNodePrior carries per-node baseline geometry and median residual for O(1) Rust fallback.

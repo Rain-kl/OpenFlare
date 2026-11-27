@@ -216,10 +216,15 @@ pub fn build_bench_snapshot() -> SnapshotEnvelope {
                 ip_family: "ipv4".to_string(),
                 level: "country".to_string(),
                 effective_rtt_ms: 18.0,
+                observed_rtt_ms: 18.0,
+                predicted_rtt_ms: 18.0,
                 rtt_p95_ms: 25.0,
+                p95_weight: 0.35,
                 dispersion_ms: 4.0,
                 loss_rate: 0.0,
                 confidence: 0.9,
+                quality_state: "healthy".to_string(),
+                explore_priority: 0.0,
                 geo_base_rtt_ms: 16.0,
                 geo_base_known: true,
                 source_tier: "asn_country".to_string(),
@@ -247,7 +252,11 @@ fn build_query_packet(id: u16, fqdn: &str, client_v4: Ipv4Addr) -> Result<Vec<u8
     let mut edns = Edns::new();
     edns.set_max_payload(1232);
     edns.options_mut()
-        .insert(EdnsOption::Subnet(ClientSubnet::new(client_v4.into(), 24, 0)));
+        .insert(EdnsOption::Subnet(ClientSubnet::new(
+            client_v4.into(),
+            24,
+            0,
+        )));
     msg.set_edns(edns);
     let mut buf = Vec::with_capacity(96);
     let mut encoder = hickory_proto::serialize::binary::BinEncoder::new(&mut buf);
@@ -315,8 +324,10 @@ pub async fn run_bench(args: BenchArgs) -> Result<()> {
     // 1. Bare hickory-server baseline.
     let bare_sock = UdpSocket::bind("127.0.0.1:0").await?;
     let bare_addr = bare_sock.local_addr()?;
-    let mut bare_server =
-        Server::new(BareBenchHandler::new("bench.sdns.example.com.", Ipv4Addr::new(203, 0, 113, 10))?);
+    let mut bare_server = Server::new(BareBenchHandler::new(
+        "bench.sdns.example.com.",
+        Ipv4Addr::new(203, 0, 113, 10),
+    )?);
     bare_server.register_socket(bare_sock);
 
     blast_udp(bare_addr, packets.clone(), 256, concurrency.min(16)).await?;

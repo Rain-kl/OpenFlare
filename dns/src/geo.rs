@@ -14,6 +14,7 @@ pub struct ClientProfile {
     pub ip_family: String,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    pub from_ecs: bool,
 }
 
 pub struct GeoLookup {
@@ -65,6 +66,7 @@ impl GeoLookup {
             ip_family: answer_family.to_string(),
             latitude: None,
             longitude: None,
+            from_ecs: false,
         };
 
         if let Some(ref city) = self.city_db {

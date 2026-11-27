@@ -279,6 +279,8 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 		"rtt_ewma_ms", "distinct_prefix_count", "geo_base_rtt_ms",
 		"geo_accuracy_km", "geo_source", "geo_confidence", "measurement_source",
 		"last_observed_at",
+		"observed_rtt_ms", "short_rtt_p50_ms", "short_rtt_p95_ms", "short_sample_count",
+		"quality_state", "consecutive_good_windows", "explore_priority",
 	} {
 		if !sqliteDB.Migrator().HasColumn("of_network_quality_matrix", col) {
 			t.Errorf("Migrate() did not create of_network_quality_matrix.%s", col)

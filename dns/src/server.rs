@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::net::{TcpListener, UdpSocket};
 use tracing::{error, info, warn};
 
@@ -134,7 +134,7 @@ impl RequestHandler for SmartDnsHandler {
                 .await;
         }
 
-        let (client_ip, reply_edns) = extract_client_and_reply_edns(request);
+        let (client_ip, from_ecs, reply_edns) = extract_client_and_reply_edns(request);
         let prefix_key = client_prefix_key(client_ip);
         let now = Instant::now();
 
@@ -178,6 +178,7 @@ impl RequestHandler for SmartDnsHandler {
                 qname: info.query.name().clone(),
                 qtype,
                 prefix: prefix_key,
+                from_ecs,
             };
             self.metrics.cache_lookups.fetch_add(1, Ordering::Relaxed);
             if let Some(hit) = self.cache.get_valid(&key, now) {
@@ -319,7 +320,12 @@ impl RequestHandler for SmartDnsHandler {
             return out;
         };
 
-        let client = self.geo.lookup_client(client_ip, answer_family);
+        let mut client = self.geo.lookup_client(client_ip, answer_family);
+        client.from_ecs = from_ecs;
+        let now_unix_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
         match evaluate_and_select(
             &snap.oracle,
             &snap.raw.nodes,
@@ -329,6 +335,7 @@ impl RequestHandler for SmartDnsHandler {
             qtype_str,
             Some(&self.hysteresis),
             now,
+            now_unix_secs,
         )
         .await
         {
@@ -431,10 +438,11 @@ where
     }
 }
 
-fn extract_client_and_reply_edns(request: &Request) -> (IpAddr, Option<Edns>) {
+fn extract_client_and_reply_edns(request: &Request) -> (IpAddr, bool, Option<Edns>) {
     let mut client_ip = request.src().ip();
+    let mut from_ecs = false;
     let Some(req_edns) = request.edns.as_ref() else {
-        return (client_ip, None);
+        return (client_ip, false, None);
     };
 
     let mut reply_edns = Edns::new();
@@ -450,6 +458,7 @@ fn extract_client_and_reply_edns(request: &Request) -> (IpAddr, Option<Edns>) {
                 .insert(EdnsOption::Subnet(reply_ecs));
         } else {
             client_ip = ecs.addr();
+            from_ecs = true;
             let scope_prefix = match ecs.addr() {
                 IpAddr::V4(_) => 24,
                 IpAddr::V6(_) => 48,
@@ -461,7 +470,7 @@ fn extract_client_and_reply_edns(request: &Request) -> (IpAddr, Option<Edns>) {
         }
     }
 
-    (client_ip, Some(reply_edns))
+    (client_ip, from_ecs, Some(reply_edns))
 }
 
 fn is_authoritative_query(env: &SnapshotEnvelope, clean_qname: &str) -> bool {

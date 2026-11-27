@@ -560,3 +560,199 @@ func TestRunAutoProbeSchedulerBackoffBudgetsAndAnycastIsolation(t *testing.T) {
 	require.Zero(t, anchorStates[0].ConsecutiveFailures)
 	require.InDelta(t, 8.0, anchorStates[0].LastRTTMs, 0.1)
 }
+
+func TestDynamicP95WeightScaling(t *testing.T) {
+	require.Equal(t, 0.0, computeDynamicP95Weight(9, 10))
+	wSmall := computeDynamicP95Weight(10, 1)
+	wMid := computeDynamicP95Weight(25, 3)
+	wLarge := computeDynamicP95Weight(120, 20)
+	require.Greater(t, wSmall, 0.0)
+	require.Less(t, wSmall, wMid)
+	require.Less(t, wMid, wLarge)
+	require.InDelta(t, p95MaxTailWeight, wLarge, 0.015)
+}
+
+func TestPaginatedRollupReadsPastLegacy20kLimit(t *testing.T) {
+	cleanup := setupNetQualityTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+	require.NoError(t, repository.CreateOpenFlareNode(ctx, &model.OpenFlareNode{
+		NodeID: "edge-page-1", Name: "Page", IP: "198.51.100.1", ASN: 13335,
+		Status: "online", NodeType: "edge_node", LastSeenAt: &now, AccessToken: "tok-p",
+	}))
+
+	// Insert > rollupSamplePageSize (5000) rows to force keyset pagination across pages.
+	var pageHist LogHistogram64
+	pageHist.Add(30)
+	encodedHist := pageHist.Encode()
+
+	const totalRows = rollupSamplePageSize + 55
+	batch := make([]analyticsmodel.NetworkQualitySample, 0, totalRows)
+	for i := range totalRows {
+		ts := now.Add(-time.Duration(i%300) * time.Second)
+		batch = append(batch, analyticsmodel.NetworkQualitySample{
+			ID:            uint64(100000 + i), //nolint:gosec // positive test ID
+			NodeID:        "edge-page-1",
+			NodeASN:       13335,
+			ClientASN:     4134,
+			ClientCountry: "CN",
+			IPFamily:      pkgnetintel.IPFamilyIPv4,
+			StatsVersion:  model.NetworkQualityStatsVersionHist64,
+			Source:        model.NetworkQualitySourceTCPPassive,
+			SampleCount:   1,
+			RTTMinMs:      28,
+			RTTP50Ms:      30,
+			RTTP95Ms:      38,
+			RTTHist:       encodedHist,
+			CapturedAt:    ts,
+			CreatedAt:     ts,
+		})
+	}
+	s, err := repository.ListOpenFlareNetworkQualitySamplesPage(ctx, now.Add(-time.Hour), nil, 0, 10)
+	require.NoError(t, err)
+	require.Empty(t, s)
+	require.NoError(t, db.DB(ctx).CreateInBatches(batch, 500).Error)
+
+	summary, err := RunRollup(ctx)
+	require.NoError(t, err)
+	require.Equal(t, totalRows, summary.SamplesRead)
+
+	rows, _, err := repository.ListOpenFlareNetworkQualityMatrix(ctx, model.NetworkQualityMatrixQuery{Page: 1, PageSize: 10, NodeID: "edge-page-1"})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, totalRows, rows[0].TCPSampleCount)
+}
+
+func TestAdaptiveStateMachineSpikeStaleRecoveryAndExplorePriority(t *testing.T) {
+	cleanup := setupNetQualityTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	now := time.Now().UTC()
+	for _, n := range []model.OpenFlareNode{
+		{NodeID: "hk-a", Name: "HK-A", IP: "203.0.113.1", ASN: 4134, Status: "online", NodeType: "edge_node", LastSeenAt: &now, AccessToken: "tok-a"},
+		{NodeID: "jp-b", Name: "JP-B", IP: "203.0.113.2", ASN: 2914, Status: "online", NodeType: "edge_node", LastSeenAt: &now, AccessToken: "tok-b"},
+		{NodeID: "us-d", Name: "US-D", IP: "203.0.113.4", ASN: 174, Status: "online", NodeType: "edge_node", LastSeenAt: &now, AccessToken: "tok-d"},
+	} {
+		require.NoError(t, repository.CreateOpenFlareNode(ctx, &n))
+	}
+
+	insertPassive := func(id uint64, nodeID string, age time.Duration, minMs, p50Ms, p95Ms float64, cnt int32) {
+		var h LogHistogram64
+		for range max(1, int(cnt)) {
+			h.Add(p50Ms)
+		}
+		var sk PrefixSketch
+		sk.AddIP("113.108.10.1")
+		sk.AddIP("113.109.10.1")
+		sk.AddIP("113.110.10.1")
+		sk.AddIP("113.111.10.1")
+		ts := now.Add(-age)
+		require.NoError(t, db.DB(ctx).Create(&analyticsmodel.NetworkQualitySample{
+			ID:                  id,
+			NodeID:              nodeID,
+			ClientASN:           9808,
+			ClientCountry:       "CN",
+			IPFamily:            pkgnetintel.IPFamilyIPv4,
+			StatsVersion:        model.NetworkQualityStatsVersionHist64,
+			Source:              model.NetworkQualitySourceTCPPassive,
+			SampleCount:         cnt,
+			RTTMinMs:            minMs,
+			RTTP50Ms:            p50Ms,
+			RTTP95Ms:            p95Ms,
+			RTTHist:             h.Encode(),
+			PrefixSketch:        sk.Encode(),
+			DistinctPrefixCount: int32(sk.DistinctCount()), //nolint:gosec // bounded <= 64
+			CapturedAt:          ts,
+			CreatedAt:           ts,
+		}).Error)
+	}
+
+	// Daytime history on hk-a (30ms, 3h-6h ago) + evening spike in last 5m (180ms, 10 samples).
+	insertPassive(1, "hk-a", 6*time.Hour, 28, 30, 36, 120)
+	insertPassive(2, "hk-a", 3*time.Hour, 28, 30, 36, 120)
+	insertPassive(3, "hk-a", 5*time.Minute, 28, 180, 230, 10)
+	// Stable JP-B (65ms) and hopelessly slow US-D (220ms).
+	insertPassive(4, "jp-b", 3*time.Minute, 60, 65, 80, 40)
+	insertPassive(5, "us-d", 4*time.Hour, 200, 220, 250, 40)
+
+	_, err := RunRollup(ctx)
+	require.NoError(t, err)
+
+	fetchRow := func(nodeID string) *model.OpenFlareNetworkQualityMatrix {
+		rows, _, listErr := repository.ListOpenFlareNetworkQualityMatrix(ctx, model.NetworkQualityMatrixQuery{
+			Page: 1, PageSize: 10, NodeID: nodeID, ClientASN: 9808, ClientCountry: "CN", IPFamily: "ipv4",
+		})
+		require.NoError(t, listErr)
+		require.Len(t, rows, 1)
+		return rows[0]
+	}
+
+	hk1 := fetchRow("hk-a")
+	require.Equal(t, model.QualityStateDegraded, hk1.QualityState)
+	require.Greater(t, hk1.EffectiveRTTMs, 150.0)
+	require.Greater(t, hk1.ObservedRTTMs, 150.0)
+	require.Less(t, hk1.PredictedRTTMs, 45.0)
+	// Freshly verified degraded node (5m < 15m cooldown, 10 >= 5 samples) must auto-brake exploration.
+	require.Equal(t, 0.0, hk1.ExplorePriority)
+	// Hopeless US-D (> 65*1.5 + 30 = 127.5ms) must also get 0 exploration priority.
+	us1 := fetchRow("us-d")
+	require.Equal(t, 0.0, us1.ExplorePriority)
+
+	// Move hk-a's spike sample to 90m ago so hk-a becomes stale (> 60m without samples).
+	staleTS := now.Add(-90 * time.Minute)
+	require.NoError(t, db.DB(ctx).Model(&analyticsmodel.NetworkQualitySample{}).
+		Where("id = ?", 3).
+		Updates(map[string]any{"captured_at": staleTS, "created_at": staleTS}).Error)
+
+	_, err = RunRollup(ctx)
+	require.NoError(t, err)
+
+	hkStale := fetchRow("hk-a")
+	require.Equal(t, model.QualityStateStale, hkStale.QualityState)
+	// Critical invariant: staleness must NEVER drop observed/effective RTT down to daytime 30ms!
+	require.Greater(t, hkStale.EffectiveRTTMs, 150.0)
+	require.Greater(t, hkStale.ObservedRTTMs, 150.0)
+	require.Less(t, hkStale.Confidence, hk1.Confidence)
+	require.Greater(t, hkStale.ExplorePriority, 0.25)
+
+	// Predictor must honor EffectiveRTTMs while marking stale and preserving impaired RTT.
+	p, err := LoadLivePredictor(ctx)
+	require.NoError(t, err)
+	predRes := p.Predict(PredictQuery{NodeID: "hk-a", ClientASN: 9808, ClientCountry: "CN", IPFamily: "ipv4"})
+	require.Equal(t, model.QualityStateStale, predRes.QualityState)
+	require.Greater(t, predRes.RTTMs, 150.0)
+	require.Greater(t, predRes.ExplorePriority, 0.25)
+
+	// Window 1 of next-day recovery: 4 fresh 35ms samples -> enters recovering (holds high effective RTT!).
+	insertPassive(6, "hk-a", 3*time.Minute, 28, 35, 42, 4)
+	_, err = RunRollup(ctx)
+	require.NoError(t, err)
+
+	hkRec1 := fetchRow("hk-a")
+	require.Equal(t, model.QualityStateRecovering, hkRec1.QualityState)
+	require.Equal(t, 1, hkRec1.ConsecutiveGoodWindows)
+	require.Less(t, hkRec1.ObservedRTTMs, 45.0)
+	require.Greater(t, hkRec1.EffectiveRTTMs, 150.0)
+	require.Greater(t, hkRec1.ExplorePriority, 0.5)
+
+	// Repeat rollup with NO newer sample -> must NOT double-count confirmation window!
+	_, err = RunRollup(ctx)
+	require.NoError(t, err)
+	hkRecStill := fetchRow("hk-a")
+	require.Equal(t, model.QualityStateRecovering, hkRecStill.QualityState)
+	require.Equal(t, 1, hkRecStill.ConsecutiveGoodWindows)
+
+	// Window 2 of recovery: newer fresh 35ms samples -> confirmed healthy & releases traffic!
+	insertPassive(7, "hk-a", 30*time.Second, 28, 35, 42, 4)
+	_, err = RunRollup(ctx)
+	require.NoError(t, err)
+
+	hkHealthy := fetchRow("hk-a")
+	require.Equal(t, model.QualityStateHealthy, hkHealthy.QualityState)
+	require.Equal(t, 2, hkHealthy.ConsecutiveGoodWindows)
+	require.Less(t, hkHealthy.EffectiveRTTMs, 45.0)
+	require.Equal(t, 0.0, hkHealthy.ExplorePriority)
+}

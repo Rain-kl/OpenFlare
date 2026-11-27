@@ -87,6 +87,7 @@ type ObservabilityStore interface {
 	InsertNetworkQualitySample(ctx context.Context, record *model.OpenFlareNetworkQualitySample) error
 	BatchInsertNetworkQualitySamples(ctx context.Context, rows []analyticsmodel.NetworkQualitySample) error
 	ListNetworkQualitySamplesSince(ctx context.Context, since time.Time, limit int) ([]analyticsmodel.NetworkQualitySample, error)
+	ListNetworkQualitySamplesPage(ctx context.Context, since time.Time, beforeTime *time.Time, beforeID uint64, limit int) ([]analyticsmodel.NetworkQualitySample, error)
 	ListNetworkQualitySamplesForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NetworkQualitySample, error)
 	DeleteAllNetworkQualitySamples(ctx context.Context) (int64, error)
 	DeleteNetworkQualitySamplesBefore(ctx context.Context, cutoff time.Time) (int64, error)

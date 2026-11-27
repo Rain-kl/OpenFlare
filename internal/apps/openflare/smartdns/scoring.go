@@ -9,6 +9,7 @@ import (
 	"math"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,37 +22,46 @@ import (
 )
 
 const (
-	overloadLoadThreshold    = 0.92
-	hysteresisMargin         = 1.05
-	hysteresisTTL            = 10 * time.Minute
-	minTagMultiplier         = 0.25
-	maxTagMultiplier         = 4.0
-	defaultHysteresisEntries = 16384
-	maxLoadRatio             = 1.5
-	percentScale             = 100.0
-	cpuLoadWeight            = 0.45
-	memLoadWeight            = 0.25
-	capLoadWeight            = 0.30
-	loadPenaltyExponent      = 1.8
-	defaultGeoScore          = 0.5
-	geoDistScaleKm           = 2000.0
-	rttScaleMs               = 80.0
-	defaultFallbackLatScore  = 0.4
-	defaultCapacityWeight    = 100
-	minLoadFloor             = 0.05
-	minNegLogU               = 1e-6
-	defaultWeightLatency     = 0.55
-	defaultWeightLoad        = 0.30
-	defaultWeightGeo         = 0.15
-	capacityExponent         = 0.15
-	scoreTieEpsilon          = 1e-9
-	selectionKeyPadding      = 16
-	uintDecimalBufSize       = 20
-	decimalBase              = 10
-	hashPrefixBytes          = 8
-	hashUnitModulo           = 1000000
-	hashUnitDivisor          = 1000002.0
-	scoreRoundFactor         = 10000
+	overloadLoadThreshold      = 0.92
+	hysteresisMargin           = 1.05
+	hysteresisTTL              = 10 * time.Minute
+	minTagMultiplier           = 0.25
+	maxTagMultiplier           = 4.0
+	defaultHysteresisEntries   = 16384
+	maxLoadRatio               = 1.5
+	percentScale               = 100.0
+	cpuLoadWeight              = 0.45
+	memLoadWeight              = 0.25
+	capLoadWeight              = 0.30
+	loadPenaltyExponent        = 1.8
+	defaultGeoScore            = 0.5
+	geoDistScaleKm             = 2000.0
+	rttScaleMs                 = 80.0
+	defaultFallbackLatScore    = 0.4
+	defaultCapacityWeight      = 100
+	minLoadFloor               = 0.05
+	minNegLogU                 = 1e-6
+	defaultWeightLatency       = 0.55
+	defaultWeightLoad          = 0.30
+	defaultWeightGeo           = 0.15
+	capacityExponent           = 0.15
+	scoreTieEpsilon            = 1e-9
+	selectionKeyPadding        = 16
+	uintDecimalBufSize         = 20
+	decimalBase                = 10
+	hashPrefixBytes            = 8
+	hashUnitModulo             = 1000000
+	hashUnitDivisor            = 1000002.0
+	scoreRoundFactor           = 10000
+	maxP95TailWeight           = 0.35
+	maxExploreBudget           = 0.03
+	minExploreBudget           = 0.005
+	exploreTimeBucketSeconds   = 900
+	explorationMaxTTL          = 25
+	minExploreCandidates       = 2
+	coldStartExplorePriority   = 0.35
+	coldStartExploreMaxRatio   = 1.25
+	coldStartExploreOverheadMs = 15.0
 )
 
 type hysteresisEntry struct {
@@ -127,7 +137,12 @@ type CandidateTrace struct {
 	ExclusionReason string  `json:"exclusion_reason,omitempty"`
 	SourceTier      string  `json:"source_tier,omitempty"`
 	EffectiveRTTMs  float64 `json:"effective_rtt_ms"`
+	RTTP95Ms        float64 `json:"rtt_p95_ms,omitempty"`
+	P95Weight       float64 `json:"p95_weight,omitempty"`
 	LossRate        float64 `json:"loss_rate"`
+	Confidence      float64 `json:"confidence,omitempty"`
+	QualityState    string  `json:"quality_state,omitempty"`
+	ExplorePriority float64 `json:"explore_priority,omitempty"`
 	LoadIndex       float64 `json:"load_index"`
 	LatencyScore    float64 `json:"latency_score"`
 	LoadScore       float64 `json:"load_score"`
@@ -145,6 +160,8 @@ type SelectionResult struct {
 	FallbackUsed      bool             `json:"fallback_used"`
 	FallbackReason    string           `json:"fallback_reason,omitempty"`
 	HysteresisApplied bool             `json:"hysteresis_applied"`
+	ExplorationUsed   bool             `json:"exploration_used"`
+	ExploredNodeID    string           `json:"explored_node_id,omitempty"`
 	MatchedNodes      []string         `json:"matched_nodes"`
 	MatchedConditions []string         `json:"matched_conditions"`
 	Answers           []SelectedAnswer `json:"answers"`
@@ -190,7 +207,11 @@ func SelectNodes(in SelectInput) SelectionResult {
 
 	var chosen []scoredNode
 	if len(pools.primary) > 0 {
-		chosen, out.HysteresisApplied = choosePrimaryAnswers(in, qtype, decision, pools.primary, now)
+		chosen, out.HysteresisApplied, out.ExploredNodeID = choosePrimaryAnswers(in, qtype, domainNorm, decision, pools.primary, now)
+		if out.ExploredNodeID != "" {
+			out.ExplorationUsed = true
+			out.TTL = minInt(out.TTL, explorationMaxTTL)
+		}
 	} else {
 		// Stage 4: Mandatory Fallback Chain.
 		out.FallbackUsed = true
@@ -291,16 +312,84 @@ func evaluateCandidatePools(in SelectInput, qtype, domainNorm string, decision P
 
 func choosePrimaryAnswers(
 	in SelectInput,
-	qtype string,
+	qtype, domainNorm string,
 	decision PolicyDecision,
 	primary []scoredNode,
 	now time.Time,
-) ([]scoredNode, bool) {
+) ([]scoredNode, bool, string) {
+	if decision.Mode == model.DNSPolicyStrategySmart && len(primary) >= minExploreCandidates && in.Client.FromECS {
+		if exploredIdx := selectExplorationCandidate(in.ClientKey, domainNorm, primary, now); exploredIdx > 0 {
+			explored := primary[exploredIdx]
+			copy(primary[1:exploredIdx+1], primary[0:exploredIdx])
+			primary[0] = explored
+			limit := minInt(decision.MaxAnswers, len(primary))
+			chosen := make([]scoredNode, 0, limit)
+			chosen = append(chosen, primary[:limit]...)
+			return chosen, false, explored.node.NodeID
+		}
+	}
 	applied := applyPrimaryHysteresis(in, qtype, decision.Mode, primary, now)
 	limit := minInt(decision.MaxAnswers, len(primary))
 	chosen := make([]scoredNode, 0, limit)
 	chosen = append(chosen, primary[:limit]...)
-	return chosen, applied
+	return chosen, applied, ""
+}
+
+func selectExplorationCandidate(clientKey, domainNorm string, primary []scoredNode, now time.Time) int {
+	if len(primary) < minExploreCandidates {
+		return -1
+	}
+	primaryRTT := primary[0].trace.EffectiveRTTMs
+	priorities := make([]float64, len(primary))
+	var sumPriority, maxPriority float64
+	for idx := 1; idx < len(primary); idx++ {
+		prio := effectiveExplorePriority(primary[idx].trace, primaryRTT)
+		if prio > 0 {
+			priorities[idx] = prio
+			sumPriority += prio
+			if prio > maxPriority {
+				maxPriority = prio
+			}
+		}
+	}
+	if sumPriority <= 0 || maxPriority <= 0 {
+		return -1
+	}
+	budget := clampFloat(maxExploreBudget*maxPriority, minExploreBudget, maxExploreBudget)
+	bucket := now.Unix() / exploreTimeBucketSeconds
+	u := deterministicExploreFloat(clientKey, domainNorm, bucket)
+	if u >= budget {
+		return -1
+	}
+	target := (u / budget) * sumPriority
+	var cum float64
+	lastValid := -1
+	for idx := 1; idx < len(primary); idx++ {
+		if priorities[idx] <= 0 {
+			continue
+		}
+		lastValid = idx
+		cum += priorities[idx]
+		if cum >= target {
+			return idx
+		}
+	}
+	return lastValid
+}
+
+func effectiveExplorePriority(tr CandidateTrace, primaryRTT float64) float64 {
+	prio := clampFloat(tr.ExplorePriority, 0, 1)
+	if prio > 0 {
+		return prio
+	}
+	isColdStart := tr.SourceTier == qualityapi.SourceTierGeoPrior || tr.SourceTier == qualityapi.SourceTierInferred
+	if !isColdStart || tr.EffectiveRTTMs <= 0 {
+		return 0
+	}
+	if primaryRTT <= 0 || tr.EffectiveRTTMs <= primaryRTT*coldStartExploreMaxRatio+coldStartExploreOverheadMs {
+		return coldStartExplorePriority
+	}
+	return 0
 }
 
 func applyPrimaryHysteresis(
@@ -432,17 +521,7 @@ func scoreCandidate(
 		sGeo = 1.0 / (1.0 + distKm/geoDistScaleKm)
 	}
 
-	effRTT := link.EffectiveRTTMs
-	loss := clampFloat(link.LossRate, 0, 1)
-	var sLat float64
-	switch {
-	case effRTT > 0:
-		sLat = clampFloat((1.0/(1.0+effRTT/rttScaleMs))*(1.0-loss), 0, 1)
-	case link.QualityScore > 0:
-		sLat = clampFloat(link.QualityScore/percentScale, 0, 1)
-	default:
-		sLat = defaultFallbackLatScore
-	}
+	effRTT, p95Weight, loss, sLat := computeCandidateLatencyScore(link)
 
 	tagMult := 1.0
 	if decision.UseTagWeights && len(node.Tags) > 0 {
@@ -483,20 +562,44 @@ func scoreCandidate(
 		ip:   ip,
 		rank: sortRank,
 		trace: CandidateTrace{
-			NodeID:         node.NodeID,
-			Name:           node.Name,
-			IP:             ip,
-			SourceTier:     link.SourceTier,
-			EffectiveRTTMs: round4(effRTT),
-			LossRate:       round4(loss),
-			LoadIndex:      round4(loadIndex),
-			LatencyScore:   round4(sLat),
-			LoadScore:      round4(sLoad),
-			GeoScore:       round4(sGeo),
-			TagMultiplier:  round4(tagMult),
-			FinalScore:     round4(finalScore),
+			NodeID:          node.NodeID,
+			Name:            node.Name,
+			IP:              ip,
+			SourceTier:      link.SourceTier,
+			EffectiveRTTMs:  round4(effRTT),
+			RTTP95Ms:        round4(link.RTTP95Ms),
+			P95Weight:       round4(p95Weight),
+			LossRate:        round4(loss),
+			Confidence:      round4(clampFloat(link.Confidence, 0, 1)),
+			QualityState:    link.QualityState,
+			ExplorePriority: round4(clampFloat(link.ExplorePriority, 0, 1)),
+			LoadIndex:       round4(loadIndex),
+			LatencyScore:    round4(sLat),
+			LoadScore:       round4(sLoad),
+			GeoScore:        round4(sGeo),
+			TagMultiplier:   round4(tagMult),
+			FinalScore:      round4(finalScore),
 		},
 	}
+}
+
+func computeCandidateLatencyScore(link qualityapi.NodeLinkQuality) (effRTT, p95Weight, loss, sLat float64) {
+	effRTT = link.EffectiveRTTMs
+	p95Weight = clampFloat(link.P95Weight, 0, maxP95TailWeight)
+	scoredRTT := effRTT
+	if effRTT > 0 && link.RTTP95Ms > effRTT && p95Weight > 0 {
+		scoredRTT += p95Weight * (link.RTTP95Ms - effRTT)
+	}
+	loss = clampFloat(link.LossRate, 0, 1)
+	switch {
+	case scoredRTT > 0:
+		sLat = clampFloat((1.0/(1.0+scoredRTT/rttScaleMs))*(1.0-loss), 0, 1)
+	case link.QualityScore > 0:
+		sLat = clampFloat(link.QualityScore/percentScale, 0, 1)
+	default:
+		sLat = defaultFallbackLatScore
+	}
+	return effRTT, p95Weight, loss, sLat
 }
 
 func sortScoredNodes(items []scoredNode) {
@@ -586,7 +689,15 @@ func strconvUint(v uint64) string {
 }
 
 func deterministicUnitFloat(clientKey, domain, nodeID string) float64 {
-	sum := sha256.Sum256([]byte(clientKey + "|" + domain + "|" + nodeID))
+	return unitFloatFromSeed(clientKey + "|" + domain + "|" + nodeID)
+}
+
+func deterministicExploreFloat(clientKey, domain string, timeBucket int64) float64 {
+	return unitFloatFromSeed("explore|" + clientKey + "|" + domain + "|" + strconv.FormatInt(timeBucket, decimalBase))
+}
+
+func unitFloatFromSeed(seed string) float64 {
+	sum := sha256.Sum256([]byte(seed))
 	raw := binary.BigEndian.Uint64(sum[:hashPrefixBytes])
 	// Map onto (0, 1) strictly away from 0 and 1.
 	return (float64(raw%hashUnitModulo) + 1.0) / hashUnitDivisor

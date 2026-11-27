@@ -401,6 +401,7 @@ func (s *EmbeddedGoDNSServer) serveDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	clientIP, ecsReq := extractClientIPAndECS(w, r)
+	fromECS := ecsReq != nil && ecsReq.SourceNetmask > 0
 	clientPrefix := normalizeClientPrefix(clientIP)
 	now := time.Now().UTC()
 
@@ -411,7 +412,7 @@ func (s *EmbeddedGoDNSServer) serveDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	cacheKey := fmt.Sprintf("%d|%s|%s|%s", env.Version, qname, qtypeName, clientPrefix)
+	cacheKey := fmt.Sprintf("%d|%s|%s|%s|%t", env.Version, qname, qtypeName, clientPrefix, fromECS)
 	if s.tryPopulateCachedReply(resp, q, env.Version, cacheKey, ecsReq, now) {
 		s.metrics.queriesSuccess.Add(1)
 		_ = w.WriteMsg(resp)
@@ -427,7 +428,7 @@ func (s *EmbeddedGoDNSServer) serveDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	s.resolveAndCacheAddressQuery(resp, q, qname, qtypeName, env, policy, clientIP, clientPrefix, ecsReq, cacheKey, now)
+	s.resolveAndCacheAddressQuery(resp, q, qname, qtypeName, env, policy, clientIP, clientPrefix, ecsReq, fromECS, cacheKey, now)
 	s.metrics.queriesSuccess.Add(1)
 	_ = w.WriteMsg(resp)
 }
@@ -497,10 +498,11 @@ func (s *EmbeddedGoDNSServer) resolveAndCacheAddressQuery(
 	clientIP net.IP,
 	clientPrefix string,
 	ecsReq *dns.EDNS0_SUBNET,
+	fromECS bool,
 	cacheKey string,
 	now time.Time,
 ) {
-	profile := buildEmbeddedClientProfile(clientIP, qtypeName)
+	profile := buildEmbeddedClientProfile(clientIP, qtypeName, fromECS)
 	nodeIDs := make([]string, 0, len(env.Nodes))
 	for _, n := range env.Nodes {
 		nodeIDs = append(nodeIDs, n.NodeID)
@@ -539,10 +541,11 @@ func (s *EmbeddedGoDNSServer) resolveAndCacheAddressQuery(
 	})
 }
 
-func buildEmbeddedClientProfile(clientIP net.IP, qtypeName string) qualityapi.ClientProfile {
+func buildEmbeddedClientProfile(clientIP net.IP, qtypeName string, fromECS bool) qualityapi.ClientProfile {
 	profile := qualityapi.ClientProfile{
 		ClientIP: clientIP.String(),
 		IPFamily: familyForQType(qtypeName),
+		FromECS:  fromECS,
 	}
 	if clientIP == nil {
 		return profile

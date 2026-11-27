@@ -222,14 +222,24 @@ pub struct CompactQualityEntry {
     pub level: String,
     #[serde(rename = "rtt")]
     pub effective_rtt_ms: f64,
+    #[serde(rename = "obs_rtt", default)]
+    pub observed_rtt_ms: f64,
+    #[serde(rename = "pred_rtt", default)]
+    pub predicted_rtt_ms: f64,
     #[serde(rename = "p95", default)]
     pub rtt_p95_ms: f64,
+    #[serde(rename = "p95w", default)]
+    pub p95_weight: f64,
     #[serde(rename = "disp", default)]
     pub dispersion_ms: f64,
     #[serde(rename = "loss", default)]
     pub loss_rate: f64,
     #[serde(rename = "conf")]
     pub confidence: f64,
+    #[serde(rename = "st", default)]
+    pub quality_state: String,
+    #[serde(rename = "exp", default)]
+    pub explore_priority: f64,
     #[serde(rename = "geo_rtt", default)]
     pub geo_base_rtt_ms: f64,
     #[serde(rename = "geo_ok", default)]

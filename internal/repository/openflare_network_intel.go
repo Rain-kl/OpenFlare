@@ -80,6 +80,15 @@ func ListOpenFlareNetworkQualitySamplesSince(ctx context.Context, since time.Tim
 	return s.Observability.ListNetworkQualitySamplesSince(ctx, since, limit)
 }
 
+// ListOpenFlareNetworkQualitySamplesPage reads keyset-paginated recent network quality samples from the active logstore backend.
+func ListOpenFlareNetworkQualitySamplesPage(ctx context.Context, since time.Time, beforeTime *time.Time, beforeID uint64, limit int) ([]analyticsmodel.NetworkQualitySample, error) {
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.Observability.ListNetworkQualitySamplesPage(ctx, since, beforeTime, beforeID, limit)
+}
+
 // UpsertOpenFlareNetworkQualityMatrixBatch atomically upserts 6-tuple quality matrix rows.
 func UpsertOpenFlareNetworkQualityMatrixBatch(ctx context.Context, rows []*model.OpenFlareNetworkQualityMatrix) error {
 	conn := db.DB(ctx)
@@ -144,6 +153,9 @@ func upsertNetworkQualityMatrixTx(conn *gorm.DB, rows []*model.OpenFlareNetworkQ
 		if strings.TrimSpace(row.DataSource) == "" {
 			row.DataSource = model.QualityMatrixDataSourceMeasured
 		}
+		if strings.TrimSpace(row.QualityState) == "" {
+			row.QualityState = model.QualityStateHealthy
+		}
 		filtered = append(filtered, row)
 	}
 	if len(filtered) == 0 {
@@ -180,7 +192,11 @@ func upsertNetworkQualityMatrixTx(conn *gorm.DB, rows []*model.OpenFlareNetworkQ
 			"trace_sample_count",
 			"trace_last_seen_at",
 			colEffectiveRTTMs,
+			"observed_rtt_ms",
 			"predicted_rtt_ms",
+			"short_rtt_p50_ms",
+			"short_rtt_p95_ms",
+			"short_sample_count",
 			colRTTEWMAms,
 			colDistinctPrefixCount,
 			"geo_base_rtt_ms",
@@ -190,6 +206,9 @@ func upsertNetworkQualityMatrixTx(conn *gorm.DB, rows []*model.OpenFlareNetworkQ
 			"measurement_source",
 			"quality_score",
 			colConfidence,
+			"quality_state",
+			"consecutive_good_windows",
+			"explore_priority",
 			"data_source",
 			colLastObservedAt,
 			colUpdatedAt,

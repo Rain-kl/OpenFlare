@@ -31,6 +31,7 @@ type SimulateInput struct {
 	QType    string `json:"qtype"` // "A" or "AAAA"
 	ClientIP string `json:"client_ip"`
 	PolicyID *uint  `json:"policy_id,omitempty"`
+	HasECS   *bool  `json:"has_ecs,omitempty"`
 }
 
 // SimulatorClientContext exposes resolved client Geo/ASN metadata used during simulation.
@@ -87,6 +88,7 @@ func SimulateResolution(ctx context.Context, input SimulateInput) (*SimulateResu
 	}
 
 	clientProfile, clientCtx := buildClientProfileFromIP(parsedIP, familyForQType(qtype))
+	clientProfile.FromECS = input.HasECS != nil && *input.HasECS
 	nodeIDs := make([]string, 0, len(bundle.Envelope.Nodes))
 	for _, n := range bundle.Envelope.Nodes {
 		nodeIDs = append(nodeIDs, n.NodeID)

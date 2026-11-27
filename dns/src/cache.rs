@@ -53,7 +53,9 @@ impl PrefixRrl {
             tokens: self.burst,
             last_refill: now,
         });
-        let elapsed = now.saturating_duration_since(bucket.last_refill).as_secs_f64();
+        let elapsed = now
+            .saturating_duration_since(bucket.last_refill)
+            .as_secs_f64();
         if elapsed > 0.0 {
             bucket.tokens = (bucket.tokens + elapsed * self.qps).min(self.burst);
             bucket.last_refill = now;
@@ -75,6 +77,7 @@ pub struct AnswerCacheKey {
     pub qname: LowerName,
     pub qtype: RecordType,
     pub prefix: ClientPrefixKey,
+    pub from_ecs: bool,
 }
 
 #[derive(Debug, Clone)]

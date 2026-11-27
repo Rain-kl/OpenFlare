@@ -4,6 +4,7 @@
 package smartdns
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -147,4 +148,82 @@ func TestSelectNodesLoadBalanceMultiAnswer(t *testing.T) {
 	require.Len(t, res.Answers, 2)
 	assert.NotEqual(t, res.Answers[0].IP, res.Answers[1].IP)
 	assert.Equal(t, "load_balance", res.Mode)
+}
+
+func TestSelectNodesDynamicP95TailPenaltyAndECSExploration(t *testing.T) {
+	nodes := []protocol.DNSSnapshotNode{
+		{NodeID: "hk-a", Name: "HK-A", IPv4: "203.0.113.1", Status: "online", CapacityWeight: 100, CPUUsagePercent: 20, MemoryUsagePercent: 20},
+		{NodeID: "jp-b", Name: "JP-B", IPv4: "203.0.113.2", Status: "online", CapacityWeight: 100, CPUUsagePercent: 20, MemoryUsagePercent: 20},
+		{NodeID: "us-d", Name: "US-D", IPv4: "203.0.113.4", Status: "online", CapacityWeight: 100, CPUUsagePercent: 20, MemoryUsagePercent: 20},
+	}
+	policy := protocol.DNSSnapshotPolicy{
+		ID: 3, Name: "Smart", StrategyType: model.DNSPolicyStrategySmart, TTL: 60, MaxAnswers: 1,
+	}
+	now := time.Unix(1_700_000_000, 0).UTC()
+
+	// 1. P95 tail penalty flips winner only when P95Weight > 0.
+	qualLowWeight := map[string]qualityapi.NodeLinkQuality{
+		"hk-a": {NodeID: "hk-a", EffectiveRTTMs: 30, RTTP95Ms: 220, P95Weight: 0.0, SourceTier: qualityapi.SourceTierMeasuredRegion},
+		"jp-b": {NodeID: "jp-b", EffectiveRTTMs: 65, RTTP95Ms: 80, P95Weight: 0.35, SourceTier: qualityapi.SourceTierMeasuredRegion},
+		"us-d": {NodeID: "us-d", EffectiveRTTMs: 220, RTTP95Ms: 250, P95Weight: 0.35, SourceTier: qualityapi.SourceTierMeasuredRegion},
+	}
+	resNoTail := SelectNodes(SelectInput{
+		Domain: "app.example.com", QType: "A", ClientKey: "113.108.1.0/24",
+		Client: qualityapi.ClientProfile{CountryISO: "CN", IPFamily: "ipv4"}, Nodes: nodes, Policy: policy, Quality: qualLowWeight, Now: now,
+	})
+	require.Equal(t, "hk-a", resNoTail.Answers[0].NodeID)
+
+	qualWithTail := map[string]qualityapi.NodeLinkQuality{
+		"hk-a": {NodeID: "hk-a", EffectiveRTTMs: 30, RTTP95Ms: 220, P95Weight: 0.35, SourceTier: qualityapi.SourceTierMeasuredRegion},
+		"jp-b": {NodeID: "jp-b", EffectiveRTTMs: 65, RTTP95Ms: 80, P95Weight: 0.35, SourceTier: qualityapi.SourceTierMeasuredRegion},
+		"us-d": {NodeID: "us-d", EffectiveRTTMs: 220, RTTP95Ms: 250, P95Weight: 0.35, SourceTier: qualityapi.SourceTierMeasuredRegion},
+	}
+	resWithTail := SelectNodes(SelectInput{
+		Domain: "app.example.com", QType: "A", ClientKey: "113.108.1.0/24",
+		Client: qualityapi.ClientProfile{CountryISO: "CN", IPFamily: "ipv4"}, Nodes: nodes, Policy: policy, Quality: qualWithTail, Now: now,
+	})
+	require.Equal(t, "jp-b", resWithTail.Answers[0].NodeID)
+
+	// 2. Exploration MUST stay disabled when FromECS == false.
+	qualExplore := map[string]qualityapi.NodeLinkQuality{
+		"hk-a": {NodeID: "hk-a", EffectiveRTTMs: 180, PredictedRTTMs: 30, Confidence: 0.2, QualityState: qualityapi.QualityStateStale, ExplorePriority: 0.9, SourceTier: qualityapi.SourceTierMeasuredRegion},
+		"jp-b": {NodeID: "jp-b", EffectiveRTTMs: 65, PredictedRTTMs: 65, Confidence: 0.9, QualityState: qualityapi.QualityStateHealthy, ExplorePriority: 0.0, SourceTier: qualityapi.SourceTierMeasuredRegion},
+		"us-d": {NodeID: "us-d", EffectiveRTTMs: 220, PredictedRTTMs: 210, Confidence: 0.8, QualityState: qualityapi.QualityStateHealthy, ExplorePriority: 0.0, SourceTier: qualityapi.SourceTierMeasuredRegion},
+	}
+	for i := range 500 {
+		prefix := fmt.Sprintf("113.%d.%d.0/24", (i/250)+1, i%250)
+		res := SelectNodes(SelectInput{
+			Domain: "app.example.com", QType: "A", ClientKey: prefix,
+			Client: qualityapi.ClientProfile{CountryISO: "CN", IPFamily: "ipv4", FromECS: false},
+			Nodes:  nodes, Policy: policy, Quality: qualExplore, Now: now,
+		})
+		require.False(t, res.ExplorationUsed)
+		require.Equal(t, "jp-b", res.Answers[0].NodeID)
+	}
+
+	// 3. With FromECS == true, deterministic exploration selects hk-a for a small budget (~0.5%-3%),
+	// clamps TTL <= 25s, never chooses zero-priority us-d, and never writes hysteresis.
+	hyst := NewHysteresisTracker(1024)
+	exploredCount := 0
+	var exploredPrefix string
+	for i := range 500 {
+		prefix := fmt.Sprintf("113.%d.%d.0/24", (i/250)+1, i%250)
+		res := SelectNodes(SelectInput{
+			Domain: "app.example.com", QType: "A", ClientKey: prefix,
+			Client: qualityapi.ClientProfile{CountryISO: "CN", IPFamily: "ipv4", FromECS: true},
+			Nodes:  nodes, Policy: policy, Quality: qualExplore, Hysteresis: hyst, Now: now,
+		})
+		if res.ExplorationUsed {
+			exploredCount++
+			exploredPrefix = prefix
+			require.Equal(t, "hk-a", res.ExploredNodeID)
+			require.Equal(t, "hk-a", res.Answers[0].NodeID)
+			require.LessOrEqual(t, res.TTL, explorationMaxTTL)
+		} else {
+			require.Equal(t, "jp-b", res.Answers[0].NodeID)
+		}
+	}
+	require.Greater(t, exploredCount, 0)
+	require.Less(t, exploredCount, 30)
+	require.Empty(t, hyst.get(hysteresisKey(policy.ID, exploredPrefix, "A"), now))
 }

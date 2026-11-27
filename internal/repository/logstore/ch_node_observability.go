@@ -197,11 +197,25 @@ func scanNodePingRecordRows(rows driver.Rows) ([]analyticsmodel.NodePingRecord, 
 }
 
 func (s *clickhouseLogStore) ListNetworkQualitySamplesSince(ctx context.Context, since time.Time, limit int) ([]analyticsmodel.NetworkQualitySample, error) {
+	return s.ListNetworkQualitySamplesPage(ctx, since, nil, 0, limit)
+}
+
+func (s *clickhouseLogStore) ListNetworkQualitySamplesPage(ctx context.Context, since time.Time, beforeTime *time.Time, beforeID uint64, limit int) ([]analyticsmodel.NetworkQualitySample, error) {
 	conn, err := chConn()
 	if err != nil {
 		return nil, err
 	}
 	clause, args := buildCHNodeObservabilityFilterClause(analyticsmodel.NodeObservabilityFilter{Since: since}, "captured_at")
+	if beforeTime != nil && !beforeTime.IsZero() {
+		ts := beforeTime.UTC()
+		cursorClause := "(captured_at < ? OR (captured_at = ? AND id < ?))"
+		if clause == "1" {
+			clause = cursorClause
+		} else {
+			clause += " AND " + cursorClause
+		}
+		args = append(args, ts, ts, beforeID)
+	}
 	sql := fmt.Sprintf(`
 SELECT %s
 FROM %s

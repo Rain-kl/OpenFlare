@@ -30727,6 +30727,9 @@ const docTemplate = `{
                 "confidence": {
                     "type": "number"
                 },
+                "consecutive_good_windows": {
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -30737,6 +30740,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "effective_rtt_ms": {
+                    "type": "number"
+                },
+                "explore_priority": {
                     "type": "number"
                 },
                 "geo_accuracy_km": {
@@ -30784,6 +30790,9 @@ const docTemplate = `{
                 "node_status": {
                     "type": "string"
                 },
+                "observed_rtt_ms": {
+                    "type": "number"
+                },
                 "predicted_rtt_ms": {
                     "type": "number"
                 },
@@ -30805,8 +30814,20 @@ const docTemplate = `{
                 "quality_score": {
                     "type": "number"
                 },
+                "quality_state": {
+                    "type": "string"
+                },
                 "rtt_ewma_ms": {
                     "type": "number"
+                },
+                "short_rtt_p50_ms": {
+                    "type": "number"
+                },
+                "short_rtt_p95_ms": {
+                    "type": "number"
+                },
+                "short_sample_count": {
+                    "type": "integer"
                 },
                 "stats_version": {
                     "type": "integer"
@@ -33150,6 +33171,9 @@ const docTemplate = `{
         "apps_openflare_smartdns.CandidateTrace": {
             "type": "object",
             "properties": {
+                "confidence": {
+                    "type": "number"
+                },
                 "effective_rtt_ms": {
                     "type": "number"
                 },
@@ -33158,6 +33182,9 @@ const docTemplate = `{
                 },
                 "exclusion_reason": {
                     "type": "string"
+                },
+                "explore_priority": {
+                    "type": "number"
                 },
                 "final_score": {
                     "type": "number"
@@ -33188,6 +33215,15 @@ const docTemplate = `{
                 },
                 "overloaded": {
                     "type": "boolean"
+                },
+                "p95_weight": {
+                    "type": "number"
+                },
+                "quality_state": {
+                    "type": "string"
+                },
+                "rtt_p95_ms": {
+                    "type": "number"
                 },
                 "selected": {
                     "type": "boolean"
@@ -33816,6 +33852,12 @@ const docTemplate = `{
                         "$ref": "#/definitions/apps_openflare_smartdns.CandidateTrace"
                     }
                 },
+                "exploration_used": {
+                    "type": "boolean"
+                },
+                "explored_node_id": {
+                    "type": "string"
+                },
                 "fallback_reason": {
                     "type": "string"
                 },
@@ -33914,6 +33956,9 @@ const docTemplate = `{
                 },
                 "domain": {
                     "type": "string"
+                },
+                "has_ecs": {
+                    "type": "boolean"
                 },
                 "policy_id": {
                     "type": "integer"
@@ -36894,6 +36939,9 @@ const docTemplate = `{
                 "disp": {
                     "type": "number"
                 },
+                "exp": {
+                    "type": "number"
+                },
                 "f": {
                     "type": "string"
                 },
@@ -36912,7 +36960,16 @@ const docTemplate = `{
                 "n": {
                     "type": "string"
                 },
+                "obs_rtt": {
+                    "type": "number"
+                },
                 "p95": {
+                    "type": "number"
+                },
+                "p95w": {
+                    "type": "number"
+                },
+                "pred_rtt": {
                     "type": "number"
                 },
                 "r": {
@@ -36920,6 +36977,9 @@ const docTemplate = `{
                 },
                 "rtt": {
                     "type": "number"
+                },
+                "st": {
+                    "type": "string"
                 },
                 "tier": {
                     "type": "string"

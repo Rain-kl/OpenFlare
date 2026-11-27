@@ -50,6 +50,15 @@ const (
 	ProbeProtoTCP = "tcp"
 	// ProbeProtoTraceroute probes targets with full hop-by-hop trippy traceroute.
 	ProbeProtoTraceroute = "traceroute"
+
+	// QualityStateHealthy indicates fresh measurements consistent with normal uncongested routing.
+	QualityStateHealthy = "healthy"
+	// QualityStateDegraded indicates acute or sustained latency/retransmission degradation.
+	QualityStateDegraded = "degraded"
+	// QualityStateRecovering indicates an impaired link showing initial normal observations awaiting confirmation.
+	QualityStateRecovering = "recovering"
+	// QualityStateStale indicates no recent fresh measurements are available for the node-client slice.
+	QualityStateStale = "stale"
 )
 
 // OpenFlareNetworkQualitySample represents a single aggregated quality observation stored in logstore.
@@ -88,48 +97,55 @@ func (OpenFlareNetworkQualitySample) TableName() string {
 
 // OpenFlareNetworkQualityMatrix stores measured network quality matrix per (node_id, client_asn, client_country, client_region, ip_family, aggregation_level).
 type OpenFlareNetworkQualityMatrix struct {
-	ID                  uint       `json:"id" gorm:"primaryKey;autoIncrement"`
-	NodeID              string     `json:"node_id" gorm:"column:node_id;size:64;not null;uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2"`
-	NodeASN             uint32     `json:"node_asn" gorm:"column:node_asn;not null;default:0"`
-	ClientASN           uint32     `json:"client_asn" gorm:"column:client_asn;not null;uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2;index:idx_of_nq_matrix_client_asn"`
-	ClientCountry       string     `json:"client_country" gorm:"column:client_country;size:16;not null;default:'';uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2;index:idx_of_nq_matrix_country;index:idx_of_nq_matrix_region"`
-	ClientRegion        string     `json:"client_region" gorm:"column:client_region;size:32;not null;default:'';uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2;index:idx_of_nq_matrix_region"`
-	IPFamily            string     `json:"ip_family" gorm:"column:ip_family;size:8;not null;default:'unknown';uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2;index:idx_of_nq_matrix_level_family"`
-	AggregationLevel    string     `json:"aggregation_level" gorm:"column:aggregation_level;size:16;not null;default:'country';uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2;index:idx_of_nq_matrix_level_family"`
-	StatsVersion        int        `json:"stats_version" gorm:"column:stats_version;not null;default:1"`
-	ClientASNName       string     `json:"client_asn_name" gorm:"column:client_asn_name;size:255;not null;default:''"`
-	TCPRTTP50Ms         float64    `json:"tcp_rtt_p50_ms" gorm:"column:tcp_rtt_p50_ms;not null;default:0"`
-	TCPRTTP95Ms         float64    `json:"tcp_rtt_p95_ms" gorm:"column:tcp_rtt_p95_ms;not null;default:0"`
-	TCPMinRTTMs         float64    `json:"tcp_min_rtt_ms" gorm:"column:tcp_min_rtt_ms;not null;default:0"`
-	TCPRetransRate      float64    `json:"tcp_retrans_rate" gorm:"column:tcp_retrans_rate;not null;default:0"`
-	TCPSampleCount      int        `json:"tcp_sample_count" gorm:"column:tcp_sample_count;not null;default:0"`
-	TCPLastSeenAt       *time.Time `json:"tcp_last_seen_at" gorm:"column:tcp_last_seen_at"`
-	ProbeRTTP50Ms       float64    `json:"probe_rtt_p50_ms" gorm:"column:probe_rtt_p50_ms;not null;default:0"`
-	ProbeLossRate       float64    `json:"probe_loss_rate" gorm:"column:probe_loss_rate;not null;default:0"`
-	ProbeSampleCount    int        `json:"probe_sample_count" gorm:"column:probe_sample_count;not null;default:0"`
-	ProbeProto          string     `json:"probe_proto" gorm:"column:probe_proto;size:16;not null;default:''"`
-	ProbeLastSeenAt     *time.Time `json:"probe_last_seen_at" gorm:"column:probe_last_seen_at"`
-	TraceRTTP50Ms       float64    `json:"trace_rtt_p50_ms" gorm:"column:trace_rtt_p50_ms;not null;default:0"`
-	TraceLossRate       float64    `json:"trace_loss_rate" gorm:"column:trace_loss_rate;not null;default:0"`
-	TraceHopCount       int        `json:"trace_hop_count" gorm:"column:trace_hop_count;not null;default:0"`
-	TraceASPath         string     `json:"trace_as_path" gorm:"column:trace_as_path;type:text;not null;default:'[]'"`
-	TraceSampleCount    int        `json:"trace_sample_count" gorm:"column:trace_sample_count;not null;default:0"`
-	TraceLastSeenAt     *time.Time `json:"trace_last_seen_at" gorm:"column:trace_last_seen_at"`
-	EffectiveRTTMs      float64    `json:"effective_rtt_ms" gorm:"column:effective_rtt_ms;not null;default:0"`
-	PredictedRTTMs      float64    `json:"predicted_rtt_ms" gorm:"column:predicted_rtt_ms;not null;default:0"`
-	RTTEWMAms           float64    `json:"rtt_ewma_ms" gorm:"column:rtt_ewma_ms;not null;default:0"`
-	DistinctPrefixCount int        `json:"distinct_prefix_count" gorm:"column:distinct_prefix_count;not null;default:0"`
-	GeoBaseRTTMs        float64    `json:"geo_base_rtt_ms" gorm:"column:geo_base_rtt_ms;not null;default:0"`
-	GeoAccuracyKm       float64    `json:"geo_accuracy_km" gorm:"column:geo_accuracy_km;not null;default:0"`
-	GeoSource           string     `json:"geo_source" gorm:"column:geo_source;size:16;not null;default:''"`
-	GeoConfidence       float64    `json:"geo_confidence" gorm:"column:geo_confidence;not null;default:0"`
-	MeasurementSource   string     `json:"measurement_source" gorm:"column:measurement_source;size:16;not null;default:''"`
-	QualityScore        float64    `json:"quality_score" gorm:"column:quality_score;not null;default:0;index:idx_of_nq_matrix_score"`
-	Confidence          float64    `json:"confidence" gorm:"column:confidence;not null;default:0"`
-	DataSource          string     `json:"data_source" gorm:"column:data_source;size:16;not null;default:'measured'"`
-	LastObservedAt      *time.Time `json:"last_observed_at" gorm:"column:last_observed_at"`
-	CreatedAt           time.Time  `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt           time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
+	ID                     uint       `json:"id" gorm:"primaryKey;autoIncrement"`
+	NodeID                 string     `json:"node_id" gorm:"column:node_id;size:64;not null;uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2"`
+	NodeASN                uint32     `json:"node_asn" gorm:"column:node_asn;not null;default:0"`
+	ClientASN              uint32     `json:"client_asn" gorm:"column:client_asn;not null;uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2;index:idx_of_nq_matrix_client_asn"`
+	ClientCountry          string     `json:"client_country" gorm:"column:client_country;size:16;not null;default:'';uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2;index:idx_of_nq_matrix_country;index:idx_of_nq_matrix_region"`
+	ClientRegion           string     `json:"client_region" gorm:"column:client_region;size:32;not null;default:'';uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2;index:idx_of_nq_matrix_region"`
+	IPFamily               string     `json:"ip_family" gorm:"column:ip_family;size:8;not null;default:'unknown';uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2;index:idx_of_nq_matrix_level_family"`
+	AggregationLevel       string     `json:"aggregation_level" gorm:"column:aggregation_level;size:16;not null;default:'country';uniqueIndex:uidx_of_nq_matrix_node_asn_geo_v2;index:idx_of_nq_matrix_level_family"`
+	StatsVersion           int        `json:"stats_version" gorm:"column:stats_version;not null;default:1"`
+	ClientASNName          string     `json:"client_asn_name" gorm:"column:client_asn_name;size:255;not null;default:''"`
+	TCPRTTP50Ms            float64    `json:"tcp_rtt_p50_ms" gorm:"column:tcp_rtt_p50_ms;not null;default:0"`
+	TCPRTTP95Ms            float64    `json:"tcp_rtt_p95_ms" gorm:"column:tcp_rtt_p95_ms;not null;default:0"`
+	TCPMinRTTMs            float64    `json:"tcp_min_rtt_ms" gorm:"column:tcp_min_rtt_ms;not null;default:0"`
+	TCPRetransRate         float64    `json:"tcp_retrans_rate" gorm:"column:tcp_retrans_rate;not null;default:0"`
+	TCPSampleCount         int        `json:"tcp_sample_count" gorm:"column:tcp_sample_count;not null;default:0"`
+	TCPLastSeenAt          *time.Time `json:"tcp_last_seen_at" gorm:"column:tcp_last_seen_at"`
+	ProbeRTTP50Ms          float64    `json:"probe_rtt_p50_ms" gorm:"column:probe_rtt_p50_ms;not null;default:0"`
+	ProbeLossRate          float64    `json:"probe_loss_rate" gorm:"column:probe_loss_rate;not null;default:0"`
+	ProbeSampleCount       int        `json:"probe_sample_count" gorm:"column:probe_sample_count;not null;default:0"`
+	ProbeProto             string     `json:"probe_proto" gorm:"column:probe_proto;size:16;not null;default:''"`
+	ProbeLastSeenAt        *time.Time `json:"probe_last_seen_at" gorm:"column:probe_last_seen_at"`
+	TraceRTTP50Ms          float64    `json:"trace_rtt_p50_ms" gorm:"column:trace_rtt_p50_ms;not null;default:0"`
+	TraceLossRate          float64    `json:"trace_loss_rate" gorm:"column:trace_loss_rate;not null;default:0"`
+	TraceHopCount          int        `json:"trace_hop_count" gorm:"column:trace_hop_count;not null;default:0"`
+	TraceASPath            string     `json:"trace_as_path" gorm:"column:trace_as_path;type:text;not null;default:'[]'"`
+	TraceSampleCount       int        `json:"trace_sample_count" gorm:"column:trace_sample_count;not null;default:0"`
+	TraceLastSeenAt        *time.Time `json:"trace_last_seen_at" gorm:"column:trace_last_seen_at"`
+	EffectiveRTTMs         float64    `json:"effective_rtt_ms" gorm:"column:effective_rtt_ms;not null;default:0"`
+	ObservedRTTMs          float64    `json:"observed_rtt_ms" gorm:"column:observed_rtt_ms;not null;default:0"`
+	PredictedRTTMs         float64    `json:"predicted_rtt_ms" gorm:"column:predicted_rtt_ms;not null;default:0"`
+	ShortRTTP50Ms          float64    `json:"short_rtt_p50_ms" gorm:"column:short_rtt_p50_ms;not null;default:0"`
+	ShortRTTP95Ms          float64    `json:"short_rtt_p95_ms" gorm:"column:short_rtt_p95_ms;not null;default:0"`
+	ShortSampleCount       int        `json:"short_sample_count" gorm:"column:short_sample_count;not null;default:0"`
+	RTTEWMAms              float64    `json:"rtt_ewma_ms" gorm:"column:rtt_ewma_ms;not null;default:0"`
+	DistinctPrefixCount    int        `json:"distinct_prefix_count" gorm:"column:distinct_prefix_count;not null;default:0"`
+	GeoBaseRTTMs           float64    `json:"geo_base_rtt_ms" gorm:"column:geo_base_rtt_ms;not null;default:0"`
+	GeoAccuracyKm          float64    `json:"geo_accuracy_km" gorm:"column:geo_accuracy_km;not null;default:0"`
+	GeoSource              string     `json:"geo_source" gorm:"column:geo_source;size:16;not null;default:''"`
+	GeoConfidence          float64    `json:"geo_confidence" gorm:"column:geo_confidence;not null;default:0"`
+	MeasurementSource      string     `json:"measurement_source" gorm:"column:measurement_source;size:16;not null;default:''"`
+	QualityScore           float64    `json:"quality_score" gorm:"column:quality_score;not null;default:0;index:idx_of_nq_matrix_score"`
+	Confidence             float64    `json:"confidence" gorm:"column:confidence;not null;default:0"`
+	QualityState           string     `json:"quality_state" gorm:"column:quality_state;size:16;not null;default:'healthy'"`
+	ConsecutiveGoodWindows int        `json:"consecutive_good_windows" gorm:"column:consecutive_good_windows;not null;default:0"`
+	ExplorePriority        float64    `json:"explore_priority" gorm:"column:explore_priority;not null;default:0"`
+	DataSource             string     `json:"data_source" gorm:"column:data_source;size:16;not null;default:'measured'"`
+	LastObservedAt         *time.Time `json:"last_observed_at" gorm:"column:last_observed_at"`
+	CreatedAt              time.Time  `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt              time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 // TableName returns the GORM table name.

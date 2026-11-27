@@ -17,6 +17,14 @@ use zen_engine::model::DecisionContent;
 const OVERLOAD_THRESHOLD: f64 = 0.92;
 const HYSTERESIS_MARGIN: f64 = 1.05;
 const HYSTERESIS_TTL: Duration = Duration::from_secs(600);
+const MAX_P95_TAIL_WEIGHT: f64 = 0.35;
+const MAX_EXPLORE_BUDGET: f64 = 0.03;
+const MIN_EXPLORE_BUDGET: f64 = 0.005;
+const EXPLORE_TIME_BUCKET_SECS: u64 = 900;
+const EXPLORATION_MAX_TTL: u32 = 25;
+const COLD_START_EXPLORE_PRIORITY: f64 = 0.35;
+const COLD_START_EXPLORE_MAX_RATIO: f64 = 1.25;
+const COLD_START_EXPLORE_OVERHEAD_MS: f64 = 15.0;
 
 #[derive(Clone)]
 pub struct CompiledPolicy {
@@ -190,6 +198,8 @@ pub struct SelectedIp {
 pub struct SelectionOutput {
     pub answers: Vec<SelectedIp>,
     pub ttl: u32,
+    #[allow(dead_code)]
+    pub exploration_used: bool,
 }
 
 pub fn match_policy<'a>(
@@ -268,6 +278,9 @@ struct ScoredCandidate<'a> {
     node: &'a SnapshotNode,
     ip: IpAddr,
     load_index: f64,
+    effective_rtt_ms: f64,
+    source_tier: &'static str,
+    explore_priority: f64,
     final_score: f64,
     sort_rank: f64,
 }
@@ -281,6 +294,7 @@ pub async fn evaluate_and_select(
     qtype: &str,
     hysteresis: Option<&HysteresisTracker>,
     now: Instant,
+    now_unix_secs: u64,
 ) -> Result<SelectionOutput> {
     let mut params = PolicyParams::from_policy(&policy.raw);
     let clean_domain = normalize_domain(domain);
@@ -359,32 +373,59 @@ pub async fn evaluate_and_select(
 
     sort_candidates(&mut primary);
 
-    let chosen: Vec<ScoredCandidate<'_>> = if !primary.is_empty() {
-        if params.mode == "smart" {
-            if let Some(hyst) = hysteresis {
-                let key = format!("{}:{}:{}", policy.raw.id, client.client_prefix, upper_qtype);
-                if let Some(prev_id) = hyst.get(&key, now) {
-                    if primary[0].node.node_id != prev_id {
-                        if let Some(idx) = primary.iter().position(|c| c.node.node_id == prev_id) {
-                            if primary[0].final_score <= primary[idx].final_score * HYSTERESIS_MARGIN
-                            {
-                                let promoted = primary.remove(idx);
-                                primary.insert(0, promoted);
-                            }
-                        }
-                    }
-                }
-                hyst.set(key, primary[0].node.node_id.clone(), now);
+    let (chosen, exploration_used, out_ttl) = if !primary.is_empty() {
+        if params.mode == "smart" && primary.len() >= 2 && client.from_ecs {
+            if let Some(explored_idx) = select_exploration_candidate(
+                &client.client_prefix,
+                &clean_domain,
+                &primary,
+                now_unix_secs,
+            ) {
+                let explored = primary.remove(explored_idx);
+                primary.insert(0, explored);
+                let out_ans = primary.into_iter().take(params.max_answers).collect();
+                (out_ans, true, params.ttl.min(EXPLORATION_MAX_TTL))
+            } else {
+                apply_hysteresis_and_take(
+                    primary,
+                    hysteresis,
+                    policy.raw.id,
+                    &client.client_prefix,
+                    &upper_qtype,
+                    now,
+                    params.max_answers,
+                    params.ttl,
+                )
             }
+        } else if params.mode == "smart" {
+            apply_hysteresis_and_take(
+                primary,
+                hysteresis,
+                policy.raw.id,
+                &client.client_prefix,
+                &upper_qtype,
+                now,
+                params.max_answers,
+                params.ttl,
+            )
+        } else {
+            (
+                primary.into_iter().take(params.max_answers).collect(),
+                false,
+                params.ttl,
+            )
         }
-        primary.into_iter().take(params.max_answers).collect()
     } else {
-        select_fallback(
-            &policy.raw,
-            &params,
-            overloaded,
-            unfiltered_online,
-            any_non_quarantined,
+        (
+            select_fallback(
+                &policy.raw,
+                &params,
+                overloaded,
+                unfiltered_online,
+                any_non_quarantined,
+            ),
+            false,
+            params.ttl,
         )
     };
 
@@ -399,8 +440,106 @@ pub async fn evaluate_and_select(
 
     Ok(SelectionOutput {
         answers,
-        ttl: params.ttl,
+        ttl: out_ttl,
+        exploration_used,
     })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_hysteresis_and_take<'a>(
+    mut primary: Vec<ScoredCandidate<'a>>,
+    hysteresis: Option<&HysteresisTracker>,
+    policy_id: u64,
+    client_prefix: &str,
+    upper_qtype: &str,
+    now: Instant,
+    max_answers: usize,
+    ttl: u32,
+) -> (Vec<ScoredCandidate<'a>>, bool, u32) {
+    if let Some(hyst) = hysteresis {
+        let key = format!("{policy_id}:{client_prefix}:{upper_qtype}");
+        if let Some(prev_id) = hyst.get(&key, now) {
+            if primary[0].node.node_id != prev_id {
+                if let Some(idx) = primary.iter().position(|c| c.node.node_id == prev_id) {
+                    if primary[0].final_score <= primary[idx].final_score * HYSTERESIS_MARGIN {
+                        let promoted = primary.remove(idx);
+                        primary.insert(0, promoted);
+                    }
+                }
+            }
+        }
+        hyst.set(key, primary[0].node.node_id.clone(), now);
+    }
+    (primary.into_iter().take(max_answers).collect(), false, ttl)
+}
+
+fn select_exploration_candidate(
+    client_prefix: &str,
+    domain: &str,
+    primary: &[ScoredCandidate<'_>],
+    now_unix_secs: u64,
+) -> Option<usize> {
+    if primary.len() < 2 {
+        return None;
+    }
+    let primary_rtt = primary[0].effective_rtt_ms;
+    let mut priorities = vec![0.0; primary.len()];
+    let mut sum_priority = 0.0;
+    let mut max_priority = 0.0f64;
+
+    for (idx, cand) in primary.iter().enumerate().skip(1) {
+        let prio = effective_explore_priority(cand, primary_rtt);
+        if prio > 0.0 {
+            priorities[idx] = prio;
+            sum_priority += prio;
+            if prio > max_priority {
+                max_priority = prio;
+            }
+        }
+    }
+    if sum_priority <= 0.0 || max_priority <= 0.0 {
+        return None;
+    }
+
+    let budget = (MAX_EXPLORE_BUDGET * max_priority).clamp(MIN_EXPLORE_BUDGET, MAX_EXPLORE_BUDGET);
+    let bucket = now_unix_secs / EXPLORE_TIME_BUCKET_SECS;
+    let u = deterministic_explore_unit_float(client_prefix, domain, bucket);
+    if u >= budget {
+        return None;
+    }
+
+    let target = (u / budget) * sum_priority;
+    let mut cum = 0.0;
+    let mut last_valid = None;
+    for (idx, &prio) in priorities.iter().enumerate().skip(1) {
+        if prio <= 0.0 {
+            continue;
+        }
+        last_valid = Some(idx);
+        cum += prio;
+        if cum >= target {
+            return Some(idx);
+        }
+    }
+    last_valid
+}
+
+fn effective_explore_priority(cand: &ScoredCandidate<'_>, primary_rtt: f64) -> f64 {
+    let prio = cand.explore_priority.clamp(0.0, 1.0);
+    if prio > 0.0 {
+        return prio;
+    }
+    let is_cold_start = cand.source_tier == "geo_prior" || cand.source_tier == "inferred";
+    if !is_cold_start || cand.effective_rtt_ms <= 0.0 {
+        return 0.0;
+    }
+    if primary_rtt <= 0.0
+        || cand.effective_rtt_ms
+            <= primary_rtt * COLD_START_EXPLORE_MAX_RATIO + COLD_START_EXPLORE_OVERHEAD_MS
+    {
+        return COLD_START_EXPLORE_PRIORITY;
+    }
+    0.0
 }
 
 fn select_fallback<'a>(
@@ -487,9 +626,16 @@ fn score_candidate<'a>(
         _ => 0.5,
     };
 
-    let s_lat = if link.effective_rtt_ms > 0.0 {
-        ((1.0 / (1.0 + link.effective_rtt_ms / 80.0)) * (1.0 - link.loss_rate.clamp(0.0, 1.0)))
-            .clamp(0.0, 1.0)
+    let eff_rtt = link.effective_rtt_ms;
+    let p95_w = link.p95_weight.clamp(0.0, MAX_P95_TAIL_WEIGHT);
+    let scored_rtt = if eff_rtt > 0.0 && link.rtt_p95_ms > eff_rtt && p95_w > 0.0 {
+        eff_rtt + p95_w * (link.rtt_p95_ms - eff_rtt)
+    } else {
+        eff_rtt
+    };
+
+    let s_lat = if scored_rtt > 0.0 {
+        ((1.0 / (1.0 + scored_rtt / 80.0)) * (1.0 - link.loss_rate.clamp(0.0, 1.0))).clamp(0.0, 1.0)
     } else {
         (link.quality_score / 100.0).clamp(0.0, 1.0)
     };
@@ -519,7 +665,8 @@ fn score_candidate<'a>(
         } else {
             (params.w_lat / sum, params.w_load / sum, params.w_geo / sum)
         };
-        let score = (wl * s_lat + wlo * s_load + wg * s_geo) * tag_mult * (cap_wt / 100.0).powf(0.15);
+        let score =
+            (wl * s_lat + wlo * s_load + wg * s_geo) * tag_mult * (cap_wt / 100.0).powf(0.15);
         (score, score)
     };
 
@@ -527,6 +674,9 @@ fn score_candidate<'a>(
         node,
         ip,
         load_index,
+        effective_rtt_ms: eff_rtt,
+        source_tier: link.source_tier,
+        explore_priority: link.explore_priority.clamp(0.0, 1.0),
         final_score,
         sort_rank,
     }
@@ -591,12 +741,16 @@ fn pick_node_ip(node: &SnapshotNode, is_v6: bool) -> Option<IpAddr> {
 }
 
 fn deterministic_unit_float(client_key: &str, domain: &str, node_id: &str) -> f64 {
+    unit_float_from_seed(&format!("{client_key}|{domain}|{node_id}"))
+}
+
+fn deterministic_explore_unit_float(client_prefix: &str, domain: &str, time_bucket: u64) -> f64 {
+    unit_float_from_seed(&format!("explore|{client_prefix}|{domain}|{time_bucket}"))
+}
+
+fn unit_float_from_seed(seed: &str) -> f64 {
     let mut hasher = Sha256::new();
-    hasher.update(client_key.as_bytes());
-    hasher.update(b"|");
-    hasher.update(domain.as_bytes());
-    hasher.update(b"|");
-    hasher.update(node_id.as_bytes());
+    hasher.update(seed.as_bytes());
     let digest = hasher.finalize();
     let raw = u64::from_be_bytes(digest[..8].try_into().unwrap_or([0; 8]));
     ((raw % 1_000_000) as f64 + 1.0) / 1_000_002.0

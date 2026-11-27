@@ -5,9 +5,15 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct NodeLinkQuality {
     pub effective_rtt_ms: f64,
+    pub rtt_p95_ms: f64,
+    pub p95_weight: f64,
     pub loss_rate: f64,
+    #[allow(dead_code)]
+    pub confidence: f64,
     pub quality_score: f64,
     #[allow(dead_code)]
+    pub quality_state: String,
+    pub explore_priority: f64,
     pub source_tier: &'static str,
 }
 
@@ -15,8 +21,13 @@ impl Default for NodeLinkQuality {
     fn default() -> Self {
         Self {
             effective_rtt_ms: 120.0,
+            rtt_p95_ms: 150.0,
+            p95_weight: 0.0,
             loss_rate: 0.0,
+            confidence: 0.05,
             quality_score: 40.0,
+            quality_state: "healthy".to_string(),
+            explore_priority: 0.0,
             source_tier: "geo_prior",
         }
     }
@@ -127,7 +138,7 @@ impl QualityOracle for SnapshotQualityOracle {
                 ip_family: family.clone(),
             };
             if let Some(entry) = self.regions.get(&r_key) {
-                return entry_to_quality(entry, "measured_region");
+                return entry_to_quality(entry, "measured_region", true);
             }
         }
 
@@ -139,7 +150,7 @@ impl QualityOracle for SnapshotQualityOracle {
                 ip_family: family.clone(),
             };
             if let Some(entry) = self.countries.get(&c_key) {
-                return entry_to_quality(entry, "measured_country");
+                return entry_to_quality(entry, "measured_country", true);
             }
         }
 
@@ -150,7 +161,7 @@ impl QualityOracle for SnapshotQualityOracle {
                 ip_family: family,
             };
             if let Some(entry) = self.country_fallback.get(&fb_key) {
-                return entry_to_quality(entry, "inferred");
+                return entry_to_quality(entry, "inferred", false);
             }
         }
 
@@ -165,8 +176,13 @@ impl QualityOracle for SnapshotQualityOracle {
                 let score = (100.0 / (1.0 + eff_rtt / 80.0)).clamp(5.0, 99.0);
                 return NodeLinkQuality {
                     effective_rtt_ms: eff_rtt,
+                    rtt_p95_ms: eff_rtt * 1.25,
+                    p95_weight: 0.0,
                     loss_rate: 0.0,
+                    confidence: 0.15,
                     quality_score: score,
+                    quality_state: "healthy".to_string(),
+                    explore_priority: 0.0,
                     source_tier: "geo_prior",
                 };
             }
@@ -176,18 +192,47 @@ impl QualityOracle for SnapshotQualityOracle {
     }
 }
 
-fn entry_to_quality(entry: &CompactQualityEntry, tier: &'static str) -> NodeLinkQuality {
+fn entry_to_quality(
+    entry: &CompactQualityEntry,
+    tier: &'static str,
+    is_direct: bool,
+) -> NodeLinkQuality {
     let eff = if entry.effective_rtt_ms > 0.0 {
         entry.effective_rtt_ms
     } else {
         120.0
     };
+    let p95 = entry.rtt_p95_ms.max(eff);
+    let p95_w = if is_direct {
+        entry.p95_weight.clamp(0.0, 0.35)
+    } else {
+        0.0
+    };
+    let scored_rtt = if p95 > eff && p95_w > 0.0 {
+        eff + p95_w * (p95 - eff)
+    } else {
+        eff
+    };
     let loss = entry.loss_rate.clamp(0.0, 1.0);
-    let score = (100.0 / (1.0 + eff / 80.0) * (1.0 - loss)).clamp(1.0, 99.9);
+    let score = (100.0 / (1.0 + scored_rtt / 80.0) * (1.0 - loss)).clamp(1.0, 99.9);
+    let state = if entry.quality_state.trim().is_empty() {
+        "healthy".to_string()
+    } else {
+        entry.quality_state.trim().to_ascii_lowercase()
+    };
     NodeLinkQuality {
         effective_rtt_ms: eff,
+        rtt_p95_ms: p95,
+        p95_weight: p95_w,
         loss_rate: loss,
+        confidence: entry.confidence.clamp(0.0, 1.0),
         quality_score: score,
+        quality_state: state,
+        explore_priority: if is_direct {
+            entry.explore_priority.clamp(0.0, 1.0)
+        } else {
+            0.0
+        },
         source_tier: tier,
     }
 }

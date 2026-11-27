@@ -2673,6 +2673,8 @@ definitions:
         type: string
       confidence:
         type: number
+      consecutive_good_windows:
+        type: integer
       created_at:
         type: string
       data_source:
@@ -2680,6 +2682,8 @@ definitions:
       distinct_prefix_count:
         type: integer
       effective_rtt_ms:
+        type: number
+      explore_priority:
         type: number
       geo_accuracy_km:
         type: number
@@ -2711,6 +2715,8 @@ definitions:
         type: string
       node_status:
         type: string
+      observed_rtt_ms:
+        type: number
       predicted_rtt_ms:
         type: number
       probe_last_seen_at:
@@ -2725,8 +2731,16 @@ definitions:
         type: integer
       quality_score:
         type: number
+      quality_state:
+        type: string
       rtt_ewma_ms:
         type: number
+      short_rtt_p50_ms:
+        type: number
+      short_rtt_p95_ms:
+        type: number
+      short_sample_count:
+        type: integer
       stats_version:
         type: integer
       tcp_last_seen_at:
@@ -4262,12 +4276,16 @@ definitions:
     type: object
   apps_openflare_smartdns.CandidateTrace:
     properties:
+      confidence:
+        type: number
       effective_rtt_ms:
         type: number
       eligible:
         type: boolean
       exclusion_reason:
         type: string
+      explore_priority:
+        type: number
       final_score:
         type: number
       geo_score:
@@ -4288,6 +4306,12 @@ definitions:
         type: string
       overloaded:
         type: boolean
+      p95_weight:
+        type: number
+      quality_state:
+        type: string
+      rtt_p95_ms:
+        type: number
       selected:
         type: boolean
       source_tier:
@@ -4699,6 +4723,10 @@ definitions:
         items:
           $ref: '#/definitions/apps_openflare_smartdns.CandidateTrace'
         type: array
+      exploration_used:
+        type: boolean
+      explored_node_id:
+        type: string
       fallback_reason:
         type: string
       fallback_used:
@@ -4764,6 +4792,8 @@ definitions:
         type: string
       domain:
         type: string
+      has_ecs:
+        type: boolean
       policy_id:
         type: integer
       qtype:
@@ -6745,6 +6775,8 @@ definitions:
         type: number
       disp:
         type: number
+      exp:
+        type: number
       f:
         type: string
       geo_ok:
@@ -6757,12 +6789,20 @@ definitions:
         type: number
       "n":
         type: string
+      obs_rtt:
+        type: number
       p95:
+        type: number
+      p95w:
+        type: number
+      pred_rtt:
         type: number
       r:
         type: string
       rtt:
         type: number
+      st:
+        type: string
       tier:
         type: string
     type: object

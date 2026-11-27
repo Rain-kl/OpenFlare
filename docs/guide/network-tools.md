@@ -17,10 +17,15 @@ OpenFlare「网络工具」子系统提供控制平面与多边缘节点协同�
    - 分桶内放弃有偏均分位均值，改用 **64 桶对数直方图（`LogHistogram64`，覆盖 `[0.5ms, 16384ms]`，相对误差 `< 8%`）** 与 **64 位 Bottom-k 去重前缀草图（`PrefixSketch`）** 统计独立网段覆盖率，同时使用球面三角学合成加权地理质心与按时间戳排序的指数移动平均（`rtt_ewma_ms`），并写入包含 25 列的 `of_network_quality_samples`。
 
 3. **两级精确质量矩阵与 5 级延迟预测引擎（Phase 1.5）**
-   - 定期任务 `of_netquality_rollup` 将实测样本独立聚合被动 TCP（`tcp_*`）、主动 ICMP/TCPing（`probe_*`）与路由追踪（`trace_*`）指标，生成两级实测矩阵行（`of_network_quality_matrix`）：
+   - 定期任务 `of_netquality_rollup` 通过键集分页全量扫描近 24 小时样本（单页 5,000 条、上限 100,000 条，避免全表截断），将实测样本独立聚合被动 TCP（`tcp_*`）、主动 ICMP/TCPing（`probe_*`）与路由追踪（`trace_*`）指标，生成两级实测矩阵行（`of_network_quality_matrix`）：
      - `region` 级：对高地域跨度白名单国家（`CN, US, RU, CA, BR, AU, IN, JP, DE, GB`）保留省/州粒度（如 `CN-GD`、`US-CA`）；
      - `country` 级：在国家级保留统一回退基准。
      - Rollup 仅落盘实测数据（`data_source='measured'`），并递增快照代数 `RollupGeneration` 失效旧预测缓存。
+   - **多时间窗感知与四态自愈状态机**：Rollup 同时评估 **10 分钟即时窗口**、**45 分钟短期窗口**（20 分钟半衰期）与 **24 小时基线窗口**（6 小时半衰期），将调度延迟（`effective_rtt_ms`）、最新观测值（`observed_rtt_ms`）、无拥塞预测基线（`predicted_rtt_ms`）、样本置信度（`confidence`）与线路状态（`quality_state`：`healthy` / `degraded` / `recovering` / `stale`）显式解耦：
+     - 即时或短期窗口出现显著延迟飙升或高重传时立即转入 `degraded` 并同步更新调度延迟；
+     - 超过 60 分钟无新观测时进入 `stale`，仅按 2 小时半衰期衰减 `confidence` 并按恢复潜力提升 `explore_priority`，**不会因陈旧度直接下调拥塞延迟**；
+     - 受损线路重新获得连续 **2 个有效新鲜观测窗口**确认恢复正常后，才从 `recovering` 切回 `healthy` 并释放主流量，避免单次偶发样本引发震荡。
+   - **样本量与前缀动态加权 P95 惩罚**：P95 尾部抖动权重随有效样本量（`>= 10` 起步）和去重网段覆盖率（`distinct_prefix_count`）在 `[0, 0.35]` 区间平滑放大，既能捕捉晚高峰尾部恶化，又可防止小样本异常连接误伤整条线路。
    - 5 级按需延迟预测器（`Predictor`）支持单次或批量边缘节点排序，按可信度由高到低依次执行：`exact_region`（精确省/州实测） → `country_rollup`（国家级实测） → `inferred_upstream`（基于多维网络相似度、同组线路过滤与非负几何残差缩并的同节点相似上游迁移） → `similar_node`（冷启动节点严格限定同城 `<= 50km` 且同 `network_group` 兄弟节点加权映射） → `geo_prior`（球面地理传输基线）。
 
 4. **受控主动探测靶点池与双向 SSRF 防护**

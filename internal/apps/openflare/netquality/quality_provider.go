@@ -196,27 +196,57 @@ func buildCompactQualityEntries(
 			continue
 		}
 		p95 := row.EffectiveRTTMs
-		if row.MeasurementSource == model.NetworkQualitySourceTCPPassive && row.TCPRTTP95Ms > p95 {
-			p95 = row.TCPRTTP95Ms
+		if row.MeasurementSource == model.NetworkQualitySourceTCPPassive {
+			switch {
+			case row.ShortRTTP95Ms > p95 && row.ShortSampleCount >= p95MinSamples:
+				p95 = row.ShortRTTP95Ms
+			case row.TCPRTTP95Ms > p95:
+				p95 = row.TCPRTTP95Ms
+			}
+		}
+		var p95Weight float64
+		if row.MeasurementSource == model.NetworkQualitySourceTCPPassive {
+			p95Samples := row.TCPSampleCount
+			if row.ShortSampleCount >= p95MinSamples {
+				p95Samples = row.ShortSampleCount
+			}
+			p95Weight = computeDynamicP95Weight(p95Samples, row.DistinctPrefixCount)
+		}
+		obsRTT := row.ObservedRTTMs
+		if obsRTT <= 0 {
+			obsRTT = row.EffectiveRTTMs
+		}
+		predRTT := row.PredictedRTTMs
+		if predRTT <= 0 {
+			predRTT = row.EffectiveRTTMs
+		}
+		state := strings.TrimSpace(row.QualityState)
+		if state == "" {
+			state = qualityapi.QualityStateHealthy
 		}
 		geoKnown := hasKnownRowGeoBase(row)
 		if geoKnown {
 			extrasByNode[row.NodeID] = append(extrasByNode[row.NodeID], row.EffectiveRTTMs-row.GeoBaseRTTMs)
 		}
 		entries = append(entries, qualityapi.CompactQualityEntry{
-			NodeID:         row.NodeID,
-			ClientASN:      row.ClientASN,
-			ClientCountry:  strings.ToUpper(strings.TrimSpace(row.ClientCountry)),
-			ClientRegion:   strings.ToUpper(strings.TrimSpace(row.ClientRegion)),
-			IPFamily:       normalizePredictorIPFamily(row.IPFamily),
-			Level:          normalizePredictorAggLevel(row.AggregationLevel),
-			EffectiveRTTMs: round2(row.EffectiveRTTMs),
-			RTTP95Ms:       round2(p95),
-			LossRate:       round4(selectDirectLossRate(row, row.MeasurementSource)),
-			Confidence:     round4(clampConfidence(row.Confidence)),
-			GeoBaseRTTMs:   round2(max(0.0, row.GeoBaseRTTMs)),
-			GeoBaseKnown:   geoKnown,
-			SourceTier:     tierFromAggregationLevel(row.AggregationLevel),
+			NodeID:          row.NodeID,
+			ClientASN:       row.ClientASN,
+			ClientCountry:   strings.ToUpper(strings.TrimSpace(row.ClientCountry)),
+			ClientRegion:    strings.ToUpper(strings.TrimSpace(row.ClientRegion)),
+			IPFamily:        normalizePredictorIPFamily(row.IPFamily),
+			Level:           normalizePredictorAggLevel(row.AggregationLevel),
+			EffectiveRTTMs:  round2(row.EffectiveRTTMs),
+			ObservedRTTMs:   round2(obsRTT),
+			PredictedRTTMs:  round2(predRTT),
+			RTTP95Ms:        round2(p95),
+			P95Weight:       p95Weight,
+			LossRate:        round4(selectDirectLossRate(row, row.MeasurementSource)),
+			Confidence:      round4(clampConfidence(row.Confidence)),
+			QualityState:    state,
+			ExplorePriority: round4(clampUnit(row.ExplorePriority, exploreMinPriority, exploreMaxPriority)),
+			GeoBaseRTTMs:    round2(max(0.0, row.GeoBaseRTTMs)),
+			GeoBaseKnown:    geoKnown,
+			SourceTier:      tierFromAggregationLevel(row.AggregationLevel),
 		})
 	}
 	return entries, extrasByNode
@@ -315,11 +345,16 @@ func mapPredictionToLinkQuality(nodeID string, res PredictionResult) qualityapi.
 	return qualityapi.NodeLinkQuality{
 		NodeID:          nodeID,
 		EffectiveRTTMs:  res.RTTMs,
+		ObservedRTTMs:   res.ObservedRTTMs,
+		PredictedRTTMs:  res.PredictedRTTMs,
 		RTTP95Ms:        res.RTTP95Ms,
+		P95Weight:       res.P95Weight,
 		DispersionMs:    res.CandidateDispersionMs,
 		LossRate:        res.LossRate,
 		Confidence:      res.Confidence,
 		QualityScore:    ComputeQualityScore(res),
+		QualityState:    res.QualityState,
+		ExplorePriority: res.ExplorePriority,
 		GeoBaseRTTMs:    res.GeoBaseRTTMs,
 		GeoBaseKnown:    res.GeoBaseKnown,
 		SourceTier:      tier,

@@ -37,17 +37,16 @@ const (
 	geoPriorAddBaseMs    = 8.0
 	unknownGeoPriorMs    = 120.0
 
-	directMatchMaxAge         = 24 * time.Hour
-	directFreshBypassAge      = 2 * time.Hour
-	directRegionMinSamples    = 3
-	directCountryMinSample    = 2
-	stalePassiveAge           = 12 * time.Hour
-	stalePassiveMinSamples    = 3
-	freshProbeMaxAge          = 2 * time.Hour
-	freshProbeMinSamples      = 3
-	directConfidenceHalfLifeH = 24.0
-	directDefaultConfidence   = 0.50
-	directCountryDecayFactor  = 0.90
+	directMatchMaxAge        = 24 * time.Hour
+	directFreshBypassAge     = 2 * time.Hour
+	directRegionMinSamples   = 3
+	directCountryMinSample   = 2
+	stalePassiveAge          = 12 * time.Hour
+	stalePassiveMinSamples   = 3
+	freshProbeMaxAge         = 2 * time.Hour
+	freshProbeMinSamples     = 3
+	directDefaultConfidence  = 0.50
+	directCountryDecayFactor = 0.90
 
 	inferredMaxCandidateAge   = 48 * time.Hour
 	inferredMinTotalWeight    = 0.12
@@ -115,11 +114,16 @@ type PredictQuery struct {
 // PredictionResult represents a unified, source-disambiguated latency prediction.
 type PredictionResult struct {
 	RTTMs                 float64    `json:"rtt_ms"`
+	ObservedRTTMs         float64    `json:"observed_rtt_ms,omitempty"`
+	PredictedRTTMs        float64    `json:"predicted_rtt_ms,omitempty"`
 	RTTP95Ms              float64    `json:"rtt_p95_ms"`
+	P95Weight             float64    `json:"p95_weight,omitempty"`
 	CandidateDispersionMs float64    `json:"candidate_dispersion_ms"`
 	LossRate              float64    `json:"loss_rate,omitempty"`
 	ErrorMs               *float64   `json:"error_ms,omitempty"`
 	Confidence            float64    `json:"confidence"`
+	QualityState          string     `json:"quality_state,omitempty"`
+	ExplorePriority       float64    `json:"explore_priority,omitempty"`
 	MeasurementSource     string     `json:"measurement_source"`
 	PredictionMethod      string     `json:"prediction_method"`
 	GeoBaseRTTMs          float64    `json:"geo_base_rtt_ms"`
@@ -524,18 +528,44 @@ func (p *Predictor) buildDirectPrediction(
 	if conf <= 0 {
 		conf = directDefaultConfidence
 	}
-	conf *= math.Exp(-math.Ln2 * age.Hours() / directConfidenceHalfLifeH)
+	conf *= ageFreshnessFactor(age)
 	if method == PredictionMethodCountryRollup {
 		conf *= directCountryDecayFactor
 	}
 	if row.StatsVersion < model.NetworkQualityStatsVersionHist64 {
 		conf = math.Min(conf, legacyMaxConfidence)
 	}
+
+	obsRTT := row.ObservedRTTMs
+	if obsRTT <= 0 {
+		obsRTT = rttMs
+	}
+	predRTT := row.PredictedRTTMs
+	if predRTT <= 0 {
+		predRTT = rttMs
+	}
+	state := strings.TrimSpace(row.QualityState)
+	if state == "" {
+		state = model.QualityStateHealthy
+	}
+	if age > qualityStaleAge {
+		state = model.QualityStateStale
+	}
+	var p95Weight float64
+	if src == model.NetworkQualitySourceTCPPassive {
+		p95Weight = computeDynamicP95Weight(int(sampleCnt), row.DistinctPrefixCount) //nolint:gosec // bounded sample count
+	}
+
 	return PredictionResult{
 		RTTMs:             round2(rttMs),
+		ObservedRTTMs:     round2(obsRTT),
+		PredictedRTTMs:    round2(predRTT),
 		RTTP95Ms:          round2(max(rttMs, p95Ms)),
+		P95Weight:         p95Weight,
 		LossRate:          round4(selectDirectLossRate(row, src)),
 		Confidence:        round4(math.Max(minSampleConfidence, math.Min(maxSampleConfidence, conf))),
+		QualityState:      state,
+		ExplorePriority:   round4(clampUnit(row.ExplorePriority, exploreMinPriority, exploreMaxPriority)),
 		MeasurementSource: src,
 		PredictionMethod:  method,
 		GeoBaseRTTMs:      round2(geoBase),
@@ -584,10 +614,15 @@ func (p *Predictor) selectDirectSource(row *model.OpenFlareNetworkQualityMatrix)
 	}
 
 	if tcpFreshOK {
-		return row.TCPRTTP50Ms, row.TCPRTTP95Ms, model.NetworkQualitySourceTCPPassive, uint64(max(1, row.TCPSampleCount)), row.TCPLastSeenAt //nolint:gosec // >= 1
+		rtt, p95, samples := selectDirectTCPMetrics(row)
+		return rtt, p95, model.NetworkQualitySourceTCPPassive, samples, row.TCPLastSeenAt
 	}
 	if probeFreshOK {
-		return row.ProbeRTTP50Ms, row.ProbeRTTP50Ms, activeSourceName(row.ProbeProto), uint64(max(1, row.ProbeSampleCount)), row.ProbeLastSeenAt //nolint:gosec // >= 1
+		rtt := row.ProbeRTTP50Ms
+		if row.EffectiveRTTMs > 0 && row.MeasurementSource == activeSourceName(row.ProbeProto) {
+			rtt = row.EffectiveRTTMs
+		}
+		return rtt, rtt, activeSourceName(row.ProbeProto), uint64(max(1, row.ProbeSampleCount)), row.ProbeLastSeenAt //nolint:gosec // >= 1
 	}
 	if row.EffectiveRTTMs > 0 {
 		obs := row.LastObservedAt
@@ -599,6 +634,25 @@ func (p *Predictor) selectDirectSource(row *model.OpenFlareNetworkQualityMatrix)
 		return row.EffectiveRTTMs, row.EffectiveRTTMs, row.MeasurementSource, cnt, obs
 	}
 	return 0, 0, model.MeasurementSourceNone, 0, nil
+}
+
+func selectDirectTCPMetrics(row *model.OpenFlareNetworkQualityMatrix) (rtt, p95 float64, samples uint64) {
+	rtt = row.TCPRTTP50Ms
+	if row.EffectiveRTTMs > 0 && (row.MeasurementSource == "" || row.MeasurementSource == model.NetworkQualitySourceTCPPassive) {
+		rtt = row.EffectiveRTTMs
+	}
+	p95 = row.TCPRTTP95Ms
+	if row.ShortRTTP95Ms > 0 && row.ShortSampleCount >= p95MinSamples {
+		p95 = row.ShortRTTP95Ms
+	}
+	if p95 < rtt {
+		p95 = rtt
+	}
+	sampleCnt := row.TCPSampleCount
+	if row.ShortSampleCount > 0 && row.EffectiveRTTMs > 0 && row.QualityState == model.QualityStateDegraded {
+		sampleCnt = row.ShortSampleCount
+	}
+	return rtt, p95, uint64(max(1, sampleCnt)) //nolint:gosec // >= 1
 }
 
 func activeSourceName(proto string) string {

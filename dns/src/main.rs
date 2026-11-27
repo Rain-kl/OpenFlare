@@ -107,10 +107,15 @@ mod tests {
                     ip_family: "ipv4".to_string(),
                     level: "country".to_string(),
                     effective_rtt_ms: 25.0,
+                    observed_rtt_ms: 25.0,
+                    predicted_rtt_ms: 25.0,
                     rtt_p95_ms: 30.0,
+                    p95_weight: 0.0,
                     dispersion_ms: 3.0,
                     loss_rate: 0.0,
                     confidence: 0.9,
+                    quality_state: "healthy".to_string(),
+                    explore_priority: 0.0,
                     geo_base_rtt_ms: 20.0,
                     geo_base_known: true,
                     source_tier: "asn_country".to_string(),
@@ -123,10 +128,15 @@ mod tests {
                     ip_family: "ipv4".to_string(),
                     level: "country".to_string(),
                     effective_rtt_ms: 26.0,
+                    observed_rtt_ms: 26.0,
+                    predicted_rtt_ms: 26.0,
                     rtt_p95_ms: 31.0,
+                    p95_weight: 0.0,
                     dispersion_ms: 3.0,
                     loss_rate: 0.0,
                     confidence: 0.9,
+                    quality_state: "healthy".to_string(),
+                    explore_priority: 0.0,
                     geo_base_rtt_ms: 20.0,
                     geo_base_known: true,
                     source_tier: "asn_country".to_string(),
@@ -152,6 +162,7 @@ mod tests {
             ip_family: "ipv4".to_string(),
             latitude: None,
             longitude: None,
+            from_ecs: false,
         };
         let policy = match_policy(&compiled.raw, &compiled.policies, "bench.sdns.example.com")
             .expect("policy matches");
@@ -167,6 +178,7 @@ mod tests {
             "A",
             Some(&hyst),
             now,
+            1_700_000_000,
         )
         .await
         .expect("select ok");
@@ -184,6 +196,7 @@ mod tests {
             ip_family: "ipv4".to_string(),
             latitude: None,
             longitude: None,
+            from_ecs: false,
         };
         let res_cn = evaluate_and_select(
             &compiled.oracle,
@@ -194,6 +207,7 @@ mod tests {
             "A",
             Some(&hyst),
             now,
+            1_700_000_000,
         )
         .await
         .expect("cn select ok");
@@ -228,6 +242,7 @@ mod tests {
             "A",
             None,
             now,
+            1_700_000_000,
         )
         .await
         .expect("fallback select ok");
@@ -266,10 +281,15 @@ mod tests {
                     ip_family: "ipv4".to_string(),
                     level: "region".to_string(),
                     effective_rtt_ms: 12.0,
+                    observed_rtt_ms: 12.0,
+                    predicted_rtt_ms: 12.0,
                     rtt_p95_ms: 18.0,
+                    p95_weight: 0.35,
                     dispersion_ms: 2.0,
                     loss_rate: 0.0,
                     confidence: 0.95,
+                    quality_state: "healthy".to_string(),
+                    explore_priority: 0.0,
                     geo_base_rtt_ms: 10.0,
                     geo_base_known: true,
                     source_tier: "real_region".to_string(),
@@ -282,10 +302,15 @@ mod tests {
                     ip_family: "ipv4".to_string(),
                     level: "country".to_string(),
                     effective_rtt_ms: 25.0,
+                    observed_rtt_ms: 25.0,
+                    predicted_rtt_ms: 25.0,
                     rtt_p95_ms: 35.0,
+                    p95_weight: 0.25,
                     dispersion_ms: 5.0,
                     loss_rate: 0.0,
                     confidence: 0.7,
+                    quality_state: "healthy".to_string(),
+                    explore_priority: 0.0,
                     geo_base_rtt_ms: 10.0,
                     geo_base_known: true,
                     source_tier: "asn_country".to_string(),
@@ -337,6 +362,7 @@ mod tests {
         assert!((q2.effective_rtt_ms - 25.0).abs() < 1e-6);
 
         // Tier 3: inferred country any-ASN fallback (keeps highest-confidence CN entry: 12.0 ms)
+        // and clears direct-only p95_weight / explore_priority.
         let q3 = oracle.evaluate_node(
             "n1",
             &ClientProfile {
@@ -350,6 +376,8 @@ mod tests {
         assert_eq!(q3.source_tier, "inferred");
         assert!(q3.quality_score > 0.0);
         assert!((q3.effective_rtt_ms - 12.0).abs() < 1e-6);
+        assert!((q3.p95_weight - 0.0).abs() < 1e-6);
+        assert!((q3.explore_priority - 0.0).abs() < 1e-6);
 
         // Tier 4: geo_prior when no matching country/ASN entry exists
         let q4 = oracle.evaluate_node(
@@ -555,5 +583,236 @@ mod tests {
         assert!(!ready_path.exists());
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn p95_weight_tail_penalty_and_ecs_only_exploration() {
+        let mut env = build_bench_snapshot();
+        env.nodes = vec![
+            test_node("hk-a", "203.0.113.1", "", "CN", 20.0, false),
+            test_node("jp-b", "203.0.113.2", "", "JP", 20.0, false),
+            test_node("us-d", "203.0.113.4", "", "US", 20.0, false),
+        ];
+        for n in &mut env.nodes {
+            n.geo_latitude = None;
+            n.geo_longitude = None;
+        }
+        env.policies = vec![SnapshotPolicy {
+            id: 10,
+            name: "SmartP95".to_string(),
+            scope_type: "all".to_string(),
+            scope_domains: Vec::new(),
+            strategy_type: "smart".to_string(),
+            priority: 100,
+            ttl: 60,
+            max_answers: 1,
+            is_default: true,
+            fallback_strategy: "lowest_load".to_string(),
+            fallback_node_ids: Vec::new(),
+            jdm_json: String::new(),
+            revision: 1,
+        }];
+        env.quality = Some(CompactQualitySnapshot {
+            entries: vec![
+                CompactQualityEntry {
+                    node_id: "hk-a".to_string(),
+                    client_asn: 9808,
+                    client_country: "CN".to_string(),
+                    client_region: String::new(),
+                    ip_family: "ipv4".to_string(),
+                    level: "country".to_string(),
+                    effective_rtt_ms: 30.0,
+                    observed_rtt_ms: 30.0,
+                    predicted_rtt_ms: 30.0,
+                    rtt_p95_ms: 220.0,
+                    p95_weight: 0.35,
+                    dispersion_ms: 0.0,
+                    loss_rate: 0.0,
+                    confidence: 0.9,
+                    quality_state: "healthy".to_string(),
+                    explore_priority: 0.0,
+                    geo_base_rtt_ms: 0.0,
+                    geo_base_known: false,
+                    source_tier: "measured_country".to_string(),
+                },
+                CompactQualityEntry {
+                    node_id: "jp-b".to_string(),
+                    client_asn: 9808,
+                    client_country: "CN".to_string(),
+                    client_region: String::new(),
+                    ip_family: "ipv4".to_string(),
+                    level: "country".to_string(),
+                    effective_rtt_ms: 65.0,
+                    observed_rtt_ms: 65.0,
+                    predicted_rtt_ms: 65.0,
+                    rtt_p95_ms: 80.0,
+                    p95_weight: 0.35,
+                    dispersion_ms: 0.0,
+                    loss_rate: 0.0,
+                    confidence: 0.9,
+                    quality_state: "healthy".to_string(),
+                    explore_priority: 0.0,
+                    geo_base_rtt_ms: 0.0,
+                    geo_base_known: false,
+                    source_tier: "measured_country".to_string(),
+                },
+            ],
+            ..Default::default()
+        });
+
+        let compiled = CompiledSnapshot::from_envelope(env.clone());
+        let policy = &compiled.policies[0];
+        let mut client = ClientProfile {
+            client_ip: "113.108.1.1".to_string(),
+            client_prefix: "113.108.1.0/24".to_string(),
+            asn: 9808,
+            country_iso: "CN".to_string(),
+            region_code: String::new(),
+            ip_family: "ipv4".to_string(),
+            latitude: None,
+            longitude: None,
+            from_ecs: false,
+        };
+        let now = Instant::now();
+        let res_p95 = evaluate_and_select(
+            &compiled.oracle,
+            &compiled.raw.nodes,
+            policy,
+            &client,
+            "app.example.com",
+            "A",
+            None,
+            now,
+            1_700_000_000,
+        )
+        .await
+        .expect("select ok");
+        assert_eq!(res_p95.answers[0].node_id, "jp-b");
+
+        // Now mark hk-a stale with high explore_priority and verify ECS-only exploration.
+        let mut exp_env = env;
+        exp_env.quality = Some(CompactQualitySnapshot {
+            entries: vec![
+                CompactQualityEntry {
+                    node_id: "hk-a".to_string(),
+                    client_asn: 9808,
+                    client_country: "CN".to_string(),
+                    client_region: String::new(),
+                    ip_family: "ipv4".to_string(),
+                    level: "country".to_string(),
+                    effective_rtt_ms: 180.0,
+                    observed_rtt_ms: 180.0,
+                    predicted_rtt_ms: 30.0,
+                    rtt_p95_ms: 210.0,
+                    p95_weight: 0.25,
+                    dispersion_ms: 0.0,
+                    loss_rate: 0.0,
+                    confidence: 0.2,
+                    quality_state: "stale".to_string(),
+                    explore_priority: 0.9,
+                    geo_base_rtt_ms: 0.0,
+                    geo_base_known: false,
+                    source_tier: "measured_country".to_string(),
+                },
+                CompactQualityEntry {
+                    node_id: "jp-b".to_string(),
+                    client_asn: 9808,
+                    client_country: "CN".to_string(),
+                    client_region: String::new(),
+                    ip_family: "ipv4".to_string(),
+                    level: "country".to_string(),
+                    effective_rtt_ms: 65.0,
+                    observed_rtt_ms: 65.0,
+                    predicted_rtt_ms: 65.0,
+                    rtt_p95_ms: 80.0,
+                    p95_weight: 0.35,
+                    dispersion_ms: 0.0,
+                    loss_rate: 0.0,
+                    confidence: 0.9,
+                    quality_state: "healthy".to_string(),
+                    explore_priority: 0.0,
+                    geo_base_rtt_ms: 0.0,
+                    geo_base_known: false,
+                    source_tier: "measured_country".to_string(),
+                },
+                CompactQualityEntry {
+                    node_id: "us-d".to_string(),
+                    client_asn: 9808,
+                    client_country: "CN".to_string(),
+                    client_region: String::new(),
+                    ip_family: "ipv4".to_string(),
+                    level: "country".to_string(),
+                    effective_rtt_ms: 220.0,
+                    observed_rtt_ms: 220.0,
+                    predicted_rtt_ms: 210.0,
+                    rtt_p95_ms: 250.0,
+                    p95_weight: 0.35,
+                    dispersion_ms: 0.0,
+                    loss_rate: 0.0,
+                    confidence: 0.8,
+                    quality_state: "healthy".to_string(),
+                    explore_priority: 0.0,
+                    geo_base_rtt_ms: 0.0,
+                    geo_base_known: false,
+                    source_tier: "measured_country".to_string(),
+                },
+            ],
+            ..Default::default()
+        });
+        let exp_compiled = CompiledSnapshot::from_envelope(exp_env);
+        let hyst = HysteresisTracker::new(1024);
+
+        // Without ECS: never explores.
+        for i in 0..500u32 {
+            client.from_ecs = false;
+            client.client_prefix = format!("113.{}.{}.0/24", (i / 250) + 1, i % 250);
+            let out = evaluate_and_select(
+                &exp_compiled.oracle,
+                &exp_compiled.raw.nodes,
+                &exp_compiled.policies[0],
+                &client,
+                "app.example.com",
+                "A",
+                Some(&hyst),
+                now,
+                1_700_000_000,
+            )
+            .await
+            .expect("select ok");
+            assert!(!out.exploration_used);
+            assert_eq!(out.answers[0].node_id, "jp-b");
+        }
+
+        // With ECS: explores hk-a for a small budget, clamps TTL <= 25, skips hysteresis.
+        let hyst_ecs = HysteresisTracker::new(1024);
+        let mut explored = 0usize;
+        let mut explored_prefix = String::new();
+        for i in 0..500u32 {
+            client.from_ecs = true;
+            client.client_prefix = format!("113.{}.{}.0/24", (i / 250) + 1, i % 250);
+            let out = evaluate_and_select(
+                &exp_compiled.oracle,
+                &exp_compiled.raw.nodes,
+                &exp_compiled.policies[0],
+                &client,
+                "app.example.com",
+                "A",
+                Some(&hyst_ecs),
+                now,
+                1_700_000_000,
+            )
+            .await
+            .expect("select ok");
+            if out.exploration_used {
+                explored += 1;
+                explored_prefix = client.client_prefix.clone();
+                assert_eq!(out.answers[0].node_id, "hk-a");
+                assert!(out.ttl <= 25);
+            } else {
+                assert_eq!(out.answers[0].node_id, "jp-b");
+            }
+        }
+        assert!(explored > 0 && explored < 30, "explored={explored}");
+        assert_eq!(hyst_ecs.get(&format!("10:{explored_prefix}:A"), now), None);
     }
 }

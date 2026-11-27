@@ -34,7 +34,6 @@ const (
 	rollupHalfLifeHours     = 6.0
 	ewmaHalfLifeHours       = 2.0
 	ewmaZeroDtAlpha         = 0.25
-	maxRollupSamples        = 20000
 	maxRollupTraces         = 5000
 	onlineWindow            = 2 * time.Minute
 	minSampleConfidence     = 0.1
@@ -191,17 +190,21 @@ type pairAccum struct {
 	traceLegP50Sum  float64
 
 	ewmaPoints []ewmaObservation
+
+	shortWin   windowGroup
+	instantWin windowGroup
 }
 
 type rollupInputs struct {
 	samples    []analyticsmodel.NetworkQualitySample
 	nodeByID   map[string]model.OpenFlareNode
 	tracePaths map[tracePathKey]string
+	prevByKey  map[matrixGroupKey]*model.OpenFlareNetworkQualityMatrix
 }
 
 func loadRollupInputs(ctx context.Context, now time.Time) (*rollupInputs, error) {
 	since := now.Add(-rollupLookbackWindow)
-	samples, err := repository.ListOpenFlareNetworkQualitySamplesSince(ctx, since, maxRollupSamples)
+	samples, err := loadPaginatedQualitySamples(ctx, since)
 	if err != nil {
 		return nil, fmt.Errorf("list quality samples: %w", err)
 	}
@@ -214,6 +217,11 @@ func loadRollupInputs(ctx context.Context, now time.Time) (*rollupInputs, error)
 	if err != nil {
 		return nil, fmt.Errorf("list nodes: %w", err)
 	}
+	prevRows, err := repository.ListOpenFlareNetworkQualityMatrixMeasured(ctx)
+	if err != nil {
+		logger.WarnF(ctx, "[NetQuality] list previous measured matrix rows warning: %v", err)
+		prevRows = nil
+	}
 
 	nodeByID := make(map[string]model.OpenFlareNode, len(nodes))
 	for i := range nodes {
@@ -224,11 +232,55 @@ func loadRollupInputs(ctx context.Context, now time.Time) (*rollupInputs, error)
 		nodeByID[n.NodeID] = n
 	}
 
+	prevByKey := make(map[matrixGroupKey]*model.OpenFlareNetworkQualityMatrix, len(prevRows))
+	for _, row := range prevRows {
+		if row == nil || row.NodeID == "" || row.ClientASN == 0 {
+			continue
+		}
+		prevByKey[matrixGroupKey{
+			nodeID:           row.NodeID,
+			clientASN:        row.ClientASN,
+			clientCountry:    strings.ToUpper(strings.TrimSpace(row.ClientCountry)),
+			clientRegion:     strings.ToUpper(strings.TrimSpace(row.ClientRegion)),
+			ipFamily:         normalizePredictorIPFamily(row.IPFamily),
+			aggregationLevel: normalizePredictorAggLevel(row.AggregationLevel),
+		}] = row
+	}
+
 	return &rollupInputs{
 		samples:    samples,
 		nodeByID:   nodeByID,
 		tracePaths: latestTracePaths(traces),
+		prevByKey:  prevByKey,
 	}, nil
+}
+
+func loadPaginatedQualitySamples(ctx context.Context, since time.Time) ([]analyticsmodel.NetworkQualitySample, error) {
+	var all []analyticsmodel.NetworkQualitySample
+	var beforeTime *time.Time
+	var beforeID uint64
+	for len(all) < maxRollupTotalSamples {
+		pageLimit := min(rollupSamplePageSize, maxRollupTotalSamples-len(all))
+		page, err := repository.ListOpenFlareNetworkQualitySamplesPage(ctx, since, beforeTime, beforeID, pageLimit)
+		if err != nil {
+			return nil, err
+		}
+		if len(page) == 0 {
+			break
+		}
+		all = append(all, page...)
+		if len(page) < pageLimit {
+			break
+		}
+		last := page[len(page)-1]
+		if last.CapturedAt.IsZero() {
+			break
+		}
+		t := last.CapturedAt
+		beforeTime = &t
+		beforeID = last.ID
+	}
+	return all, nil
 }
 
 func accumulateRollupGroups(inputs *rollupInputs, now time.Time) map[matrixGroupKey]*pairAccum {
@@ -267,7 +319,7 @@ func accumulateRollupGroups(inputs *rollupInputs, now time.Time) map[matrixGroup
 			aggregationLevel: model.QualityAggregationLevelCountry,
 		}
 		countryAcc := ensurePairAccum(groups, countryKey, inputs, s.NodeASN)
-		applySampleToPair(countryAcc, &s, decay, capturedAt)
+		applySampleToPair(countryAcc, &s, decay, capturedAt, now)
 
 		// Additionally aggregate into region-level row only when country is in drilldown whitelist and region is known.
 		if rawRegion != "" && pkgnetintel.IsRegionDrilldownCountry(country) {
@@ -280,7 +332,7 @@ func accumulateRollupGroups(inputs *rollupInputs, now time.Time) map[matrixGroup
 				aggregationLevel: model.QualityAggregationLevelRegion,
 			}
 			regionAcc := ensurePairAccum(groups, regionKey, inputs, s.NodeASN)
-			applySampleToPair(regionAcc, &s, decay, capturedAt)
+			applySampleToPair(regionAcc, &s, decay, capturedAt, now)
 		}
 	}
 	return groups
@@ -338,7 +390,7 @@ func resolveTracePath(paths map[tracePathKey]string, key matrixGroupKey) string 
 	return ""
 }
 
-func applySampleToPair(acc *pairAccum, s *analyticsmodel.NetworkQualitySample, decay float64, capturedAt time.Time) {
+func applySampleToPair(acc *pairAccum, s *analyticsmodel.NetworkQualitySample, decay float64, capturedAt, now time.Time) {
 	sampleCount := max(1, int(s.SampleCount))
 	bucketWeight := decay * math.Max(1.0, math.Log1p(float64(sampleCount)))
 
@@ -359,6 +411,17 @@ func applySampleToPair(acc *pairAccum, s *analyticsmodel.NetworkQualitySample, d
 	}
 
 	accumulateSampleSource(acc, s, decodedHist, decay, bucketWeight, sampleCount, capturedAt)
+
+	age := max(time.Duration(0), now.Sub(capturedAt))
+	if age <= shortLatencyWindow {
+		shortDecay := math.Exp(-math.Ln2 * age.Minutes() / shortHalfLifeMinutes)
+		shortWeight := shortDecay * math.Max(1.0, math.Log1p(float64(sampleCount)))
+		applySampleToWindowGroup(&acc.shortWin, s, decodedHist, shortDecay, shortWeight, sampleCount)
+	}
+	if age <= instantLatencyWindow {
+		instantWeight := math.Max(1.0, math.Log1p(float64(sampleCount)))
+		applySampleToWindowGroup(&acc.instantWin, s, decodedHist, 1.0, instantWeight, sampleCount)
+	}
 }
 
 func accumulateSamplePrefixes(acc *pairAccum, s *analyticsmodel.NetworkQualitySample) {
@@ -501,8 +564,9 @@ func RunRollup(ctx context.Context) (*RollupSummary, error) {
 
 	rows := make([]*model.OpenFlareNetworkQualityMatrix, 0, len(groups))
 	for key, acc := range groups {
-		rows = append(rows, finalizeMeasuredRow(acc, inputs.nodeByID[key.nodeID]))
+		rows = append(rows, finalizeMeasuredRow(acc, inputs.nodeByID[key.nodeID], inputs.prevByKey[key], now))
 	}
+	assignExplorePriorities(rows, inputs.nodeByID, now)
 
 	pruned, err := repository.ReplaceOpenFlareNetworkQualityMatrixSnapshot(ctx, rows, now.Add(-rollupStaleRetention))
 	if err != nil {
@@ -556,20 +620,26 @@ func computeRowConfidenceAndScore(
 	totalSamples, distinctPrefixes, statsVersion int,
 	effectiveRTT, tcpP50, tcpP95, tcpRetrans, primaryLoss float64,
 	measurementSource string,
+	age time.Duration,
 ) (confidence, qualityScore float64) {
 	sampleFactor := 1.0 - math.Exp(-float64(totalSamples)/confidenceHalfSamples)
 	prefixFactor := 1.0
 	if distinctPrefixes > 0 {
 		prefixFactor = math.Min(1.0, prefixConfidenceBase+prefixConfidenceSpan*(1.0-math.Exp(-float64(distinctPrefixes)/prefixConfidenceHalf)))
 	}
-	confidence = math.Max(minSampleConfidence, math.Min(maxSampleConfidence, sampleFactor*prefixFactor))
+	confidence = sampleFactor * prefixFactor * ageFreshnessFactor(age)
+	confidence = math.Max(minSampleConfidence, math.Min(maxSampleConfidence, confidence))
 	if statsVersion < model.NetworkQualityStatsVersionHist64 {
 		confidence = math.Min(confidence, legacyMaxConfidence)
 	}
 
 	scoredRTT := effectiveRTT
-	if tcpP95 > tcpP50 && tcpP50 > 0 && measurementSource == model.NetworkQualitySourceTCPPassive {
-		scoredRTT += 0.35 * (tcpP95 - tcpP50)
+	if tcpP95 > effectiveRTT && effectiveRTT > 0 && measurementSource == model.NetworkQualitySourceTCPPassive {
+		p95W := computeDynamicP95Weight(totalSamples, distinctPrefixes)
+		scoredRTT += p95W * (tcpP95 - effectiveRTT)
+	} else if tcpP95 > tcpP50 && tcpP50 > 0 && measurementSource == model.NetworkQualitySourceTCPPassive {
+		p95W := computeDynamicP95Weight(totalSamples, distinctPrefixes)
+		scoredRTT += p95W * (tcpP95 - tcpP50)
 	}
 	lossPenalty := math.Min(maxLossPenaltyRatio, tcpRetrans*tcpRetransPenaltyFactor+primaryLoss*probeLossPenaltyFactor)
 	qualityScore = math.Max(minQualityScore, (maxQualityScore/(1.0+scoredRTT/qualityScoreRTTScale))*(1.0-lossPenalty))
@@ -579,6 +649,8 @@ func computeRowConfidenceAndScore(
 func finalizeMeasuredRow(
 	acc *pairAccum,
 	node model.OpenFlareNode,
+	prev *model.OpenFlareNetworkQualityMatrix,
+	now time.Time,
 ) *model.OpenFlareNetworkQualityMatrix {
 	var tcpP50, tcpP95, tcpRetrans float64
 	if acc.tcpHist.TotalWeight > 0 {
@@ -604,13 +676,13 @@ func finalizeMeasuredRow(
 	probeRTTP50, probeLoss, probeSamples, probeProto, probeLastSeen := selectPrimaryProbeMetric(
 		acc, tcpActiveP50, tcpActiveLoss, icmpActiveP50, icmpActiveLoss, traceP50, traceLoss,
 	)
-	effectiveRTT, measurementSource, primaryLoss := selectEffectiveLatencySource(
+	baselineRTT, measurementSource, primaryLoss := selectEffectiveLatencySource(
 		tcpP50, tcpRetrans, tcpActiveP50, tcpActiveLoss, icmpActiveP50, icmpActiveLoss, traceP50, traceLoss,
 	)
 
 	rttEWMA := computeOrderedEWMA(acc.ewmaPoints, measurementSource)
 	if rttEWMA <= 0 {
-		rttEWMA = effectiveRTT
+		rttEWMA = baselineRTT
 	}
 
 	asnName := ""
@@ -638,51 +710,93 @@ func finalizeMeasuredRow(
 		statsVersion = model.NetworkQualityStatsVersionHist64
 	}
 	totalSamples := acc.tcpSamples + acc.tcpActiveSamples + acc.icmpActiveSamples + acc.traceSamples
+	baselineSamples, baselineP95 := resolveBaselineSampleInfo(acc, measurementSource, totalSamples, baselineRTT, tcpP95)
+
+	adaptive := resolveAdaptiveQualityState(acc, prev, now, adaptiveInputs{
+		baselineRTT:       baselineRTT,
+		baselineP95:       baselineP95,
+		baselineLoss:      primaryLoss,
+		baselineSamples:   baselineSamples,
+		baselinePrefixes:  distinctPrefixes,
+		rttEWMA:           rttEWMA,
+		tcpMinRTT:         acc.tcpMinRTTMs,
+		geoBaseRTT:        geoBaseRTTMs,
+		geoBaseKnown:      node.GeoLatitude != nil && node.GeoLongitude != nil && geoConfidence > 0,
+		measurementSource: measurementSource,
+		lastObservedAt:    lastObservedAt,
+	})
+
+	activeRetrans := tcpRetrans
+	activeLoss := adaptive.activeLoss
+	if measurementSource == model.NetworkQualitySourceTCPPassive {
+		activeRetrans = adaptive.activeLoss
+	}
 	confidence, qualityScore := computeRowConfidenceAndScore(
-		totalSamples, distinctPrefixes, statsVersion,
-		effectiveRTT, tcpP50, tcpP95, tcpRetrans, primaryLoss, measurementSource,
+		adaptive.activeSamples, adaptive.activePrefixes, statsVersion,
+		adaptive.effectiveRTT, adaptive.observedRTT, adaptive.activeP95, activeRetrans, activeLoss, measurementSource, adaptive.age,
 	)
 
 	return &model.OpenFlareNetworkQualityMatrix{
-		NodeID:              acc.nodeID,
-		NodeASN:             nodeASN,
-		ClientASN:           acc.clientASN,
-		ClientCountry:       acc.clientCountry,
-		ClientRegion:        acc.clientRegion,
-		IPFamily:            acc.ipFamily,
-		AggregationLevel:    acc.aggregationLevel,
-		StatsVersion:        statsVersion,
-		ClientASNName:       asnName,
-		TCPRTTP50Ms:         round2(tcpP50),
-		TCPRTTP95Ms:         round2(tcpP95),
-		TCPMinRTTMs:         round2(acc.tcpMinRTTMs),
-		TCPRetransRate:      round4(tcpRetrans),
-		TCPSampleCount:      acc.tcpSamples,
-		TCPLastSeenAt:       acc.tcpLastSeenAt,
-		ProbeRTTP50Ms:       round2(probeRTTP50),
-		ProbeLossRate:       round4(probeLoss),
-		ProbeSampleCount:    probeSamples,
-		ProbeProto:          probeProto,
-		ProbeLastSeenAt:     probeLastSeen,
-		TraceRTTP50Ms:       round2(traceP50),
-		TraceLossRate:       round4(traceLoss),
-		TraceHopCount:       traceHops,
-		TraceASPath:         asPathJSON,
-		TraceSampleCount:    acc.traceSamples,
-		TraceLastSeenAt:     acc.traceLastSeenAt,
-		EffectiveRTTMs:      round2(effectiveRTT),
-		PredictedRTTMs:      0,
-		RTTEWMAms:           round2(rttEWMA),
-		DistinctPrefixCount: distinctPrefixes,
-		GeoBaseRTTMs:        round2(geoBaseRTTMs),
-		GeoAccuracyKm:       round2(geoAccuracyKm),
-		GeoSource:           geoSource,
-		GeoConfidence:       round4(geoConfidence),
-		MeasurementSource:   measurementSource,
-		QualityScore:        round2(qualityScore),
-		Confidence:          round4(confidence),
-		DataSource:          model.QualityMatrixDataSourceMeasured,
-		LastObservedAt:      lastObservedAt,
+		NodeID:                 acc.nodeID,
+		NodeASN:                nodeASN,
+		ClientASN:              acc.clientASN,
+		ClientCountry:          acc.clientCountry,
+		ClientRegion:           acc.clientRegion,
+		IPFamily:               acc.ipFamily,
+		AggregationLevel:       acc.aggregationLevel,
+		StatsVersion:           statsVersion,
+		ClientASNName:          asnName,
+		TCPRTTP50Ms:            round2(tcpP50),
+		TCPRTTP95Ms:            round2(tcpP95),
+		TCPMinRTTMs:            round2(acc.tcpMinRTTMs),
+		TCPRetransRate:         round4(tcpRetrans),
+		TCPSampleCount:         acc.tcpSamples,
+		TCPLastSeenAt:          acc.tcpLastSeenAt,
+		ProbeRTTP50Ms:          round2(probeRTTP50),
+		ProbeLossRate:          round4(probeLoss),
+		ProbeSampleCount:       probeSamples,
+		ProbeProto:             probeProto,
+		ProbeLastSeenAt:        probeLastSeen,
+		TraceRTTP50Ms:          round2(traceP50),
+		TraceLossRate:          round4(traceLoss),
+		TraceHopCount:          traceHops,
+		TraceASPath:            asPathJSON,
+		TraceSampleCount:       acc.traceSamples,
+		TraceLastSeenAt:        acc.traceLastSeenAt,
+		EffectiveRTTMs:         round2(adaptive.effectiveRTT),
+		ObservedRTTMs:          round2(adaptive.observedRTT),
+		PredictedRTTMs:         round2(adaptive.predictedRTT),
+		ShortRTTP50Ms:          round2(adaptive.shortP50),
+		ShortRTTP95Ms:          round2(max(adaptive.shortP50, adaptive.shortP95)),
+		ShortSampleCount:       adaptive.shortSamples,
+		RTTEWMAms:              round2(rttEWMA),
+		DistinctPrefixCount:    distinctPrefixes,
+		GeoBaseRTTMs:           round2(geoBaseRTTMs),
+		GeoAccuracyKm:          round2(geoAccuracyKm),
+		GeoSource:              geoSource,
+		GeoConfidence:          round4(geoConfidence),
+		MeasurementSource:      measurementSource,
+		QualityScore:           round2(qualityScore),
+		Confidence:             round4(confidence),
+		QualityState:           adaptive.qualityState,
+		ConsecutiveGoodWindows: adaptive.consecutiveGoodWindows,
+		DataSource:             model.QualityMatrixDataSourceMeasured,
+		LastObservedAt:         lastObservedAt,
+	}
+}
+
+func resolveBaselineSampleInfo(acc *pairAccum, measurementSource string, totalSamples int, baselineRTT, tcpP95 float64) (samples int, p95 float64) {
+	switch measurementSource {
+	case model.NetworkQualitySourceTCPPassive:
+		return acc.tcpSamples, tcpP95
+	case model.NetworkQualitySourceTCPActive:
+		return acc.tcpActiveSamples, baselineRTT
+	case model.NetworkQualitySourceICMPActive:
+		return acc.icmpActiveSamples, baselineRTT
+	case model.NetworkQualitySourceTraceroute:
+		return acc.traceSamples, baselineRTT
+	default:
+		return totalSamples, baselineRTT
 	}
 }
 

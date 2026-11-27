@@ -2392,7 +2392,11 @@ export interface NetToolsQualityMatrixItem {
   trace_sample_count: number;
   trace_last_seen_at?: string | null;
   effective_rtt_ms: number;
+  observed_rtt_ms?: number;
   predicted_rtt_ms: number;
+  short_rtt_p50_ms?: number;
+  short_rtt_p95_ms?: number;
+  short_sample_count?: number;
   rtt_ewma_ms?: number;
   distinct_prefix_count?: number;
   geo_base_rtt_ms?: number;
@@ -2402,6 +2406,9 @@ export interface NetToolsQualityMatrixItem {
   measurement_source?: string;
   quality_score: number;
   confidence: number;
+  quality_state?: 'healthy' | 'degraded' | 'recovering' | 'stale' | string;
+  consecutive_good_windows?: number;
+  explore_priority?: number;
   data_source: 'measured' | 'predicted' | string;
   last_observed_at?: string | null;
   updated_at: string;
@@ -2866,6 +2873,7 @@ export interface SmartDNSSimulateInput {
   qtype: 'A' | 'AAAA' | string;
   client_ip: string;
   policy_id?: number;
+  has_ecs?: boolean;
 }
 
 export interface SmartDNSSimulatorClientContext {
@@ -2901,7 +2909,12 @@ export interface SmartDNSCandidateTrace {
   exclusion_reason?: string;
   source_tier?: string;
   effective_rtt_ms: number;
+  rtt_p95_ms?: number;
+  p95_weight?: number;
   loss_rate: number;
+  confidence?: number;
+  quality_state?: string;
+  explore_priority?: number;
   load_index: number;
   latency_score: number;
   load_score: number;
@@ -2918,6 +2931,8 @@ export interface SmartDNSSelectionResult {
   fallback_used: boolean;
   fallback_reason?: string;
   hysteresis_applied: boolean;
+  exploration_used?: boolean;
+  explored_node_id?: string;
   matched_nodes: string[];
   matched_conditions: string[];
   answers: SmartDNSSelectedAnswer[];

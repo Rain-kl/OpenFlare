@@ -1445,10 +1445,18 @@ func (s *gormLogStore) BatchInsertNetworkQualitySamples(ctx context.Context, row
 }
 
 func (s *gormLogStore) ListNetworkQualitySamplesSince(ctx context.Context, since time.Time, limit int) ([]analyticsmodel.NetworkQualitySample, error) {
+	return s.ListNetworkQualitySamplesPage(ctx, since, nil, 0, limit)
+}
+
+func (s *gormLogStore) ListNetworkQualitySamplesPage(ctx context.Context, since time.Time, beforeTime *time.Time, beforeID uint64, limit int) ([]analyticsmodel.NetworkQualitySample, error) {
 	var rows []analyticsmodel.NetworkQualitySample
 	q := s.db.WithContext(ctx).Model(&analyticsmodel.NetworkQualitySample{})
 	if !since.IsZero() {
 		q = q.Where("captured_at >= ?", since.UTC())
+	}
+	if beforeTime != nil && !beforeTime.IsZero() {
+		ts := beforeTime.UTC()
+		q = q.Where("(captured_at < ? OR (captured_at = ? AND id < ?))", ts, ts, beforeID)
 	}
 	q = q.Order("captured_at DESC, id DESC")
 	if limit > 0 {
