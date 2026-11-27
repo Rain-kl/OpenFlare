@@ -6,10 +6,10 @@ use std::time::{Duration, Instant};
 use tokio::net::lookup_host;
 
 const BUDGET_WINDOW: Duration = Duration::from_secs(60);
-const MAX_GLOBAL_DISPATCHES_PER_WINDOW: usize = 120;
-const MAX_GLOBAL_PACKETS_PER_WINDOW: u32 = 1_200;
-const MAX_TARGET_DISPATCHES_PER_WINDOW: usize = 8;
-const MAX_TARGET_PACKETS_PER_WINDOW: u32 = 120;
+const MAX_GLOBAL_DISPATCHES_PER_WINDOW: usize = 180;
+const MAX_GLOBAL_PACKETS_PER_WINDOW: u32 = 2_400;
+const MAX_TARGET_DISPATCHES_PER_WINDOW: usize = 16;
+const MAX_TARGET_PACKETS_PER_WINDOW: u32 = 600;
 const MAX_TRACKED_TARGETS: usize = 2048;
 
 /// Returns `true` when `ip` falls into any non-public, loopback, private, link-local,
@@ -366,5 +366,30 @@ mod tests {
         // After window passes, budget recovers
         let t1 = t0 + Duration::from_secs(61);
         assert!(guard.check_and_record_at("1.1.1.1", 4, t1).is_ok());
+    }
+
+    #[test]
+    fn default_budget_supports_consecutive_traceroutes_while_staying_bounded() {
+        let guard = ProbeBudgetGuard::new(
+            BUDGET_WINDOW,
+            MAX_GLOBAL_DISPATCHES_PER_WINDOW,
+            MAX_GLOBAL_PACKETS_PER_WINDOW,
+            MAX_TARGET_DISPATCHES_PER_WINDOW,
+            MAX_TARGET_PACKETS_PER_WINDOW,
+        );
+        let t0 = Instant::now();
+
+        // Default traceroute (30 hops * 3 probes = 90 packets) can run several times in 60s
+        for _ in 0..6 {
+            assert!(guard.check_and_record_at("example.com", 90, t0).is_ok());
+        }
+        // 7th default traceroute (630 > 600) is still blocked by conservative per-target cap
+        assert!(guard.check_and_record_at("example.com", 90, t0).is_err());
+
+        // Max-parameter traceroute (40 hops * 5 probes = 200 packets) allows 3 runs on another target
+        for _ in 0..3 {
+            assert!(guard.check_and_record_at("1.1.1.1", 200, t0).is_ok());
+        }
+        assert!(guard.check_and_record_at("1.1.1.1", 200, t0).is_err());
     }
 }
