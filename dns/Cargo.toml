@@ -1,0 +1,30 @@
+[package]
+name = "openflare-dns"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+anyhow = "1"
+arc-swap = "1"
+async-trait = "0.1"
+clap = { version = "4", features = ["derive", "env"] }
+flate2 = "1"
+futures-util = "0.3"
+hdrhistogram = "7.6"
+hex = "0.4"
+hickory-proto = "0.26.4"
+hickory-server = "0.26.4"
+maxminddb = "0.24"
+moka = { version = "0.12", features = ["sync"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "gzip", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+socket2 = { version = "0.5", features = ["all"] }
+sysinfo = "0.33"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+zen-engine = "2.1.8"

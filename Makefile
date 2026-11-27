@@ -1,4 +1,4 @@
-.PHONY: swagger license license-check format build-embedded build-test cross-build code-check build-backend build-frontend build-edge build-relay build-flared test-tunnel build-all
+.PHONY: swagger license license-check format build-embedded build-test cross-build code-check build-backend build-frontend build-edge build-relay build-flared build-dns test-tunnel test-dns build-all
 
 VERSION ?= dev
 BUILD_DATE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -73,7 +73,15 @@ build-flared:
 test-tunnel:
 	cargo test --manifest-path tunnel/Cargo.toml --locked
 
-build-all: build-backend build-edge build-relay build-flared
+build-dns:
+	@echo "==> Building openflare-dns version=$(VERSION)..."
+	cargo build --manifest-path dns/Cargo.toml --release --locked
+	install -D -m 0755 dns/target/release/openflare-dns bin/openflare-dns
+
+test-dns:
+	cargo test --manifest-path dns/Cargo.toml --locked
+
+build-all: build-backend build-edge build-relay build-flared build-dns
 
 build-frontend:
 	@echo "==> Building frontend version=$(VERSION) build_date=$(BUILD_DATE)..."
