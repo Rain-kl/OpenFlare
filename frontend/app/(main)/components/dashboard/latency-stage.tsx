@@ -9,9 +9,18 @@ import {
   useState,
 } from 'react';
 import { useTranslations } from 'next-intl';
-import { Activity, Gauge, Globe2, Timer, Zap } from 'lucide-react';
+import {
+  Activity,
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
+  Gauge,
+  Globe2,
+  Timer,
+  Zap,
+} from 'lucide-react';
 
 import { EmptyState } from '@/components/layout/empty';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -350,29 +359,34 @@ export function LatencyStage({
           >
             <div className='mb-3 flex items-center justify-between gap-2'>
               <h3 className='text-sm font-medium'>{t('countryRanking')}</h3>
-              <ToggleGroup
-                type='single'
+              <Button
+                type='button'
                 variant='outline'
-                size='sm'
-                value={sortOrder}
-                onValueChange={(value) => {
-                  if (value === 'slowest' || value === 'fastest') {
-                    setSortOrder(value);
-                  }
-                }}
+                size='icon-sm'
+                className='size-7 shrink-0'
+                onClick={() =>
+                  setSortOrder((prev) =>
+                    prev === 'slowest' ? 'fastest' : 'slowest',
+                  )
+                }
+                aria-label={t(
+                  sortOrder === 'slowest' ? 'sortSlowest' : 'sortFastest',
+                )}
+                title={t(
+                  sortOrder === 'slowest' ? 'sortSlowest' : 'sortFastest',
+                )}
               >
-                <ToggleGroupItem value='slowest' className='h-7 px-2 text-xs'>
-                  {t('sortSlowest')}
-                </ToggleGroupItem>
-                <ToggleGroupItem value='fastest' className='h-7 px-2 text-xs'>
-                  {t('sortFastest')}
-                </ToggleGroupItem>
-              </ToggleGroup>
+                {sortOrder === 'slowest' ? (
+                  <ArrowDownWideNarrow className='size-3.5' />
+                ) : (
+                  <ArrowUpNarrowWide className='size-3.5' />
+                )}
+              </Button>
             </div>
 
             {sortedEntries.length > 0 ? (
-              <ol className='flex max-h-[410px] flex-1 flex-col gap-3.5 overflow-y-auto py-1 pr-1'>
-                {sortedEntries.map((item) => {
+              <ol className='flex flex-1 flex-col justify-center gap-3.5 py-2'>
+                {sortedEntries.slice(0, 7).map((item) => {
                   const primaryValue = getCountryLatencyValue(item, metric);
                   const secondaryValue =
                     metric === 'tcp_rtt'

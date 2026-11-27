@@ -8,6 +8,7 @@ import {
   CircleAlert,
   Globe2,
   LayoutDashboard,
+  Server,
   ServerCrash,
   Users,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ import { getFormattingLocale } from '@/i18n/format';
 import { EmptyState } from '@/components/layout/empty';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type {
   DashboardNodeHealth,
   DashboardTraffic,
@@ -83,6 +85,9 @@ export function WorldStage({
   const tm = useTranslations('dashboard.map');
   const mapViewportRef = useRef<HTMLDivElement | null>(null);
   const [shouldRenderMap, setShouldRenderMap] = useState(false);
+  const [rankingMode, setRankingMode] = useState<'countries' | 'nodes'>(
+    'countries',
+  );
 
   useEffect(() => {
     if (shouldRenderMap) {
@@ -158,6 +163,19 @@ export function WorldStage({
     .sort((a, b) => b.value - a.value)
     .slice(0, 7);
   const maximum = Math.max(1, ...countries.map((item) => item.value));
+  const rankedNodes = [...nodes]
+    .sort((a, b) => {
+      if (b.request_count !== a.request_count) {
+        return b.request_count - a.request_count;
+      }
+      return b.cpu_usage_percent - a.cpu_usage_percent;
+    })
+    .slice(0, 7);
+  const maxNodeRequests = Math.max(
+    1,
+    ...rankedNodes.map((node) => node.request_count),
+  );
+  const locale = getFormattingLocale();
 
   return (
     <Card className='gap-3 overflow-hidden border-dashed shadow-none'>
@@ -223,33 +241,110 @@ export function WorldStage({
 
           <aside
             className='flex min-w-0 flex-col rounded-lg border border-dashed bg-muted/10 p-4'
-            aria-label={tm('sourceRanking')}
+            aria-label={
+              rankingMode === 'countries'
+                ? tm('sourceRanking')
+                : tm('nodeLoadRanking')
+            }
           >
-            <h3 className='text-sm font-medium'>{tm('sourceRanking')}</h3>
-            {countries.length ? (
-              <ol className='flex flex-1 flex-col justify-center gap-5 py-6'>
-                {countries.map((country) => (
-                  <li key={country.key} className='flex min-w-0 flex-col gap-2'>
-                    <div className='flex items-center justify-between gap-3 text-sm'>
-                      <span className='min-w-0 truncate' title={country.key}>
-                        {country.key}
-                      </span>
-                      <span className='shrink-0 font-semibold tabular-nums'>
-                        {country.value.toLocaleString(getFormattingLocale())}
-                      </span>
-                    </div>
-                    <Progress
-                      value={(country.value / maximum) * 100}
-                      aria-label={country.key}
-                      className='h-1'
-                    />
-                  </li>
-                ))}
+            <div className='flex items-center justify-between gap-2'>
+              <h3 className='truncate text-sm font-medium'>
+                {rankingMode === 'countries'
+                  ? tm('sourceRanking')
+                  : tm('nodeLoadRanking')}
+              </h3>
+              <ToggleGroup
+                type='single'
+                variant='outline'
+                size='sm'
+                value={rankingMode}
+                onValueChange={(value) => {
+                  if (value === 'countries' || value === 'nodes') {
+                    setRankingMode(value);
+                  }
+                }}
+              >
+                <ToggleGroupItem value='countries' className='h-7 px-2 text-xs'>
+                  {tm('rankingCountriesTab')}
+                </ToggleGroupItem>
+                <ToggleGroupItem value='nodes' className='h-7 px-2 text-xs'>
+                  {tm('rankingNodesTab')}
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+
+            {rankingMode === 'countries' ? (
+              countries.length ? (
+                <ol className='flex flex-1 flex-col justify-center gap-5 py-6'>
+                  {countries.map((country) => (
+                    <li
+                      key={country.key}
+                      className='flex min-w-0 flex-col gap-2'
+                    >
+                      <div className='flex items-center justify-between gap-3 text-sm'>
+                        <span className='min-w-0 truncate' title={country.key}>
+                          {country.key}
+                        </span>
+                        <span className='shrink-0 font-semibold tabular-nums'>
+                          {country.value.toLocaleString(locale)}
+                        </span>
+                      </div>
+                      <Progress
+                        value={(country.value / maximum) * 100}
+                        aria-label={country.key}
+                        className='h-1'
+                      />
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <EmptyState
+                  title={tm('noSources')}
+                  icon={Globe2}
+                  iconSize='sm'
+                  className='min-h-48 flex-1 px-2'
+                />
+              )
+            ) : rankedNodes.length ? (
+              <ol className='flex flex-1 flex-col justify-center gap-4 py-4'>
+                {rankedNodes.map((node) => {
+                  const displayName = node.name || node.node_id;
+                  return (
+                    <li
+                      key={node.node_id}
+                      className='flex min-w-0 flex-col gap-1.5'
+                    >
+                      <div className='flex items-center justify-between gap-2 text-sm'>
+                        <span className='min-w-0 truncate' title={displayName}>
+                          {displayName}
+                        </span>
+                        <span className='shrink-0 font-semibold tabular-nums'>
+                          {tm('nodeRequestsCount', {
+                            count: node.request_count.toLocaleString(locale),
+                          })}
+                        </span>
+                      </div>
+                      <div className='flex items-center justify-between gap-2 text-[11px] text-muted-foreground'>
+                        <span className='truncate'>
+                          {tm('nodeLoadMeta', {
+                            cpu: Math.round(node.cpu_usage_percent),
+                            memory: Math.round(node.memory_usage_percent),
+                          })}
+                        </span>
+                      </div>
+                      <Progress
+                        value={(node.request_count / maxNodeRequests) * 100}
+                        aria-label={displayName}
+                        className='h-1'
+                      />
+                    </li>
+                  );
+                })}
               </ol>
             ) : (
               <EmptyState
-                title={tm('noSources')}
-                icon={Globe2}
+                title={tm('noNodes')}
+                icon={Server}
                 iconSize='sm'
                 className='min-h-48 flex-1 px-2'
               />

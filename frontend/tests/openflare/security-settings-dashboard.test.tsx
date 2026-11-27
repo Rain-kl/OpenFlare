@@ -114,7 +114,27 @@ const dashboardFixture: DashboardOverview = {
     high_memory_nodes: 0,
     high_storage_nodes: 0,
   },
-  nodes: [],
+  nodes: [
+    {
+      id: 1,
+      node_id: 'edge-jp-1',
+      name: 'edge-jp-1',
+      geo_name: 'Tokyo, Japan',
+      geo_latitude: 35.68,
+      geo_longitude: 139.76,
+      status: 'online',
+      openresty_status: 'healthy',
+      current_version: 'v4.1.1',
+      last_seen_at: '2026-11-20T03:59:55Z',
+      active_event_count: 0,
+      cpu_usage_percent: 12,
+      memory_usage_percent: 34,
+      storage_usage_percent: 20,
+      request_count: 1000,
+      error_count: 5,
+      unique_visitor_count: 120,
+    },
+  ],
   distributions: {
     source_countries: [{ key: 'CN', value: 600 }],
     status_codes: [{ key: '2xx', value: 995 }],
@@ -311,6 +331,17 @@ describe('Security menu split, dashboard layout, and global settings', () => {
     expect(screen.getAllByText('18.2 ms').length).toBeGreaterThan(0);
     await user.click(screen.getByRole('radio', { name: '请求耗时' }));
     expect(screen.getAllByText('42.5 ms').length).toBeGreaterThan(0);
+
+    const sortToggle = screen.getByRole('button', { name: '高延迟优先' });
+    await user.click(sortToggle);
+    expect(
+      screen.getByRole('button', { name: '低延迟优先' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: '节点' }));
+    expect(await screen.findByText('节点负载排行')).toBeInTheDocument();
+    expect(screen.getAllByText('1,000 次请求').length).toBeGreaterThan(0);
+    expect(screen.getByText('CPU 12% · 内存 34%')).toBeInTheDocument();
 
     await user.click(screen.getByRole('radio', { name: '3 天' }));
     await waitFor(() =>
