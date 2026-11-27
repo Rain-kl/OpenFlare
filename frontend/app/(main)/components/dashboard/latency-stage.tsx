@@ -23,16 +23,11 @@ import { EmptyState } from '@/components/layout/empty';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { getFormattingLocale } from '@/i18n/format';
 import type { DashboardCountryLatency } from '@/lib/services/openflare';
 import { cn } from '@/lib/utils';
 
-import {
-  buildCountryLatency,
-  getCountryLatencyValue,
-  type LatencyMetric,
-} from './country-heat';
+import { buildCountryLatency } from './country-heat';
 import { formatCompactNumber } from './dashboard-utils';
 import {
   formatLatencyMs,
@@ -46,17 +41,17 @@ const LatencyStageMap = dynamic(
 );
 
 const LATENCY_LEGEND = [
-  { dot: 'bg-emerald-500', key: 'legendFast' },
-  { dot: 'bg-amber-500', key: 'legendModerate' },
-  { dot: 'bg-orange-500', key: 'legendSlow' },
-  { dot: 'bg-destructive', key: 'legendCritical' },
+  { dot: 'bg-emerald-700 dark:bg-emerald-500', key: 'legendFast' },
+  { dot: 'bg-green-400 dark:bg-green-300', key: 'legendGood' },
+  { dot: 'bg-yellow-500 dark:bg-yellow-400', key: 'legendModerate' },
+  { dot: 'bg-red-500 dark:bg-red-400', key: 'legendSlow' },
 ] as const;
 
 const TIER_DOT_CLASS: Record<LatencyTier, string> = {
-  fast: 'bg-emerald-500',
-  moderate: 'bg-amber-500',
-  slow: 'bg-orange-500',
-  critical: 'bg-destructive',
+  deep_green: 'bg-emerald-700 dark:bg-emerald-500',
+  light_green: 'bg-green-400 dark:bg-green-300',
+  yellow: 'bg-yellow-500 dark:bg-yellow-400',
+  red: 'bg-red-500 dark:bg-red-400',
 };
 
 function SummaryTile({
@@ -100,8 +95,7 @@ export function LatencyStage({
   const tw = useTranslations('dashboard.world');
   const mapViewportRef = useRef<HTMLDivElement | null>(null);
   const [shouldRenderMap, setShouldRenderMap] = useState(false);
-  const [metric, setMetric] = useState<LatencyMetric>('tcp_rtt');
-  const [sortOrder, setSortOrder] = useState<'slowest' | 'fastest'>('slowest');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
   useEffect(() => {
     if (shouldRenderMap) {
@@ -132,8 +126,8 @@ export function LatencyStage({
   }, [shouldRenderMap]);
 
   const countryMap = useMemo(
-    () => buildCountryLatency(countryLatencies, metric),
-    [countryLatencies, metric],
+    () => buildCountryLatency(countryLatencies),
+    [countryLatencies],
   );
 
   const entries = useMemo(() => [...countryMap.values()], [countryMap]);
@@ -141,75 +135,60 @@ export function LatencyStage({
   const sortedEntries = useMemo(() => {
     const copy = [...entries];
     copy.sort((a, b) => {
-      const va = getCountryLatencyValue(a, metric);
-      const vb = getCountryLatencyValue(b, metric);
-      return sortOrder === 'slowest' ? vb - va : va - vb;
+      const diff =
+        sortOrder === 'desc'
+          ? b.requestCount - a.requestCount
+          : a.requestCount - b.requestCount;
+      return diff !== 0 ? diff : b.avgTcpRttMs - a.avgTcpRttMs;
     });
     return copy;
-  }, [entries, metric, sortOrder]);
+  }, [entries, sortOrder]);
 
-  const {
-    totalRequests,
-    globalAvgPrimary,
-    globalAvgSecondary,
-    fastest,
-    slowest,
-    maxLatency,
-  } = useMemo(() => {
-    if (entries.length === 0) {
+  const { totalRequests, globalAvgTcpRtt, fastest, slowest, maxRequests } =
+    useMemo(() => {
+      if (entries.length === 0) {
+        return {
+          totalRequests: 0,
+          globalAvgTcpRtt: 0,
+          fastest: null,
+          slowest: null,
+          maxRequests: 1,
+        };
+      }
+
+      let reqSum = 0;
+      let tcpWeighted = 0;
+      let minEntry = entries[0];
+      let maxEntry = entries[0];
+      let highestRequests = entries[0].requestCount;
+
+      for (const item of entries) {
+        reqSum += item.requestCount;
+        tcpWeighted += item.avgTcpRttMs * item.requestCount;
+        if (item.avgTcpRttMs < minEntry.avgTcpRttMs) {
+          minEntry = item;
+        }
+        if (item.avgTcpRttMs > maxEntry.avgTcpRttMs) {
+          maxEntry = item;
+        }
+        if (item.requestCount > highestRequests) {
+          highestRequests = item.requestCount;
+        }
+      }
+
       return {
-        totalRequests: 0,
-        globalAvgPrimary: 0,
-        globalAvgSecondary: 0,
-        fastest: null,
-        slowest: null,
-        maxLatency: 1,
+        totalRequests: reqSum,
+        globalAvgTcpRtt: reqSum > 0 ? tcpWeighted / reqSum : 0,
+        fastest: minEntry,
+        slowest: maxEntry,
+        maxRequests: Math.max(1, highestRequests),
       };
-    }
-
-    let reqSum = 0;
-    let primaryWeighted = 0;
-    let secondaryWeight = 0;
-    let secondaryWeighted = 0;
-    let minEntry = entries[0];
-    let maxEntry = entries[0];
-
-    for (const item of entries) {
-      const primaryValue = getCountryLatencyValue(item, metric);
-      const secondaryValue =
-        metric === 'tcp_rtt' ? item.avgRequestTimeMs : item.avgTcpRttMs;
-      reqSum += item.requestCount;
-      primaryWeighted += primaryValue * item.requestCount;
-      if (secondaryValue > 0) {
-        secondaryWeight += item.requestCount;
-        secondaryWeighted += secondaryValue * item.requestCount;
-      }
-      if (primaryValue < getCountryLatencyValue(minEntry, metric)) {
-        minEntry = item;
-      }
-      if (primaryValue > getCountryLatencyValue(maxEntry, metric)) {
-        maxEntry = item;
-      }
-    }
-
-    return {
-      totalRequests: reqSum,
-      globalAvgPrimary: reqSum > 0 ? primaryWeighted / reqSum : 0,
-      globalAvgSecondary:
-        secondaryWeight > 0 ? secondaryWeighted / secondaryWeight : 0,
-      fastest: minEntry,
-      slowest: maxEntry,
-      maxLatency: Math.max(1, getCountryLatencyValue(maxEntry, metric)),
-    };
-  }, [entries, metric]);
+    }, [entries]);
 
   const headlineMetrics = [
     {
-      label:
-        metric === 'tcp_rtt'
-          ? t('summary.avgTcpRtt')
-          : t('summary.avgRequestTime'),
-      value: entries.length > 0 ? formatLatencyMs(globalAvgPrimary) : '—',
+      label: t('summary.avgTcpRtt'),
+      value: entries.length > 0 ? formatLatencyMs(globalAvgTcpRtt) : '—',
       hint:
         entries.length > 0
           ? t('summary.avgLatencyHint', {
@@ -220,9 +199,7 @@ export function LatencyStage({
     },
     {
       label: t('summary.fastestRegion'),
-      value: fastest
-        ? formatLatencyMs(getCountryLatencyValue(fastest, metric))
-        : '—',
+      value: fastest ? formatLatencyMs(fastest.avgTcpRttMs) : '—',
       hint: fastest
         ? `${fastest.name} · ${t('requestsCount', {
             count: formatCompactNumber(fastest.requestCount),
@@ -232,9 +209,7 @@ export function LatencyStage({
     },
     {
       label: t('summary.slowestRegion'),
-      value: slowest
-        ? formatLatencyMs(getCountryLatencyValue(slowest, metric))
-        : '—',
+      value: slowest ? formatLatencyMs(slowest.avgTcpRttMs) : '—',
       hint: slowest
         ? `${slowest.name} · ${t('requestsCount', {
             count: formatCompactNumber(slowest.requestCount),
@@ -245,17 +220,7 @@ export function LatencyStage({
     {
       label: t('summary.coveredRegions'),
       value: entries.length.toLocaleString(getFormattingLocale()),
-      hint:
-        globalAvgSecondary > 0
-          ? t(
-              metric === 'tcp_rtt'
-                ? 'summary.requestTimeHint'
-                : 'summary.tcpRttHint',
-              {
-                value: formatLatencyMs(globalAvgSecondary),
-              },
-            )
-          : t('summary.windowHint'),
+      hint: t('summary.windowHint'),
       icon: Globe2,
     },
   ] as const;
@@ -271,39 +236,16 @@ export function LatencyStage({
             </CardTitle>
             <p className='text-xs text-muted-foreground'>{t('description')}</p>
           </div>
-          <div className='flex flex-wrap items-center gap-2'>
-            <ToggleGroup
-              type='single'
-              variant='outline'
-              size='sm'
-              value={metric}
-              onValueChange={(value) => {
-                if (value === 'tcp_rtt' || value === 'request_time') {
-                  setMetric(value);
-                }
-              }}
-            >
-              <ToggleGroupItem value='tcp_rtt' className='h-7 px-2.5 text-xs'>
-                {t('metricTcpRtt')}
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value='request_time'
-                className='h-7 px-2.5 text-xs'
+          <div className='flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-dashed bg-muted/15 px-3 py-1.5'>
+            {LATENCY_LEGEND.map((item) => (
+              <span
+                key={item.key}
+                className='inline-flex items-center gap-1 text-[10px] text-muted-foreground'
               >
-                {t('metricRequestTime')}
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <div className='flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-dashed bg-muted/15 px-3 py-1.5'>
-              {LATENCY_LEGEND.map((item) => (
-                <span
-                  key={item.key}
-                  className='inline-flex items-center gap-1 text-[10px] text-muted-foreground'
-                >
-                  <span className={cn('size-1.5 rounded-full', item.dot)} />
-                  {t(item.key)}
-                </span>
-              ))}
-            </div>
+                <span className={cn('size-1.5 rounded-full', item.dot)} />
+                {t(item.key)}
+              </span>
+            ))}
           </div>
         </div>
       </CardHeader>
@@ -328,7 +270,7 @@ export function LatencyStage({
               className='relative h-[340px] w-full overflow-hidden sm:h-[400px] lg:h-[440px]'
             >
               {shouldRenderMap ? (
-                <LatencyStageMap countryLatency={countryMap} metric={metric} />
+                <LatencyStageMap countryLatency={countryMap} />
               ) : (
                 <div className='flex h-full items-center justify-center px-4'>
                   <EmptyState
@@ -342,11 +284,7 @@ export function LatencyStage({
               {shouldRenderMap && entries.length === 0 ? (
                 <div className='pointer-events-none absolute inset-x-3 bottom-2 z-10'>
                   <p className='text-center text-xs text-muted-foreground'>
-                    {t(
-                      metric === 'tcp_rtt'
-                        ? 'noTcpRttOverlay'
-                        : 'noRequestTimeOverlay',
-                    )}
+                    {t('noTcpRttOverlay')}
                   </p>
                 </div>
               ) : null}
@@ -361,25 +299,27 @@ export function LatencyStage({
               <h3 className='text-sm font-medium'>{t('countryRanking')}</h3>
               <Button
                 type='button'
-                variant='outline'
+                variant='ghost'
                 size='icon-sm'
-                className='size-7 shrink-0'
+                className='size-7 shrink-0 text-muted-foreground hover:bg-transparent hover:text-foreground'
                 onClick={() =>
-                  setSortOrder((prev) =>
-                    prev === 'slowest' ? 'fastest' : 'slowest',
-                  )
+                  setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))
                 }
                 aria-label={t(
-                  sortOrder === 'slowest' ? 'sortSlowest' : 'sortFastest',
+                  sortOrder === 'desc'
+                    ? 'sortMostRequests'
+                    : 'sortLeastRequests',
                 )}
                 title={t(
-                  sortOrder === 'slowest' ? 'sortSlowest' : 'sortFastest',
+                  sortOrder === 'desc'
+                    ? 'sortMostRequests'
+                    : 'sortLeastRequests',
                 )}
               >
-                {sortOrder === 'slowest' ? (
-                  <ArrowDownWideNarrow className='size-3.5' />
+                {sortOrder === 'desc' ? (
+                  <ArrowDownWideNarrow className='size-4' />
                 ) : (
-                  <ArrowUpNarrowWide className='size-3.5' />
+                  <ArrowUpNarrowWide className='size-4' />
                 )}
               </Button>
             </div>
@@ -387,12 +327,7 @@ export function LatencyStage({
             {sortedEntries.length > 0 ? (
               <ol className='hide-scrollbar flex max-h-[410px] flex-1 flex-col gap-3.5 overflow-y-auto py-1'>
                 {sortedEntries.map((item) => {
-                  const primaryValue = getCountryLatencyValue(item, metric);
-                  const secondaryValue =
-                    metric === 'tcp_rtt'
-                      ? item.avgRequestTimeMs
-                      : item.avgTcpRttMs;
-                  const tier = getLatencyTier(primaryValue);
+                  const tier = getLatencyTier(item.avgTcpRttMs);
                   return (
                     <li
                       key={item.name}
@@ -412,7 +347,7 @@ export function LatencyStage({
                           <span className='truncate'>{item.name}</span>
                         </span>
                         <span className='shrink-0 font-mono text-xs font-semibold tabular-nums'>
-                          {formatLatencyMs(primaryValue)}
+                          {formatLatencyMs(item.avgTcpRttMs)}
                         </span>
                       </div>
                       <div className='flex items-center justify-between gap-2 text-[11px] text-muted-foreground'>
@@ -421,21 +356,9 @@ export function LatencyStage({
                             count: formatCompactNumber(item.requestCount),
                           })}
                         </span>
-                        {secondaryValue > 0 ? (
-                          <span className='shrink-0 font-mono tabular-nums'>
-                            {t(
-                              metric === 'tcp_rtt'
-                                ? 'requestTimeShort'
-                                : 'tcpRttShort',
-                              {
-                                value: formatLatencyMs(secondaryValue),
-                              },
-                            )}
-                          </span>
-                        ) : null}
                       </div>
                       <Progress
-                        value={(primaryValue / maxLatency) * 100}
+                        value={(item.requestCount / maxRequests) * 100}
                         aria-label={item.name}
                         className='h-1'
                       />

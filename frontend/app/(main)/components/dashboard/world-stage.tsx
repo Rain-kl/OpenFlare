@@ -15,9 +15,9 @@ import {
 
 import { getFormattingLocale } from '@/i18n/format';
 import { EmptyState } from '@/components/layout/empty';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type {
   DashboardNodeHealth,
   DashboardTraffic,
@@ -253,24 +253,33 @@ export function WorldStage({
                   ? tm('sourceRanking')
                   : tm('nodeLoadRanking')}
               </h3>
-              <ToggleGroup
-                type='single'
-                variant='outline'
-                size='sm'
-                value={rankingMode}
-                onValueChange={(value) => {
-                  if (value === 'countries' || value === 'nodes') {
-                    setRankingMode(value);
-                  }
-                }}
+              <Button
+                type='button'
+                variant='ghost'
+                size='icon-sm'
+                className='size-7 shrink-0 text-muted-foreground hover:bg-transparent hover:text-foreground'
+                onClick={() =>
+                  setRankingMode((prev) =>
+                    prev === 'countries' ? 'nodes' : 'countries',
+                  )
+                }
+                aria-label={tm(
+                  rankingMode === 'countries'
+                    ? 'switchToNodeRanking'
+                    : 'switchToCountryRanking',
+                )}
+                title={tm(
+                  rankingMode === 'countries'
+                    ? 'switchToNodeRanking'
+                    : 'switchToCountryRanking',
+                )}
               >
-                <ToggleGroupItem value='countries' className='h-7 px-2 text-xs'>
-                  {tm('rankingCountriesTab')}
-                </ToggleGroupItem>
-                <ToggleGroupItem value='nodes' className='h-7 px-2 text-xs'>
-                  {tm('rankingNodesTab')}
-                </ToggleGroupItem>
-              </ToggleGroup>
+                {rankingMode === 'countries' ? (
+                  <Server className='size-4' />
+                ) : (
+                  <Globe2 className='size-4' />
+                )}
+              </Button>
             </div>
 
             {rankingMode === 'countries' ? (

@@ -27,7 +27,7 @@ it('colors the bundled US region for source names and country codes', () => {
   });
 });
 
-it('merges country aliases, filters unrecorded latencies, and defaults to TCP RTT', () => {
+it('merges country aliases, filters unrecorded TCP RTTs, and sorts by request count', () => {
   const sample = [
     {
       region: 'US',
@@ -40,6 +40,12 @@ it('merges country aliases, filters unrecorded latencies, and defaults to TCP RT
       request_count: 300,
       avg_request_time_ms: 80,
       avg_tcp_rtt_ms: 40,
+    },
+    {
+      region: 'JP',
+      request_count: 500,
+      avg_request_time_ms: 50,
+      avg_tcp_rtt_ms: 8,
     },
     {
       region: 'HK',
@@ -56,26 +62,19 @@ it('merges country aliases, filters unrecorded latencies, and defaults to TCP RT
   ];
 
   const tcpRttMap = buildCountryLatency(sample);
-  expect(tcpRttMap.size).toBe(1);
+  expect([...tcpRttMap.keys()]).toEqual(['Japan', 'United States of America']);
+  expect(tcpRttMap.get('Japan')).toMatchObject({
+    name: 'Japan',
+    requestCount: 500,
+    avgTcpRttMs: 8,
+    hasBoundary: true,
+  });
   expect(tcpRttMap.get('United States of America')).toMatchObject({
     name: 'United States of America',
-    requestCount: 400,
-    avgRequestTimeMs: 90,
+    requestCount: 300,
     avgTcpRttMs: 40,
     hasBoundary: true,
   });
   expect(tcpRttMap.has('Hong Kong')).toBe(false);
   expect(tcpRttMap.has('Portugal')).toBe(false);
-
-  const requestTimeMap = buildCountryLatency(sample, 'request_time');
-  expect(requestTimeMap.size).toBe(2);
-  expect(requestTimeMap.get('Hong Kong')).toMatchObject({
-    name: 'Hong Kong',
-    requestCount: 50,
-    avgRequestTimeMs: 250,
-    avgTcpRttMs: 0,
-    hasBoundary: false,
-    coordinate: [114.1747, 22.2783],
-  });
-  expect(requestTimeMap.has('Portugal')).toBe(false);
 });

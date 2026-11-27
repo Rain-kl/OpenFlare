@@ -329,16 +329,18 @@ describe('Security menu split, dashboard layout, and global settings', () => {
     ).toBeTruthy();
 
     expect(screen.getAllByText('18.2 ms').length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('radio', { name: '请求耗时' }));
-    expect(screen.getAllByText('42.5 ms').length).toBeGreaterThan(0);
 
-    const sortToggle = screen.getByRole('button', { name: '高延迟优先' });
+    const sortToggle = screen.getByRole('button', {
+      name: '请求数从高到低',
+    });
     await user.click(sortToggle);
     expect(
-      screen.getByRole('button', { name: '低延迟优先' }),
+      screen.getByRole('button', { name: '请求数从低到高' }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('radio', { name: '节点' }));
+    await user.click(
+      screen.getByRole('button', { name: '切换为节点负载排行' }),
+    );
     expect(await screen.findByText('节点负载排行')).toBeInTheDocument();
     expect(screen.getAllByText('1,000 次请求').length).toBeGreaterThan(0);
     expect(screen.getByText('CPU 12% · 内存 34%')).toBeInTheDocument();

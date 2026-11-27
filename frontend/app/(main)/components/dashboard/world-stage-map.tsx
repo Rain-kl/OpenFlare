@@ -7,6 +7,7 @@ import * as echarts from 'echarts/core';
 import { ScatterChart } from 'echarts/charts';
 import { GeoComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
+import { Globe, Map as MapIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -15,7 +16,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DottedGlobe } from './dotted-globe';
 import { buildCountryHeat, type CountryHeat } from './country-heat';
 import { useMapPalette } from './use-map-palette';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/layout/empty';
 import type {
   DashboardNodeHealth,
@@ -566,19 +567,21 @@ export function WorldStageMap(props: {
     <div className='flex h-full min-h-0 flex-col gap-3'>
       <div className='flex items-center justify-between gap-2'>
         <span className='text-sm font-medium'>{t('geolocation')}</span>
-        <ToggleGroup
-          type='single'
-          variant='outline'
-          size='sm'
-          value={mode}
-          onValueChange={(value) => {
-            if (value) setMode(value);
-          }}
-          aria-label={t('viewMode')}
+        <Button
+          type='button'
+          variant='ghost'
+          size='icon-sm'
+          className='size-7 shrink-0 text-muted-foreground hover:bg-transparent hover:text-foreground'
+          onClick={() => setMode((prev) => (prev === '3d' ? '2d' : '3d'))}
+          aria-label={t(mode === '3d' ? 'switchTo2d' : 'switchTo3d')}
+          title={t(mode === '3d' ? 'switchTo2d' : 'switchTo3d')}
         >
-          <ToggleGroupItem value='3d'>3D</ToggleGroupItem>
-          <ToggleGroupItem value='2d'>2D</ToggleGroupItem>
-        </ToggleGroup>
+          {mode === '3d' ? (
+            <MapIcon className='size-4' />
+          ) : (
+            <Globe className='size-4' />
+          )}
+        </Button>
       </div>
       <div className='relative min-h-0 flex-1'>
         {mode === '3d' ? (

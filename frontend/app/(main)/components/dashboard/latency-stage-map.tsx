@@ -13,23 +13,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '@/components/layout/empty';
 import { getFormattingLocale } from '@/i18n/format';
 
-import {
-  type CountryLatencyDatum,
-  getCountryLatencyValue,
-  type LatencyMetric,
-} from './country-heat';
+import type { CountryLatencyDatum } from './country-heat';
 import { useMapPalette } from './use-map-palette';
 import { ensureWorldMapRegistered } from './world-map-registry';
 
 echarts.use([GeoComponent, TooltipComponent, ScatterChart, CanvasRenderer]);
 
-export type LatencyTier = 'fast' | 'moderate' | 'slow' | 'critical';
+export type LatencyTier = 'deep_green' | 'light_green' | 'yellow' | 'red';
 
 export function getLatencyTier(ms: number): LatencyTier {
-  if (ms < 100) return 'fast';
-  if (ms < 300) return 'moderate';
-  if (ms < 800) return 'slow';
-  return 'critical';
+  if (ms < 100) return 'deep_green';
+  if (ms < 170) return 'light_green';
+  if (ms < 300) return 'yellow';
+  return 'red';
 }
 
 export function formatLatencyMs(ms: number): string {
@@ -56,25 +52,23 @@ const TIER_COLORS: Record<
   Record<LatencyTier, { area: string; dot: string }>
 > = {
   light: {
-    fast: { area: 'rgba(16, 185, 129, 0.52)', dot: '#10b981' },
-    moderate: { area: 'rgba(245, 158, 11, 0.55)', dot: '#f59e0b' },
-    slow: { area: 'rgba(249, 115, 22, 0.62)', dot: '#f97316' },
-    critical: { area: 'rgba(239, 68, 68, 0.66)', dot: '#ef4444' },
+    deep_green: { area: 'rgba(21, 128, 61, 0.62)', dot: '#15803d' },
+    light_green: { area: 'rgba(74, 222, 128, 0.58)', dot: '#4ade80' },
+    yellow: { area: 'rgba(234, 179, 8, 0.6)', dot: '#eab308' },
+    red: { area: 'rgba(239, 68, 68, 0.66)', dot: '#ef4444' },
   },
   dark: {
-    fast: { area: 'rgba(52, 211, 153, 0.56)', dot: '#34d399' },
-    moderate: { area: 'rgba(251, 191, 36, 0.58)', dot: '#fbbf24' },
-    slow: { area: 'rgba(251, 146, 60, 0.64)', dot: '#fb923c' },
-    critical: { area: 'rgba(248, 113, 113, 0.68)', dot: '#f87171' },
+    deep_green: { area: 'rgba(16, 185, 129, 0.58)', dot: '#10b981' },
+    light_green: { area: 'rgba(134, 239, 172, 0.54)', dot: '#86efac' },
+    yellow: { area: 'rgba(250, 204, 21, 0.6)', dot: '#facc15' },
+    red: { area: 'rgba(248, 113, 113, 0.68)', dot: '#f87171' },
   },
 };
 
 export function LatencyStageMap({
   countryLatency,
-  metric,
 }: {
   countryLatency: Map<string, CountryLatencyDatum>;
-  metric: LatencyMetric;
 }) {
   const tm = useTranslations('dashboard.map');
   const tl = useTranslations('dashboard.latency');
@@ -156,54 +150,22 @@ export function LatencyStageMap({
     const buildTooltipHtml = (item: CountryLatencyDatum) => {
       const lines = [
         `<div style="font-weight:600;margin-bottom:4px;">${escapeHtml(item.name)}</div>`,
-      ];
-      if (metric === 'tcp_rtt') {
-        lines.push(
-          `<div>${escapeHtml(
-            tl('avgTcpRttLabel', { value: formatLatencyMs(item.avgTcpRttMs) }),
-          )}</div>`,
-        );
-        if (item.avgRequestTimeMs > 0) {
-          lines.push(
-            `<div>${escapeHtml(
-              tl('avgLatencyLabel', {
-                value: formatLatencyMs(item.avgRequestTimeMs),
-              }),
-            )}</div>`,
-          );
-        }
-      } else {
-        lines.push(
-          `<div>${escapeHtml(
-            tl('avgLatencyLabel', {
-              value: formatLatencyMs(item.avgRequestTimeMs),
-            }),
-          )}</div>`,
-        );
-        if (item.avgTcpRttMs > 0) {
-          lines.push(
-            `<div>${escapeHtml(
-              tl('avgTcpRttLabel', {
-                value: formatLatencyMs(item.avgTcpRttMs),
-              }),
-            )}</div>`,
-          );
-        }
-      }
-      lines.push(
+        `<div>${escapeHtml(
+          tl('avgTcpRttLabel', { value: formatLatencyMs(item.avgTcpRttMs) }),
+        )}</div>`,
         `<div>${escapeHtml(
           tl('requestsCount', {
             count: item.requestCount.toLocaleString(locale),
           }),
         )}</div>`,
-      );
+      ];
       return lines.join('');
     };
 
     const countryRegions = [...countryLatency.values()]
       .filter((item) => item.hasBoundary)
       .map((item) => {
-        const tier = getLatencyTier(getCountryLatencyValue(item, metric));
+        const tier = getLatencyTier(item.avgTcpRttMs);
         return {
           name: item.name,
           itemStyle: { areaColor: scheme[tier].area },
@@ -215,7 +177,7 @@ export function LatencyStageMap({
       if (item.hasBoundary || !item.coordinate) {
         return [];
       }
-      const tier = getLatencyTier(getCountryLatencyValue(item, metric));
+      const tier = getLatencyTier(item.avgTcpRttMs);
       return [
         {
           name: item.name,
@@ -286,7 +248,7 @@ export function LatencyStageMap({
         },
       ],
     };
-  }, [computedLayoutSize, countryLatency, isDark, mapPalette, metric, tl]);
+  }, [computedLayoutSize, countryLatency, isDark, mapPalette, tl]);
 
   if (!mapReady) {
     return (
