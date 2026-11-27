@@ -12,6 +12,7 @@ import (
 
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/repository/logstore"
 )
 
 // EnsureEmbeddedDNSInstance upserts the controller-managed embedded SmartDNS instance record.
@@ -242,4 +243,13 @@ func CountPointingGroupsBySmartDNSPolicyID(ctx context.Context, policyID uint) (
 		return 0, err
 	}
 	return count, nil
+}
+
+// InsertOpenFlareDNSMetricSnapshot queues or inserts a SmartDNS metric snapshot through active logstore hooks.
+func InsertOpenFlareDNSMetricSnapshot(ctx context.Context, record *model.OpenFlareDNSMetricSnapshot) error {
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return err
+	}
+	return s.Observability.InsertDNSMetricSnapshot(ctx, record)
 }

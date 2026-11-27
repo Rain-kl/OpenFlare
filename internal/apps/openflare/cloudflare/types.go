@@ -31,33 +31,38 @@ type NodeOption struct {
 
 // GroupInput creates or updates a pointing group.
 type GroupInput struct {
-	Name           string `json:"name"`
-	TargetMode     string `json:"target_mode"`
-	RecordType     string `json:"record_type"`
-	RecordContent  string `json:"record_content"`
-	PrimaryNodeID  uint   `json:"primary_node_id"`
-	BackupNodeID   *uint  `json:"backup_node_id"`
-	DefaultProxied bool   `json:"default_proxied"`
-	Enabled        bool   `json:"enabled"`
+	Name               string `json:"name"`
+	TargetMode         string `json:"target_mode"`
+	RecordType         string `json:"record_type"`
+	RecordContent      string `json:"record_content"`
+	SmartDNSPolicyID   *uint  `json:"smartdns_policy_id"`
+	SmartDNSTargetHost string `json:"smartdns_target_host"`
+	PrimaryNodeID      uint   `json:"primary_node_id"`
+	BackupNodeID       *uint  `json:"backup_node_id"`
+	DefaultProxied     bool   `json:"default_proxied"`
+	Enabled            bool   `json:"enabled"`
 	// TTL 为 1 时自动，否则为 60～86400 秒的整数；省略时创建默认自动，更新保留原值。
 	TTL *int `json:"ttl" example:"1"`
 }
 
 // GroupItem is the admin-facing pointing group summary.
 type GroupItem struct {
-	ID             uint        `json:"id"`
-	Name           string      `json:"name"`
-	TargetMode     string      `json:"target_mode"`
-	RecordType     string      `json:"record_type"`
-	RecordContent  string      `json:"record_content"`
-	PrimaryNode    NodeOption  `json:"primary_node"`
-	BackupNode     *NodeOption `json:"backup_node"`
-	ActiveNode     NodeOption  `json:"active_node"`
-	DefaultProxied bool        `json:"default_proxied"`
-	Enabled        bool        `json:"enabled"`
-	MemberCount    int64       `json:"member_count"`
-	CreatedAt      time.Time   `json:"created_at"`
-	UpdatedAt      time.Time   `json:"updated_at"`
+	ID                 uint        `json:"id"`
+	Name               string      `json:"name"`
+	TargetMode         string      `json:"target_mode"`
+	RecordType         string      `json:"record_type"`
+	RecordContent      string      `json:"record_content"`
+	SmartDNSPolicyID   *uint       `json:"smartdns_policy_id,omitempty"`
+	SmartDNSPolicyName string      `json:"smartdns_policy_name,omitempty"`
+	SmartDNSTargetHost string      `json:"smartdns_target_host,omitempty"`
+	PrimaryNode        NodeOption  `json:"primary_node"`
+	BackupNode         *NodeOption `json:"backup_node"`
+	ActiveNode         NodeOption  `json:"active_node"`
+	DefaultProxied     bool        `json:"default_proxied"`
+	Enabled            bool        `json:"enabled"`
+	MemberCount        int64       `json:"member_count"`
+	CreatedAt          time.Time   `json:"created_at"`
+	UpdatedAt          time.Time   `json:"updated_at"`
 	// TTL 为 1 时自动，否则为 DNS-only 成员使用的秒数。
 	TTL int `json:"ttl" example:"1"`
 }

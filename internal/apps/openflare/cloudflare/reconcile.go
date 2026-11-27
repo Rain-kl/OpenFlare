@@ -76,6 +76,9 @@ func reconcileMember(ctx context.Context, memberID uint) error {
 	}
 	input.Name = state.Domain.Domain
 	input.Proxied = state.Member.Proxied
+	if state.Group.TargetMode == model.CFPointingTargetModeSmartDNS {
+		input.Proxied = false
+	}
 	input.TTL = groupTTL(&state.Group)
 	if input.Proxied {
 		input.TTL = automaticTTL
@@ -134,6 +137,13 @@ func reconcileCachedRecord(
 }
 
 func desiredRecordInput(state *repository.CFPointingMemberContext) (RecordInput, error) {
+	if state.Group.TargetMode == model.CFPointingTargetModeSmartDNS {
+		host := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(state.Group.SmartDNSTargetHost)), ".")
+		if !validCNAMEContent(host) {
+			return RecordInput{}, errors.New(errSmartDNSHostInvalid)
+		}
+		return RecordInput{Type: "CNAME", Content: host}, nil
+	}
 	if state.Group.TargetMode == model.CFPointingTargetModeCustom {
 		recordType := strings.ToUpper(strings.TrimSpace(state.Group.RecordType))
 		content := strings.TrimSpace(state.Group.RecordContent)
@@ -190,7 +200,10 @@ func DeleteManagedRecord(ctx context.Context, memberID uint) error {
 		}
 	}
 	recordType := "A"
-	if state.Group.TargetMode == model.CFPointingTargetModeCustom {
+	switch state.Group.TargetMode {
+	case model.CFPointingTargetModeSmartDNS:
+		recordType = "CNAME"
+	case model.CFPointingTargetModeCustom:
 		recordType = state.Group.RecordType
 		if recordType == "" {
 			recordType = "A"

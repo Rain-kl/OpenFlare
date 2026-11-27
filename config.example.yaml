@@ -121,3 +121,12 @@ clickhouse:
   block_buffer_size: 32       # rows buffered per block; 32 is enough for our batch sizes
   # Runtime client also enables async_insert (wait_for_async_insert=1, busy_timeout≈2s)
   # in internal/infra/persistence/clickhouse.go — not configured via YAML.
+
+# ─── SmartDNS (optional embedded authoritative DNS) ────────────────────────────
+# Controls the local authoritative SmartDNS process/server embedded in controller.
+smartdns:
+  enabled: false
+  listen_addr: ":53"
+  binary_path: ""                  # Optional path to openflare-dns binary; falls back to embedded Go DNS when empty
+  embedded_name: "Embedded SmartDNS"
+  data_dir: "data/smartdns"

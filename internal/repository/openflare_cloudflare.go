@@ -210,7 +210,7 @@ func GetCFPointingMemberContext(ctx context.Context, memberID uint) (*CFPointing
 		return nil, err
 	}
 	node := &model.OpenFlareNode{}
-	if group.TargetMode != model.CFPointingTargetModeCustom {
+	if group.TargetMode == "" || group.TargetMode == model.CFPointingTargetModeNode {
 		node, err = GetOpenFlareNodeByID(ctx, group.ActiveNodeID)
 		if err != nil {
 			return nil, err
@@ -232,6 +232,12 @@ func GetZoneDomainByID(ctx context.Context, id uint) (*model.ZoneDomain, error) 
 func MarkCFPointingGroupMembersPending(ctx context.Context, groupID uint) error {
 	return db.DB(ctx).Model(&model.CFPointingMember{}).Where("group_id = ?", groupID).
 		Updates(map[string]any{"sync_status": model.CFMemberSyncPending, "last_error": ""}).Error
+}
+
+// UpdateCFPointingGroupMembersProxied updates proxied state for every member in a group.
+func UpdateCFPointingGroupMembersProxied(ctx context.Context, groupID uint, proxied bool) error {
+	return db.DB(ctx).Model(&model.CFPointingMember{}).Where("group_id = ?", groupID).
+		Update("proxied", proxied).Error
 }
 
 // HasPendingCFPointingGroupMembers reports whether a group has members awaiting reconciliation.

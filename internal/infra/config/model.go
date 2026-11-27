@@ -16,6 +16,7 @@ type configModel struct {
 	Worker         workerConfig     `mapstructure:"worker"`
 	ClickHouse     clickHouseConfig `mapstructure:"clickhouse"`
 	Otel           otelConfig       `mapstructure:"otel"`
+	SmartDNS       smartDNSConfig   `mapstructure:"smartdns"`
 }
 
 // appConfig 应用基本配置
@@ -142,4 +143,13 @@ type otelConfig struct {
 	ExportProtocol string  `mapstructure:"export_protocol"`
 	SamplingRate   float64 `mapstructure:"sampling_rate"`
 	TracerName     string  `mapstructure:"tracer_name"`
+}
+
+// smartDNSConfig SmartDNS 内置解析服务启动配置
+type smartDNSConfig struct {
+	Enabled      bool   `mapstructure:"enabled"`
+	ListenAddr   string `mapstructure:"listen_addr"`
+	BinaryPath   string `mapstructure:"binary_path"`
+	EmbeddedName string `mapstructure:"embedded_name"`
+	DataDir      string `mapstructure:"data_dir"`
 }

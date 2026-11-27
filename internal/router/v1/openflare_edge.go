@@ -5,6 +5,7 @@ package v1
 
 import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/agent"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/smartdns"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tunnel"
 	"github.com/gin-gonic/gin"
 )
@@ -13,6 +14,7 @@ func registerOpenFlareEdgeRoutes(apiV1Router *gin.RouterGroup) {
 	registerOpenFlareAgentRoutes(apiV1Router)
 	registerOpenFlareRelayRoutes(apiV1Router)
 	registerOpenFlareTunnelRoutes(apiV1Router)
+	registerOpenFlareDNSAgentRoutes(apiV1Router)
 }
 
 func registerOpenFlareAgentRoutes(apiV1Router *gin.RouterGroup) {
@@ -68,5 +70,24 @@ func registerOpenFlareTunnelRoutes(apiV1Router *gin.RouterGroup) {
 		tunnelRoute.GET("/config", tunnel.TunnelConfigHandler)
 		tunnelRoute.POST("/attachments", tunnel.TunnelNegotiateAttachmentsHandler)
 		tunnelRoute.GET("/ws", tunnel.TunnelWebSocketHandler)
+	}
+}
+
+func registerOpenFlareDNSAgentRoutes(apiV1Router *gin.RouterGroup) {
+	dnsAgentRoute := apiV1Router.Group("/dns-agent")
+	{
+		discoveryRoute := dnsAgentRoute.Group("/")
+		discoveryRoute.Use(smartdns.DNSInstanceRegisterAuth())
+		{
+			discoveryRoute.POST("/register", smartdns.AgentRegisterHandler)
+		}
+
+		authorizedRoute := dnsAgentRoute.Group("/")
+		authorizedRoute.Use(smartdns.DNSInstanceAuth())
+		{
+			authorizedRoute.POST("/heartbeat", smartdns.AgentHeartbeatHandler)
+			authorizedRoute.GET("/snapshot", smartdns.AgentPullSnapshotHandler)
+			authorizedRoute.GET("/ws", smartdns.AgentWebSocketHandler)
+		}
 	}
 }

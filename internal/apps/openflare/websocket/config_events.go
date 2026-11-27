@@ -27,6 +27,8 @@ const (
 	tunnelRelayWakeChannel     = "tunnel:relay_wake"
 	tunnelConnectorWakeChannel = "tunnel:connector_wake"
 	tunnelDisconnectChannel    = "tunnel:disconnect"
+	dnsSnapshotChangedChannel  = "dns:snapshot_changed"
+	dnsDisconnectChannel       = "dns:disconnect"
 )
 
 type pingTaskDispatchEvent struct {
@@ -152,6 +154,27 @@ func DisconnectTunnel(ctx context.Context, tunnelID uint, reason string) {
 		TunnelID:    tunnelID,
 		Reason:      reason,
 	}, "tunnel disconnect")
+}
+
+// NotifyDNSSnapshotChanged wakes all connected SmartDNS instances to pull a new immutable snapshot.
+func NotifyDNSSnapshotChanged(ctx context.Context) {
+	wakeAllDNSInstances()
+	if db.Redis == nil {
+		return
+	}
+	if err := db.Redis.Publish(ctx, db.PrefixedKey(dnsSnapshotChangedChannel), configPublisherID).Err(); err != nil {
+		logger.WarnF(ctx, "could not broadcast SmartDNS snapshot change: %v", err)
+	}
+}
+
+// DisconnectDNSInstance drops a quarantined or deleted SmartDNS WebSocket across controller replicas.
+func DisconnectDNSInstance(ctx context.Context, instanceID, reason string) {
+	disconnectLocalDNSInstance(instanceID, reason)
+	publishTunnelEvent(ctx, dnsDisconnectChannel, nodeQuarantinedEvent{
+		PublisherID: configPublisherID,
+		NodeID:      instanceID,
+		Reason:      reason,
+	}, "dns disconnect")
 }
 
 func publishTunnelEvent(ctx context.Context, channel string, event any, label string) {
@@ -293,7 +316,9 @@ func StartConfigChangeListener(ctx context.Context) {
 		relayWakeKey := db.PrefixedKey(tunnelRelayWakeChannel)
 		connectorWakeKey := db.PrefixedKey(tunnelConnectorWakeChannel)
 		tunnelDisconnectKey := db.PrefixedKey(tunnelDisconnectChannel)
-		subscription := client.Subscribe(subscriberCtx, configKey, quarantineKey, pingTaskKey, netProbeTaskKey, remoteExecKey, pingReloadKey, relayWakeKey, connectorWakeKey, tunnelDisconnectKey)
+		dnsSnapshotKey := db.PrefixedKey(dnsSnapshotChangedChannel)
+		dnsDisconnectKey := db.PrefixedKey(dnsDisconnectChannel)
+		subscription := client.Subscribe(subscriberCtx, configKey, quarantineKey, pingTaskKey, netProbeTaskKey, remoteExecKey, pingReloadKey, relayWakeKey, connectorWakeKey, tunnelDisconnectKey, dnsSnapshotKey, dnsDisconnectKey)
 		lifecycle.OnShutdown("edge configuration notifications", func(context.Context) error {
 			cancel()
 			return subscription.Close()
@@ -379,6 +404,18 @@ func StartConfigChangeListener(ctx context.Context) {
 						if event.TunnelID > 0 {
 							disconnectLocalTunnelConnectors(event.TunnelID, event.Reason)
 						}
+					}
+				case dnsSnapshotKey:
+					if message.Payload != configPublisherID {
+						wakeAllDNSInstances()
+					}
+				case dnsDisconnectKey:
+					var event nodeQuarantinedEvent
+					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil {
+						continue
+					}
+					if event.PublisherID != configPublisherID && event.NodeID != "" {
+						disconnectLocalDNSInstance(event.NodeID, event.Reason)
 					}
 				}
 			}

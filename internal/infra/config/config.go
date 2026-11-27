@@ -102,6 +102,7 @@ func init() {
 		c.Database.Enabled = false
 		c.Database.SQLitePath = ":memory:"
 		c.Redis.Enabled = false
+		c.SmartDNS.Enabled = false
 	}
 
 	// 设置全局配置
@@ -120,6 +121,15 @@ func applyDefaults(c *configModel) {
 	}
 	if c.Otel.TracerName == "" {
 		c.Otel.TracerName = "github.com/Rain-kl/OpenFlare"
+	}
+	if strings.TrimSpace(c.SmartDNS.ListenAddr) == "" {
+		c.SmartDNS.ListenAddr = ":53"
+	}
+	if strings.TrimSpace(c.SmartDNS.EmbeddedName) == "" {
+		c.SmartDNS.EmbeddedName = "Embedded SmartDNS"
+	}
+	if strings.TrimSpace(c.SmartDNS.DataDir) == "" {
+		c.SmartDNS.DataDir = "data/smartdns"
 	}
 	applyClickHouseDefaults(c)
 }
@@ -287,6 +297,13 @@ func applyEnvOverrides(c *configModel) {
 	c.Otel.ExportProtocol = strings.ToLower(strings.TrimSpace(protocol))
 	c.Otel.SamplingRate = envFloat64("OTEL_SAMPLING_RATE", c.Otel.SamplingRate)
 	c.Otel.TracerName = envStr("OTEL_TRACER_NAME", c.Otel.TracerName)
+
+	// ─── SmartDNS ───
+	c.SmartDNS.Enabled = envBool("SMARTDNS_ENABLED", c.SmartDNS.Enabled)
+	c.SmartDNS.ListenAddr = envStr("SMARTDNS_LISTEN_ADDR", c.SmartDNS.ListenAddr)
+	c.SmartDNS.BinaryPath = envStr("SMARTDNS_BINARY_PATH", c.SmartDNS.BinaryPath)
+	c.SmartDNS.EmbeddedName = envStr("SMARTDNS_EMBEDDED_NAME", c.SmartDNS.EmbeddedName)
+	c.SmartDNS.DataDir = envStr("SMARTDNS_DATA_DIR", c.SmartDNS.DataDir)
 
 	// ─── Worker ───
 	c.Worker.Concurrency = envInt("WORKER_CONCURRENCY", c.Worker.Concurrency)

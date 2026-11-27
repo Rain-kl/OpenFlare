@@ -54,19 +54,19 @@ type OpenFlareDNSInstance struct {
 	GeoLatitude        *float64   `json:"geo_latitude"`
 	GeoLongitude       *float64   `json:"geo_longitude"`
 	AccessToken        string     `json:"-" gorm:"column:access_token;size:128;not null;default:'';index:idx_of_dns_instances_token"`
-	Version            string     `json:"version" gorm:"size:64;not null;default:''"`
-	Status             string     `json:"status" gorm:"size:16;not null;default:'pending'"`
-	SnapshotVersion    uint64     `json:"snapshot_version" gorm:"not null;default:0"`
-	SnapshotETag       string     `json:"snapshot_etag" gorm:"size:64;not null;default:''"`
-	QPS                float64    `json:"qps" gorm:"not null;default:0"`
-	P50Ms              float64    `json:"p50_ms" gorm:"not null;default:0"`
-	P95Ms              float64    `json:"p95_ms" gorm:"not null;default:0"`
-	P99Ms              float64    `json:"p99_ms" gorm:"not null;default:0"`
-	SuccessTotal       uint64     `json:"success_total" gorm:"not null;default:0"`
-	ErrorTotal         uint64     `json:"error_total" gorm:"not null;default:0"`
-	CacheHitRatio      float64    `json:"cache_hit_ratio" gorm:"not null;default:0"`
-	CPUUsagePercent    float64    `json:"cpu_usage_percent" gorm:"not null;default:0"`
-	MemoryUsagePercent float64    `json:"memory_usage_percent" gorm:"not null;default:0"`
+	Version            string     `json:"version" gorm:"column:version;size:64;not null;default:''"`
+	Status             string     `json:"status" gorm:"column:status;size:16;not null;default:'pending'"`
+	SnapshotVersion    uint64     `json:"snapshot_version" gorm:"column:snapshot_version;not null;default:0"`
+	SnapshotETag       string     `json:"snapshot_etag" gorm:"column:snapshot_etag;size:64;not null;default:''"`
+	QPS                float64    `json:"qps" gorm:"column:qps;not null;default:0"`
+	P50Ms              float64    `json:"p50_ms" gorm:"column:p50_ms;not null;default:0"`
+	P95Ms              float64    `json:"p95_ms" gorm:"column:p95_ms;not null;default:0"`
+	P99Ms              float64    `json:"p99_ms" gorm:"column:p99_ms;not null;default:0"`
+	SuccessTotal       uint64     `json:"success_total" gorm:"column:success_total;not null;default:0"`
+	ErrorTotal         uint64     `json:"error_total" gorm:"column:error_total;not null;default:0"`
+	CacheHitRatio      float64    `json:"cache_hit_ratio" gorm:"column:cache_hit_ratio;not null;default:0"`
+	CPUUsagePercent    float64    `json:"cpu_usage_percent" gorm:"column:cpu_usage_percent;not null;default:0"`
+	MemoryUsagePercent float64    `json:"memory_usage_percent" gorm:"column:memory_usage_percent;not null;default:0"`
 	LastSeenAt         *time.Time `json:"last_seen_at"`
 	LastError          string     `json:"last_error" gorm:"type:text;not null;default:''"`
 	QuarantinedAt      *time.Time `json:"quarantined_at"`
