@@ -164,6 +164,14 @@ func (s *clickhouseLogStore) ListPingRecordsForMigration(ctx context.Context, af
 		scanNodePingRecordRows)
 }
 
+// ListNetworkQualitySamplesForMigration 按 id 升序分页读取（迁移复制用）。
+func (s *clickhouseLogStore) ListNetworkQualitySamplesForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NetworkQualitySample, error) {
+	return chListForMigration(ctx, afterID, limit,
+		analyticsmodel.NetworkQualitySample{}.TableName(),
+		analyticsmodel.NetworkQualitySample{}.InsertColumns(),
+		scanNetworkQualitySampleRows)
+}
+
 // chListForMigration 执行按 id 升序分页的 CH 原生表查询，并交给 scanner 扫描。
 func chListForMigration[T any](ctx context.Context, afterID uint64, limit int, table, columns string, scanner func(driver.Rows) ([]T, error)) ([]T, error) {
 	conn, err := chConn()

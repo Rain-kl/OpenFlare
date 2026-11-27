@@ -64,7 +64,12 @@
       "cap_challenge_ttl_seconds": "CAPTCHA Время жизни вызова (секунды)",
       "cap_token_ttl_seconds": "CAPTCHA Срок действия токена подтверждения (секунды)",
       "server_address": "URL сервера для ограничения источников запросов (Origin). Пустое значение разрешает любой источник.",
-      "pow_page": "Шаблон страницы PoW, стиль виджета и пользовательский HTML"
+      "pow_page": "Шаблон страницы PoW, стиль виджета и пользовательский HTML",
+      "netintel_data_dir": "Локальный каталог баз данных сетевой разведки (GeoIP, ASN, bgp.tools)",
+      "netintel_geoip_source": "Источник загрузки GeoIP/ASN (fyralabs или sapics)",
+      "netintel_bgptools_user_agent": "Заголовок User-Agent при загрузке наборов данных bgp.tools",
+      "netintel_caida_enabled": "Включить загрузку графа отношений AS CAIDA в реальном времени (при соблюдении CAIDA AUA)",
+      "netintel_auto_probe_enabled": "Включить фоновую автоматическую трассировку с пограничных узлов для матрицы качества"
     },
     "templates": {
       "login_email": {

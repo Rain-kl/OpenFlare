@@ -117,3 +117,11 @@ func (s *clickhouseLogStore) DeletePingRecordsByTaskIDs(ctx context.Context, tas
 	}
 	return count, nil
 }
+
+func (s *clickhouseLogStore) DeleteAllNetworkQualitySamples(ctx context.Context) (int64, error) {
+	return s.chTruncateTable(ctx, chNetworkQualitySampleTableName())
+}
+
+func (s *clickhouseLogStore) DeleteNetworkQualitySamplesBefore(ctx context.Context, _ time.Time) (int64, error) {
+	return s.chMaterializeObsTTL(ctx, chNetworkQualitySampleTableName(), chTableTTLDaysNetworkQualitySamples)
+}

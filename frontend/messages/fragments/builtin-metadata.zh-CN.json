@@ -64,7 +64,12 @@
       "cap_challenge_ttl_seconds": "人机验证难题有效时间（秒）",
       "cap_token_ttl_seconds": "人机验证兑换凭证有效时间（秒）",
       "server_address": "服务器地址（用于跨域来源控制，留空则允许任意来源）",
-      "pow_page": "PoW 页面模板、组件样式与自定义 HTML"
+      "pow_page": "PoW 页面模板、组件样式与自定义 HTML",
+      "netintel_data_dir": "网络情报数据库（GeoIP/ASN/bgp.tools）本地存储目录",
+      "netintel_geoip_source": "GeoIP/ASN 数据库下载源（fyralabs 或 sapics）",
+      "netintel_bgptools_user_agent": "请求 bgp.tools 公开数据接口时携带的 User-Agent 标识",
+      "netintel_caida_enabled": "是否开启运行期 CAIDA AS Relationships 数据集同步（需遵循 CAIDA AUA）",
+      "netintel_auto_probe_enabled": "是否启用边缘节点后台自动路由质量探测以补全网络质量矩阵"
     },
     "templates": {
       "login_email": {

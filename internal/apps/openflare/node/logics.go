@@ -11,6 +11,7 @@ import (
 	"time"
 
 	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netintel"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/observability"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/ping"
 	ofws "github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
@@ -75,6 +76,8 @@ type View struct {
 	Name                      string          `json:"name"`
 	IP                        string          `json:"ip"`
 	IPManualOverride          bool            `json:"ip_manual_override"`
+	ASN                       uint32          `json:"asn"`
+	ASNOrg                    string          `json:"asn_org"`
 	GeoName                   string          `json:"geo_name"`
 	GeoLatitude               *float64        `json:"geo_latitude"`
 	GeoLongitude              *float64        `json:"geo_longitude"`
@@ -196,6 +199,7 @@ func CreateNode(ctx context.Context, input Input) (*View, error) {
 	if node.NodeType == "edge_node" {
 		node.Engine = enginePingora
 	}
+	netintel.EnrichNodeASN(node)
 	if err = repository.CreateOpenFlareNode(ctx, node); err != nil {
 		if isUniqueConstraintError(err) {
 			return nil, errors.New(errNodeIDConflict)
@@ -224,12 +228,17 @@ func UpdateNode(ctx context.Context, id uint, input Input) (*View, error) {
 	node.Name = name
 	node.IP = ip
 	node.IPManualOverride = ipManualOverride
+	if strings.TrimSpace(previousIP) != strings.TrimSpace(ip) {
+		node.ASN = 0
+		node.ASNOrg = ""
+	}
+	netintel.EnrichNodeASN(node)
 	node.GeoName = geoName
 	node.GeoLatitude = geoLatitude
 	node.GeoLongitude = geoLongitude
 	node.GeoManualOverride = geoManualOverride
 	node.AutoUpdateEnabled = input.AutoUpdateEnabled
-	fields := []string{"name", "ip", "ip_manual_override", "geo_name", "geo_latitude", "geo_longitude", "geo_manual_override", "auto_update_enabled"}
+	fields := []string{"name", "ip", "ip_manual_override", "asn", "asn_org", "geo_name", "geo_latitude", "geo_longitude", "geo_manual_override", "auto_update_enabled"}
 	if err = repository.UpdateOpenFlareNodeFields(ctx, node, fields...); err != nil {
 		return nil, err
 	}

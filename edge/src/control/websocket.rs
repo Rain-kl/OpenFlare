@@ -1,7 +1,8 @@
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use openflare_probe::{
-    execute_command, execute_ping, ExecOptions, ExecRequest, PingOptions, PingRequest,
+    execute_command, ExecOptions, ExecRequest, NetProbeRequest, NetProbeResult, PingRequest,
+    PingResult, ProbeSupervisor, ProbeSupervisorConfig,
 };
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,7 @@ use tokio_tungstenite::{
 };
 
 const MAX_CONCURRENT_PINGS: usize = 16;
+const MAX_CONCURRENT_NET_PROBES: usize = 8;
 const MAX_CONCURRENT_EXECS: usize = 4;
 const WS_OUTBOUND_BUFFER: usize = 64;
 const LIVE_LOG_BATCH: usize = 8;
@@ -55,7 +57,13 @@ pub(super) async fn run(
 ) {
     let mut retry = super::RetryDelay::default();
     let ping_limiter = Arc::new(Semaphore::new(MAX_CONCURRENT_PINGS));
+    let net_probe_limiter = Arc::new(Semaphore::new(MAX_CONCURRENT_NET_PROBES));
     let exec_limiter = Arc::new(Semaphore::new(MAX_CONCURRENT_EXECS));
+    let probe_supervisor = ProbeSupervisorConfig::for_current_exe_subcommand("probe-worker")
+        .map(|mut cfg| {
+            cfg.queue_capacity = 64;
+            ProbeSupervisor::start(cfg)
+        });
     loop {
         if let Err(error) = connect(
             base_url,
@@ -65,7 +73,9 @@ pub(super) async fn run(
             keys,
             &mut retry,
             Arc::clone(&ping_limiter),
+            Arc::clone(&net_probe_limiter),
             Arc::clone(&exec_limiter),
+            probe_supervisor.clone(),
         )
         .await
         {
@@ -154,7 +164,9 @@ async fn connect(
     keys: &crate::config::CertificateKeyRing,
     retry: &mut super::RetryDelay,
     ping_limiter: Arc<Semaphore>,
+    net_probe_limiter: Arc<Semaphore>,
     exec_limiter: Arc<Semaphore>,
+    probe_supervisor: Option<ProbeSupervisor>,
 ) -> Result<()> {
     let mut url = url::Url::parse(&format!("{base_url}/api/v1/agent/ws"))?;
     let scheme = if url.scheme() == "https" { "wss" } else { "ws" };
@@ -215,10 +227,31 @@ async fn connect(
                                                 http_client.clone(),
                                                 outbound_tx.clone(),
                                                 Arc::clone(&ping_limiter),
+                                                probe_supervisor.clone(),
                                             );
                                         }
                                         Err(error) => {
                                             tracing::warn!(%error, "invalid ping_task payload");
+                                        }
+                                    }
+                                }
+                            }
+                            "net_probe_task" => {
+                                if let Some(payload) = message.payload {
+                                    match serde_json::from_value::<NetProbeRequest>(payload) {
+                                        Ok(req) => {
+                                            spawn_net_probe_task(
+                                                req,
+                                                base_url.to_owned(),
+                                                token.to_owned(),
+                                                http_client.clone(),
+                                                outbound_tx.clone(),
+                                                Arc::clone(&net_probe_limiter),
+                                                probe_supervisor.clone(),
+                                            );
+                                        }
+                                        Err(error) => {
+                                            tracing::warn!(%error, "invalid net_probe_task payload");
                                         }
                                     }
                                 }
@@ -302,20 +335,26 @@ fn spawn_ping_task(
     http_client: Client,
     outbound_tx: mpsc::Sender<String>,
     limiter: Arc<Semaphore>,
+    supervisor: Option<ProbeSupervisor>,
 ) {
     tokio::spawn(async move {
+        let task_id = req.ping_task_id;
         let Ok(_permit) = limiter.try_acquire_owned() else {
             tracing::warn!(
-                task_id = req.ping_task_id,
+                task_id,
                 "dropping ping_task due to concurrency limit"
             );
             return;
         };
-        let options = PingOptions {
-            user_agent: crate::edge_user_agent(),
-            ..PingOptions::default()
+        let result = match supervisor {
+            Some(sup) => sup.dispatch_ping(req).await,
+            None => PingResult {
+                task_id,
+                ping_type: req.ping_type,
+                value: -1,
+                finished_at: String::new(),
+            },
         };
-        let result = execute_ping(&req, Some(&http_client), &options).await;
         let frame = serde_json::to_string(&OutboundMessage {
             kind: "ping_result",
             payload: &result,
@@ -333,7 +372,56 @@ fn spawn_ping_task(
             .send()
             .await
         {
-            tracing::warn!(task_id = req.ping_task_id, %error, "failed to report ping result via HTTP fallback");
+            tracing::warn!(task_id, %error, "failed to report ping result via HTTP fallback");
+        }
+    });
+}
+
+fn spawn_net_probe_task(
+    req: NetProbeRequest,
+    base_url: String,
+    token: String,
+    http_client: Client,
+    outbound_tx: mpsc::Sender<String>,
+    limiter: Arc<Semaphore>,
+    supervisor: Option<ProbeSupervisor>,
+) {
+    tokio::spawn(async move {
+        let probe_id = req.probe_id.clone();
+        let kind = req.kind.clone();
+        let Ok(_permit) = limiter.try_acquire_owned() else {
+            tracing::warn!(probe_id = %probe_id, "dropping net_probe_task due to concurrency limit");
+            return;
+        };
+        let result = match supervisor {
+            Some(sup) => sup.dispatch_net_probe(req).await,
+            None => NetProbeResult {
+                probe_id: probe_id.clone(),
+                kind,
+                ping: None,
+                traceroute: None,
+                dns: None,
+                error: Some("probe supervisor unavailable".to_owned()),
+                finished_at: String::new(),
+            },
+        };
+        let frame = serde_json::to_string(&OutboundMessage {
+            kind: "net_probe_result",
+            payload: &result,
+        });
+        if let Ok(text) = frame {
+            if outbound_tx.send(text).await.is_ok() {
+                return;
+            }
+        }
+        if let Err(error) = http_client
+            .post(format!("{base_url}/api/v1/agent/net-probe/result"))
+            .header("X-Agent-Token", &token)
+            .json(&result)
+            .send()
+            .await
+        {
+            tracing::warn!(probe_id = %probe_id, %error, "failed to report net probe result via HTTP fallback");
         }
     });
 }

@@ -22,6 +22,7 @@
     "uptime-kuma",
     "sso",
     "---运维支持---",
+    "network-tools",
     "automation",
     "session-secret-rotation",
     "troubleshooting",

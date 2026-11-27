@@ -178,6 +178,64 @@ func (s *clickhouseLogStore) BatchInsertNodePingRecords(ctx context.Context, row
 	})
 }
 
+// InsertNetworkQualitySample 写入入口：冻结检查 + 经 hook 入队（异步），不直接落库。
+func (s *clickhouseLogStore) InsertNetworkQualitySample(ctx context.Context, record *model.OpenFlareNetworkQualitySample) error {
+	if record == nil {
+		return nil
+	}
+	if err := s.ensureWritable(ctx); err != nil {
+		return err
+	}
+	if h := currentObservabilityHooks().QueueNetworkQualitySample; h != nil {
+		h(toAnalyticsNetworkQualitySample(record))
+	}
+	return nil
+}
+
+// BatchInsertNetworkQualitySamples 是 batchwriter flush 目标：CH 原生批量写入。
+func (s *clickhouseLogStore) BatchInsertNetworkQualitySamples(ctx context.Context, rows []analyticsmodel.NetworkQualitySample) error {
+	return chBatchInsert(ctx, s, analyticsmodel.NetworkQualitySample{}.BatchInsertSQL(), len(rows), func(batch driver.Batch, now time.Time) error {
+		for _, row := range rows {
+			nodeID := strings.TrimSpace(row.NodeID)
+			if nodeID == "" {
+				continue
+			}
+			id := row.ID
+			if id == 0 {
+				id = idgen.NextUint64ID()
+			}
+			createdAt := row.CreatedAt
+			if createdAt.IsZero() {
+				createdAt = now
+			}
+			capturedAt := row.CapturedAt.UTC()
+			if capturedAt.IsZero() {
+				capturedAt = now
+			}
+			if err := batch.Append(
+				id,
+				nodeID,
+				row.NodeASN,
+				row.ClientASN,
+				strings.TrimSpace(row.ClientCountry),
+				strings.TrimSpace(row.Source),
+				row.SampleCount,
+				row.RTTMinMs,
+				row.RTTP50Ms,
+				row.RTTP95Ms,
+				row.RetransRate,
+				row.LossRate,
+				row.HopCount,
+				capturedAt,
+				createdAt.UTC(),
+			); err != nil {
+				return fmt.Errorf("append network quality sample to batch: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
 func chBatchInsert(ctx context.Context, s *clickhouseLogStore, batchSQL string, count int, appendFn func(batch driver.Batch, now time.Time) error) error {
 	if count == 0 {
 		return nil

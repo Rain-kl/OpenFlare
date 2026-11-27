@@ -17,6 +17,8 @@ export interface NodeItem {
   name: string;
   ip: string;
   ip_manual_override: boolean;
+  asn?: number;
+  asn_org?: string;
   geo_name: string;
   geo_latitude?: number | null;
   geo_longitude?: number | null;
@@ -1949,4 +1951,390 @@ export interface TunnelReleaseInfo {
   published_at: string;
   channel: ReleaseChannel;
   prerelease: boolean;
+}
+
+export type NetToolsPingProtocol = 'icmp' | 'tcp' | 'http';
+export type NetToolsTracerouteProtocol = 'icmp' | 'udp' | 'tcp';
+export type NetToolsTaskStatus = 'running' | 'completed' | 'timeout';
+export type NetToolsNodeResultStatus =
+  | 'pending'
+  | 'completed'
+  | 'failed'
+  | 'offline'
+  | 'timeout';
+
+export interface NetToolsPingPayload {
+  target: string;
+  protocol: NetToolsPingProtocol;
+  port?: number;
+  count?: number;
+  interval_ms?: number;
+  timeout_ms?: number;
+  node_ids?: string[];
+}
+
+export interface NetToolsPingSample {
+  seq: number;
+  rtt_ms: number;
+  success: boolean;
+}
+
+export interface NetToolsPingBatchResult {
+  protocol: string;
+  target: string;
+  resolved_ip?: string;
+  sent: number;
+  received: number;
+  loss_rate: number;
+  min_ms: number;
+  avg_ms: number;
+  max_ms: number;
+  p95_ms: number;
+  jitter_ms: number;
+  samples: NetToolsPingSample[];
+  error?: string;
+}
+
+export interface NetToolsTraceroutePayload {
+  target: string;
+  protocol: NetToolsTracerouteProtocol;
+  port?: number;
+  max_hops?: number;
+  probes_per_hop?: number;
+  timeout_ms?: number;
+  node_ids?: string[];
+}
+
+export interface NetToolsTracerouteProbe {
+  seq: number;
+  ip?: string;
+  rtt_ms?: number;
+}
+
+export interface NetToolsTracerouteHop {
+  ttl: number;
+  ip?: string;
+  alt_ips?: string[];
+  sent: number;
+  recv: number;
+  loss_pct: number;
+  min_ms?: number;
+  avg_ms?: number;
+  max_ms?: number;
+  jitter_ms?: number;
+  probes: NetToolsTracerouteProbe[];
+  country_iso?: string;
+  city_name?: string;
+  asn?: number;
+  asn_name?: string;
+  asn_tags?: string[];
+}
+
+export interface NetToolsTracerouteResult {
+  target: string;
+  resolved_ip?: string;
+  protocol: string;
+  hop_count: number;
+  reached: boolean;
+  total_rtt_ms: number;
+  hops: NetToolsTracerouteHop[];
+  error?: string;
+}
+
+export interface NetToolsDNSQueryPayload {
+  domain: string;
+  record_type: string;
+  resolver?: string;
+  ecs_subnet?: string;
+  timeout_ms?: number;
+  node_ids?: string[];
+}
+
+export interface NetToolsDNSRecord {
+  name: string;
+  record_type: string;
+  ttl: number;
+  value: string;
+  country_iso?: string;
+  city_name?: string;
+  asn?: number;
+  asn_name?: string;
+  asn_tags?: string[];
+}
+
+export interface NetToolsDirectDNSResult {
+  domain: string;
+  record_type: string;
+  resolver: string;
+  ecs_subnet?: string;
+  rcode: string;
+  authoritative: boolean;
+  truncated: boolean;
+  used_tcp: boolean;
+  latency_ms: number;
+  records: NetToolsDNSRecord[];
+}
+
+export interface NetToolsEdgeDNSResult {
+  domain: string;
+  record_type: string;
+  resolver: string;
+  rcode: string;
+  authoritative: boolean;
+  truncated: boolean;
+  used_tcp: boolean;
+  latency_ms: number;
+  records: NetToolsDNSRecord[];
+  error?: string;
+}
+
+export interface NetToolsProbeNodeResult {
+  node_id: string;
+  node_name: string;
+  node_geo: string;
+  node_asn: number;
+  status: NetToolsNodeResultStatus;
+  ping?: NetToolsPingBatchResult;
+  traceroute?: NetToolsTracerouteResult;
+  dns?: NetToolsEdgeDNSResult;
+  error?: string;
+  finished_at?: string;
+}
+
+export interface NetToolsProbeTaskState {
+  task_id: string;
+  kind: 'ping_batch' | 'traceroute' | 'dns_query';
+  target: string;
+  created_at: string;
+  expires_at: string;
+  total_nodes: number;
+  completed_nodes: number;
+  status: NetToolsTaskStatus;
+  nodes: NetToolsProbeNodeResult[];
+}
+
+export interface NetToolsDNSQueryResponse {
+  mode: 'direct' | 'nodes';
+  direct_result?: NetToolsDirectDNSResult;
+  task?: NetToolsProbeTaskState;
+}
+
+export interface NetToolsTracerouteHistoryItem {
+  id: number;
+  task_id: string;
+  trigger_type: 'manual' | 'auto';
+  node_id: string;
+  target: string;
+  resolved_ip: string;
+  target_asn: number;
+  target_country: string;
+  protocol: string;
+  hop_count: number;
+  reached: boolean;
+  total_rtt_ms: number;
+  hops: NetToolsTracerouteHop[];
+  as_path: number[];
+  error_message?: string;
+  created_at: string;
+}
+
+export interface NetToolsTracerouteHistoryQuery {
+  p?: number;
+  page_size?: number;
+  node_id?: string;
+  target?: string;
+  trigger_type?: string;
+  target_asn?: number;
+}
+
+export interface NetToolsTracerouteHistoryPage {
+  total: number;
+  results: NetToolsTracerouteHistoryItem[];
+}
+
+export interface NetToolsIPLookupResult {
+  ip: string;
+  country_iso: string;
+  country_name: string;
+  city_name: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  asn: number;
+  asn_name: string;
+  asn_class: string;
+  asn_country: string;
+  asn_tags: string[];
+  prefix: string;
+  prefix_hits: number;
+  data_sources: string[];
+}
+
+export interface NetToolsASNInfo {
+  asn: number;
+  name: string;
+  class: string;
+  country: string;
+  tags: string[];
+  ipv4_prefixes: number;
+  ipv6_prefixes: number;
+  neighbor_count: number;
+}
+
+export interface NetToolsASNeighbor {
+  peer_asn: number;
+  peer_name: string;
+  peer_country: string;
+  peer_class: string;
+  relation: string;
+  tags?: string[];
+  observed_rtt_ms?: number;
+  sample_count?: number;
+}
+
+export interface NetToolsIPLookupResponse {
+  query: string;
+  resolved_ips: string[];
+  primary?: NetToolsIPLookupResult;
+  all_results?: NetToolsIPLookupResult[];
+  asn_info?: NetToolsASNInfo;
+  neighbors: NetToolsASNeighbor[];
+  attribution: string;
+}
+
+export interface NetToolsASNDetailResponse {
+  asn_info: NetToolsASNInfo;
+  neighbors: NetToolsASNeighbor[];
+  attribution: string;
+}
+
+export interface NetToolsPrefixRecord {
+  cidr: string;
+  asn: number;
+  hits: number;
+  family: 'ipv4' | 'ipv6';
+}
+
+export interface NetToolsASNPrefixesResponse {
+  asn: number;
+  total: number;
+  results: NetToolsPrefixRecord[];
+  attribution: string;
+}
+
+export interface NetToolsASPathInput {
+  target_asn?: number;
+  target_ip?: string;
+  node_ids?: string[];
+}
+
+export interface NetToolsASPathHopNode {
+  asn: number;
+  name: string;
+  country: string;
+  tags?: string[];
+}
+
+export interface NetToolsNodeASPathComparison {
+  node_id: string;
+  node_name: string;
+  node_ip: string;
+  node_geo: string;
+  node_asn: number;
+  node_asn_name: string;
+  as_hops: number;
+  path: NetToolsASPathHopNode[];
+  effective_rtt_ms: number;
+  quality_score: number;
+  confidence: number;
+  data_source: string;
+}
+
+export interface NetToolsASPathResponse {
+  target_asn: number;
+  target_asn_info?: NetToolsASNInfo;
+  nodes: NetToolsNodeASPathComparison[];
+  attribution: string;
+}
+
+export interface NetToolsQualityMatrixItem {
+  id: number;
+  node_id: string;
+  node_asn: number;
+  node_name: string;
+  node_geo: string;
+  node_status: string;
+  client_asn: number;
+  client_country: string;
+  client_asn_name: string;
+  tcp_rtt_p50_ms: number;
+  tcp_rtt_p95_ms: number;
+  tcp_min_rtt_ms: number;
+  tcp_retrans_rate: number;
+  tcp_sample_count: number;
+  tcp_last_seen_at?: string | null;
+  trace_rtt_p50_ms: number;
+  trace_loss_rate: number;
+  trace_hop_count: number;
+  trace_as_path: string;
+  trace_sample_count: number;
+  trace_last_seen_at?: string | null;
+  effective_rtt_ms: number;
+  predicted_rtt_ms: number;
+  quality_score: number;
+  confidence: number;
+  data_source: 'measured' | 'predicted' | string;
+  updated_at: string;
+}
+
+export interface NetToolsQualityMatrixQuery {
+  p?: number;
+  page_size?: number;
+  node_id?: string;
+  client_asn?: number;
+  client_country?: string;
+  data_source?: string;
+  search?: string;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+}
+
+export interface NetToolsQualityMatrixPage {
+  total: number;
+  results: NetToolsQualityMatrixItem[];
+}
+
+export interface NetToolsDatasetStatus {
+  key: string;
+  filename: string;
+  loaded: boolean;
+  path: string;
+  size_bytes: number;
+  record_count: number;
+  updated_at?: string | null;
+  source_url: string;
+  license: string;
+  error?: string;
+}
+
+export interface NetToolsNetIntelStatusResponse {
+  data_dir: string;
+  datasets: NetToolsDatasetStatus[];
+  caida_enabled: boolean;
+  auto_probe_enabled: boolean;
+  attribution: string;
+}
+
+export interface NetToolsTriggerSyncResponse {
+  task_id?: string;
+  mode: 'queued' | 'inline';
+  summary?: {
+    data_dir: string;
+    geoip_source: string;
+    caida_enabled: boolean;
+    updated_files: string[];
+    skipped_files?: string[];
+    errors?: Record<string, string>;
+    backfilled_nodes: number;
+    duration_ms: number;
+  };
 }

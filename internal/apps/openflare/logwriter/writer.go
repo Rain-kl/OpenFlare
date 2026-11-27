@@ -41,10 +41,11 @@ const (
 var (
 	initOnce sync.Once
 
-	metricSnapshotWriter *batchwriter.Writer[analyticsmodel.NodeMetricSnapshot]
-	edgeHealthWriter     *batchwriter.Writer[analyticsmodel.NodeEdgeHealth]
-	pingRecordWriter     *batchwriter.Writer[analyticsmodel.NodePingRecord]
-	nodeAccessLogWriter  *batchwriter.Writer[analyticsmodel.NodeAccessLog]
+	metricSnapshotWriter       *batchwriter.Writer[analyticsmodel.NodeMetricSnapshot]
+	edgeHealthWriter           *batchwriter.Writer[analyticsmodel.NodeEdgeHealth]
+	pingRecordWriter           *batchwriter.Writer[analyticsmodel.NodePingRecord]
+	networkQualitySampleWriter *batchwriter.Writer[analyticsmodel.NetworkQualitySample]
+	nodeAccessLogWriter        *batchwriter.Writer[analyticsmodel.NodeAccessLog]
 
 	metricSnapshotDedup *dedupSet
 	edgeHealthDedup     *dedupSet
@@ -76,11 +77,18 @@ func Init(ctx context.Context) {
 			nil,
 			nil,
 		)
+		networkQualitySampleWriter = mustNewObservabilityWriter(
+			"network_quality_samples",
+			withFlushRetries(flushNetworkQualitySamples),
+			nil,
+			nil,
+		)
 		nodeAccessLogWriter = mustNewNodeAccessLogWriter()
 
 		metricSnapshotWriter.Start(ctx)
 		edgeHealthWriter.Start(ctx)
 		pingRecordWriter.Start(ctx)
+		networkQualitySampleWriter.Start(ctx)
 		nodeAccessLogWriter.Start(ctx)
 
 		wireModelInsertHooks()
@@ -99,6 +107,7 @@ func Stop(ctx context.Context) error {
 		metricSnapshotWriter,
 		edgeHealthWriter,
 		pingRecordWriter,
+		networkQualitySampleWriter,
 		nodeAccessLogWriter,
 	} {
 		if writer == nil {
@@ -162,6 +171,7 @@ func WriterStats() []batchwriter.Stats {
 		metricSnapshotWriter,
 		edgeHealthWriter,
 		pingRecordWriter,
+		networkQualitySampleWriter,
 		nodeAccessLogWriter,
 	}
 	out := make([]batchwriter.Stats, 0, len(writers))
@@ -190,6 +200,14 @@ func QueuePingRecord(row analyticsmodel.NodePingRecord) {
 		return
 	}
 	pingRecordWriter.TryEnqueue(row)
+}
+
+// QueueNetworkQualitySample enqueues a network quality sample for asynchronous flush.
+func QueueNetworkQualitySample(row analyticsmodel.NetworkQualitySample) {
+	if networkQualitySampleWriter == nil {
+		return
+	}
+	networkQualitySampleWriter.TryEnqueue(row)
 }
 
 // QueueNodeAccessLogs enqueues node access logs for asynchronous flush.
@@ -305,9 +323,10 @@ func withFlushRetries[T any](flush batchwriter.FlushFunc[T]) batchwriter.FlushFu
 
 func wireModelInsertHooks() {
 	logstore.SetObservabilityHooks(logstore.ObservabilityHooks{
-		QueueMetricSnapshot: QueueMetricSnapshot,
-		QueueEdgeHealth:     QueueEdgeHealth,
-		QueuePingRecord:     QueuePingRecord,
+		QueueMetricSnapshot:       QueueMetricSnapshot,
+		QueueEdgeHealth:           QueueEdgeHealth,
+		QueuePingRecord:           QueuePingRecord,
+		QueueNetworkQualitySample: QueueNetworkQualitySample,
 	})
 	logstore.SetAccessLogHooks(logstore.AccessLogHooks{
 		QueueNodeAccessLogs: QueueNodeAccessLogs,
@@ -338,6 +357,14 @@ func flushNodePingRecords(ctx context.Context, rows []analyticsmodel.NodePingRec
 		return err
 	}
 	return s.Observability.BatchInsertNodePingRecords(ctx, rows)
+}
+
+func flushNetworkQualitySamples(ctx context.Context, rows []analyticsmodel.NetworkQualitySample) error {
+	s, err := logstore.Active(ctx)
+	if err != nil {
+		return err
+	}
+	return s.Observability.BatchInsertNetworkQualitySamples(ctx, rows)
 }
 
 func flushNodeAccessLogs(ctx context.Context, rows []analyticsmodel.NodeAccessLog) error {

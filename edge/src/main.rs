@@ -37,6 +37,11 @@ enum Command {
     SelfUpdateVersion,
     /// Print the attack rules available for configuring protection groups.
     AttackRuleCatalog,
+    /// Run isolated network probing worker loop (stdin/stdout NDJSON IPC).
+    ProbeWorker {
+        #[arg(long, default_value_t = 300)]
+        idle_timeout_secs: u64,
+    },
     Run {
         #[arg(long)]
         upgrade: bool,
@@ -57,6 +62,27 @@ enum Command {
 }
 
 fn main() -> Result<()> {
+    let cli = Cli::parse();
+    if let Command::ProbeWorker { idle_timeout_secs } = cli.command {
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+            )
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_ansi(false)
+                    .with_writer(std::io::stderr),
+            )
+            .init();
+        return openflare_probe::run_probe_worker(openflare_probe::ProbeWorkerConfig {
+            user_agent: edge_user_agent(),
+            idle_timeout: std::time::Duration::from_secs(idle_timeout_secs),
+            ..Default::default()
+        })
+        .map_err(|err| anyhow::anyhow!("{err}"));
+    }
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -73,8 +99,8 @@ fn main() -> Result<()> {
         )
         .init();
 
-    let cli = Cli::parse();
     match cli.command {
+        Command::ProbeWorker { .. } => unreachable!(),
         Command::ConfigSyncVersion => {
             println!("{}", control::config_sync::VERSION);
             Ok(())

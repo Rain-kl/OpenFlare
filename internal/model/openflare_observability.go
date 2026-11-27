@@ -61,6 +61,8 @@ type OpenFlareAccessLog struct {
 	BytesSent     int64     `json:"bytes_sent" gorm:"column:bytes_sent;not null;default:0"`
 	RequestLength int64     `json:"request_length" gorm:"column:request_length;not null;default:0"`
 	RequestTimeMs int64     `json:"request_time_ms" gorm:"column:request_time_ms;not null;default:0"`
+	ClientASN     uint32    `json:"client_asn" gorm:"column:client_asn;not null;default:0"`
+	TCPRTTUs      uint32    `json:"tcp_rtt_us" gorm:"column:tcp_rtt_us;not null;default:0"`
 	CreatedAt     time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 

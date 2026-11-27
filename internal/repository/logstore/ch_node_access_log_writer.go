@@ -77,6 +77,8 @@ func (s *clickhouseLogStore) BatchInsertNodeAccessLogs(ctx context.Context, logs
 			createdAt.UTC(),
 			logItem.WAFAction,
 			logItem.WAFAudit,
+			logItem.ClientASN,
+			logItem.TCPRTTUs,
 		); err != nil {
 			return fmt.Errorf("append node access log to batch: %w", err)
 		}

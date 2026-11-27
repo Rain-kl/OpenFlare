@@ -1,0 +1,224 @@
+{
+  "networkTools": {
+    "common": {
+      "target": "Target",
+      "targetPlaceholder": "Enter a domain name or public IPv4 / IPv6 address, e.g. example.com or 1.1.1.1",
+      "protocol": "Protocol",
+      "port": "Port",
+      "optionalPortPlaceholder": "Optional port",
+      "dispatch": "Start Probe",
+      "running": "Probing",
+      "refresh": "Refresh",
+      "loading": "Loading...",
+      "noData": "No data available",
+      "error": "Request failed",
+      "nodeSelectorTitle": "Edge Nodes for Probe Execution",
+      "nodeSelectorHint": "Leave unselected to dispatch concurrently to all online edge nodes (up to 50 nodes).",
+      "selectAllOnline": "Select All Online",
+      "clearSelection": "Clear Selection",
+      "selectedCount": "{selected} selected / {online} online",
+      "noOnlineNodes": "No online edge nodes are currently available",
+      "taskProgress": "Progress: {completed} / {total} nodes responded",
+      "statusLabels": {
+        "running": "Running",
+        "completed": "Completed",
+        "pending": "Pending",
+        "failed": "Failed",
+        "offline": "Offline",
+        "timeout": "Timed Out"
+      },
+      "msUnit": "{value} ms",
+      "pctUnit": "{value}%",
+      "pageSummary": "Page {page} of {totalPages} ({total} total)",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "attributionPrefix": "Attribution: "
+    },
+    "ping": {
+      "title": "Multi-Location Ping / TCPing",
+      "description": "Execute isolated batch ICMP, TCPing, or HTTP latency, P95 jitter, and packet-loss probes concurrently from selected edge nodes.",
+      "count": "Probe Count",
+      "intervalMs": "Interval (ms)",
+      "timeoutMs": "Timeout (ms)",
+      "targetHint": "Supports public IPs, hostnames, or http(s):// URLs (for HTTP mode). Private and reserved addresses are blocked.",
+      "summary": {
+        "responded": "Responded Nodes",
+        "minLatency": "Lowest Avg RTT",
+        "overallAvg": "Mean Avg RTT",
+        "worstP95": "Highest P95 RTT"
+      },
+      "columns": {
+        "node": "Edge Node",
+        "status": "Status",
+        "resolvedIp": "Resolved IP",
+        "sentRecv": "Recv / Sent",
+        "loss": "Loss",
+        "min": "Min",
+        "avg": "Avg",
+        "p95": "P95",
+        "jitter": "Jitter",
+        "samples": "Samples"
+      },
+      "sampleSeq": "#{seq}: {rtt} ms",
+      "sampleTimeout": "#{seq}: timeout",
+      "emptyState": "Enter a public target host and select Start Probe to inspect latency measurements across edge nodes."
+    },
+    "traceroute": {
+      "title": "Multi-Location Traceroute",
+      "description": "Run trippy-core multi-round traceroutes inside isolated probe workers with automatic per-hop GeoIP, ASN, and bgp.tools enrichment.",
+      "tabs": {
+        "live": "Live Traceroute",
+        "history": "History"
+      },
+      "maxHops": "Max Hops",
+      "probesPerHop": "Probes per Hop",
+      "timeoutMs": "Hop Timeout (ms)",
+      "reached": "Destination Reached",
+      "unreached": "Incomplete Path",
+      "hopsSummary": "{hops} hops · Total RTT {rtt} ms",
+      "columns": {
+        "ttl": "Hop",
+        "ip": "Router IP",
+        "location": "Location",
+        "asn": "ASN & Tags",
+        "loss": "Loss",
+        "minAvgMax": "Min / Avg / Max",
+        "jitter": "Jitter"
+      },
+      "history": {
+        "filterTarget": "Filter by target",
+        "filterType": "Trigger type",
+        "typeAll": "All",
+        "typeManual": "Manual",
+        "typeAuto": "Automated",
+        "nodeId": "Node",
+        "target": "Target",
+        "asPath": "AS Path",
+        "hops": "Hops",
+        "totalRtt": "Total RTT",
+        "createdAt": "Captured At"
+      },
+      "emptyState": "Enter a target host and run Traceroute to inspect hop-by-hop AS paths from edge nodes."
+    },
+    "asn": {
+      "title": "ASN & IP Intelligence Lookup",
+      "description": "Query bundled GeoLite2, bgp.tools global routing prefixes and ASN tags, and optional CAIDA AS relationships with edge path comparisons.",
+      "queryLabel": "IP / Hostname / ASN",
+      "queryPlaceholder": "Enter a public IP, hostname, or ASN (e.g. 1.1.1.1, example.com, or AS13335)",
+      "search": "Lookup",
+      "summaryCard": "Intelligence Summary",
+      "geoLocation": "Geolocation",
+      "asnOrg": "ASN Organization",
+      "asnClass": "Classification",
+      "bgpPrefix": "Best-Match BGP Prefix",
+      "prefixHits": "Table Visibility",
+      "dataSources": "Data Sources",
+      "ipv4Prefixes": "IPv4 Prefixes",
+      "ipv6Prefixes": "IPv6 Prefixes",
+      "neighborCount": "AS Neighbors",
+      "prefixesCard": "Announced BGP Prefixes",
+      "familyAll": "All Families",
+      "neighborsCard": "AS Neighbors & Observed Hops",
+      "pathCard": "Edge Node AS Path & Quality Comparison",
+      "pathCompare": "Compare Paths",
+      "columns": {
+        "cidr": "CIDR Prefix",
+        "family": "Family",
+        "hits": "Visibility",
+        "peerAsn": "Peer ASN",
+        "peerName": "Organization",
+        "relation": "Relationship",
+        "observedRtt": "Observed Hop RTT",
+        "samples": "Samples",
+        "node": "Edge Node",
+        "nodeAsn": "Node ASN",
+        "asHops": "AS Hops",
+        "asPath": "Estimated / Measured AS Path",
+        "effectiveRtt": "Effective RTT",
+        "qualityScore": "Quality Score",
+        "source": "Source"
+      },
+      "relations": {
+        "provider": "Provider",
+        "customer": "Customer",
+        "peer": "Peer",
+        "observed": "Traceroute Observed"
+      },
+      "emptyState": "Enter a public IP address, hostname, or ASN to inspect network intelligence."
+    },
+    "dns": {
+      "title": "DNS & EDNS0 ECS Diagnostics",
+      "description": "Query DNS records from the control plane or concurrently from edge nodes with optional EDNS0 Client Subnet (ECS) perspective simulation.",
+      "domain": "Domain Name",
+      "domainPlaceholder": "e.g. example.com",
+      "recordType": "Record Type",
+      "resolver": "Resolver",
+      "customResolver": "Custom Resolver",
+      "customResolverPlaceholder": "e.g. 9.9.9.9:53",
+      "ecsSubnet": "EDNS0 Client Subnet (ECS)",
+      "ecsPlaceholder": "Optional CIDR or IP, e.g. 203.0.113.0/24",
+      "mode": "Execution Mode",
+      "modeDirect": "Control Plane Direct",
+      "modeNodes": "Multi-Node Edge Dispatch",
+      "runQuery": "Query DNS",
+      "flags": {
+        "rcode": "RCODE: {rcode}",
+        "authoritative": "Authoritative (AA)",
+        "nonAuthoritative": "Non-Authoritative",
+        "tcpFallback": "TCP Fallback",
+        "udp": "UDP",
+        "latency": "Latency: {ms} ms"
+      },
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "ttl": "TTL",
+        "value": "Value",
+        "geoAsn": "Answer GeoIP & ASN"
+      },
+      "emptyState": "Specify a domain name and resolver configuration to execute a DNS diagnostic query."
+    },
+    "quality": {
+      "title": "Network Quality Matrix & Datasets",
+      "description": "Monitor the fused node-by-ASN quality matrix combining passive TCP handshake RTT and active traceroute signals, alongside intelligence dataset health.",
+      "tabs": {
+        "matrix": "Quality Matrix",
+        "datasets": "Datasets & Sync"
+      },
+      "filters": {
+        "searchPlaceholder": "Search node ID, ASN, organization, or country...",
+        "sourceAll": "All Sources",
+        "sourceMeasured": "Measured (passive + active)",
+        "sourcePredicted": "Predicted (AS graph / geo)"
+      },
+      "columns": {
+        "node": "Edge Node",
+        "clientAsn": "Client ASN",
+        "effectiveRtt": "Effective RTT",
+        "tcpStats": "Passive TCP (P50 / P95 / Retrans)",
+        "traceStats": "Traceroute (RTT / Loss / Hops)",
+        "score": "Score",
+        "confidence": "Confidence",
+        "source": "Source",
+        "updatedAt": "Updated"
+      },
+      "datasets": {
+        "dataDir": "Directory: {dir}",
+        "caidaEnabled": "CAIDA runtime sync enabled",
+        "caidaDisabled": "CAIDA disabled (redistribution compliant)",
+        "autoProbeEnabled": "Automated probing enabled",
+        "autoProbeDisabled": "Automated probing disabled",
+        "syncNow": "Sync Updates",
+        "forceSync": "Force Redownload",
+        "syncSuccessQueued": "Dispatched background sync job: {taskId}",
+        "syncSuccessInline": "Dataset sync completed: {updated} updated, {backfilled} nodes backfilled.",
+        "loaded": "Loaded",
+        "notLoaded": "Not Loaded",
+        "records": "Records: {count}",
+        "size": "Size: {size}",
+        "license": "License: {license}",
+        "updated": "Updated: {time}"
+      }
+    }
+  }
+}

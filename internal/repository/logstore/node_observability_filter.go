@@ -75,6 +75,10 @@ func chNodePingRecordTableName() string {
 	return "of_node_ping_records"
 }
 
+func chNetworkQualitySampleTableName() string {
+	return "of_network_quality_samples"
+}
+
 func chAccessLogHourlyTableName() string {
 	return "of_access_log_hourly"
 }

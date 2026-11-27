@@ -90,6 +90,13 @@ type ObservabilityStore interface {
 	DeletePingRecordsByTaskIDs(ctx context.Context, taskIDs []uint) (int64, error)
 	BatchInsertNodePingRecords(ctx context.Context, rows []analyticsmodel.NodePingRecord) error
 
+	InsertNetworkQualitySample(ctx context.Context, record *model.OpenFlareNetworkQualitySample) error
+	BatchInsertNetworkQualitySamples(ctx context.Context, rows []analyticsmodel.NetworkQualitySample) error
+	ListNetworkQualitySamplesSince(ctx context.Context, since time.Time, limit int) ([]analyticsmodel.NetworkQualitySample, error)
+	ListNetworkQualitySamplesForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NetworkQualitySample, error)
+	DeleteAllNetworkQualitySamples(ctx context.Context) (int64, error)
+	DeleteNetworkQualitySamplesBefore(ctx context.Context, cutoff time.Time) (int64, error)
+
 	// 迁移复制用：按 id 升序分页读取。
 	ListMetricSnapshotsForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeMetricSnapshot, error)
 	ListEdgeHealthForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NodeEdgeHealth, error)

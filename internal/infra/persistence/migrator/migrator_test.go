@@ -32,7 +32,7 @@ import (
 // （初始系统配置 + 各期配置迁移/新增 seed：of_options 迁移、文件白名单、磁盘缓存、
 // 登录会话 TTL、升级源、存储、Pages、OpenResty 限流、单 IP 限频、
 // 错误页、SW 离线、日志保留期、指标保留期、新隧道默认配置等）；新增配置 seed 迁移时需同步更新本常量。
-const expectedMigratedSystemConfigCount = 69
+const expectedMigratedSystemConfigCount = 74
 
 func TestTrustedProxyCIDRMigrationDefaultsMatchRenderer(t *testing.T) {
 	want := edgeconfig.DefaultTrustedProxyCIDRs()
@@ -221,6 +221,10 @@ func TestMigrateInitializesSQLiteDatabase(t *testing.T) {
 		"of_cf_connections",
 		"of_cf_pointing_groups",
 		"of_cf_pointing_members",
+		"of_network_quality_samples",
+		"of_network_quality_matrix",
+		"of_as_topology_edges",
+		"of_traceroute_records",
 	} {
 		if !sqliteDB.Migrator().HasTable(table) {
 			t.Errorf("Migrate() did not create %s", table)
@@ -286,7 +290,13 @@ func assertScheduleLogDefaults(t *testing.T) {
 			failureOnlyTypes = append(failureOnlyTypes, schedule.TaskType)
 		}
 	}
-	assert.ElementsMatch(t, []string{"of_waf_ip_group_sync", "of_uptime_kuma_sync"}, failureOnlyTypes)
+	assert.ElementsMatch(t, []string{
+		"of_waf_ip_group_sync",
+		"of_uptime_kuma_sync",
+		"of_netintel_sync",
+		"of_netquality_rollup",
+		"of_netquality_probe",
+	}, failureOnlyTypes)
 }
 
 func TestCloudflarePointingPostgresMigrationQuotesAuthorizationColumn(t *testing.T) {

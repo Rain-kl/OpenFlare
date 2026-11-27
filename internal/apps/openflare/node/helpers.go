@@ -233,6 +233,8 @@ func buildNodeView(node *model.OpenFlareNode) *View {
 		Name:                      node.Name,
 		IP:                        node.IP,
 		IPManualOverride:          node.IPManualOverride,
+		ASN:                       node.ASN,
+		ASNOrg:                    strings.TrimSpace(node.ASNOrg),
 		GeoName:                   strings.TrimSpace(node.GeoName),
 		GeoLatitude:               node.GeoLatitude,
 		GeoLongitude:              node.GeoLongitude,

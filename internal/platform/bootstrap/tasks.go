@@ -7,6 +7,8 @@ package bootstrap
 import (
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push"
 	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netintel"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netquality"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tasks"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/tls"
@@ -71,4 +73,14 @@ func registerBuiltInTasks() {
 	// tls single renew
 	task.RegisterHandler(tls.SSLSingleRenewTask, &tls.SSLSingleRenewHandler{})
 	task.RegisterTaskMeta(tls.SSLSingleRenewMeta)
+
+	// network intelligence & quality matrix
+	task.RegisterHandler(netintel.NetIntelSyncTask, &netintel.SyncHandler{})
+	task.RegisterTaskMeta(netintel.NetIntelSyncMeta)
+
+	task.RegisterHandler(netquality.NetQualityRollupTask, &netquality.RollupHandler{})
+	task.RegisterTaskMeta(netquality.NetQualityRollupMeta)
+
+	task.RegisterHandler(netquality.NetQualityProbeTask, &netquality.ProbeHandler{})
+	task.RegisterTaskMeta(netquality.NetQualityProbeMeta)
 }

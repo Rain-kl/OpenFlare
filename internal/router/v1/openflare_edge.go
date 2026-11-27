@@ -35,6 +35,7 @@ func registerOpenFlareAgentRoutes(apiV1Router *gin.RouterGroup) {
 			authorizedRoute.GET("/pages/projects/:project_id/latest/package", agent.DownloadPagesProjectLatestPackageHandler)
 			authorizedRoute.POST("/apply-logs", agent.ReportApplyLogHandler)
 			authorizedRoute.POST("/ping/result", agent.ReportPingResultHandler)
+			authorizedRoute.POST("/net-probe/result", agent.ReportNetProbeResultHandler)
 			authorizedRoute.POST("/exec/result", agent.ReportExecResultHandler)
 		}
 	}

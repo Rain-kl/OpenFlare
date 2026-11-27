@@ -18,6 +18,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netintel"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/geoip/iputil"
@@ -137,8 +138,13 @@ func applyNodeRuntime(ctx context.Context, node *model.OpenFlareNode, payload pr
 			node.Name = strings.TrimSpace(payload.Name)
 		}
 	}
+	previousIP := strings.TrimSpace(node.IP)
 	if !node.IPManualOverride {
 		node.IP = strings.TrimSpace(payload.IP)
+	}
+	if strings.TrimSpace(node.IP) != previousIP {
+		node.ASN = 0
+		node.ASNOrg = ""
 	}
 	node.Version = strings.TrimSpace(payload.Version)
 	node.ExtVersion = strings.TrimSpace(payload.ExtVersion)
@@ -155,6 +161,7 @@ func applyNodeRuntime(ctx context.Context, node *model.OpenFlareNode, payload pr
 	if !node.GeoManualOverride {
 		ofgeoip.ApplyNodeGeoFromIP(ctx, node, node.IP)
 	}
+	netintel.EnrichNodeASN(node)
 }
 
 func truncateForDatabase(value string, maxVal int) string {
@@ -259,6 +266,8 @@ func collectHeartbeatChanges(previous *model.OpenFlareNode, current *model.OpenF
 	}
 	appendIfChanged("name", previous.Name, current.Name)
 	appendIfChanged("ip", previous.IP, current.IP)
+	appendIfChanged("asn", previous.ASN, current.ASN)
+	appendIfChanged("asn_org", previous.ASNOrg, current.ASNOrg)
 	appendIfChanged("geo_name", previous.GeoName, current.GeoName)
 	appendIfChanged("version", previous.Version, current.Version)
 	appendIfChanged("ext_version", previous.ExtVersion, current.ExtVersion)

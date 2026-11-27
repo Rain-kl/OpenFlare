@@ -312,6 +312,12 @@ impl ProxyHttp for ProxyService {
                 path.truncate(query_start);
             }
         }
+        let (tcp_rtt_us, tcp_min_rtt_us, tcp_rtt_var_us, tcp_retrans, tcp_segs_out, tls_handshake_ms) =
+            if self.access_logs.has_capacity() {
+                collect_downstream_metrics(downstream.digest(), ctx.https)
+            } else {
+                (None, None, None, None, None, None)
+            };
         let log = NodeAccessLog {
             logged_at_unix: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -326,8 +332,69 @@ impl ProxyHttp for ProxyService {
             bytes_sent: downstream.body_bytes_sent() as i64,
             request_length: (downstream.body_bytes_read() + ctx.request_header_bytes) as i64,
             request_time_ms: ctx.started_at.elapsed().as_millis() as i64,
+            tcp_rtt_us,
+            tcp_min_rtt_us,
+            tcp_rtt_var_us,
+            tcp_retrans,
+            tcp_segs_out,
+            tls_handshake_ms,
             waf,
         };
         self.access_logs.push(log);
     }
+}
+
+fn collect_downstream_metrics(
+    digest: Option<&pingora::protocols::Digest>,
+    https: bool,
+) -> (
+    Option<u32>,
+    Option<u32>,
+    Option<u32>,
+    Option<u32>,
+    Option<u32>,
+    Option<u32>,
+) {
+    let Some(digest) = digest else {
+        return (None, None, None, None, None, None);
+    };
+
+    #[cfg(target_os = "linux")]
+    let (tcp_rtt_us, tcp_min_rtt_us, tcp_rtt_var_us, tcp_retrans, tcp_segs_out) =
+        match digest.socket_digest.as_ref().and_then(|s| s.tcp_info()) {
+            Some(info) => (
+                (info.tcpi_rtt > 0).then_some(info.tcpi_rtt),
+                (info.tcpi_min_rtt > 0).then_some(info.tcpi_min_rtt),
+                (info.tcpi_rttvar > 0).then_some(info.tcpi_rttvar),
+                (info.tcpi_total_retrans > 0).then_some(info.tcpi_total_retrans),
+                (info.tcpi_segs_out > 0).then_some(info.tcpi_segs_out),
+            ),
+            None => (None, None, None, None, None),
+        };
+
+    #[cfg(not(target_os = "linux"))]
+    let (tcp_rtt_us, tcp_min_rtt_us, tcp_rtt_var_us, tcp_retrans, tcp_segs_out) =
+        (None, None, None, None, None);
+
+    let tls_handshake_ms = if https {
+        digest
+            .timing_digest
+            .iter()
+            .rev()
+            .flatten()
+            .next()
+            .and_then(|timing| timing.establishment_duration)
+            .map(|dur| u32::try_from(dur.as_millis()).unwrap_or(u32::MAX))
+    } else {
+        None
+    };
+
+    (
+        tcp_rtt_us,
+        tcp_min_rtt_us,
+        tcp_rtt_var_us,
+        tcp_retrans,
+        tcp_segs_out,
+        tls_handshake_ms,
+    )
 }

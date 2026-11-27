@@ -1,0 +1,368 @@
+// Copyright 2026 Arctel.net
+// SPDX-License-Identifier: Apache-2.0
+
+package nettools
+
+import (
+	"net/http"
+	"strconv"
+
+	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
+	"github.com/Rain-kl/Wavelet/internal/shared/response"
+	"github.com/gin-gonic/gin"
+)
+
+const defaultHistoryPageSize = 20
+
+type triggerSyncRequest struct {
+	Force bool `json:"force"`
+}
+
+// DispatchPingHandler dispatches a batch Ping / TCPing / HTTP latency probe to selected edge nodes.
+// @Summary 多点 Ping / TCPing 探测
+// @Description 向指定或全部在线边缘节点下发一次性批量 ICMP/TCP/HTTP 延迟探测任务，返回 task_id 供轮询结果
+// @Tags openflare-network-tools
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body nettools.PingDispatchInput true "探测参数"
+// @Success 200 {object} response.Any{data=nettools.ProbeTaskState} "探测任务状态"
+// @Failure 400 {object} response.Any "参数错误或无可用在线节点"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/ping [post]
+func DispatchPingHandler(c *gin.Context) {
+	var input PingDispatchInput
+	if !httpx.BindJSON(c, &input) {
+		return
+	}
+	state, err := DispatchPing(c.Request.Context(), input)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(state))
+}
+
+// DispatchTracerouteHandler dispatches a trippy-core traceroute task to selected edge nodes.
+// @Summary 多点路由追踪（Traceroute）
+// @Description 向指定或全部在线边缘节点下发多轮 Traceroute（ICMP/UDP/TCP）探测任务，逐跳富化 ASN 与 GeoIP 信息
+// @Tags openflare-network-tools
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body nettools.TracerouteDispatchInput true "路由追踪参数"
+// @Success 200 {object} response.Any{data=nettools.ProbeTaskState} "路由追踪任务状态"
+// @Failure 400 {object} response.Any "参数错误或无可用在线节点"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/traceroute [post]
+func DispatchTracerouteHandler(c *gin.Context) {
+	var input TracerouteDispatchInput
+	if !httpx.BindJSON(c, &input) {
+		return
+	}
+	state, err := DispatchTraceroute(c.Request.Context(), input)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(state))
+}
+
+// GetTaskHandler polls an active or completed multi-node network probe task.
+// @Summary 查询网络探测任务状态与结果
+// @Description 根据 task_id 获取各边缘节点上传的 Ping/TCPing、Traceroute 或 DNS 探测结果
+// @Tags openflare-network-tools
+// @Produce json
+// @Security SessionCookie
+// @Param task_id path string true "探测任务 ID"
+// @Success 200 {object} response.Any{data=nettools.ProbeTaskState} "探测任务状态"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "任务不存在或已过期"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/tasks/{task_id} [get]
+func GetTaskHandler(c *gin.Context) {
+	state, err := GetTask(c.Request.Context(), c.Param("task_id"))
+	if err != nil {
+		response.AbortNotFound(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(state))
+}
+
+// ListTracerouteHistoryHandler returns paginated historical traceroute records.
+// @Summary 列出路由追踪历史记录
+// @Description 分页查询手动或后台自动执行的边缘节点路由追踪历史与 AS 路径
+// @Tags openflare-network-tools
+// @Produce json
+// @Security SessionCookie
+// @Param node_id query string false "节点 ID"
+// @Param target query string false "目标域名或 IP"
+// @Param trigger_type query string false "触发类型（manual 或 auto）"
+// @Param target_asn query int false "目标 ASN"
+// @Param p query int false "页码"
+// @Param page_size query int false "每页条数"
+// @Success 200 {object} response.Any{data=nettools.TracerouteHistoryPage} "历史路由追踪列表"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/traceroute/history [get]
+func ListTracerouteHistoryHandler(c *gin.Context) {
+	query := TracerouteHistoryQuery{
+		Page:        parsePositiveInt(c.Query("p"), 1),
+		PageSize:    parsePositiveInt(c.Query("page_size"), defaultHistoryPageSize),
+		NodeID:      c.Query("node_id"),
+		Target:      c.Query("target"),
+		TriggerType: c.Query("trigger_type"),
+		TargetASN:   uint32(parsePositiveInt(c.Query("target_asn"), 0)), //nolint:gosec // bounded uint32 ASN
+	}
+	res, err := ListTracerouteHistory(c.Request.Context(), query)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// QueryDNSHandler runs a direct DNS/EDNS0-ECS query from the controller or dispatches across edge nodes.
+// @Summary DNS 与 EDNS0 ECS 模拟查询
+// @Description 支持主控直接探测或下发到多个边缘节点探测（支持 EDNS0 Client Subnet 视角模拟），并自动富化应答 IP 的 ASN 与 GeoIP
+// @Tags openflare-network-tools
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body nettools.DNSQueryInput true "DNS 查询参数"
+// @Success 200 {object} response.Any{data=nettools.DNSQueryResponse} "DNS 查询结果或异步任务"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/dns [post]
+func QueryDNSHandler(c *gin.Context) {
+	var input DNSQueryInput
+	if !httpx.BindJSON(c, &input) {
+		return
+	}
+	res, err := QueryDNS(c.Request.Context(), input)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// LookupIPHandler resolves GeoIP, ASN, bgp.tools tags/prefixes, and AS topology neighbors for an IP or hostname.
+// @Summary IP / 域名网络情报查询
+// @Description 查询目标 IP 或域名的地理位置、所属 ASN、BGP 宣告前缀与 AS 邻接关系
+// @Tags openflare-network-tools
+// @Produce json
+// @Security SessionCookie
+// @Param ip query string true "目标 IP、CIDR 或域名"
+// @Success 200 {object} response.Any{data=nettools.IPLookupResponse} "IP 网络情报"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/lookup/ip [get]
+func LookupIPHandler(c *gin.Context) {
+	query := c.Query("ip")
+	if query == "" {
+		query = c.Query("query")
+	}
+	res, err := LookupIP(c.Request.Context(), query)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// LookupASNHandler returns ASN metadata, prefix counts, and CAIDA/observed neighbors.
+// @Summary ASN 详情查询
+// @Description 查询自治系统号（ASN）的组织名称、分类标签、IPv4/IPv6 前缀规模与邻接 AS 关系
+// @Tags openflare-network-tools
+// @Produce json
+// @Security SessionCookie
+// @Param asn path int true "ASN 编号"
+// @Success 200 {object} response.Any{data=nettools.ASNDetailResponse} "ASN 详情"
+// @Failure 400 {object} response.Any "ASN 参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/lookup/asn/{asn} [get]
+func LookupASNHandler(c *gin.Context) {
+	asn, ok := parseASNParam(c)
+	if !ok {
+		return
+	}
+	res, err := LookupASN(c.Request.Context(), asn)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// ListASNPrefixesHandler paginates BGP prefixes announced by an ASN.
+// @Summary 分页列出 ASN 宣告的 BGP 前缀
+// @Description 按 IPv4/IPv6 地址族分页返回指定 ASN 宣告的 CIDR 前缀与热度权重
+// @Tags openflare-network-tools
+// @Produce json
+// @Security SessionCookie
+// @Param asn path int true "ASN 编号"
+// @Param family query string false "地址族（all、ipv4 或 ipv6）"
+// @Param p query int false "页码"
+// @Param page_size query int false "每页条数"
+// @Success 200 {object} response.Any{data=nettools.ASNPrefixesResponse} "ASN 前缀分页列表"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/lookup/asn/{asn}/prefixes [get]
+func ListASNPrefixesHandler(c *gin.Context) {
+	asn, ok := parseASNParam(c)
+	if !ok {
+		return
+	}
+	page := parsePositiveInt(c.Query("p"), 1)
+	pageSize := parsePositiveInt(c.Query("page_size"), defaultHistoryPageSize)
+	res, err := ListASNPrefixes(c.Request.Context(), asn, c.Query("family"), page, pageSize)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// TraceASPathHandler compares AS paths and quality metrics across edge nodes toward a target ASN or IP.
+// @Summary 多节点 AS 路径与质量对比
+// @Description 基于已观测路由器跳边与 CAIDA AS 关系估算各边缘节点到达目标 ASN 的最短 AS 路径并对比质量矩阵评分
+// @Tags openflare-network-tools
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body nettools.ASPathInput true "目标 ASN 或 IP"
+// @Success 200 {object} response.Any{data=nettools.ASPathResponse} "节点 AS 路径对比结果"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/as-path [post]
+func TraceASPathHandler(c *gin.Context) {
+	var input ASPathInput
+	if !httpx.BindJSON(c, &input) {
+		return
+	}
+	res, err := TraceASPath(c.Request.Context(), input)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// ListQualityMatrixHandler returns paginated network quality matrix rows.
+// @Summary 分页查询网络质量矩阵
+// @Description 列出节点×访客 ASN 维度的被动 TCP RTT、主动路由追踪 RTT、有效延迟、置信度与质量评分
+// @Tags openflare-network-tools
+// @Produce json
+// @Security SessionCookie
+// @Param node_id query string false "节点 ID"
+// @Param client_asn query int false "访客 ASN"
+// @Param client_country query string false "国家/地区 ISO 编码"
+// @Param data_source query string false "数据来源（measured 或 predicted）"
+// @Param search query string false "关键词搜索"
+// @Param sort_by query string false "排序字段"
+// @Param sort_order query string false "排序方向（asc 或 desc）"
+// @Param p query int false "页码"
+// @Param page_size query int false "每页条数"
+// @Success 200 {object} response.Any{data=nettools.QualityMatrixPage} "网络质量矩阵列表"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/quality-matrix [get]
+func ListQualityMatrixHandler(c *gin.Context) {
+	query := model.NetworkQualityMatrixQuery{
+		Page:          parsePositiveInt(c.Query("p"), 1),
+		PageSize:      parsePositiveInt(c.Query("page_size"), defaultHistoryPageSize),
+		NodeID:        c.Query("node_id"),
+		ClientASN:     uint32(parsePositiveInt(c.Query("client_asn"), 0)), //nolint:gosec // bounded uint32 ASN
+		ClientCountry: c.Query("client_country"),
+		DataSource:    c.Query("data_source"),
+		Search:        c.Query("search"),
+		SortBy:        c.Query("sort_by"),
+		SortOrder:     c.Query("sort_order"),
+	}
+	res, err := ListQualityMatrix(c.Request.Context(), query)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// GetNetIntelStatusHandler returns status of loaded GeoIP/ASN/bgp.tools/CAIDA database files.
+// @Summary 获取网络情报数据库状态
+// @Description 查看各 GeoIP/ASN MMDB、bgp.tools 路由与标签库、可选 CAIDA 数据集的加载状态、记录数与版权信息
+// @Tags openflare-network-tools
+// @Produce json
+// @Security SessionCookie
+// @Success 200 {object} response.Any{data=nettools.NetIntelStatusResponse} "数据库状态列表"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "内部错误"
+// @Router /api/v1/d/network-tools/netintel/status [get]
+func GetNetIntelStatusHandler(c *gin.Context) {
+	res, err := GetNetIntelStatus(c.Request.Context())
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+// TriggerNetIntelSyncHandler triggers an immediate or Asynq-queued NetIntel database sync.
+// @Summary 触发网络情报数据库同步
+// @Description 下发 of_netintel_sync 异步任务（若未启用任务队列则在当前请求同步执行）以更新数据库并热重载
+// @Tags openflare-network-tools
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body nettools.triggerSyncRequest false "同步参数"
+// @Success 200 {object} response.Any{data=nettools.TriggerSyncResponse} "同步任务已派发或完成"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限或不存在"
+// @Failure 500 {object} response.Any "同步失败"
+// @Router /api/v1/d/network-tools/netintel/sync [post]
+func TriggerNetIntelSyncHandler(c *gin.Context) {
+	var req triggerSyncRequest
+	if c.Request.ContentLength > 0 {
+		if !httpx.BindJSON(c, &req) {
+			return
+		}
+	}
+	res, err := TriggerNetIntelSync(c.Request.Context(), req.Force)
+	if httpx.AbortBadRequestOnError(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(res))
+}
+
+func parseASNParam(c *gin.Context) (uint32, bool) {
+	raw := c.Param("asn")
+	id, err := strconv.ParseUint(raw, 10, 32)
+	if err != nil || id == 0 {
+		response.AbortBadRequest(c, errInvalidASN)
+		return 0, false
+	}
+	return uint32(id), true
+}
+
+func parsePositiveInt(raw string, def int) int {
+	if raw == "" {
+		return def
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v <= 0 {
+		return def
+	}
+	return v
+}

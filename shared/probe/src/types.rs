@@ -163,3 +163,234 @@ pub struct ExecResult {
     pub exit_code: i32,
     pub finished_at: String,
 }
+
+fn default_ping_count() -> u8 {
+    4
+}
+
+fn default_ping_interval_ms() -> u64 {
+    200
+}
+
+fn default_trace_protocol() -> String {
+    "icmp".to_owned()
+}
+
+fn default_trace_max_hops() -> u8 {
+    30
+}
+
+fn default_trace_probes() -> u8 {
+    3
+}
+
+fn default_dns_qtype() -> String {
+    "A".to_owned()
+}
+
+fn default_dns_resolver() -> String {
+    "1.1.1.1:53".to_owned()
+}
+
+/// Multi-sample ping / TCPing / HTTP latency probe request.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PingBatchRequest {
+    pub protocol: String,
+    pub target: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+    #[serde(default = "default_ping_count")]
+    pub count: u8,
+    #[serde(default = "default_ping_interval_ms")]
+    pub interval_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_ms: Option<u64>,
+}
+
+/// Individual latency attempt within a batch ping result.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PingSample {
+    pub seq: u8,
+    pub rtt_ms: i64,
+    pub success: bool,
+}
+
+/// Aggregated multi-sample ping / TCPing result.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PingBatchResult {
+    pub protocol: String,
+    pub target: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_ip: Option<String>,
+    pub sent: u8,
+    pub received: u8,
+    pub loss_rate: f64,
+    pub min_ms: f64,
+    pub avg_ms: f64,
+    pub max_ms: f64,
+    pub p95_ms: f64,
+    pub jitter_ms: f64,
+    pub samples: Vec<PingSample>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// Traceroute probe request executed via `trippy-core`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TracerouteRequest {
+    pub target: String,
+    #[serde(default = "default_trace_protocol")]
+    pub protocol: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+    #[serde(default = "default_trace_max_hops")]
+    pub max_hops: u8,
+    #[serde(default = "default_trace_probes")]
+    pub probes_per_hop: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_ms: Option<u64>,
+}
+
+/// Single round measurement observed at a traceroute hop.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TracerouteProbe {
+    pub seq: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ip: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rtt_ms: Option<f64>,
+}
+
+/// Per-TTL traceroute hop summary.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TracerouteHop {
+    pub ttl: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ip: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alt_ips: Vec<String>,
+    pub sent: u16,
+    pub recv: u16,
+    pub loss_pct: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_ms: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avg_ms: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_ms: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jitter_ms: Option<f64>,
+    #[serde(default)]
+    pub probes: Vec<TracerouteProbe>,
+}
+
+/// Complete traceroute measurement output.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TracerouteResult {
+    pub target: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_ip: Option<String>,
+    pub protocol: String,
+    pub hop_count: u8,
+    pub reached: bool,
+    pub total_rtt_ms: f64,
+    pub hops: Vec<TracerouteHop>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// DNS query probe request supporting optional EDNS0 Client Subnet (ECS).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DnsQueryRequest {
+    pub domain: String,
+    #[serde(default = "default_dns_qtype")]
+    pub record_type: String,
+    #[serde(default = "default_dns_resolver")]
+    pub resolver: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ecs_subnet: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_ms: Option<u64>,
+}
+
+/// Single DNS answer record returned by `execute_dns_query`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DnsRecord {
+    pub name: String,
+    pub record_type: String,
+    pub ttl: u32,
+    pub value: String,
+}
+
+/// DNS query probe output.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DnsQueryResult {
+    pub domain: String,
+    pub record_type: String,
+    pub resolver: String,
+    pub rcode: String,
+    pub authoritative: bool,
+    pub truncated: bool,
+    pub used_tcp: bool,
+    pub latency_ms: f64,
+    pub records: Vec<DnsRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// Unified network probe task envelope dispatched from the controller to nodes.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NetProbeRequest {
+    pub probe_id: String,
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ping: Option<PingBatchRequest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub traceroute: Option<TracerouteRequest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dns: Option<DnsQueryRequest>,
+}
+
+/// Unified network probe response emitted by node probe workers.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NetProbeResult {
+    pub probe_id: String,
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ping: Option<PingBatchResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub traceroute: Option<TracerouteResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dns: Option<DnsQueryResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    pub finished_at: String,
+}
+
+/// NDJSON IPC request sent from parent supervisor to isolated `probe-worker` subprocess.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "op", rename_all = "snake_case")]
+pub enum WorkerRequest {
+    Ping {
+        request_id: String,
+        payload: PingRequest,
+    },
+    NetProbe {
+        request_id: String,
+        payload: NetProbeRequest,
+    },
+}
+
+/// NDJSON IPC response returned by isolated `probe-worker` subprocess.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "op", rename_all = "snake_case")]
+pub enum WorkerResponse {
+    Ping {
+        request_id: String,
+        payload: PingResult,
+    },
+    NetProbe {
+        request_id: String,
+        payload: NetProbeResult,
+    },
+}

@@ -975,6 +975,8 @@ func toAnalyticsNodeAccessLog(record *model.OpenFlareAccessLog) analyticsmodel.N
 		BytesSent:     bytesSent,
 		RequestLength: requestLength,
 		RequestTimeMs: requestTimeMs,
+		ClientASN:     record.ClientASN,
+		TCPRTTUs:      record.TCPRTTUs,
 		CreatedAt:     record.CreatedAt,
 	}
 }
@@ -1011,6 +1013,8 @@ func fromAnalyticsNodeAccessLogs(rows []analyticsmodel.NodeAccessLog) []*model.O
 			BytesSent:     bytesSent,
 			RequestLength: requestLength,
 			RequestTimeMs: int64(row.RequestTimeMs),
+			ClientASN:     row.ClientASN,
+			TCPRTTUs:      row.TCPRTTUs,
 			CreatedAt:     row.CreatedAt,
 		}
 	}
@@ -1420,8 +1424,7 @@ func (s *gormLogStore) DeletePingRecordsByTaskIDs(ctx context.Context, taskIDs [
 	return res.RowsAffected, res.Error
 }
 
-// BatchInsertNodePingRecords 是 batchwriter flush 目标：GORM 分批落库。
-func (s *gormLogStore) BatchInsertNodePingRecords(ctx context.Context, rows []analyticsmodel.NodePingRecord) error {
+func batchInsertAnalyticsRows[T any](ctx context.Context, s *gormLogStore, rows []T, prepare func(row *T, now time.Time)) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -1430,17 +1433,24 @@ func (s *gormLogStore) BatchInsertNodePingRecords(ctx context.Context, rows []an
 	}
 	now := time.Now().UTC()
 	for i := range rows {
-		if rows[i].ID == 0 {
-			rows[i].ID = idgen.NextUint64ID()
-		}
-		if rows[i].RecordedAt.IsZero() {
-			rows[i].RecordedAt = now
-		}
-		if rows[i].CreatedAt.IsZero() {
-			rows[i].CreatedAt = now
-		}
+		prepare(&rows[i], now)
 	}
 	return s.db.WithContext(ctx).CreateInBatches(rows, insertBatchSize).Error
+}
+
+// BatchInsertNodePingRecords 是 batchwriter flush 目标：GORM 分批落库。
+func (s *gormLogStore) BatchInsertNodePingRecords(ctx context.Context, rows []analyticsmodel.NodePingRecord) error {
+	return batchInsertAnalyticsRows(ctx, s, rows, func(row *analyticsmodel.NodePingRecord, now time.Time) {
+		if row.ID == 0 {
+			row.ID = idgen.NextUint64ID()
+		}
+		if row.RecordedAt.IsZero() {
+			row.RecordedAt = now
+		}
+		if row.CreatedAt.IsZero() {
+			row.CreatedAt = now
+		}
+	})
 }
 
 // ListPingRecordsForMigration 按 id 升序分页读取（迁移复制用）。
@@ -1454,6 +1464,79 @@ func (s *gormLogStore) ListPingRecordsForMigration(ctx context.Context, afterID 
 		return nil, err
 	}
 	return rows, nil
+}
+
+// InsertNetworkQualitySample 写入入口：冻结检查 + 经 hook 入队（异步），不直接落库。
+func (s *gormLogStore) InsertNetworkQualitySample(ctx context.Context, record *model.OpenFlareNetworkQualitySample) error {
+	if record == nil {
+		return nil
+	}
+	if err := s.ensureWritable(ctx); err != nil {
+		return err
+	}
+	if h := currentObservabilityHooks().QueueNetworkQualitySample; h != nil {
+		h(toAnalyticsNetworkQualitySample(record))
+	}
+	return nil
+}
+
+// BatchInsertNetworkQualitySamples 是 batchwriter flush 目标：GORM 分批落库。
+func (s *gormLogStore) BatchInsertNetworkQualitySamples(ctx context.Context, rows []analyticsmodel.NetworkQualitySample) error {
+	return batchInsertAnalyticsRows(ctx, s, rows, func(row *analyticsmodel.NetworkQualitySample, now time.Time) {
+		if row.ID == 0 {
+			row.ID = idgen.NextUint64ID()
+		}
+		if row.CapturedAt.IsZero() {
+			row.CapturedAt = now
+		}
+		if row.CreatedAt.IsZero() {
+			row.CreatedAt = now
+		}
+	})
+}
+
+func (s *gormLogStore) ListNetworkQualitySamplesSince(ctx context.Context, since time.Time, limit int) ([]analyticsmodel.NetworkQualitySample, error) {
+	var rows []analyticsmodel.NetworkQualitySample
+	q := s.db.WithContext(ctx).Model(&analyticsmodel.NetworkQualitySample{})
+	if !since.IsZero() {
+		q = q.Where("captured_at >= ?", since.UTC())
+	}
+	q = q.Order("captured_at DESC, id DESC")
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (s *gormLogStore) ListNetworkQualitySamplesForMigration(ctx context.Context, afterID uint64, limit int) ([]analyticsmodel.NetworkQualitySample, error) {
+	var rows []analyticsmodel.NetworkQualitySample
+	q := s.db.WithContext(ctx).Model(&analyticsmodel.NetworkQualitySample{}).
+		Where("id > ?", afterID).
+		Order("id ASC").
+		Limit(limitOr(limit, migrationPageSize))
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (s *gormLogStore) DeleteAllNetworkQualitySamples(ctx context.Context) (int64, error) {
+	if err := s.ensureWritable(ctx); err != nil {
+		return 0, err
+	}
+	res := s.db.WithContext(ctx).Where("1 = 1").Delete(&analyticsmodel.NetworkQualitySample{})
+	return res.RowsAffected, res.Error
+}
+
+func (s *gormLogStore) DeleteNetworkQualitySamplesBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	if err := s.ensureWritable(ctx); err != nil {
+		return 0, err
+	}
+	res := s.db.WithContext(ctx).Where("captured_at < ?", cutoff.UTC()).Delete(&analyticsmodel.NetworkQualitySample{})
+	return res.RowsAffected, res.Error
 }
 
 // ---- UserAccessLogStore ----
@@ -1795,4 +1878,24 @@ func fromAnalyticsNodeEdgeHealths(rows []analyticsmodel.NodeEdgeHealth) []*model
 		}
 	}
 	return result
+}
+
+func toAnalyticsNetworkQualitySample(record *model.OpenFlareNetworkQualitySample) analyticsmodel.NetworkQualitySample {
+	return analyticsmodel.NetworkQualitySample{
+		ID:            record.ID,
+		NodeID:        strings.TrimSpace(record.NodeID),
+		NodeASN:       record.NodeASN,
+		ClientASN:     record.ClientASN,
+		ClientCountry: strings.TrimSpace(record.ClientCountry),
+		Source:        strings.TrimSpace(record.Source),
+		SampleCount:   clampInt32(record.SampleCount),
+		RTTMinMs:      record.RTTMinMs,
+		RTTP50Ms:      record.RTTP50Ms,
+		RTTP95Ms:      record.RTTP95Ms,
+		RetransRate:   record.RetransRate,
+		LossRate:      record.LossRate,
+		HopCount:      clampInt32(record.HopCount),
+		CapturedAt:    record.CapturedAt,
+		CreatedAt:     record.CreatedAt,
+	}
 }

@@ -1,0 +1,224 @@
+{
+  "networkTools": {
+    "common": {
+      "target": "Цель",
+      "targetPlaceholder": "Введите домен или публичный IPv4 / IPv6, например example.com или 1.1.1.1",
+      "protocol": "Протокол",
+      "port": "Порт",
+      "optionalPortPlaceholder": "Необязательный порт",
+      "dispatch": "Запустить проверку",
+      "running": "Выполняется",
+      "refresh": "Обновить",
+      "loading": "Загрузка...",
+      "noData": "Нет данных",
+      "error": "Ошибка запроса",
+      "nodeSelectorTitle": "Пограничные узлы для проверки",
+      "nodeSelectorHint": "Оставьте пустым для одновременной отправки на все активные узлы (до 50 узлов).",
+      "selectAllOnline": "Выбрать все активные",
+      "clearSelection": "Сбросить выбор",
+      "selectedCount": "Выбрано {selected} / активных {online}",
+      "noOnlineNodes": "Нет доступных активных пограничных узлов",
+      "taskProgress": "Прогресс: ответили {completed} из {total} узлов",
+      "statusLabels": {
+        "running": "Выполняется",
+        "completed": "Завершено",
+        "pending": "Ожидание",
+        "failed": "Ошибка",
+        "offline": "Не в сети",
+        "timeout": "Тайм-аут"
+      },
+      "msUnit": "{value} мс",
+      "pctUnit": "{value}%",
+      "pageSummary": "Страница {page} из {totalPages} (всего {total})",
+      "prevPage": "Назад",
+      "nextPage": "Вперёд",
+      "attributionPrefix": "Источник данных: "
+    },
+    "ping": {
+      "title": "Мульти-пинг / TCPing",
+      "description": "Выполнение пакетных проверок ICMP, TCPing и HTTP задержки, джиттера P95 и потерь пакетов с выбранных пограничных узлов в изолированном процессе.",
+      "count": "Число пакетов",
+      "intervalMs": "Интервал (мс)",
+      "timeoutMs": "Тайм-аут (мс)",
+      "targetHint": "Поддерживаются публичные IP-адреса, домены или URL http(s):// (для режима HTTP). Частные сети запрещены.",
+      "summary": {
+        "responded": "Ответившие узлы",
+        "minLatency": "Минимальный ср. RTT",
+        "overallAvg": "Средний RTT",
+        "worstP95": "Макс. P95 RTT"
+      },
+      "columns": {
+        "node": "Пограничный узел",
+        "status": "Статус",
+        "resolvedIp": "IP назначения",
+        "sentRecv": "Получ. / Отпр.",
+        "loss": "Потери",
+        "min": "Мин.",
+        "avg": "Сред.",
+        "p95": "P95",
+        "jitter": "Джиттер",
+        "samples": "Попытки"
+      },
+      "sampleSeq": "#{seq}: {rtt} мс",
+      "sampleTimeout": "#{seq}: тайм-аут",
+      "emptyState": "Укажите публичный адрес назначения и нажмите «Запустить проверку»."
+    },
+    "traceroute": {
+      "title": "Трассировка маршрута",
+      "description": "Многораундовая трассировка через trippy-core в изолированном процессе с автоматическим определением GeoIP, ASN и тегов bgp.tools на каждом переходе.",
+      "tabs": {
+        "live": "Текущая трассировка",
+        "history": "История"
+      },
+      "maxHops": "Макс. переходов",
+      "probesPerHop": "Зондов на шаг",
+      "timeoutMs": "Тайм-аут шага (мс)",
+      "reached": "Цель достигнута",
+      "unreached": "Маршрут не завершён",
+      "hopsSummary": "Переходов: {hops} · Общий RTT: {rtt} мс",
+      "columns": {
+        "ttl": "Шаг",
+        "ip": "IP узла",
+        "location": "Геолокация",
+        "asn": "ASN и теги",
+        "loss": "Потери",
+        "minAvgMax": "Мин. / Сред. / Макс.",
+        "jitter": "Джиттер"
+      },
+      "history": {
+        "filterTarget": "Фильтр по цели",
+        "filterType": "Источник запуска",
+        "typeAll": "Все",
+        "typeManual": "Вручную",
+        "typeAuto": "Автоматически",
+        "nodeId": "Узел",
+        "target": "Цель",
+        "asPath": "Путь AS",
+        "hops": "Переходы",
+        "totalRtt": "Общий RTT",
+        "createdAt": "Время"
+      },
+      "emptyState": "Введите целевой хост и запустите трассировку для анализа маршрутов."
+    },
+    "asn": {
+      "title": "Разведка ASN и IP",
+      "description": "Поиск по базам GeoLite2, таблице маршрутов и тегам bgp.tools, а также графу связей CAIDA с расчётом путей от пограничных узлов.",
+      "queryLabel": "IP / Домен / ASN",
+      "queryPlaceholder": "Введите публичный IP, домен или ASN (например, 1.1.1.1, example.com или AS13335)",
+      "search": "Поиск",
+      "summaryCard": "Сводка разведки",
+      "geoLocation": "Геолокация",
+      "asnOrg": "Организация ASN",
+      "asnClass": "Категория сети",
+      "bgpPrefix": "Префикс BGP",
+      "prefixHits": "Видимость в таблице",
+      "dataSources": "Источники данных",
+      "ipv4Prefixes": "Префиксы IPv4",
+      "ipv6Prefixes": "Префиксы IPv6",
+      "neighborCount": "Соседние AS",
+      "prefixesCard": "Анонсированные префиксы BGP",
+      "familyAll": "Все семейства",
+      "neighborsCard": "Соседние AS и измеренные переходы",
+      "pathCard": "Сравнение путей и качества пограничных узлов до ASN",
+      "pathCompare": "Сравнить пути",
+      "columns": {
+        "cidr": "Префикс CIDR",
+        "family": "Семейство",
+        "hits": "Видимость",
+        "peerAsn": "Смежная ASN",
+        "peerName": "Организация",
+        "relation": "Отношение",
+        "observedRtt": "Задержка перехода",
+        "samples": "Выборка",
+        "node": "Узел",
+        "nodeAsn": "ASN узла",
+        "asHops": "Шаги AS",
+        "asPath": "Оценочный / измеренный путь AS",
+        "effectiveRtt": "Эффективный RTT",
+        "qualityScore": "Оценка качества",
+        "source": "Источник"
+      },
+      "relations": {
+        "provider": "Провайдер",
+        "customer": "Клиент",
+        "peer": "Пиринг",
+        "observed": "Измерено трассировкой"
+      },
+      "emptyState": "Введите публичный IP-адрес, домен или номер AS для получения данных."
+    },
+    "dns": {
+      "title": "Диагностика DNS и EDNS0 ECS",
+      "description": "Выполнение запросов DNS напрямую с контроллера или с выбранных пограничных узлов с поддержкой подсети клиента EDNS0 (ECS).",
+      "domain": "Домен",
+      "domainPlaceholder": "например, example.com",
+      "recordType": "Тип записи",
+      "resolver": "DNS-резолвер",
+      "customResolver": "Другой резолвер",
+      "customResolverPlaceholder": "например, 9.9.9.9:53",
+      "ecsSubnet": "Подсеть клиента EDNS0 (ECS)",
+      "ecsPlaceholder": "Необязательный CIDR или IP, например 203.0.113.0/24",
+      "mode": "Режим выполнения",
+      "modeDirect": "Напрямую с контроллера",
+      "modeNodes": "Через пограничные узлы",
+      "runQuery": "Выполнить запрос",
+      "flags": {
+        "rcode": "Код ответа: {rcode}",
+        "authoritative": "Авторитетный (AA)",
+        "nonAuthoritative": "Неавторитетный",
+        "tcpFallback": "Переключение на TCP",
+        "udp": "UDP",
+        "latency": "Задержка: {ms} мс"
+      },
+      "columns": {
+        "name": "Имя",
+        "type": "Тип",
+        "ttl": "TTL",
+        "value": "Значение",
+        "geoAsn": "GeoIP и ASN ответа"
+      },
+      "emptyState": "Укажите домен и резолвер для выполнения диагностического DNS-запроса."
+    },
+    "quality": {
+      "title": "Матрица качества сети и базы данных",
+      "description": "Объединение пассивного TCP RTT рукопожатий и активной трассировки в единую матрицу оценки качества пограничных узлов для клиентских ASN.",
+      "tabs": {
+        "matrix": "Матрица качества",
+        "datasets": "Базы данных и синхронизация"
+      },
+      "filters": {
+        "searchPlaceholder": "Поиск по ID узла, ASN, организации или стране...",
+        "sourceAll": "Все источники",
+        "sourceMeasured": "Измерено (measured)",
+        "sourcePredicted": "Оценка (predicted)"
+      },
+      "columns": {
+        "node": "Пограничный узел",
+        "clientAsn": "Клиентский ASN",
+        "effectiveRtt": "Эффективный RTT",
+        "tcpStats": "Пассивный TCP (P50 / P95 / Повт.)",
+        "traceStats": "Трассировка (RTT / Потери / Шаги)",
+        "score": "Оценка",
+        "confidence": "Достоверность",
+        "source": "Источник",
+        "updatedAt": "Обновлено"
+      },
+      "datasets": {
+        "dataDir": "Каталог: {dir}",
+        "caidaEnabled": "Синхронизация CAIDA включена",
+        "caidaDisabled": "CAIDA отключена (соблюдение условий лицензии)",
+        "autoProbeEnabled": "Фоновое зондирование включено",
+        "autoProbeDisabled": "Фоновое зондирование отключено",
+        "syncNow": "Синхронизировать",
+        "forceSync": "Принудительно обновить",
+        "syncSuccessQueued": "Запущена фоновая задача синхронизации: {taskId}",
+        "syncSuccessInline": "Синхронизация завершена: обновлено файлов {updated}, дополнено узлов {backfilled}.",
+        "loaded": "Загружено",
+        "notLoaded": "Не загружено",
+        "records": "Записей: {count}",
+        "size": "Размер: {size}",
+        "license": "Лицензия: {license}",
+        "updated": "Обновлено: {time}"
+      }
+    }
+  }
+}

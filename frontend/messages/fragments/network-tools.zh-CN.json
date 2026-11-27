@@ -1,0 +1,224 @@
+{
+  "networkTools": {
+    "common": {
+      "target": "目标地址",
+      "targetPlaceholder": "输入域名或公网 IPv4 / IPv6 地址，例如 example.com 或 1.1.1.1",
+      "protocol": "探测协议",
+      "port": "端口",
+      "optionalPortPlaceholder": "可选端口",
+      "dispatch": "开始探测",
+      "running": "正在探测",
+      "refresh": "刷新",
+      "loading": "正在加载...",
+      "noData": "暂无数据",
+      "error": "请求失败",
+      "nodeSelectorTitle": "执行探测的边缘节点",
+      "nodeSelectorHint": "留空则向全部在线边缘节点并发下发（最多 50 个节点）。",
+      "selectAllOnline": "全选在线节点",
+      "clearSelection": "清空选择",
+      "selectedCount": "已选 {selected} / 在线 {online}",
+      "noOnlineNodes": "当前没有可用的在线边缘节点",
+      "taskProgress": "任务进度：{completed} / {total} 个节点已返回",
+      "statusLabels": {
+        "running": "执行中",
+        "completed": "已完成",
+        "pending": "等待响应",
+        "failed": "失败",
+        "offline": "节点离线",
+        "timeout": "超时"
+      },
+      "msUnit": "{value} ms",
+      "pctUnit": "{value}%",
+      "pageSummary": "第 {page} / {totalPages} 页，共 {total} 条记录",
+      "prevPage": "上一页",
+      "nextPage": "下一页",
+      "attributionPrefix": "数据支持："
+    },
+    "ping": {
+      "title": "多点 Ping / TCPing",
+      "description": "从多个边缘节点并发执行隔离进程内的批量 ICMP、TCPing 或 HTTP 延迟、P95 抖动与丢包检测。",
+      "count": "发包次数",
+      "intervalMs": "间隔 (ms)",
+      "timeoutMs": "超时 (ms)",
+      "targetHint": "支持公网 IP、域名或 http(s):// URL（HTTP 协议模式）。内网与保留网段将被拒绝。",
+      "summary": {
+        "responded": "已响应节点",
+        "minLatency": "最低平均延迟",
+        "overallAvg": "平均延迟",
+        "worstP95": "最高 P95 延迟"
+      },
+      "columns": {
+        "node": "边缘节点",
+        "status": "状态",
+        "resolvedIp": "解析 IP",
+        "sentRecv": "收 / 发",
+        "loss": "丢包率",
+        "min": "最小",
+        "avg": "平均",
+        "p95": "P95",
+        "jitter": "抖动",
+        "samples": "逐包明细"
+      },
+      "sampleSeq": "#{seq}: {rtt} ms",
+      "sampleTimeout": "#{seq}: 超时",
+      "emptyState": "请输入公网目标地址并点击“开始探测”以查看各边缘节点测量结果。"
+    },
+    "traceroute": {
+      "title": "多点路由追踪（Traceroute）",
+      "description": "基于 trippy-core 在隔离探测进程中执行多轮路由追踪，并自动标注每一跳的地理位置、ASN 与 bgp.tools 标签。",
+      "tabs": {
+        "live": "实时追踪",
+        "history": "追踪历史"
+      },
+      "maxHops": "最大跳数",
+      "probesPerHop": "每跳探测数",
+      "timeoutMs": "单跳超时 (ms)",
+      "reached": "已到达目标",
+      "unreached": "未到达目标",
+      "hopsSummary": "{hops} 跳 · 总耗时 {rtt} ms",
+      "columns": {
+        "ttl": "跳数",
+        "ip": "路由节点 IP",
+        "location": "地理归属",
+        "asn": "ASN 与路由标签",
+        "loss": "丢包率",
+        "minAvgMax": "最小 / 平均 / 最大",
+        "jitter": "抖动"
+      },
+      "history": {
+        "filterTarget": "按目标筛选",
+        "filterType": "触发方式",
+        "typeAll": "全部",
+        "typeManual": "手动探测",
+        "typeAuto": "后台自动",
+        "nodeId": "节点",
+        "target": "目标",
+        "asPath": "AS 路径",
+        "hops": "跳数",
+        "totalRtt": "总延迟",
+        "createdAt": "采集时间"
+      },
+      "emptyState": "请输入目标地址并发起路由追踪，各节点逐跳结果将自动刷新显示。"
+    },
+    "asn": {
+      "title": "ASN 与 IP 情报查询",
+      "description": "聚合 GeoLite2、bgp.tools 全球路由表与 AS 标签库以及可选 CAIDA 邻接图，检索 IP 归属、BGP 宣告前缀与多节点 AS 路径对比。",
+      "queryLabel": "IP / 域名 / ASN 编号",
+      "queryPlaceholder": "输入公网 IP、域名或 ASN（例如 1.1.1.1、example.com 或 AS13335）",
+      "search": "查询情报",
+      "summaryCard": "情报摘要",
+      "geoLocation": "地理位置",
+      "asnOrg": "所属 ASN",
+      "asnClass": "网络类型",
+      "bgpPrefix": "最长匹配 BGP 前缀",
+      "prefixHits": "路由表可见度",
+      "dataSources": "数据来源",
+      "ipv4Prefixes": "IPv4 前缀数",
+      "ipv6Prefixes": "IPv6 前缀数",
+      "neighborCount": "邻接 AS 数",
+      "prefixesCard": "BGP 宣告前缀",
+      "familyAll": "全部地址族",
+      "neighborsCard": "AS 邻接关系与实测路径",
+      "pathCard": "边缘节点到目标 ASN 路径与质量对比",
+      "pathCompare": "分析路径",
+      "columns": {
+        "cidr": "CIDR 前缀",
+        "family": "地址族",
+        "hits": "可见度",
+        "peerAsn": "对端 ASN",
+        "peerName": "组织名称",
+        "relation": "互联关系",
+        "observedRtt": "实测跳间延迟",
+        "samples": "样本数",
+        "node": "边缘节点",
+        "nodeAsn": "节点 ASN",
+        "asHops": "AS 跳数",
+        "asPath": "预估 / 实测 AS 路径",
+        "effectiveRtt": "有效延迟",
+        "qualityScore": "质量评分",
+        "source": "来源"
+      },
+      "relations": {
+        "provider": "上游提供方 (Provider)",
+        "customer": "下游客户 (Customer)",
+        "peer": "对等互联 (Peer)",
+        "observed": "路由实测直连"
+      },
+      "emptyState": "请输入公网 IP、域名或 AS 编号开始检索网络情报。"
+    },
+    "dns": {
+      "title": "DNS 与 EDNS0 ECS 诊断查询",
+      "description": "支持主控直接解析或跨多边缘节点调度 DNS 查询，可附加 EDNS0 客户端子网（ECS）模拟不同访客网段的权威返回结果。",
+      "domain": "查询域名",
+      "domainPlaceholder": "例如 example.com",
+      "recordType": "记录类型",
+      "resolver": "DNS 解析服务器",
+      "customResolver": "自定义服务器",
+      "customResolverPlaceholder": "例如 9.9.9.9:53",
+      "ecsSubnet": "EDNS0 客户端子网 (ECS)",
+      "ecsPlaceholder": "可选 CIDR 或 IP，例如 203.0.113.0/24",
+      "mode": "查询模式",
+      "modeDirect": "主控直接查询",
+      "modeNodes": "多边缘节点并发查询",
+      "runQuery": "执行查询",
+      "flags": {
+        "rcode": "响应码：{rcode}",
+        "authoritative": "权威应答 (AA)",
+        "nonAuthoritative": "非权威",
+        "tcpFallback": "已回落 TCP",
+        "udp": "UDP",
+        "latency": "耗时：{ms} ms"
+      },
+      "columns": {
+        "name": "主机名",
+        "type": "类型",
+        "ttl": "TTL",
+        "value": "记录值",
+        "geoAsn": "应答 IP 归属与 ASN"
+      },
+      "emptyState": "请输入查询域名与解析服务器参数以执行 DNS 诊断。"
+    },
+    "quality": {
+      "title": "网络质量矩阵与情报数据集",
+      "description": "融合边缘节点被动 TCP 握手首包 RTT 与主动路由追踪指标，为智能流量调度提供节点×访客 ASN 维度的实时评分矩阵。",
+      "tabs": {
+        "matrix": "质量融合矩阵",
+        "datasets": "情报数据库状态"
+      },
+      "filters": {
+        "searchPlaceholder": "搜索节点 ID、AS 编号、组织或国家...",
+        "sourceAll": "全部数据来源",
+        "sourceMeasured": "实测融合 (measured)",
+        "sourcePredicted": "图/距离推算 (predicted)"
+      },
+      "columns": {
+        "node": "边缘节点",
+        "clientAsn": "访客 ASN",
+        "effectiveRtt": "综合有效延迟",
+        "tcpStats": "被动 TCP (P50 / P95 / 重传)",
+        "traceStats": "主动探测 (RTT / 丢包 / 跳数)",
+        "score": "质量评分",
+        "confidence": "置信度",
+        "source": "来源",
+        "updatedAt": "更新时间"
+      },
+      "datasets": {
+        "dataDir": "数据目录：{dir}",
+        "caidaEnabled": "运行期 CAIDA 同步已开启",
+        "caidaDisabled": "CAIDA 未开启（默认遵守分发限制）",
+        "autoProbeEnabled": "后台自动探测已启用",
+        "autoProbeDisabled": "后台自动探测已关闭",
+        "syncNow": "增量同步数据库",
+        "forceSync": "强制全量更新",
+        "syncSuccessQueued": "已下发后台数据库同步任务：{taskId}",
+        "syncSuccessInline": "数据库同步完成，已更新 {updated} 个文件，回填 {backfilled} 个节点 ASN。",
+        "loaded": "已加载",
+        "notLoaded": "未加载",
+        "records": "记录数：{count}",
+        "size": "大小：{size}",
+        "license": "许可声明：{license}",
+        "updated": "更新时间：{time}"
+      }
+    }
+  }
+}

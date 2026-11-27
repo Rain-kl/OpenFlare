@@ -19,6 +19,9 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/config_version"
 	ofgeoip "github.com/Rain-kl/Wavelet/internal/apps/openflare/geoip"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/logwriter"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netintel"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netquality"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/nettools"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/ping"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/websocket"
 	"github.com/Rain-kl/Wavelet/internal/infra/config"
@@ -179,16 +182,21 @@ func Init(ctx context.Context, opts Options) {
 		if err := ofgeoip.EnsureRuntimeProvider(ctx); err != nil {
 			logger.ErrorF(ctx, "[Bootstrap] init GeoIP provider failed: %v", err)
 		}
+		if err := netintel.Init(ctx); err != nil {
+			logger.ErrorF(ctx, "[Bootstrap] init NetIntel manager failed: %v", err)
+		}
 		if err := admin_push.SyncEvents(ctx); err != nil {
 			logger.ErrorF(ctx, "[Bootstrap] sync push events failed: %v", err)
 		}
 		if opts.API {
 			websocket.SetPingResultHandler(ping.RecordResult)
 			websocket.SetPingScheduleReloadHandler(ping.ReloadSchedule)
+			websocket.SetNetProbeResultHandler(nettools.HandleNetProbeResult)
 			websocket.StartConfigChangeListener(ctx)
 			websocket.StartRuntimeLogRelay(ctx)
 			lifecycle.OnShutdown("live edge snapshot", config_version.StartRefreshLoop(ctx))
 			logwriter.Init(ctx)
+			netquality.StartPassiveCollector(ctx)
 			admin_status.RegisterBatchWriterStatsProvider(logwriter.WriterStats)
 			ping.StartScheduler(ctx)
 		}

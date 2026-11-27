@@ -40,6 +40,7 @@ func newLogDBSwitchDB(t *testing.T) *gorm.DB {
 		&analyticsmodel.NodeMetricSnapshot{},
 		&analyticsmodel.NodeEdgeHealth{},
 		&analyticsmodel.NodePingRecord{},
+		&analyticsmodel.NetworkQualitySample{},
 		&analyticsmodel.UserAccessLog{},
 	))
 	return gdb
@@ -393,4 +394,47 @@ func TestFlipLogDatabaseRefreshesCachedConfig(t *testing.T) {
 	cfg, err := repository.GetSystemConfigByKey(ctx, model.ConfigKeyLogDatabase)
 	require.NoError(t, err)
 	assert.Equal(t, "postgres", cfg.Value)
+}
+
+func TestCopyAndClearNetworkQualitySamplesPreservesIDs(t *testing.T) {
+	oldDB, oldCH := config.Config.Database.Enabled, config.Config.ClickHouse.Enabled
+	config.Config.Database.Enabled, config.Config.ClickHouse.Enabled = false, false
+	t.Cleanup(func() {
+		config.Config.Database.Enabled, config.Config.ClickHouse.Enabled = oldDB, oldCH
+	})
+	logstore.ResetForTest()
+	defer logstore.ResetForTest()
+
+	ctx := context.Background()
+	srcDB := newLogDBSwitchDB(t)
+	dstDB := newLogDBSwitchDB(t)
+
+	db.SetDB(srcDB)
+	src, err := logstore.Active(ctx)
+	require.NoError(t, err)
+	db.SetDB(dstDB)
+	dst, err := logstore.BuildForMigration(ctx, "sqlite")
+	require.NoError(t, err)
+	t.Cleanup(func() { db.SetDB(nil) })
+
+	now := time.Now().UTC()
+	rows := []analyticsmodel.NetworkQualitySample{
+		{ID: 701, NodeID: "n1", NodeASN: 13335, ClientASN: 4134, ClientCountry: "CN", Source: "tcp_passive", SampleCount: 12, RTTMinMs: 28, RTTP50Ms: 35, RTTP95Ms: 60, CapturedAt: now, CreatedAt: now},
+		{ID: 702, NodeID: "n2", NodeASN: 174, ClientASN: 4809, ClientCountry: "CN", Source: "traceroute", SampleCount: 3, RTTMinMs: 40, RTTP50Ms: 42, RTTP95Ms: 45, HopCount: 11, CapturedAt: now, CreatedAt: now},
+	}
+	require.NoError(t, src.Observability.BatchInsertNetworkQualitySamples(ctx, rows))
+	require.NoError(t, dst.Observability.BatchInsertNetworkQualitySamples(ctx, []analyticsmodel.NetworkQualitySample{
+		{ID: 999, NodeID: "stale", Source: "tcp_passive", SampleCount: 1, CapturedAt: now, CreatedAt: now},
+	}))
+
+	require.NoError(t, clearTargetLogTables(ctx, dst))
+	require.NoError(t, copyObservability(ctx, src, dst))
+
+	var got []analyticsmodel.NetworkQualitySample
+	require.NoError(t, dstDB.Order("id ASC").Find(&got).Error)
+	require.Len(t, got, 2)
+	assert.Equal(t, uint64(701), got[0].ID)
+	assert.Equal(t, uint32(4134), got[0].ClientASN)
+	assert.Equal(t, uint64(702), got[1].ID)
+	assert.Equal(t, int32(11), got[1].HopCount)
 }

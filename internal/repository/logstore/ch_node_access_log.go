@@ -67,6 +67,8 @@ func scanNodeAccessLogRows(rows driver.Rows) ([]analyticsmodel.NodeAccessLog, er
 			&item.CreatedAt,
 			&item.WAFAction,
 			&item.WAFAudit,
+			&item.ClientASN,
+			&item.TCPRTTUs,
 		); err != nil {
 			return nil, fmt.Errorf("scan node access log row: %w", err)
 		}

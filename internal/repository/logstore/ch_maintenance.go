@@ -18,10 +18,11 @@ const (
 
 // DDL TTL days for ClickHouse tables (must match goose ClickHouse migrations).
 const (
-	chTableTTLDaysNodeAccessLogs      = 90
-	chTableTTLDaysNodeMetricSnapshots = 30
-	chTableTTLDaysNodeObs             = 30
-	chTableTTLDaysUserAccessLogs      = 180
+	chTableTTLDaysNodeAccessLogs        = 90
+	chTableTTLDaysNodeMetricSnapshots   = 30
+	chTableTTLDaysNodeObs               = 30
+	chTableTTLDaysUserAccessLogs        = 180
+	chTableTTLDaysNetworkQualitySamples = 30
 )
 
 const (

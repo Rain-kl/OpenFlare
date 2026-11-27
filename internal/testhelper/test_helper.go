@@ -348,6 +348,36 @@ func getSeedConfigsPart2() []model.SystemConfig {
 			Type:        configTypeBusiness,
 			Description: "ClickHouse 日志保留天数",
 		},
+		{
+			Key:         model.ConfigKeyNetIntelDataDir,
+			Value:       "data/netintel",
+			Type:        configTypeSystem,
+			Description: "网络情报数据库本地存储目录",
+		},
+		{
+			Key:         model.ConfigKeyNetIntelGeoIPSource,
+			Value:       "fyralabs",
+			Type:        configTypeSystem,
+			Description: "GeoIP/ASN 数据库下载源",
+		},
+		{
+			Key:         model.ConfigKeyNetIntelBGPToolsUA,
+			Value:       "OpenFlare-NetIntel/1.0 (+https://github.com/Rain-kl/OpenFlare)",
+			Type:        configTypeSystem,
+			Description: "请求 bgp.tools 公开数据接口的 User-Agent",
+		},
+		{
+			Key:         model.ConfigKeyNetIntelCAIDAEnabled,
+			Value:       configValueFalse,
+			Type:        configTypeSystem,
+			Description: "是否开启运行期 CAIDA AS Relationships 同步",
+		},
+		{
+			Key:         model.ConfigKeyNetIntelAutoProbeEnabled,
+			Value:       configValueTrue,
+			Type:        configTypeSystem,
+			Description: "是否启用边缘节点后台自动路由探测",
+		},
 	}
 }
 
@@ -409,6 +439,7 @@ func SetupLogStoresForTest(t *testing.T) {
 		&analyticsmodel.UserAccessLog{},
 		&analyticsmodel.NodeMetricSnapshot{},
 		&analyticsmodel.NodeEdgeHealth{},
+		&analyticsmodel.NetworkQualitySample{},
 	))
 
 	logstore.ResetForTest()
@@ -437,6 +468,11 @@ func SetupLogStoresForTest(t *testing.T) {
 		QueueEdgeHealth: func(record analyticsmodel.NodeEdgeHealth) {
 			if err := store.Observability.BatchInsertNodeEdgeHealth(context.Background(), []analyticsmodel.NodeEdgeHealth{record}); err != nil {
 				t.Errorf("batch insert node edge health failed in test hook: %v", err)
+			}
+		},
+		QueueNetworkQualitySample: func(record analyticsmodel.NetworkQualitySample) {
+			if err := store.Observability.BatchInsertNetworkQualitySamples(context.Background(), []analyticsmodel.NetworkQualitySample{record}); err != nil {
+				t.Errorf("batch insert network quality samples failed in test hook: %v", err)
 			}
 		},
 	})

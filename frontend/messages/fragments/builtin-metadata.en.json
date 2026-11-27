@@ -64,7 +64,12 @@
       "cap_challenge_ttl_seconds": "CAPTCHA challenge lifetime (seconds)",
       "cap_token_ttl_seconds": "CAPTCHA verification token lifetime (seconds)",
       "server_address": "Server URL used to restrict allowed origins; leave empty to allow any origin",
-      "pow_page": "PoW page template, widget style and custom HTML"
+      "pow_page": "PoW page template, widget style and custom HTML",
+      "netintel_data_dir": "Local directory storing network intelligence databases (GeoIP, ASN, bgp.tools)",
+      "netintel_geoip_source": "GeoIP/ASN download source (fyralabs or sapics)",
+      "netintel_bgptools_user_agent": "Custom User-Agent header used when syncing datasets from bgp.tools",
+      "netintel_caida_enabled": "Enable runtime synchronization of CAIDA AS Relationships dataset (subject to CAIDA AUA)",
+      "netintel_auto_probe_enabled": "Enable periodic background traceroute probing from edge nodes for the quality matrix"
     },
     "templates": {
       "login_email": {

@@ -8,10 +8,13 @@ license = "Apache-2.0"
 [dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots"] }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 sysinfo = { version = "0.37", default-features = false, features = ["disk", "system", "network", "component", "multithread"] }
 time = { version = "0.3", features = ["formatting"] }
-tokio = { version = "1", features = ["net", "process", "rt", "time", "io-util"] }
+tokio = { version = "1", features = ["net", "process", "rt", "rt-multi-thread", "sync", "time", "io-util"] }
 tracing = "0.1"
+trippy-core = "0.13.0"
+trippy-privilege = "0.13.0"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

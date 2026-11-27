@@ -42,6 +42,8 @@ const (
 	WSMessageTypePong            = "pong"
 	WSMessageTypePingTask        = "ping_task"
 	WSMessageTypePingResult      = "ping_result"
+	WSMessageTypeNetProbeTask    = "net_probe_task"
+	WSMessageTypeNetProbeResult  = "net_probe_result"
 	WSMessageTypeRemoteExec      = "remote_exec"
 )
 
@@ -73,6 +75,135 @@ type RemoteExecResultPayload struct {
 	Result     string `json:"result"`
 	ExitCode   int    `json:"exit_code"`
 	FinishedAt string `json:"finished_at"`
+}
+
+// PingBatchRequest configures a multi-sample latency probe task on an edge node.
+type PingBatchRequest struct {
+	Protocol   string  `json:"protocol"`
+	Target     string  `json:"target"`
+	Port       *uint16 `json:"port,omitempty"`
+	Count      uint8   `json:"count"`
+	IntervalMs uint64  `json:"interval_ms"`
+	TimeoutMs  *uint64 `json:"timeout_ms,omitempty"`
+}
+
+// PingSample records a single sample inside a batch ping probe.
+type PingSample struct {
+	Seq     uint8 `json:"seq"`
+	RTTMs   int64 `json:"rtt_ms"`
+	Success bool  `json:"success"`
+}
+
+// PingBatchResult holds aggregated statistics for a multi-sample latency probe.
+type PingBatchResult struct {
+	Protocol   string       `json:"protocol"`
+	Target     string       `json:"target"`
+	ResolvedIP string       `json:"resolved_ip,omitempty"`
+	Sent       uint8        `json:"sent"`
+	Received   uint8        `json:"received"`
+	LossRate   float64      `json:"loss_rate"`
+	MinMs      float64      `json:"min_ms"`
+	AvgMs      float64      `json:"avg_ms"`
+	MaxMs      float64      `json:"max_ms"`
+	P95Ms      float64      `json:"p95_ms"`
+	JitterMs   float64      `json:"jitter_ms"`
+	Samples    []PingSample `json:"samples"`
+	Error      string       `json:"error,omitempty"`
+}
+
+// TracerouteRequest configures an active multi-round traceroute task on an edge node.
+type TracerouteRequest struct {
+	Target       string  `json:"target"`
+	Protocol     string  `json:"protocol"`
+	Port         *uint16 `json:"port,omitempty"`
+	MaxHops      uint8   `json:"max_hops"`
+	ProbesPerHop uint8   `json:"probes_per_hop"`
+	TimeoutMs    *uint64 `json:"timeout_ms,omitempty"`
+}
+
+// TracerouteProbe represents one round sample at a traceroute hop.
+type TracerouteProbe struct {
+	Seq   uint8    `json:"seq"`
+	IP    string   `json:"ip,omitempty"`
+	RTTMs *float64 `json:"rtt_ms,omitempty"`
+}
+
+// TracerouteHop summarizes measurements at a single TTL hop.
+type TracerouteHop struct {
+	TTL      uint8             `json:"ttl"`
+	IP       string            `json:"ip,omitempty"`
+	AltIPs   []string          `json:"alt_ips,omitempty"`
+	Sent     uint16            `json:"sent"`
+	Recv     uint16            `json:"recv"`
+	LossPct  float64           `json:"loss_pct"`
+	MinMs    *float64          `json:"min_ms,omitempty"`
+	AvgMs    *float64          `json:"avg_ms,omitempty"`
+	MaxMs    *float64          `json:"max_ms,omitempty"`
+	JitterMs *float64          `json:"jitter_ms,omitempty"`
+	Probes   []TracerouteProbe `json:"probes"`
+}
+
+// TracerouteResult captures the completed traceroute output reported by a node.
+type TracerouteResult struct {
+	Target     string          `json:"target"`
+	ResolvedIP string          `json:"resolved_ip,omitempty"`
+	Protocol   string          `json:"protocol"`
+	HopCount   uint8           `json:"hop_count"`
+	Reached    bool            `json:"reached"`
+	TotalRTTMs float64         `json:"total_rtt_ms"`
+	Hops       []TracerouteHop `json:"hops"`
+	Error      string          `json:"error,omitempty"`
+}
+
+// DNSQueryRequest configures a DNS probe query on an edge node.
+type DNSQueryRequest struct {
+	Domain     string  `json:"domain"`
+	RecordType string  `json:"record_type"`
+	Resolver   string  `json:"resolver"`
+	ECSSubnet  string  `json:"ecs_subnet,omitempty"`
+	TimeoutMs  *uint64 `json:"timeout_ms,omitempty"`
+}
+
+// DNSRecord represents a single DNS answer record returned by a probe.
+type DNSRecord struct {
+	Name       string `json:"name"`
+	RecordType string `json:"record_type"`
+	TTL        uint32 `json:"ttl"`
+	Value      string `json:"value"`
+}
+
+// DNSQueryResult carries the structured response from a DNS probe query.
+type DNSQueryResult struct {
+	Domain        string      `json:"domain"`
+	RecordType    string      `json:"record_type"`
+	Resolver      string      `json:"resolver"`
+	RCode         string      `json:"rcode"`
+	Authoritative bool        `json:"authoritative"`
+	Truncated     bool        `json:"truncated"`
+	UsedTCP       bool        `json:"used_tcp"`
+	LatencyMs     float64     `json:"latency_ms"`
+	Records       []DNSRecord `json:"records"`
+	Error         string      `json:"error,omitempty"`
+}
+
+// NetProbeTaskDispatch instructs an edge node to run a network diagnostic probe in its isolated worker.
+type NetProbeTaskDispatch struct {
+	ProbeID    string             `json:"probe_id"`
+	Kind       string             `json:"kind"`
+	Ping       *PingBatchRequest  `json:"ping,omitempty"`
+	Traceroute *TracerouteRequest `json:"traceroute,omitempty"`
+	DNS        *DNSQueryRequest   `json:"dns,omitempty"`
+}
+
+// NetProbeResultPayload carries a completed network diagnostic probe result from an edge node.
+type NetProbeResultPayload struct {
+	ProbeID    string            `json:"probe_id"`
+	Kind       string            `json:"kind"`
+	Ping       *PingBatchResult  `json:"ping,omitempty"`
+	Traceroute *TracerouteResult `json:"traceroute,omitempty"`
+	DNS        *DNSQueryResult   `json:"dns,omitempty"`
+	Error      string            `json:"error,omitempty"`
+	FinishedAt string            `json:"finished_at"`
 }
 
 // WSMessage represents a WebSocket message.
@@ -190,17 +321,23 @@ type NodeMetricSnapshot struct {
 
 // NodeAccessLog is an access log entry from agent (L1 business fact).
 type NodeAccessLog struct {
-	LoggedAtUnix  int64     `json:"logged_at_unix"`
-	RemoteAddr    string    `json:"remote_addr"`
-	Host          string    `json:"host"`
-	Path          string    `json:"path"`
-	UserAgent     string    `json:"user_agent,omitempty"`
-	CacheStatus   string    `json:"cache_status,omitempty"` // $upstream_cache_status
-	StatusCode    int       `json:"status_code"`
-	BytesSent     int64     `json:"bytes_sent"`      // body bytes = 已提供数据
-	RequestLength int64     `json:"request_length"`  // 接收数据
-	RequestTimeMs int64     `json:"request_time_ms"` // optional
-	WAF           *WAFAudit `json:"waf,omitempty"`
+	LoggedAtUnix   int64     `json:"logged_at_unix"`
+	RemoteAddr     string    `json:"remote_addr"`
+	Host           string    `json:"host"`
+	Path           string    `json:"path"`
+	UserAgent      string    `json:"user_agent,omitempty"`
+	CacheStatus    string    `json:"cache_status,omitempty"` // $upstream_cache_status
+	StatusCode     int       `json:"status_code"`
+	BytesSent      int64     `json:"bytes_sent"`      // body bytes = 已提供数据
+	RequestLength  int64     `json:"request_length"`  // 接收数据
+	RequestTimeMs  int64     `json:"request_time_ms"` // optional
+	TCPRTTUs       uint32    `json:"tcp_rtt_us,omitempty"`
+	TCPMinRTTUs    uint32    `json:"tcp_min_rtt_us,omitempty"`
+	TCPRTTVarUs    uint32    `json:"tcp_rtt_var_us,omitempty"`
+	TCPRetrans     uint32    `json:"tcp_retrans,omitempty"`
+	TCPSegsOut     uint32    `json:"tcp_segs_out,omitempty"`
+	TLSHandshakeMs uint32    `json:"tls_handshake_ms,omitempty"`
+	WAF            *WAFAudit `json:"waf,omitempty"`
 }
 
 // BufferedObservabilityRecord is a buffered observability record (facts only).

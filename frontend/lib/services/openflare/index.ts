@@ -1,6 +1,7 @@
 export { OpenFlareBaseService } from './base.service';
 
 export { NodeService } from './node.service';
+export { NetworkToolsService } from './network-tools.service';
 export { PingService } from './ping.service';
 export { ExecService } from './exec.service';
 export { TunnelService, tunnelQueryKey } from './tunnel.service';
@@ -192,12 +193,51 @@ export type {
   TunnelTopologyView,
   TunnelTransport,
   TunnelView,
+  NetToolsASNDetailResponse,
+  NetToolsASNInfo,
+  NetToolsASNeighbor,
+  NetToolsASPathHopNode,
+  NetToolsASPathInput,
+  NetToolsASPathResponse,
+  NetToolsASNPrefixesResponse,
+  NetToolsDatasetStatus,
+  NetToolsDirectDNSResult,
+  NetToolsDNSQueryPayload,
+  NetToolsDNSQueryResponse,
+  NetToolsDNSRecord,
+  NetToolsEdgeDNSResult,
+  NetToolsIPLookupResponse,
+  NetToolsIPLookupResult,
+  NetToolsNetIntelStatusResponse,
+  NetToolsNodeASPathComparison,
+  NetToolsNodeResultStatus,
+  NetToolsPingBatchResult,
+  NetToolsPingPayload,
+  NetToolsPingProtocol,
+  NetToolsPingSample,
+  NetToolsPrefixRecord,
+  NetToolsProbeNodeResult,
+  NetToolsProbeTaskState,
+  NetToolsQualityMatrixItem,
+  NetToolsQualityMatrixPage,
+  NetToolsQualityMatrixQuery,
+  NetToolsTaskStatus,
+  NetToolsTracerouteHistoryItem,
+  NetToolsTracerouteHistoryPage,
+  NetToolsTracerouteHistoryQuery,
+  NetToolsTracerouteHop,
+  NetToolsTraceroutePayload,
+  NetToolsTracerouteProbe,
+  NetToolsTracerouteProtocol,
+  NetToolsTracerouteResult,
+  NetToolsTriggerSyncResponse,
 } from './types';
 
 import { AccessLogService } from './access-log.service';
 import { ApplyLogService } from './apply-log.service';
 import { DashboardService } from './dashboard.service';
 import { DnsAccountService } from './dns-account.service';
+import { NetworkToolsService } from './network-tools.service';
 import { NodeService } from './node.service';
 import { PingService } from './ping.service';
 import { ExecService } from './exec.service';
@@ -215,6 +255,7 @@ import { CloudflareService } from './cloudflare.service';
 
 export const openflareServices = {
   node: NodeService,
+  networkTools: NetworkToolsService,
   ping: PingService,
   exec: ExecService,
   tunnel: TunnelService,

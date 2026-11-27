@@ -255,6 +255,36 @@ func ReportPingResultHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response.OKNil())
 }
 
+// ReportNetProbeResultHandler records a network diagnostic probe result reported over HTTP fallback.
+// @Summary 上报网络诊断探测结果
+// @Description Agent 通过 HTTP 回落上报批量 Ping/TCPing、路由追踪或 DNS 探测结果；请求头需携带 X-Agent-Token
+// @Tags openflare-agent
+// @Accept json
+// @Produce json
+// @Security AgentTokenAuth
+// @Param body body protocol.NetProbeResultPayload true "网络探测结果"
+// @Success 200 {object} response.Any "上报成功"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "Token 无效"
+// @Router /api/v1/agent/net-probe/result [post]
+func ReportNetProbeResultHandler(c *gin.Context) {
+	authNode, ok := NodeFromContext(c)
+	if !ok {
+		response.AbortUnauthorized(c, errInvalidAgentToken)
+		return
+	}
+	var payload protocol.NetProbeResultPayload
+	if !httpx.BindJSON(c, &payload) {
+		return
+	}
+	if strings.TrimSpace(payload.ProbeID) == "" {
+		response.AbortBadRequest(c, "probe_id is required")
+		return
+	}
+	websocket.HandleNetProbeResult(c.Request.Context(), authNode.NodeID, payload)
+	c.JSON(http.StatusOK, response.OKNil())
+}
+
 // ReportExecResultHandler records a node's remote command execution result.
 // @Summary 上报远程执行结果
 // @Description Agent 上报远程 Shell 命令的执行输出与退出码；请求头需携带 X-Agent-Token

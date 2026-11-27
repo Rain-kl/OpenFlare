@@ -5,6 +5,7 @@ import {
   Globe,
   LayoutDashboard,
   Network,
+  Radar,
   Route,
   ShieldAlert,
   ScrollText,
@@ -50,6 +51,19 @@ export const openflareNodeNavGroup: OpenFlareNavGroup = {
     },
     { titleKey: 'nodePing', url: '/nodes/ping' },
     { titleKey: 'nodeExec', url: '/nodes/exec' },
+  ],
+};
+
+/** 网络工具折叠组 */
+export const openflareNetworkToolsNavGroup: OpenFlareNavGroup = {
+  titleKey: 'networkTools',
+  icon: Radar,
+  items: [
+    { titleKey: 'netToolsPing', url: '/network-tools/ping' },
+    { titleKey: 'netToolsTraceroute', url: '/network-tools/traceroute' },
+    { titleKey: 'netToolsAsn', url: '/network-tools/asn' },
+    { titleKey: 'netToolsDns', url: '/network-tools/dns' },
+    { titleKey: 'netToolsQuality', url: '/network-tools/quality' },
   ],
 };
 
@@ -99,6 +113,7 @@ export const openflareWebsiteNavGroup: OpenFlareNavGroup = {
 export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
   { kind: 'item', titleKey: 'dashboard', url: '/', icon: LayoutDashboard },
   { kind: 'group', ...openflareNodeNavGroup },
+  { kind: 'group', ...openflareNetworkToolsNavGroup },
   {
     kind: 'item',
     titleKey: 'tunnels',

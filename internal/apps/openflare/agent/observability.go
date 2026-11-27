@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netintel"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netquality"
 	"github.com/Rain-kl/Wavelet/internal/openflare/protocol"
 
 	"github.com/Rain-kl/Wavelet/internal/repository"
@@ -204,6 +206,15 @@ func buildNodeAccessLogRecords(ctx context.Context, nodeID string, direct []prot
 			bytesSent := max(item.BytesSent, 0)
 			requestLength := max(item.RequestLength, 0)
 			requestTimeMs := max(item.RequestTimeMs, 0)
+			normalizedIP := normalizeAccessLogIP(item.RemoteAddr)
+			var clientASN uint32
+			var clientCountry string
+			if normalizedIP != "" {
+				if lookup := netintel.LookupIP(normalizedIP); lookup != nil {
+					clientASN = lookup.ASN
+					clientCountry = lookup.CountryISO
+				}
+			}
 			record := &model.OpenFlareAccessLog{
 				NodeID:        nodeID,
 				LoggedAt:      timeFromUnix(item.LoggedAtUnix, reportedAt),
@@ -219,6 +230,21 @@ func buildNodeAccessLogRecords(ctx context.Context, nodeID string, direct []prot
 				BytesSent:     bytesSent,
 				RequestLength: requestLength,
 				RequestTimeMs: requestTimeMs,
+				ClientASN:     clientASN,
+				TCPRTTUs:      item.TCPRTTUs,
+			}
+			if clientASN > 0 && item.TCPRTTUs > 0 {
+				netquality.RecordPassiveSample(
+					ctx,
+					nodeID,
+					clientASN,
+					clientCountry,
+					item.TCPRTTUs,
+					item.TCPMinRTTUs,
+					item.TCPRetrans,
+					item.TCPSegsOut,
+					item.TLSHandshakeMs,
+				)
 			}
 			records = append(records, record)
 		}

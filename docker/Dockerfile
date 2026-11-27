@@ -51,6 +51,21 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/openflare-server \
     ./cmd/server/main.go
 
+FROM alpine:${ALPINE_VERSION} AS netintel-fetcher
+
+ARG BUNDLE_NETINTEL=true
+ARG NETINTEL_GEOIP_SOURCE=fyralabs
+
+RUN apk add --no-cache bash ca-certificates coreutils curl gzip
+
+WORKDIR /workspace
+COPY scripts/fetch-netintel-dbs.sh ./scripts/fetch-netintel-dbs.sh
+
+RUN mkdir -p /out/netintel && \
+    if [ "${BUNDLE_NETINTEL}" = "true" ]; then \
+      NETINTEL_OUT_DIR=/out/netintel NETINTEL_GEOIP_SOURCE="${NETINTEL_GEOIP_SOURCE}" bash ./scripts/fetch-netintel-dbs.sh; \
+    fi
+
 FROM alpine:${ALPINE_VERSION}
 
 ARG TZ=Asia/Shanghai
@@ -62,6 +77,7 @@ RUN apk add --no-cache ca-certificates tzdata postgresql-client && \
 WORKDIR /app
 
 COPY --from=backend-builder /out/openflare-server ./openflare-server
+COPY --from=netintel-fetcher /out/netintel ./data/netintel
 
 EXPOSE 3000
 

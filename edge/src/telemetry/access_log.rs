@@ -42,6 +42,18 @@ pub struct NodeAccessLog {
     pub request_length: i64,
     pub request_time_ms: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tcp_rtt_us: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tcp_min_rtt_us: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tcp_rtt_var_us: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tcp_retrans: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tcp_segs_out: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tls_handshake_ms: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waf: Option<crate::policy::WafAudit>,
 }
 
@@ -110,6 +122,10 @@ impl AccessLogBuffer {
             dropped: Arc::new(AtomicUsize::new(0)),
         };
         (buffer, receiver)
+    }
+
+    pub fn has_capacity(&self) -> bool {
+        self.sender.capacity() > 0
     }
 
     pub fn push(&self, log: NodeAccessLog) {
@@ -378,6 +394,12 @@ mod tests {
             bytes_sent: 123,
             request_length: 45,
             request_time_ms: 6,
+            tcp_rtt_us: None,
+            tcp_min_rtt_us: None,
+            tcp_rtt_var_us: None,
+            tcp_retrans: None,
+            tcp_segs_out: None,
+            tls_handshake_ms: None,
             waf: None,
         }
     }

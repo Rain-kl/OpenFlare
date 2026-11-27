@@ -600,6 +600,8 @@ CREATE TABLE IF NOT EXISTS of_node_access_logs (
     cache_status    VARCHAR(64) NOT NULL DEFAULT '',
     waf_action      VARCHAR(16) NOT NULL DEFAULT '',
     waf_audit       TEXT NOT NULL DEFAULT '',
+    client_asn      BIGINT NOT NULL DEFAULT 0,
+    tcp_rtt_us      INTEGER NOT NULL DEFAULT 0,
     status_code     INTEGER NOT NULL DEFAULT 0,
     bytes_sent      BIGINT NOT NULL DEFAULT 0,
     request_length  BIGINT NOT NULL DEFAULT 0,

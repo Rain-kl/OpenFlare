@@ -236,6 +236,59 @@ func scanNodePingRecordRows(rows driver.Rows) ([]analyticsmodel.NodePingRecord, 
 	return result, rows.Err()
 }
 
+func (s *clickhouseLogStore) ListNetworkQualitySamplesSince(ctx context.Context, since time.Time, limit int) ([]analyticsmodel.NetworkQualitySample, error) {
+	conn, err := chConn()
+	if err != nil {
+		return nil, err
+	}
+	clause, args := buildCHNodeObservabilityFilterClause(analyticsmodel.NodeObservabilityFilter{Since: since}, "captured_at")
+	sql := fmt.Sprintf(`
+SELECT %s
+FROM %s
+WHERE %s
+ORDER BY captured_at DESC, id DESC`, analyticsmodel.NetworkQualitySample{}.InsertColumns(), chNetworkQualitySampleTableName(), clause)
+	if limit > 0 {
+		sql += clickHouseLimitClause
+		args = append(args, limit)
+	}
+	rows, err := conn.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list network quality samples: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanNetworkQualitySampleRows(rows)
+}
+
+func scanNetworkQualitySampleRows(rows driver.Rows) ([]analyticsmodel.NetworkQualitySample, error) {
+	var result []analyticsmodel.NetworkQualitySample
+	for rows.Next() {
+		var item analyticsmodel.NetworkQualitySample
+		if err := rows.Scan(
+			&item.ID,
+			&item.NodeID,
+			&item.NodeASN,
+			&item.ClientASN,
+			&item.ClientCountry,
+			&item.Source,
+			&item.SampleCount,
+			&item.RTTMinMs,
+			&item.RTTP50Ms,
+			&item.RTTP95Ms,
+			&item.RetransRate,
+			&item.LossRate,
+			&item.HopCount,
+			&item.CapturedAt,
+			&item.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan network quality sample row: %w", err)
+		}
+		item.CapturedAt = item.CapturedAt.UTC()
+		item.CreatedAt = item.CreatedAt.UTC()
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
 // ListTrafficHourly 读 of_access_log_hourly rollup（M5 口径，UV 恒 0）。
 func (s *clickhouseLogStore) ListTrafficHourly(ctx context.Context, nodeID string, since time.Time) ([]analyticsmodel.NodeTrafficHourly, error) {
 	rows, err := s.ListAccessLogHourly(ctx, nodeID, since)

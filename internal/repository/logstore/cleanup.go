@@ -140,6 +140,11 @@ func CleanupExpired(ctx context.Context) (*CleanupSummary, error) {
 	}, summary); err != nil {
 		return nil, err
 	}
+	if err := cleanupTable("network_quality_samples", func() (int64, error) {
+		return s.Observability.DeleteNetworkQualitySamplesBefore(ctx, metricCutoff)
+	}, summary); err != nil {
+		return nil, err
+	}
 	return summary, nil
 }
 

@@ -21,6 +21,7 @@ const (
 	configChangedChannel       = "edge:config_changed"
 	nodeQuarantinedChannel     = "edge:node_quarantined"
 	pingTaskDispatchChannel    = "edge:ping_task"
+	netProbeTaskDispatchChan   = "edge:net_probe_task"
 	remoteExecDispatchChannel  = "edge:remote_exec"
 	pingScheduleReloadChannel  = "edge:ping_schedule_reload"
 	tunnelRelayWakeChannel     = "tunnel:relay_wake"
@@ -32,6 +33,12 @@ type pingTaskDispatchEvent struct {
 	PublisherID string                    `json:"publisher_id"`
 	NodeID      string                    `json:"node_id"`
 	Task        protocol.PingTaskDispatch `json:"task"`
+}
+
+type netProbeTaskDispatchEvent struct {
+	PublisherID string                        `json:"publisher_id"`
+	NodeID      string                        `json:"node_id"`
+	Task        protocol.NetProbeTaskDispatch `json:"task"`
 }
 
 type remoteExecDispatchEvent struct {
@@ -205,6 +212,30 @@ func DispatchPingTask(ctx context.Context, nodeID string, task protocol.PingTask
 	return true
 }
 
+// DispatchNetProbeTask delivers a network diagnostic probe task to a connected edge node, fanning out over Redis if needed.
+func DispatchNetProbeTask(ctx context.Context, nodeID string, task protocol.NetProbeTaskDispatch) bool {
+	if sendLocalNetProbeTask(nodeID, task) {
+		return true
+	}
+	if db.Redis == nil {
+		return false
+	}
+	payload, err := json.Marshal(netProbeTaskDispatchEvent{
+		PublisherID: configPublisherID,
+		NodeID:      nodeID,
+		Task:        task,
+	})
+	if err != nil {
+		logger.WarnF(ctx, "encode net probe task dispatch: %v", err)
+		return false
+	}
+	if err := db.Redis.Publish(ctx, db.PrefixedKey(netProbeTaskDispatchChan), string(payload)).Err(); err != nil {
+		logger.WarnF(ctx, "could not broadcast edge net probe task: %v", err)
+		return false
+	}
+	return true
+}
+
 // DispatchRemoteExec delivers a remote command task to a connected edge node, fanning out over Redis if needed.
 func DispatchRemoteExec(ctx context.Context, nodeID string, task protocol.RemoteExecDispatch) bool {
 	if !config.Config.EnableWebShell {
@@ -256,12 +287,13 @@ func StartConfigChangeListener(ctx context.Context) {
 		configKey := db.PrefixedKey(configChangedChannel)
 		quarantineKey := db.PrefixedKey(nodeQuarantinedChannel)
 		pingTaskKey := db.PrefixedKey(pingTaskDispatchChannel)
+		netProbeTaskKey := db.PrefixedKey(netProbeTaskDispatchChan)
 		remoteExecKey := db.PrefixedKey(remoteExecDispatchChannel)
 		pingReloadKey := db.PrefixedKey(pingScheduleReloadChannel)
 		relayWakeKey := db.PrefixedKey(tunnelRelayWakeChannel)
 		connectorWakeKey := db.PrefixedKey(tunnelConnectorWakeChannel)
 		tunnelDisconnectKey := db.PrefixedKey(tunnelDisconnectChannel)
-		subscription := client.Subscribe(subscriberCtx, configKey, quarantineKey, pingTaskKey, remoteExecKey, pingReloadKey, relayWakeKey, connectorWakeKey, tunnelDisconnectKey)
+		subscription := client.Subscribe(subscriberCtx, configKey, quarantineKey, pingTaskKey, netProbeTaskKey, remoteExecKey, pingReloadKey, relayWakeKey, connectorWakeKey, tunnelDisconnectKey)
 		lifecycle.OnShutdown("edge configuration notifications", func(context.Context) error {
 			cancel()
 			return subscription.Close()
@@ -279,6 +311,12 @@ func StartConfigChangeListener(ctx context.Context) {
 						continue
 					}
 					sendLocalPingTask(event.NodeID, event.Task)
+				case netProbeTaskKey:
+					var event netProbeTaskDispatchEvent
+					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil || event.PublisherID == configPublisherID || event.NodeID == "" {
+						continue
+					}
+					sendLocalNetProbeTask(event.NodeID, event.Task)
 				case remoteExecKey:
 					var event remoteExecDispatchEvent
 					if err := json.Unmarshal([]byte(message.Payload), &event); err != nil || event.PublisherID == configPublisherID || event.NodeID == "" {

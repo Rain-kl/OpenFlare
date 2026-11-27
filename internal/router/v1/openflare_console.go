@@ -45,6 +45,7 @@ func registerOpenFlareConsoleRoutes(apiV1Router *gin.RouterGroup) {
 	registerOpenFlareTLSRoutes(group)
 	registerOpenFlareCloudflareRoutes(group)
 	registerOpenFlarePagesRoutes(group)
+	registerOpenFlareNetworkToolsRoutes(group)
 }
 
 func registerOpenFlareSystemRoutes(apiGroup *gin.RouterGroup) {
