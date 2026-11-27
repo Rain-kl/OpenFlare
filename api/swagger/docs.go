@@ -28989,6 +28989,9 @@ const docTemplate = `{
                 "status_code": {
                     "type": "integer"
                 },
+                "tcp_rtt_us": {
+                    "type": "integer"
+                },
                 "user_agent": {
                     "type": "string"
                 }
@@ -32551,6 +32554,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status_code": {
+                    "type": "integer"
+                },
+                "tcp_rtt_us": {
                     "type": "integer"
                 },
                 "user_agent": {

@@ -810,6 +810,7 @@ export interface AccessLogItem {
   bytes_sent: number;
   request_length: number;
   request_time_ms: number;
+  tcp_rtt_us?: number;
   created_at: string;
 }
 

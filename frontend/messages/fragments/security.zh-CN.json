@@ -672,6 +672,8 @@
       "bytesSent": "出站流量",
       "requestLength": "入站流量",
       "duration": "请求耗时",
+      "latency": "延迟",
+      "tcpRtt": "客户端 TCP RTT",
       "path": "路径",
       "page": "当前第 {page} 页",
       "prev": "上一页",

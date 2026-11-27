@@ -672,6 +672,8 @@
       "bytesSent": "Исходящий",
       "requestLength": "Входящий",
       "duration": "Продолжительность",
+      "latency": "Задержка",
+      "tcpRtt": "TCP RTT клиента",
       "path": "Путь",
       "page": "Страница {page}",
       "prev": "Назад",

@@ -15,7 +15,12 @@ import type { AccessLogItem } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
 import { formatBytes } from '@/lib/utils/metrics';
 
-import { cacheOutcomeLabel, resolveCacheOutcome } from './access-log-utils';
+import {
+  cacheOutcomeLabel,
+  formatRequestTimeMs,
+  formatTcpRttUs,
+  resolveCacheOutcome,
+} from './access-log-utils';
 
 function DetailField({
   label,
@@ -40,16 +45,6 @@ function DetailField({
       </div>
     </div>
   );
-}
-
-function formatRequestTimeMs(value: number | undefined | null) {
-  if (value == null || !Number.isFinite(value) || value < 0) {
-    return '—';
-  }
-  if (value < 1000) {
-    return `${Math.round(value)} ms`;
-  }
-  return `${(value / 1000).toFixed(2)} s`;
 }
 
 export function AccessLogDetailDialog({
@@ -153,6 +148,12 @@ export function AccessLogDetailDialog({
             <DetailField
               label={t('detail.duration')}
               value={formatRequestTimeMs(activeItem.request_time_ms)}
+              mono
+            />
+            <DetailField
+              label={t('detail.tcpRtt')}
+              value={formatTcpRttUs(activeItem.tcp_rtt_us)}
+              mono
             />
             <DetailField
               label={t('detail.path')}

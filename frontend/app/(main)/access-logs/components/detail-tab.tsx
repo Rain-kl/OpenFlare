@@ -36,6 +36,8 @@ import { AccessLogDetailDialog } from './access-log-detail-dialog';
 import {
   cacheOutcomeLabel,
   DETAIL_SORT_OPTIONS,
+  formatRequestTimeMs,
+  formatTcpRttUs,
   resolveCacheOutcome,
   type CacheOutcome,
 } from './access-log-utils';
@@ -161,6 +163,7 @@ export function DetailTab({
                 <TableHead className='text-xs'>{t('detail.path')}</TableHead>
                 <TableHead className='text-xs'>{t('detail.cache')}</TableHead>
                 <TableHead className='text-xs'>{t('detail.status')}</TableHead>
+                <TableHead className='text-xs'>{t('detail.latency')}</TableHead>
                 <TableHead className='w-12 text-center text-xs' />
               </TableRow>
             </TableHeader>
@@ -202,6 +205,18 @@ export function DetailTab({
                       <Badge variant='outline' className='text-[10px]'>
                         {item.status_code}
                       </Badge>
+                    </TableCell>
+                    <TableCell className='text-xs whitespace-nowrap'>
+                      <div className='flex flex-col gap-0.5'>
+                        <span className='font-mono tabular-nums'>
+                          {formatRequestTimeMs(item.request_time_ms)}
+                        </span>
+                        {item.tcp_rtt_us != null && item.tcp_rtt_us > 0 ? (
+                          <span className='font-mono text-[10px] text-muted-foreground tabular-nums'>
+                            RTT {formatTcpRttUs(item.tcp_rtt_us)}
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className='text-center'>
                       <Tooltip>

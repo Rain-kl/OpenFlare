@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -82,4 +83,39 @@ func TestNormalizeIPSummarySortBy(t *testing.T) {
 	assert.Equal(t, "success_ratio", normalizeIPSummarySortBy("success_ratio"))
 	assert.Equal(t, "last_seen_at", normalizeIPSummarySortBy("last_seen_at"))
 	assert.Equal(t, "remote_addr", normalizeIPSummarySortBy("remote_addr"))
+}
+
+func TestBuildAccessLogViewIncludesLatencyFields(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 11, 27, 10, 52, 0, 0, time.UTC)
+	row := &model.OpenFlareAccessLog{
+		ID:            42,
+		NodeID:        "node-jp-1",
+		LoggedAt:      now,
+		RemoteAddr:    "198.51.100.10",
+		Region:        "Japan",
+		Host:          "edge.example.com",
+		Path:          "/api/ping",
+		UserAgent:     "curl/8.0",
+		CacheStatus:   "MISS",
+		StatusCode:    200,
+		BytesSent:     1024,
+		RequestLength: 256,
+		RequestTimeMs: 37,
+		TCPRTTUs:      18400,
+		CreatedAt:     now.Add(time.Second),
+	}
+
+	view := buildAccessLogView(row, map[string]string{
+		"node-jp-1": "JP-OCI-A1",
+	})
+
+	assert.Equal(t, "42", view.ID)
+	assert.Equal(t, "node-jp-1", view.NodeID)
+	assert.Equal(t, "JP-OCI-A1", view.NodeName)
+	assert.Equal(t, int64(37), view.RequestTimeMs)
+	assert.Equal(t, uint32(18400), view.TCPRTTUs)
+	assert.Equal(t, 200, view.StatusCode)
+	assert.True(t, view.LoggedAt.Equal(now))
 }

@@ -69,6 +69,7 @@ type AccessLogView struct {
 	BytesSent     int64     `json:"bytes_sent"`
 	RequestLength int64     `json:"request_length"`
 	RequestTimeMs int64     `json:"request_time_ms"`
+	TCPRTTUs      uint32    `json:"tcp_rtt_us"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 
@@ -561,23 +562,7 @@ func ListAccessLogs(ctx context.Context, input AccessLogQuery) (*AccessLogList, 
 		if item == nil {
 			continue
 		}
-		views = append(views, AccessLogView{
-			ID:            formatAccessLogID(item.ID),
-			NodeID:        item.NodeID,
-			NodeName:      nodeNames[item.NodeID],
-			LoggedAt:      item.LoggedAt,
-			RemoteAddr:    item.RemoteAddr,
-			Region:        item.Region,
-			Host:          item.Host,
-			Path:          item.Path,
-			UserAgent:     item.UserAgent,
-			CacheStatus:   item.CacheStatus,
-			StatusCode:    item.StatusCode,
-			BytesSent:     item.BytesSent,
-			RequestLength: item.RequestLength,
-			RequestTimeMs: item.RequestTimeMs,
-			CreatedAt:     item.CreatedAt,
-		})
+		views = append(views, buildAccessLogView(item, nodeNames))
 	}
 	return &AccessLogList{
 		Items:       views,
@@ -587,6 +572,27 @@ func ListAccessLogs(ctx context.Context, input AccessLogQuery) (*AccessLogList, 
 		TotalRecord: totalRecords,
 		TotalIP:     totalIPs,
 	}, nil
+}
+
+func buildAccessLogView(item *model.OpenFlareAccessLog, nodeNames map[string]string) AccessLogView {
+	return AccessLogView{
+		ID:            formatAccessLogID(item.ID),
+		NodeID:        item.NodeID,
+		NodeName:      nodeNames[item.NodeID],
+		LoggedAt:      item.LoggedAt,
+		RemoteAddr:    item.RemoteAddr,
+		Region:        item.Region,
+		Host:          item.Host,
+		Path:          item.Path,
+		UserAgent:     item.UserAgent,
+		CacheStatus:   item.CacheStatus,
+		StatusCode:    item.StatusCode,
+		BytesSent:     item.BytesSent,
+		RequestLength: item.RequestLength,
+		RequestTimeMs: item.RequestTimeMs,
+		TCPRTTUs:      item.TCPRTTUs,
+		CreatedAt:     item.CreatedAt,
+	}
 }
 
 // ListFoldedAccessLogs returns paginated folded access logs.

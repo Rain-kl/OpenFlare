@@ -672,6 +672,8 @@
       "bytesSent": "Outbound",
       "requestLength": "Inbound",
       "duration": "Duration",
+      "latency": "Latency",
+      "tcpRtt": "Client TCP RTT",
       "path": "Path",
       "page": "Page {page}",
       "prev": "Previous",
