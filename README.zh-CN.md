@@ -145,13 +145,13 @@ flowchart TD
 ## 🖥️ 界面预览
 
 ### 仪表盘与实时观测
-![OpenFlare 仪表盘总览](./docs/assets/readme/dashboard-overview.png)
+![OpenFlare 仪表盘总览](./docs/assets/images/dashboard-overview.png)
 
 ### 边缘 WAF 与访问控制
-![OpenFlare WAF 防护](./docs/assets/readme/waf.png)
+![OpenFlare WAF 防护](./docs/assets/images/waf-rule-graph.png)
 
-### 域名与流量分析
-![OpenFlare 域名访问概览](./docs/assets/readme/domain_overview.png)
+### 访问日志与流量观测
+![OpenFlare 访问日志概览](./docs/assets/images/access-logs.png)
 
 ---
 

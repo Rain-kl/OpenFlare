@@ -144,13 +144,13 @@ flowchart TD
 ## 🖥️ UI Preview
 
 ### Dashboard Overview
-![OpenFlare Dashboard Overview](./docs/assets/readme/dashboard-overview.png)
+![OpenFlare Dashboard Overview](./docs/assets/images/dashboard-overview.png)
 
 ### Edge WAF & Access Rules
-![OpenFlare WAF Protection](./docs/assets/readme/waf.png)
+![OpenFlare WAF Protection](./docs/assets/images/waf-rule-graph.png)
 
-### Domain & Traffic Analytics
-![OpenFlare Domain Overview](./docs/assets/readme/domain_overview.png)
+### Traffic & Access Logs
+![OpenFlare Access Logs Overview](./docs/assets/images/access-logs.png)
 
 ---
 
