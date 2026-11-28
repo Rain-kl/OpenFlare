@@ -5,6 +5,10 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -186,7 +190,7 @@ export function IPGroupViewDialog({
                             </TableHead>
                           </>
                         ) : null}
-                        <TableHead className='w-[80px] text-right'>
+                        <TableHead className='w-[80px] text-center'>
                           {t('viewDialog.actions')}
                         </TableHead>
                       </TableRow>
@@ -209,24 +213,20 @@ export function IPGroupViewDialog({
                               </TableCell>
                             </>
                           ) : null}
-                          <TableCell className='text-right'>
-                            <Button
-                              type='button'
-                              variant='ghost'
-                              size='icon'
-                              className='size-8 text-destructive hover:text-destructive'
-                              disabled={removingIp === entry.ip}
-                              onClick={() => setDeleteTarget(entry)}
-                            >
-                              {removingIp === entry.ip ? (
-                                <Loader2 className='size-4 animate-spin' />
-                              ) : (
-                                <Trash2 className='size-4' />
-                              )}
-                              <span className='sr-only'>
-                                {t('viewDialog.deleteIp', { ip: entry.ip })}
-                              </span>
-                            </Button>
+                          <TableCell className='text-center'>
+                            <ListActions>
+                              <ListActionButton
+                                icon={
+                                  removingIp === entry.ip ? Loader2 : Trash2
+                                }
+                                label={t('viewDialog.deleteIp', {
+                                  ip: entry.ip,
+                                })}
+                                tone='destructive'
+                                loading={removingIp === entry.ip}
+                                onClick={() => setDeleteTarget(entry)}
+                              />
+                            </ListActions>
                           </TableCell>
                         </TableRow>
                       ))}

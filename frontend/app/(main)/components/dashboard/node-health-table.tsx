@@ -1,8 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { Eye } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { Button } from '@/components/ui/button';
 import {
@@ -85,7 +90,7 @@ export function NodeHealthTable({ nodes }: { nodes: DashboardNodeHealth[] }) {
                   <TableHead className='py-2 h-8'>
                     {t('colHeartbeat')}
                   </TableHead>
-                  <TableHead className='py-2 h-8 text-right'>
+                  <TableHead className='py-2 h-8 text-center'>
                     {t('colActions')}
                   </TableHead>
                 </TableRow>
@@ -145,17 +150,14 @@ export function NodeHealthTable({ nodes }: { nodes: DashboardNodeHealth[] }) {
                           ? formatRelativeTime(node.last_seen_at, tn)
                           : t('na')}
                     </TableCell>
-                    <TableCell className='py-3 text-right'>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        className='h-8 text-xs'
-                        asChild
-                      >
-                        <Link href={`/nodes/detail?id=${node.id}`}>
-                          {t('detail')}
-                        </Link>
-                      </Button>
+                    <TableCell className='py-3 text-center'>
+                      <ListActions>
+                        <ListActionButton
+                          icon={Eye}
+                          label={t('detail')}
+                          href={`/nodes/detail?id=${node.id}`}
+                        />
+                      </ListActions>
                     </TableCell>
                   </TableRow>
                 ))}

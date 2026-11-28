@@ -1,11 +1,13 @@
 'use client';
 
-import Link from 'next/link';
 import { Eye, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -49,41 +51,21 @@ function NodeActions({
 }: NodeActionsProps & { node: NodeItem }) {
   const t = useTranslations('nodes');
   return (
-    <div className='flex flex-col items-center'>
-      {actionsDisabled ? (
-        <Button
-          variant='ghost'
-          size='icon-sm'
-          className='size-7'
-          disabled
-          aria-label={t('detail')}
-        >
-          <Eye />
-        </Button>
-      ) : (
-        <Button variant='ghost' size='icon-sm' className='size-7' asChild>
-          <Link
-            href={`/nodes/detail?id=${node.id}`}
-            aria-label={t('detail')}
-            title={t('detail')}
-          >
-            <Eye />
-          </Link>
-        </Button>
-      )}
-      <Button
-        type='button'
-        variant='ghost'
-        size='icon-sm'
-        className='size-7 text-destructive hover:text-destructive'
-        aria-label={t('delete')}
-        title={t('delete')}
+    <ListActions>
+      <ListActionButton
+        icon={Eye}
+        label={t('detail')}
+        href={`/nodes/detail?id=${node.id}`}
+        disabled={actionsDisabled}
+      />
+      <ListActionButton
+        icon={Trash2}
+        label={t('delete')}
+        tone='destructive'
         disabled={actionsDisabled || deletingId === node.id}
         onClick={() => onDelete(node)}
-      >
-        <Trash2 />
-      </Button>
-    </div>
+      />
+    </ListActions>
   );
 }
 
@@ -298,7 +280,7 @@ export function NodesTable({
           <col className='w-20' />
           <col className='w-24' />
           <col className='w-37' />
-          <col className='w-15' />
+          <col className='w-20' />
         </colgroup>
         <TableHeader>
           <TableRow className='hover:bg-transparent [&>th]:h-8 [&>th]:text-xs [&>th]:whitespace-normal [&>th]:text-muted-foreground [&>th:first-child]:pl-3'>

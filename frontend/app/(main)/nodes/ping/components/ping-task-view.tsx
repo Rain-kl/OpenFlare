@@ -21,6 +21,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Server, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -131,29 +135,20 @@ function SortableTaskRow({
         </Badge>
       </TableCell>
       <TableCell className='tabular-nums text-xs'>{task.interval}s</TableCell>
-      <TableCell className='text-right'>
-        <div className='inline-flex items-center gap-1'>
-          <Button
-            type='button'
-            variant='ghost'
-            size='icon'
-            className='size-7'
-            aria-label={t('taskView.edit')}
+      <TableCell className='text-center'>
+        <ListActions>
+          <ListActionButton
+            icon={Pencil}
+            label={t('taskView.edit')}
             onClick={() => onEdit(task)}
-          >
-            <Pencil className='size-3.5' />
-          </Button>
-          <Button
-            type='button'
-            variant='ghost'
-            size='icon'
-            className='size-7 text-destructive hover:text-destructive'
-            aria-label={t('taskView.delete')}
+          />
+          <ListActionButton
+            icon={Trash2}
+            label={t('taskView.delete')}
+            tone='destructive'
             onClick={() => onDelete(task)}
-          >
-            <Trash2 className='size-3.5' />
-          </Button>
-        </div>
+          />
+        </ListActions>
       </TableCell>
     </TableRow>
   );
@@ -268,7 +263,7 @@ export function PingTaskView({
               <TableHead>{t('taskView.colTarget')}</TableHead>
               <TableHead>{t('taskView.colType')}</TableHead>
               <TableHead>{t('taskView.colInterval')}</TableHead>
-              <TableHead className='text-right'>
+              <TableHead className='text-center'>
                 {t('taskView.colActions')}
               </TableHead>
             </TableRow>

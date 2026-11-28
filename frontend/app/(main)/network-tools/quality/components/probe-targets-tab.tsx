@@ -7,6 +7,10 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -327,7 +331,9 @@ export function ProbeTargetsTab({ refreshNonce }: ProbeTargetsTabProps) {
                 </TableHead>
                 <TableHead>{t('quality.targets.columns.nodeStates')}</TableHead>
                 <TableHead>{t('quality.targets.columns.enabled')}</TableHead>
-                <TableHead>{t('quality.targets.columns.actions')}</TableHead>
+                <TableHead className='text-center'>
+                  {t('quality.targets.columns.actions')}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -446,27 +452,20 @@ export function ProbeTargetsTab({ refreshNonce }: ProbeTargetsTabProps) {
                       }
                     />
                   </TableCell>
-                  <TableCell>
-                    <div className='flex items-center gap-1'>
-                      <Button
-                        type='button'
-                        variant='ghost'
-                        size='icon-sm'
-                        className='size-7'
+                  <TableCell className='text-center'>
+                    <ListActions>
+                      <ListActionButton
+                        icon={Pencil}
+                        label={t('quality.targets.editTitle')}
                         onClick={() => openEdit(target)}
-                      >
-                        <Pencil className='size-3.5' />
-                      </Button>
-                      <Button
-                        type='button'
-                        variant='ghost'
-                        size='icon-sm'
-                        className='size-7 text-destructive hover:text-destructive'
+                      />
+                      <ListActionButton
+                        icon={Trash2}
+                        label={tc('delete')}
+                        tone='destructive'
                         onClick={() => setDeletingTarget(target)}
-                      >
-                        <Trash2 className='size-3.5' />
-                      </Button>
-                    </div>
+                      />
+                    </ListActions>
                   </TableCell>
                 </TableRow>
               ))}

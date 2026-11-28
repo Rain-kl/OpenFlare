@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Download,
   KeyRound,
+  Pencil,
   Plus,
   RefreshCw,
   Server,
@@ -15,6 +16,10 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import {
@@ -30,8 +35,6 @@ import {
 import { SmartDNSInstanceForm } from './instance-form';
 import { SmartDNSUpdateDialog, canUpdateInstance } from './update-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DnsActionMenu } from '../components/dns-action-menu';
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -227,7 +230,7 @@ export function SmartDNSInstancesTab() {
                   <TableHead>{t('colAddress')}</TableHead>
                   <TableHead>{t('colSnapshot')}</TableHead>
                   <TableHead>{t('colPerf')}</TableHead>
-                  <TableHead className='text-right'>
+                  <TableHead className='text-center'>
                     {t('colActions')}
                   </TableHead>
                 </TableRow>
@@ -312,65 +315,54 @@ export function SmartDNSInstancesTab() {
                         {(inst.cache_hit_ratio * 100).toFixed(0)}%
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className='flex justify-end gap-1'>
-                        <Button
-                          variant='ghost'
-                          size='sm'
+                    <TableCell className='text-center'>
+                      <ListActions>
+                        <ListActionButton
+                          icon={Pencil}
+                          label={t('edit')}
                           onClick={() => setFormTarget(inst)}
-                        >
-                          {t('edit')}
-                        </Button>
-                        <DnsActionMenu name={inst.name}>
-                          {inst.mode === 'standalone' && (
-                            <DropdownMenuItem
-                              disabled={!canUpdateInstance(inst)}
-                              onSelect={() => setUpdateTargets([inst])}
-                            >
-                              <Download />
-                              {t(
-                                inst.remote_update_supported
-                                  ? 'remoteUpdate'
-                                  : 'updateUnavailable',
-                              )}
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onSelect={() => setRotateTarget(inst)}
-                          >
-                            <KeyRound />
-                            {t('rotateToken')}
-                          </DropdownMenuItem>
-                          {inst.quarantined_at ? (
-                            <DropdownMenuItem
-                              disabled={unquarantineMutation.isPending}
-                              onSelect={() =>
-                                unquarantineMutation.mutate(inst.id)
-                              }
-                            >
-                              <ShieldCheck />
-                              {t('unquarantine')}
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                setQuarantineTarget(inst);
-                                setQuarantineReason('');
-                              }}
-                            >
-                              <ShieldAlert />
-                              {t('quarantine')}
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            variant='destructive'
-                            onSelect={() => setDeleteTarget(inst)}
-                          >
-                            <Trash2 />
-                            {t('delete')}
-                          </DropdownMenuItem>
-                        </DnsActionMenu>
-                      </div>
+                        />
+                        {inst.mode === 'standalone' && (
+                          <ListActionButton
+                            icon={Download}
+                            label={t(
+                              inst.remote_update_supported
+                                ? 'remoteUpdate'
+                                : 'updateUnavailable',
+                            )}
+                            disabled={!canUpdateInstance(inst)}
+                            onClick={() => setUpdateTargets([inst])}
+                          />
+                        )}
+                        <ListActionButton
+                          icon={KeyRound}
+                          label={t('rotateToken')}
+                          onClick={() => setRotateTarget(inst)}
+                        />
+                        {inst.quarantined_at ? (
+                          <ListActionButton
+                            icon={ShieldCheck}
+                            label={t('unquarantine')}
+                            disabled={unquarantineMutation.isPending}
+                            onClick={() => unquarantineMutation.mutate(inst.id)}
+                          />
+                        ) : (
+                          <ListActionButton
+                            icon={ShieldAlert}
+                            label={t('quarantine')}
+                            onClick={() => {
+                              setQuarantineTarget(inst);
+                              setQuarantineReason('');
+                            }}
+                          />
+                        )}
+                        <ListActionButton
+                          icon={Trash2}
+                          label={t('delete')}
+                          tone='destructive'
+                          onClick={() => setDeleteTarget(inst)}
+                        />
+                      </ListActions>
                     </TableCell>
                   </TableRow>
                 ))}

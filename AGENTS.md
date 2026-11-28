@@ -142,6 +142,13 @@ Swagger：`@Success 200` 用具体类型或 `response.Any`；每个可能 Abort 
 - 变体不足时扩展组件 variant，不写一次性颜色。
 - 卡片与内容分区统一采用**虚线外框、无阴影扁平设计**（`Pages` 与 `/admin/demo` 风格）：`frontend/components/ui/card.tsx` 已默认 `border-dashed shadow-none`，业务直接使用 `<Card>` 即可；**禁止**在卡片或列表项容器上添加 `shadow-sm`/`shadow-md` 等投影、`backdrop-blur-*` 毛玻璃或实线立体边框（`Dialog`、`Sheet`、`Popover` 等浮层除外）。自定义列表项/空状态/分块容器同样使用 `border border-dashed` 且不加阴影。
 
+### 列表与行内操作
+
+- 数据表格、列表项及资源卡片行内操作统一参考 `/admin/users`（`frontend/app/(main)/admin/users/page.tsx`）与 `/admin/demo`，复用 `frontend/components/common/list-actions.tsx`（`ListActions`、`ListActionButton`、`ListActionSwitch`）。
+- 行内操作统一使用**纯图标按钮**（`variant='ghost'`、`size='icon'`、`size-6`，图标 `size-3`）并在单行水平紧密排列（`gap-0.5 whitespace-nowrap`）。**禁止**在列表或表格操作列使用纯文本按钮、图标加文字按钮、自动换行按钮组或 `...` 折叠下拉菜单隐藏常用行操作。
+- 表格操作列表头与单元格统一 `text-center`（`align='center'`），非表格卡片列表行末尾可右对齐（`align='end'`）；若整行可点击，操作区须启用 `stopPropagation` 防止事件冒泡。
+- 每个图标按钮必须通过 `Tooltip` 显示清晰操作说明并具备完整可访问名称（`aria-label`，链接按钮同步附带 `sr-only` 文案）；删除、吊销、解绑等危险操作使用 `tone='destructive'`；启停状态开关统一使用 `ListActionSwitch`（`scale-75`）。
+
 ### 页面结构
 
 - 根容器全宽 `w-full`；禁止页面级 `max-w-*`（主布局负责宽度）。

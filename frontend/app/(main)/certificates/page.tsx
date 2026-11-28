@@ -2,8 +2,13 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { FileKey, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Eye, FileKey, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 
 import {
   AlertDialog,
@@ -241,46 +246,35 @@ export default function CertificatesPage() {
                         </div>
                       </div>
 
-                      <div className='flex flex-wrap gap-1'>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          className='h-7 text-xs'
+                      <ListActions align='end' className='shrink-0'>
+                        <ListActionButton
+                          icon={Eye}
+                          label={t('view')}
                           onClick={() => {
                             setSelectedCertificateId(certificate.id);
                             setDetailOpen(true);
                           }}
-                        >
-                          {t('view')}
-                        </Button>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          className='h-7 text-xs'
+                        />
+                        <ListActionButton
+                          icon={Pencil}
+                          label={t('edit')}
                           onClick={() => handleOpenEditor(certificate)}
-                        >
-                          {t('edit')}
-                        </Button>
+                        />
                         {certificate.provider === 'acme' ? (
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            className='h-7 text-xs'
-                            disabled={renewMutation.isPending}
+                          <ListActionButton
+                            icon={RefreshCw}
+                            label={t('renew')}
+                            loading={renewMutation.isPending}
                             onClick={() => renewMutation.mutate(certificate.id)}
-                          >
-                            {t('renew')}
-                          </Button>
+                          />
                         ) : null}
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          className='h-7 text-xs text-destructive'
+                        <ListActionButton
+                          icon={Trash2}
+                          label={t('delete')}
+                          tone='destructive'
                           onClick={() => setDeleteTarget(certificate)}
-                        >
-                          <Trash2 className='size-3' />
-                        </Button>
-                      </div>
+                        />
+                      </ListActions>
                     </div>
                   </div>
                 );

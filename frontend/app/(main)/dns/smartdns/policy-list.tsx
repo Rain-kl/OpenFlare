@@ -2,10 +2,13 @@ import { GitBranch, Play, Star, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -15,7 +18,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { SmartDNSPolicy } from '@/lib/services/openflare';
-import { DnsActionMenu } from '../components/dns-action-menu';
 
 export function SmartDNSPolicyList({
   policies,
@@ -41,7 +43,7 @@ export function SmartDNSPolicyList({
             <TableHead>{t('strategyType')}</TableHead>
             <TableHead>{t('scopeType')}</TableHead>
             <TableHead>{t('statusColumn')}</TableHead>
-            <TableHead className='pr-4 text-right'>
+            <TableHead className='pr-4 text-center'>
               {t('actionsColumn')}
             </TableHead>
           </TableRow>
@@ -98,35 +100,30 @@ export function SmartDNSPolicyList({
                   )}
                 </div>
               </TableCell>
-              <TableCell className='pr-4 text-right'>
-                <div className='flex justify-end gap-1'>
-                  <Button
-                    variant='ghost'
-                    size='sm'
+              <TableCell className='pr-4 text-center'>
+                <ListActions>
+                  <ListActionButton
+                    icon={Play}
+                    label={t('simulate')}
                     onClick={() => onSimulate(policy.id)}
-                  >
-                    <Play data-icon='inline-start' />
-                    {t('simulate')}
-                  </Button>
+                  />
                   {!policy.is_default && (
-                    <DnsActionMenu name={policy.name}>
-                      <DropdownMenuItem
+                    <>
+                      <ListActionButton
+                        icon={Star}
+                        label={t('setDefault')}
                         disabled={!policy.enabled}
-                        onSelect={() => onSetDefault(policy)}
-                      >
-                        <Star />
-                        {t('setDefault')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant='destructive'
-                        onSelect={() => onDelete(policy)}
-                      >
-                        <Trash2 />
-                        {t('delete')}
-                      </DropdownMenuItem>
-                    </DnsActionMenu>
+                        onClick={() => onSetDefault(policy)}
+                      />
+                      <ListActionButton
+                        icon={Trash2}
+                        label={t('delete')}
+                        tone='destructive'
+                        onClick={() => onDelete(policy)}
+                      />
+                    </>
                   )}
-                </div>
+                </ListActions>
               </TableCell>
             </TableRow>
           ))}

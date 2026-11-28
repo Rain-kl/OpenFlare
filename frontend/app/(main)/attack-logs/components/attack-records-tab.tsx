@@ -1,9 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
+import { Eye } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -74,7 +78,7 @@ export function AttackRecordsTab({
               <TableHead>{t('sourceIP')}</TableHead>
               <TableHead>{t('edgeNode')}</TableHead>
               <TableHead>{t('time')}</TableHead>
-              <TableHead className='pr-5 text-right'>{t('details')}</TableHead>
+              <TableHead className='pr-5 text-center'>{t('details')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -117,14 +121,14 @@ export function AttackRecordsTab({
                     timeStyle: 'medium',
                   })}
                 </TableCell>
-                <TableCell className='pr-5 text-right'>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={() => setSelected(log)}
-                  >
-                    {t('details')}
-                  </Button>
+                <TableCell className='pr-5 text-center'>
+                  <ListActions>
+                    <ListActionButton
+                      icon={Eye}
+                      label={t('details')}
+                      onClick={() => setSelected(log)}
+                    />
+                  </ListActions>
                 </TableCell>
               </TableRow>
             ))}

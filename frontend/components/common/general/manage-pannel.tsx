@@ -3,6 +3,10 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { ErrorInline } from '@/components/layout/error';
@@ -357,6 +361,7 @@ export function ManageTable<T>({
   getId: (item: T) => string | number;
 }) {
   const rt = useTranslations('runtime');
+  const tc = useTranslations('common');
 
   return (
     <div className='border border-dashed shadow-none rounded-lg overflow-hidden'>
@@ -409,18 +414,18 @@ export function ManageTable<T>({
                       </TableCell>
                     ))}
                     {onDelete && (
-                      <TableCell className='text-xs py-1 text-center'>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          className='h-6 w-6 text-muted-foreground hover:text-red-600 hover:bg-red-50'
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete(item);
-                          }}
-                        >
-                          <Trash2 className='h-3.5 w-3.5' />
-                        </Button>
+                      <TableCell
+                        className='text-xs py-1 text-center'
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ListActions>
+                          <ListActionButton
+                            icon={Trash2}
+                            label={tc('delete')}
+                            tone='destructive'
+                            onClick={() => onDelete(item)}
+                          />
+                        </ListActions>
                       </TableCell>
                     )}
                   </TableRow>

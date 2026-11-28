@@ -4,6 +4,10 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -235,31 +239,23 @@ export function TemplatesManager() {
                       </p>
                     )}
                   </div>
-                  <div className='flex items-center justify-end gap-2 shrink-0'>
-                    <Button
-                      type='button'
-                      variant='ghost'
-                      size='icon'
-                      className='size-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors'
+                  <ListActions align='end' className='shrink-0'>
+                    <ListActionButton
+                      icon={Pencil}
+                      label={t('editTemplate')}
+                      tone='primary'
                       onClick={() => handleOpenEdit(tmpl)}
-                      aria-label={t('editTemplate')}
-                    >
-                      <Pencil className='size-4' />
-                    </Button>
-                    <Button
-                      type='button'
-                      variant='ghost'
-                      size='icon'
-                      className='size-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors'
+                    />
+                    <ListActionButton
+                      icon={Trash2}
+                      label={t('deleteTemplateTitle')}
+                      tone='destructive'
                       disabled={
                         tmpl.is_system || deleteTemplateMutation.isPending
                       }
                       onClick={() => setDeleteTarget(tmpl)}
-                      aria-label={t('deleteTemplateTitle')}
-                    >
-                      <Trash2 className='size-4' />
-                    </Button>
-                  </div>
+                    />
+                  </ListActions>
                 </div>
               ))}
             </div>

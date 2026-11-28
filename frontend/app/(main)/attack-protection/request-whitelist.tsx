@@ -1,8 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingState } from '@/components/layout/loading';
 import {
@@ -13,7 +17,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -108,7 +111,7 @@ export function RequestWhitelist() {
                 <TableHead>{t('whitelist.domain')}</TableHead>
                 <TableHead>{t('whitelist.pathMatch')}</TableHead>
                 <TableHead>{t('whitelist.path')}</TableHead>
-                <TableHead>
+                <TableHead className='text-center'>
                   <span className='sr-only'>{t('whitelist.actions')}</span>
                 </TableHead>
               </TableRow>
@@ -125,15 +128,20 @@ export function RequestWhitelist() {
                   <TableCell className='min-w-32 whitespace-normal wrap-anywhere font-mono'>
                     {entry.path}
                   </TableCell>
-                  <TableCell>
-                    <div className='flex justify-end gap-2'>
-                      <WhitelistEditor entry={entry}>
-                        <Button size='sm' variant='outline'>
-                          {t('edit')}
-                        </Button>
-                      </WhitelistEditor>
+                  <TableCell className='text-center'>
+                    <ListActions>
+                      <WhitelistEditor
+                        entry={entry}
+                        trigger={(openDialog) => (
+                          <ListActionButton
+                            icon={Pencil}
+                            label={t('edit')}
+                            onClick={openDialog}
+                          />
+                        )}
+                      />
                       <DeleteWhitelistEntry entry={entry} />
-                    </div>
+                    </ListActions>
                   </TableCell>
                 </TableRow>
               ))}
@@ -148,14 +156,20 @@ export function RequestWhitelist() {
 function WhitelistEditor({
   entry,
   children,
+  trigger,
 }: {
   entry?: RequestWhitelistEntry;
-  children: ReactNode;
+  children?: ReactNode;
+  trigger?: (openDialog: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      {trigger ? (
+        trigger(() => setOpen(true))
+      ) : children ? (
+        <DialogTrigger asChild>{children}</DialogTrigger>
+      ) : null}
       <DialogContent>
         <WhitelistForm entry={entry} onClose={() => setOpen(false)} />
       </DialogContent>
@@ -304,46 +318,49 @@ function DeleteWhitelistEntry({ entry }: { entry: RequestWhitelistEntry }) {
   });
 
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) remove.reset();
-        setOpen(next);
-      }}
-    >
-      <AlertDialogTrigger asChild>
-        <Button size='sm' variant='ghost'>
-          {t('whitelist.delete')}
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{t('whitelist.deleteTitle')}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t('whitelist.deleteDescription', {
-              domain: entry.domain,
-              path: entry.path,
-            })}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        {remove.isError && (
-          <p role='alert' className='text-sm text-destructive'>
-            {t('whitelist.deleteFailed')}
-          </p>
-        )}
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={remove.isPending}>
-            {t('cancel')}
-          </AlertDialogCancel>
-          <Button
-            variant='destructive'
-            onClick={() => remove.mutate()}
-            disabled={remove.isPending}
-          >
-            {t('whitelist.delete')}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <>
+      <ListActionButton
+        icon={Trash2}
+        label={t('whitelist.delete')}
+        tone='destructive'
+        onClick={() => setOpen(true)}
+      />
+      <AlertDialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) remove.reset();
+          setOpen(next);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('whitelist.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('whitelist.deleteDescription', {
+                domain: entry.domain,
+                path: entry.path,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {remove.isError && (
+            <p role='alert' className='text-sm text-destructive'>
+              {t('whitelist.deleteFailed')}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={remove.isPending}>
+              {t('cancel')}
+            </AlertDialogCancel>
+            <Button
+              variant='destructive'
+              onClick={() => remove.mutate()}
+              disabled={remove.isPending}
+            >
+              {t('whitelist.delete')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

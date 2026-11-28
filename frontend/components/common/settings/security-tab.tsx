@@ -22,6 +22,11 @@ import {
   UserPlus,
 } from 'lucide-react';
 
+import {
+  ListActionButton,
+  ListActionSwitch,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -105,6 +110,7 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
 
   const queryClient = useQueryClient();
   const t = useTranslations('settings.security');
+  const tAuthSource = useTranslations('settings.authSourceModal');
   const tCommon = useTranslations('common');
   const [authSourceModalOpen, setAuthSourceModalOpen] = useState(false);
   const [selectedSource, setSelectedSource] = useState<AuthSource | null>(null);
@@ -489,38 +495,35 @@ export function SecurityTab({ configs, systemConfigsQuery }: SecurityTabProps) {
                       : t('secretNotConfigured')}
                   </span>
 
-                  <div className='flex items-center gap-2'>
-                    <Switch
+                  <ListActions align='end'>
+                    <ListActionSwitch
                       checked={source.is_active}
                       disabled={toggleSourceMutation.isPending}
-                      className='scale-90 mr-2'
+                      ariaLabel={
+                        source.is_active ? t('enabled') : t('disabled')
+                      }
+                      tooltip={source.is_active ? t('enabled') : t('disabled')}
                       onCheckedChange={() =>
                         toggleSourceMutation.mutate(source)
                       }
                     />
-                    <Button
-                      type='button'
-                      variant='ghost'
-                      size='icon'
-                      className='size-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors'
+                    <ListActionButton
+                      icon={Pencil}
+                      label={tAuthSource('editAuthSource')}
+                      tone='primary'
                       onClick={() => {
                         setSelectedSource(source);
                         setAuthSourceModalOpen(true);
                       }}
-                    >
-                      <Pencil className='size-4' />
-                    </Button>
-                    <Button
-                      type='button'
-                      variant='ghost'
-                      size='icon'
-                      className='size-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors'
+                    />
+                    <ListActionButton
+                      icon={Trash2}
+                      label={tCommon('delete')}
+                      tone='destructive'
                       disabled={deleteSourceMutation.isPending}
                       onClick={() => setDeleteTarget(source)}
-                    >
-                      <Trash2 className='size-4' />
-                    </Button>
-                  </div>
+                    />
+                  </ListActions>
                 </div>
               </div>
             ))

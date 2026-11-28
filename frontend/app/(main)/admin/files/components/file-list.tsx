@@ -50,6 +50,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { FileImagePreview } from '@/components/common/file-image-preview';
 import services, { formatFileSize } from '@/lib/services';
 import type { Upload as UploadRecord } from '@/lib/services/upload/types';
@@ -336,7 +340,7 @@ export function FileList() {
                 <TableHead className='w-[150px] py-3'>
                   {t('list.colUploadedAt')}
                 </TableHead>
-                <TableHead className='w-[120px] text-right pr-4 py-3'>
+                <TableHead className='w-[120px] text-center pr-4 py-3'>
                   {t('list.colActions')}
                 </TableHead>
               </TableRow>
@@ -407,36 +411,25 @@ export function FileList() {
                     <TableCell className='py-3 text-xs text-muted-foreground'>
                       {formatDate(file.created_at)}
                     </TableCell>
-                    <TableCell className='py-3 text-right pr-4'>
-                      <div className='flex items-center justify-end gap-0.5'>
-                        <Button
-                          size='icon'
-                          variant='ghost'
-                          className='h-7 w-7 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground'
-                          title={t('list.viewDetail')}
+                    <TableCell className='py-3 text-center pr-4'>
+                      <ListActions>
+                        <ListActionButton
+                          icon={Eye}
+                          label={t('list.viewDetail')}
                           onClick={() => setDetailTarget(file)}
-                        >
-                          <Eye className='size-3.5' />
-                        </Button>
-                        <Button
-                          size='icon'
-                          variant='ghost'
-                          className='h-7 w-7 rounded-md hover:bg-muted'
-                          title={t('list.download')}
+                        />
+                        <ListActionButton
+                          icon={Download}
+                          label={t('list.download')}
                           onClick={() => handleDownload(file)}
-                        >
-                          <Download className='size-3.5' />
-                        </Button>
-                        <Button
-                          size='icon'
-                          variant='ghost'
-                          className='h-7 w-7 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive'
-                          title={t('list.delete')}
+                        />
+                        <ListActionButton
+                          icon={Trash2}
+                          label={t('list.delete')}
+                          tone='destructive'
                           onClick={() => setDeleteTarget(file)}
-                        >
-                          <Trash2 className='size-3.5' />
-                        </Button>
-                      </div>
+                        />
+                      </ListActions>
                     </TableCell>
                   </TableRow>
                 );

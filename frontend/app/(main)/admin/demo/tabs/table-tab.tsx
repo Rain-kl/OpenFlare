@@ -5,7 +5,11 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { Code, Edit, ListFilter, Plus, Search, Trash2 } from 'lucide-react';
+import { Code, ListFilter, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -100,7 +104,7 @@ export function TableTab() {
               <TableHead className='w-[150px] text-xs font-semibold'>
                 {t('columns.triggerTime')}
               </TableHead>
-              <TableHead className='w-[80px] text-xs font-semibold text-right'>
+              <TableHead className='w-[96px] text-xs font-semibold text-center'>
                 {t('columns.actions')}
               </TableHead>
             </TableRow>
@@ -155,23 +159,15 @@ export function TableTab() {
                 <TableCell className='text-xs text-muted-foreground'>
                   {row.time}
                 </TableCell>
-                <TableCell className='text-right'>
-                  <div className='flex items-center justify-end gap-1.5'>
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      className='h-6 w-6 rounded hover:bg-muted text-muted-foreground'
-                    >
-                      <Edit className='size-3' />
-                    </Button>
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      className='h-6 w-6 rounded hover:bg-destructive/10 text-destructive'
-                    >
-                      <Trash2 className='size-3' />
-                    </Button>
-                  </div>
+                <TableCell className='text-center'>
+                  <ListActions>
+                    <ListActionButton icon={Pencil} label={t('edit')} />
+                    <ListActionButton
+                      icon={Trash2}
+                      label={t('delete')}
+                      tone='destructive'
+                    />
+                  </ListActions>
                 </TableCell>
               </TableRow>
             ))}
@@ -232,6 +228,13 @@ export function TableTab() {
                 rounded-full py-0 px-2
               </code>
               {t('spec.badgeStyle2')}
+            </li>
+            <li>
+              {t('spec.rowActions')}
+              <code className='bg-muted px-1 py-0.5 rounded font-mono'>
+                ListActions / ListActionButton
+              </code>
+              {t('spec.rowActions2')}
             </li>
           </ul>
           <pre className='text-[11px] font-mono text-muted-foreground overflow-x-auto p-3 bg-background rounded border border-border/40 leading-relaxed'>

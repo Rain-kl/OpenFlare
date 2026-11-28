@@ -1,9 +1,14 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { List, Plus, Shield } from 'lucide-react';
+import { List, Pencil, Plus, Shield } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import Link from 'next/link';
+
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 
 import { EmptyState } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
@@ -80,8 +85,8 @@ export default function AttackProtectionPage() {
                     <TableHead className='pl-5'>{t('name')}</TableHead>
                     <TableHead>{t('configuredModules')}</TableHead>
                     <TableHead>{t('updatedAt')}</TableHead>
-                    <TableHead className='pr-5 text-right'>
-                      {t('edit')}
+                    <TableHead className='pr-5 text-center'>
+                      {t('whitelist.actions')}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -131,14 +136,14 @@ export default function AttackProtectionPage() {
                             timeStyle: 'short',
                           })}
                         </TableCell>
-                        <TableCell className='pr-5 text-right'>
-                          <Button variant='outline' size='sm' asChild>
-                            <Link
+                        <TableCell className='pr-5 text-center'>
+                          <ListActions>
+                            <ListActionButton
+                              icon={Pencil}
+                              label={t('edit')}
                               href={`/attack-protection/editor?id=${group.id}`}
-                            >
-                              {t('edit')}
-                            </Link>
-                          </Button>
+                            />
+                          </ListActions>
                         </TableCell>
                       </TableRow>
                     );

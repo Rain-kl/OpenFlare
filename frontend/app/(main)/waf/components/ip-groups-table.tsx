@@ -3,8 +3,11 @@
 import { Download, Eye, Pencil, Play, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -48,7 +51,7 @@ export function IPGroupsTable({
           <TableHead>{t('columns.refCount')}</TableHead>
           <TableHead>{t('columns.syncStatus')}</TableHead>
           <TableHead>{t('columns.updatedAt')}</TableHead>
-          <TableHead className='w-[168px] text-right'>
+          <TableHead className='w-[140px] text-center'>
             {t('columns.actions')}
           </TableHead>
         </TableRow>
@@ -75,77 +78,44 @@ export function IPGroupsTable({
             <TableCell className='text-sm text-muted-foreground'>
               {group.updated_at ? formatDateTime(group.updated_at) : '—'}
             </TableCell>
-            <TableCell className='text-right'>
-              <div className='flex items-center justify-end gap-1'>
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='icon'
-                  className='size-8'
-                  title={t('actions.view')}
-                  aria-label={t('actions.view')}
+            <TableCell className='text-center'>
+              <ListActions>
+                <ListActionButton
+                  icon={Eye}
+                  label={t('actions.view')}
                   onClick={() => onView(group)}
-                >
-                  <Eye />
-                </Button>
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='icon'
-                  className='size-8'
-                  title={t('actions.edit')}
-                  aria-label={t('actions.edit')}
+                />
+                <ListActionButton
+                  icon={Pencil}
+                  label={t('actions.edit')}
                   onClick={() => onEdit(group)}
-                >
-                  <Pencil />
-                </Button>
+                />
                 {group.type === 'automatic' ? (
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='icon'
-                    className='size-8'
-                    title={t('actions.test')}
-                    aria-label={t('actions.test')}
+                  <ListActionButton
+                    icon={Play}
+                    label={t('actions.test')}
                     onClick={() => onTest(group)}
-                  >
-                    <Play />
-                  </Button>
+                  />
                 ) : null}
                 {group.type === 'subscription' || group.type === 'automatic' ? (
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='icon'
-                    className='size-8'
-                    title={
-                      group.type === 'automatic'
-                        ? t('actions.runNow')
-                        : t('actions.syncNow')
-                    }
-                    aria-label={
+                  <ListActionButton
+                    icon={Download}
+                    label={
                       group.type === 'automatic'
                         ? t('actions.runNow')
                         : t('actions.syncNow')
                     }
                     disabled={syncingId === group.id}
                     onClick={() => onSync(group)}
-                  >
-                    <Download />
-                  </Button>
+                  />
                 ) : null}
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='icon'
-                  className='size-8 text-destructive hover:text-destructive'
-                  title={t('actions.delete')}
-                  aria-label={t('actions.delete')}
+                <ListActionButton
+                  icon={Trash2}
+                  label={t('actions.delete')}
+                  tone='destructive'
                   onClick={() => onDelete(group)}
-                >
-                  <Trash2 />
-                </Button>
-              </div>
+                />
+              </ListActions>
             </TableCell>
           </TableRow>
         ))}

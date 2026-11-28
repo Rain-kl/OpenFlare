@@ -34,6 +34,10 @@ import {
 
 import services from '@/lib/services';
 import { useTranslations } from 'next-intl';
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
@@ -362,17 +366,16 @@ export function AccessLogs() {
                     {formatDateTime(log.created_at)}
                   </TableCell>
                   <TableCell className='text-center'>
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      className='size-7 hover:bg-muted'
-                      onClick={() => {
-                        setSelectedLog(log);
-                        setDetailOpen(true);
-                      }}
-                    >
-                      <Eye className='size-3.5' />
-                    </Button>
+                    <ListActions>
+                      <ListActionButton
+                        icon={Eye}
+                        label={t('colDetail')}
+                        onClick={() => {
+                          setSelectedLog(log);
+                          setDetailOpen(true);
+                        }}
+                      />
+                    </ListActions>
                   </TableCell>
                 </TableRow>
               ))}

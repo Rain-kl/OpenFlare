@@ -23,6 +23,10 @@ import {
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -324,26 +328,19 @@ export function UserFileManager() {
                     {formatDate(file.created_at)}
                   </span>
 
-                  <div className='flex items-center gap-1'>
-                    <Button
-                      size='icon'
-                      variant='ghost'
-                      className='size-7 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground'
-                      title={t('downloadFile')}
+                  <ListActions align='end'>
+                    <ListActionButton
+                      icon={Download}
+                      label={t('downloadFile')}
                       onClick={() => handleDownload(file)}
-                    >
-                      <Download className='size-3.5' />
-                    </Button>
-                    <Button
-                      size='icon'
-                      variant='ghost'
-                      className='size-7 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive'
-                      title={t('deleteFile')}
+                    />
+                    <ListActionButton
+                      icon={Trash2}
+                      label={t('deleteFile')}
+                      tone='destructive'
                       onClick={() => setDeleteTarget(file)}
-                    >
-                      <Trash2 className='size-3.5' />
-                    </Button>
-                  </div>
+                    />
+                  </ListActions>
                 </div>
               </CardContent>
             </Card>

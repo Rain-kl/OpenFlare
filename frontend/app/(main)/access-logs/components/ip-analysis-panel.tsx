@@ -7,6 +7,10 @@ import { Loader2, ShieldPlus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { RankChart } from '@/components/data/rank-chart';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
@@ -272,22 +276,15 @@ function AddToIPGroupPanel({
                         </p>
                       </div>
                       {group.type === 'manual' ? (
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          className='h-8 shrink-0 text-destructive'
-                          disabled={updateMutation.isPending}
-                          onClick={() => void handleRemove(group)}
-                        >
-                          {updateMutation.isPending ? (
-                            <Loader2 className='size-3.5 animate-spin' />
-                          ) : (
-                            <>
-                              <Trash2 className='mr-1 size-3.5' />
-                              {t('delete')}
-                            </>
-                          )}
-                        </Button>
+                        <ListActions align='end' className='shrink-0'>
+                          <ListActionButton
+                            icon={updateMutation.isPending ? Loader2 : Trash2}
+                            label={t('delete')}
+                            tone='destructive'
+                            loading={updateMutation.isPending}
+                            onClick={() => void handleRemove(group)}
+                          />
+                        </ListActions>
                       ) : (
                         <Badge variant='outline' className='text-[10px]'>
                           {t('cannotDelete')}

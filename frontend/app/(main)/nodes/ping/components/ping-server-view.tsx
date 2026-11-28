@@ -4,6 +4,10 @@ import { useMemo, useState } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -145,7 +149,7 @@ export function PingServerView({
             <TableRow>
               <TableHead className='w-64'>{t('serverView.colNode')}</TableHead>
               <TableHead>{t('serverView.colTasks')}</TableHead>
-              <TableHead className='w-28 text-right'>
+              <TableHead className='w-28 text-center'>
                 {t('taskView.colActions')}
               </TableHead>
             </TableRow>
@@ -190,17 +194,14 @@ export function PingServerView({
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className='text-right'>
-                    <Button
-                      type='button'
-                      variant='outline'
-                      size='sm'
-                      className='h-7 text-xs'
-                      onClick={() => openEditor(node)}
-                    >
-                      <SlidersHorizontal className='mr-1 size-3' />
-                      {t('serverView.configure')}
-                    </Button>
+                  <TableCell className='text-center'>
+                    <ListActions>
+                      <ListActionButton
+                        icon={SlidersHorizontal}
+                        label={t('serverView.configure')}
+                        onClick={() => openEditor(node)}
+                      />
+                    </ListActions>
                   </TableCell>
                 </TableRow>
               );

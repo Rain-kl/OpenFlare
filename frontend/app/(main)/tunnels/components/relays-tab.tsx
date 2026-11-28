@@ -1,11 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { Pencil, Server, Terminal, Trash2 } from 'lucide-react';
+import {
+  Eye,
+  Pause,
+  Pencil,
+  Play,
+  Server,
+  Terminal,
+  Trash2,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 
 import { EmptyStateWithBorder } from '@/components/layout/empty';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -80,7 +91,7 @@ export function RelaysTab({
                     <TableHead className='h-8 py-2'>
                       {t('relays.lastSeen')}
                     </TableHead>
-                    <TableHead className='h-8 py-2 text-right'>
+                    <TableHead className='h-8 py-2 text-center'>
                       {t('common.actions')}
                     </TableHead>
                   </TableRow>
@@ -143,58 +154,39 @@ export function RelaysTab({
                           ? formatDateTime(relay.last_seen_at)
                           : t('common.never')}
                       </TableCell>
-                      <TableCell className='py-3'>
-                        <div className='flex flex-wrap justify-end gap-1'>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            className='h-7 text-xs'
-                            asChild
-                          >
-                            <Link
-                              href={`/tunnels/relays/detail?id=${relay.id}`}
-                            >
-                              {t('common.details')}
-                            </Link>
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            className='h-7 text-xs'
+                      <TableCell className='py-2 text-center'>
+                        <ListActions>
+                          <ListActionButton
+                            icon={Eye}
+                            label={t('common.details')}
+                            href={`/tunnels/relays/detail?id=${relay.id}`}
+                          />
+                          <ListActionButton
+                            icon={Terminal}
+                            label={t('common.deploy')}
                             onClick={() => onDeploy(relay)}
-                          >
-                            <Terminal className='size-3 mr-1' />
-                            {t('common.deploy')}
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            className='h-7 text-xs'
+                          />
+                          <ListActionButton
+                            icon={relay.draining ? Play : Pause}
+                            label={
+                              relay.draining
+                                ? t('relays.resume')
+                                : t('relays.drain')
+                            }
                             onClick={() => onToggleDrain(relay)}
-                          >
-                            {relay.draining
-                              ? t('relays.resume')
-                              : t('relays.drain')}
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            className='h-7 text-xs'
+                          />
+                          <ListActionButton
+                            icon={Pencil}
+                            label={t('common.edit')}
                             onClick={() => onEdit(relay)}
-                          >
-                            <Pencil className='size-3 mr-1' />
-                            {t('common.edit')}
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            className='h-7 text-xs text-destructive hover:text-destructive'
+                          />
+                          <ListActionButton
+                            icon={Trash2}
+                            label={t('common.delete')}
+                            tone='destructive'
                             onClick={() => onDelete(relay)}
-                          >
-                            <Trash2 className='size-3 mr-1' />
-                            {t('common.delete')}
-                          </Button>
-                        </div>
+                          />
+                        </ListActions>
                       </TableCell>
                     </TableRow>
                   ))}

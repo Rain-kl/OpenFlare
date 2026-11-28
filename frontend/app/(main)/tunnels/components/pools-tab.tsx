@@ -3,6 +3,10 @@
 import { Layers, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -76,7 +80,7 @@ export function PoolsTab({
                   <TableHead className='h-8 py-2'>
                     {t('pools.counts')}
                   </TableHead>
-                  <TableHead className='h-8 py-2 text-right'>
+                  <TableHead className='h-8 py-2 text-center'>
                     {t('common.actions')}
                   </TableHead>
                 </TableRow>
@@ -111,28 +115,21 @@ export function PoolsTab({
                         tunnels: pool.tunnel_count,
                       })}
                     </TableCell>
-                    <TableCell className='py-3'>
-                      <div className='flex justify-end gap-1'>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          className='h-7 text-xs'
+                    <TableCell className='py-2 text-center'>
+                      <ListActions>
+                        <ListActionButton
+                          icon={Pencil}
+                          label={t('common.edit')}
                           onClick={() => onEdit(pool)}
-                        >
-                          <Pencil className='size-3 mr-1' />
-                          {t('common.edit')}
-                        </Button>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          className='h-7 text-xs text-destructive hover:text-destructive'
+                        />
+                        <ListActionButton
+                          icon={Trash2}
+                          label={t('common.delete')}
+                          tone='destructive'
                           disabled={pool.is_default}
                           onClick={() => onDelete(pool)}
-                        >
-                          <Trash2 className='size-3 mr-1' />
-                          {t('common.delete')}
-                        </Button>
-                      </div>
+                        />
+                      </ListActions>
                     </TableCell>
                   </TableRow>
                 ))}

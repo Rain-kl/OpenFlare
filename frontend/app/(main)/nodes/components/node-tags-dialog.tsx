@@ -7,6 +7,10 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -309,26 +313,19 @@ export function NodeTagsDialog({
                           </p>
                         ) : null}
                       </div>
-                      <div className='flex items-center gap-1'>
-                        <Button
-                          type='button'
-                          variant='ghost'
-                          size='icon-sm'
-                          aria-label={t('edit')}
+                      <ListActions align='end'>
+                        <ListActionButton
+                          icon={Pencil}
+                          label={t('edit')}
                           onClick={() => startEdit(item)}
-                        >
-                          <Pencil className='size-3.5' />
-                        </Button>
-                        <Button
-                          type='button'
-                          variant='ghost'
-                          size='icon-sm'
-                          aria-label={t('delete')}
+                        />
+                        <ListActionButton
+                          icon={Trash2}
+                          label={t('delete')}
+                          tone='destructive'
                           onClick={() => setDeleteTarget(item)}
-                        >
-                          <Trash2 className='size-3.5 text-destructive' />
-                        </Button>
-                      </div>
+                        />
+                      </ListActions>
                     </div>
                   ))}
                 </div>

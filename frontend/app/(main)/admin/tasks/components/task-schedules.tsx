@@ -26,7 +26,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Clock, Edit2, Info, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Clock, Info, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 
 import type {
   CreateScheduleRequest,
@@ -331,7 +336,7 @@ export function TaskSchedulesManager() {
                 <TableHead className='w-[100px] text-center'>
                   {t('colEnabled')}
                 </TableHead>
-                <TableHead className='w-[120px] text-right'>
+                <TableHead className='w-[120px] text-center'>
                   {t('colActions')}
                 </TableHead>
               </TableRow>
@@ -366,25 +371,20 @@ export function TaskSchedulesManager() {
                       />
                     </div>
                   </TableCell>
-                  <TableCell className='text-right'>
-                    <div className='flex items-center justify-end gap-1.5'>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        className='h-7 w-7 text-muted-foreground hover:text-foreground'
+                  <TableCell className='text-center'>
+                    <ListActions>
+                      <ListActionButton
+                        icon={Pencil}
+                        label={t('editSchedule')}
                         onClick={() => openEditDialog(schedule)}
-                      >
-                        <Edit2 className='size-3.5' />
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        className='h-7 w-7 text-destructive hover:text-destructive/90'
+                      />
+                      <ListActionButton
+                        icon={Trash2}
+                        label={t('deleteScheduleTitle')}
+                        tone='destructive'
                         onClick={() => openDeleteDialog(schedule.id)}
-                      >
-                        <Trash2 className='size-3.5' />
-                      </Button>
-                    </div>
+                      />
+                    </ListActions>
                   </TableCell>
                 </TableRow>
               ))}

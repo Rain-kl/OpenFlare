@@ -9,13 +9,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   ChevronDown,
-  Edit2,
   Layers,
   Loader2,
+  Pencil,
   Plus,
   Trash2,
 } from 'lucide-react';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,12 +34,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -444,46 +442,20 @@ export function EventsTab() {
                     className='sticky right-0 text-center bg-background z-10 py-1'
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className='flex items-center justify-center gap-0.5'>
-                      <TooltipProvider delayDuration={0}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant='ghost'
-                              size='icon'
-                              aria-label={t('configure')}
-                              className='h-6 w-6 text-muted-foreground hover:text-foreground'
-                              onClick={() => handleEditEventClick(event)}
-                            >
-                              <Edit2 className='size-3' />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side='top' className='text-xs'>
-                            {t('configure')}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-
-                      <TooltipProvider delayDuration={0}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant='ghost'
-                              size='icon'
-                              aria-label={t('delete')}
-                              className='h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10'
-                              disabled={deleteEventMutation.isPending}
-                              onClick={() => setDeleteTarget(event)}
-                            >
-                              <Trash2 className='size-3' />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side='top' className='text-xs'>
-                            {t('delete')}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+                    <ListActions>
+                      <ListActionButton
+                        icon={Pencil}
+                        label={t('configure')}
+                        onClick={() => handleEditEventClick(event)}
+                      />
+                      <ListActionButton
+                        icon={Trash2}
+                        label={t('delete')}
+                        tone='destructive'
+                        disabled={deleteEventMutation.isPending}
+                        onClick={() => setDeleteTarget(event)}
+                      />
+                    </ListActions>
                   </TableCell>
                 </TableRow>
               ))}

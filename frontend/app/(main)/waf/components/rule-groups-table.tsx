@@ -3,8 +3,11 @@
 import { Globe2, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -40,7 +43,7 @@ export function RuleGroupsTable({
           <TableHead>{t('columns.nodeCount')}</TableHead>
           <TableHead>{t('columns.scope')}</TableHead>
           <TableHead>{t('columns.updatedAt')}</TableHead>
-          <TableHead className='w-[88px] text-right'>
+          <TableHead className='w-[88px] text-center'>
             {t('columns.actions')}
           </TableHead>
         </TableRow>
@@ -75,33 +78,22 @@ export function RuleGroupsTable({
             <TableCell className='text-sm text-muted-foreground'>
               {group.updated_at ? formatDateTime(group.updated_at) : '—'}
             </TableCell>
-            <TableCell className='text-right'>
-              <div className='flex items-center justify-end gap-1'>
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='icon'
-                  className='size-8'
-                  title={t('actions.compose')}
-                  aria-label={t('actions.compose')}
+            <TableCell className='text-center'>
+              <ListActions>
+                <ListActionButton
+                  icon={Pencil}
+                  label={t('actions.compose')}
                   onClick={() => onEdit(group)}
-                >
-                  <Pencil />
-                </Button>
+                />
                 {!group.is_global ? (
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='icon'
-                    className='size-8 text-destructive hover:text-destructive'
-                    title={t('actions.delete')}
-                    aria-label={t('actions.delete')}
+                  <ListActionButton
+                    icon={Trash2}
+                    label={t('actions.delete')}
+                    tone='destructive'
                     onClick={() => onDelete(group)}
-                  >
-                    <Trash2 />
-                  </Button>
+                  />
                 ) : null}
-              </div>
+              </ListActions>
             </TableCell>
           </TableRow>
         ))}

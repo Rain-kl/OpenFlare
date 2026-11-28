@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Eye } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
@@ -25,11 +29,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import type {
   AccessLogIPSummaryItem,
   AccessLogIPSummaryList,
@@ -458,24 +457,16 @@ export function IpTab({
                       {formatDateTime(item.last_seen_at)}
                     </TableCell>
                     <TableCell className='text-center'>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant='ghost'
-                            size='icon'
-                            className='h-6 w-6 text-muted-foreground hover:text-foreground'
-                            onClick={() => {
-                              setSelected(item);
-                              setDetailOpen(true);
-                            }}
-                          >
-                            <Eye className='size-3' />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side='top' className='text-xs'>
-                          {t('ip.view')}
-                        </TooltipContent>
-                      </Tooltip>
+                      <ListActions>
+                        <ListActionButton
+                          icon={Eye}
+                          label={t('ip.view')}
+                          onClick={() => {
+                            setSelected(item);
+                            setDetailOpen(true);
+                          }}
+                        />
+                      </ListActions>
                     </TableCell>
                   </TableRow>
                 ))}

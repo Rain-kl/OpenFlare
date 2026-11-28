@@ -1,11 +1,14 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Eye, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,12 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
   ZoneDomainService,
   zoneQueryKey,
@@ -150,129 +147,103 @@ export function ZoneDomainsTable({
         <EmptyStateWithBorder description={t('emptyDomains')} />
       ) : (
         <div className='overflow-hidden rounded-lg border border-dashed shadow-none'>
-          <TooltipProvider delayDuration={0}>
-            <Table className='w-full min-w-full caption-bottom text-sm'>
-              <TableHeader className='sticky top-0 z-20 bg-background'>
-                <TableRow className='border-b border-dashed hover:bg-transparent'>
-                  <TableHead className='h-8 whitespace-nowrap py-2 min-w-[160px]'>
-                    FQDN
-                  </TableHead>
-                  <TableHead className='h-8 whitespace-nowrap py-2 min-w-[120px]'>
-                    {t('certificate')}
-                  </TableHead>
-                  <TableHead className='h-8 whitespace-nowrap py-2 min-w-[200px]'>
-                    {t('upstream')}
-                  </TableHead>
-                  <TableHead className='sticky right-0 z-10 h-8 w-[90px] bg-background py-2 text-center'>
-                    {t('actions')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {domains.map((domain) => {
-                  const route =
-                    domain.proxy_route_id != null
-                      ? routeMap.get(domain.proxy_route_id)
-                      : undefined;
-                  const upstreams = route ? getUpstreamLabels(route, tp) : [];
-                  const certLabel = domain.cert_id
-                    ? (certificateMap.get(domain.cert_id)?.name ??
-                      t('certNumber', { id: domain.cert_id }))
-                    : t('unbound');
+          <Table className='w-full min-w-full caption-bottom text-sm'>
+            <TableHeader className='sticky top-0 z-20 bg-background'>
+              <TableRow className='border-b border-dashed hover:bg-transparent'>
+                <TableHead className='h-8 whitespace-nowrap py-2 min-w-[160px]'>
+                  FQDN
+                </TableHead>
+                <TableHead className='h-8 whitespace-nowrap py-2 min-w-[120px]'>
+                  {t('certificate')}
+                </TableHead>
+                <TableHead className='h-8 whitespace-nowrap py-2 min-w-[200px]'>
+                  {t('upstream')}
+                </TableHead>
+                <TableHead className='sticky right-0 z-10 h-8 w-[90px] bg-background py-2 text-center'>
+                  {t('actions')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {domains.map((domain) => {
+                const route =
+                  domain.proxy_route_id != null
+                    ? routeMap.get(domain.proxy_route_id)
+                    : undefined;
+                const upstreams = route ? getUpstreamLabels(route, tp) : [];
+                const certLabel = domain.cert_id
+                  ? (certificateMap.get(domain.cert_id)?.name ??
+                    t('certNumber', { id: domain.cert_id }))
+                  : t('unbound');
 
-                  return (
-                    <TableRow
-                      key={domain.id}
-                      className='group border-dashed hover:bg-muted/30'
-                    >
-                      <TableCell className='py-1'>
-                        <span
-                          className='max-w-[220px] truncate text-[11px] font-medium leading-tight'
-                          title={domain.domain}
-                        >
-                          {domain.domain}
-                        </span>
-                      </TableCell>
-                      <TableCell className='py-1 font-mono text-[10px] whitespace-nowrap text-muted-foreground'>
-                        {certLabel}
-                      </TableCell>
-                      <TableCell className='max-w-[280px] py-1'>
-                        {!domain.proxy_route_id ? (
-                          <span className='font-mono text-[10px] text-muted-foreground'>
-                            {t('unlinkedRoute')}
-                          </span>
-                        ) : routesLoading && !route ? (
-                          <span className='font-mono text-[10px] text-muted-foreground'>
-                            {t('loadingEllipsis')}
-                          </span>
-                        ) : upstreams.length === 0 ? (
-                          <span className='font-mono text-[10px] text-muted-foreground'>
-                            {t('upstreamUnset')}
-                          </span>
-                        ) : (
-                          <div className='flex flex-col gap-0'>
-                            {upstreams.map((upstream) => (
-                              <span
-                                key={upstream}
-                                className='truncate font-mono text-[10px] leading-tight text-muted-foreground'
-                                title={upstream}
-                              >
-                                {upstream}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell
-                        className='sticky right-0 z-10 bg-background py-1 text-center'
-                        onClick={(event) => event.stopPropagation()}
+                return (
+                  <TableRow
+                    key={domain.id}
+                    className='group border-dashed hover:bg-muted/30'
+                  >
+                    <TableCell className='py-1'>
+                      <span
+                        className='max-w-[220px] truncate text-[11px] font-medium leading-tight'
+                        title={domain.domain}
                       >
-                        <div className='flex items-center justify-center gap-0.5'>
-                          {domain.proxy_route_id ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant='ghost'
-                                  size='icon'
-                                  className='h-6 w-6 text-muted-foreground hover:text-foreground'
-                                  asChild
-                                >
-                                  <Link
-                                    href={`/proxy-routes/detail?id=${domain.proxy_route_id}`}
-                                  >
-                                    <Eye className='size-3' />
-                                  </Link>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side='top' className='text-xs'>
-                                {t('viewRoute')}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : null}
-
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant='ghost'
-                                size='icon'
-                                className='h-6 w-6 text-muted-foreground hover:text-destructive'
-                                onClick={() => setDeleting(domain)}
-                              >
-                                <Trash2 className='size-3' />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side='top' className='text-xs'>
-                              {t('deleteDomain')}
-                            </TooltipContent>
-                          </Tooltip>
+                        {domain.domain}
+                      </span>
+                    </TableCell>
+                    <TableCell className='py-1 font-mono text-[10px] whitespace-nowrap text-muted-foreground'>
+                      {certLabel}
+                    </TableCell>
+                    <TableCell className='max-w-[280px] py-1'>
+                      {!domain.proxy_route_id ? (
+                        <span className='font-mono text-[10px] text-muted-foreground'>
+                          {t('unlinkedRoute')}
+                        </span>
+                      ) : routesLoading && !route ? (
+                        <span className='font-mono text-[10px] text-muted-foreground'>
+                          {t('loadingEllipsis')}
+                        </span>
+                      ) : upstreams.length === 0 ? (
+                        <span className='font-mono text-[10px] text-muted-foreground'>
+                          {t('upstreamUnset')}
+                        </span>
+                      ) : (
+                        <div className='flex flex-col gap-0'>
+                          {upstreams.map((upstream) => (
+                            <span
+                              key={upstream}
+                              className='truncate font-mono text-[10px] leading-tight text-muted-foreground'
+                              title={upstream}
+                            >
+                              {upstream}
+                            </span>
+                          ))}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TooltipProvider>
+                      )}
+                    </TableCell>
+                    <TableCell
+                      className='sticky right-0 z-10 bg-background py-1 text-center'
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <ListActions>
+                        {domain.proxy_route_id ? (
+                          <ListActionButton
+                            icon={Eye}
+                            label={t('viewRoute')}
+                            href={`/proxy-routes/detail?id=${domain.proxy_route_id}`}
+                          />
+                        ) : null}
+                        <ListActionButton
+                          icon={Trash2}
+                          label={t('deleteDomain')}
+                          tone='destructive'
+                          onClick={() => setDeleting(domain)}
+                        />
+                      </ListActions>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       )}
 

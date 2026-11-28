@@ -13,6 +13,10 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -213,7 +217,7 @@ export function NodeSecuritySection({
                     <TableHead>{t('security.colExposure')}</TableHead>
                     <TableHead>{t('security.colDeliveries')}</TableHead>
                     <TableHead>{t('security.colLastDelivered')}</TableHead>
-                    <TableHead className='text-right'>
+                    <TableHead className='text-center'>
                       {t('security.colActions')}
                     </TableHead>
                   </TableRow>
@@ -260,20 +264,23 @@ export function NodeSecuritySection({
                         <TableCell className='whitespace-nowrap text-xs text-muted-foreground'>
                           {formatDateTime(item.last_delivered_at)}
                         </TableCell>
-                        <TableCell className='text-right'>
+                        <TableCell className='text-center'>
                           {canRotate ? (
-                            <Button
-                              type='button'
-                              variant='outline'
-                              size='sm'
-                              disabled={isApplying || rotateMutation.isPending}
-                              onClick={() => setRotateTarget(item)}
-                            >
-                              <RotateCcw className='mr-1.5 size-3.5' />
-                              {isApplying
-                                ? t('security.rotating')
-                                : t('security.rotateRevoke')}
-                            </Button>
+                            <ListActions>
+                              <ListActionButton
+                                icon={RotateCcw}
+                                label={
+                                  isApplying
+                                    ? t('security.rotating')
+                                    : t('security.rotateRevoke')
+                                }
+                                loading={isApplying}
+                                disabled={
+                                  isApplying || rotateMutation.isPending
+                                }
+                                onClick={() => setRotateTarget(item)}
+                              />
+                            </ListActions>
                           ) : (
                             <span className='text-xs text-muted-foreground'>
                               —

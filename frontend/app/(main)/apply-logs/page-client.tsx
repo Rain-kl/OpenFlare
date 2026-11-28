@@ -7,6 +7,10 @@ import { ClipboardList, Eye, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
@@ -322,7 +326,7 @@ export function ApplyLogsPageClient() {
                 <TableHead className='text-xs font-semibold'>
                   {t('colMessage')}
                 </TableHead>
-                <TableHead className='text-xs font-semibold text-right'>
+                <TableHead className='text-xs font-semibold text-center'>
                   {t('colActions')}
                 </TableHead>
               </TableRow>
@@ -356,19 +360,17 @@ export function ApplyLogsPageClient() {
                       {log.message || '—'}
                     </div>
                   </TableCell>
-                  <TableCell className='text-right'>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      className='h-7 text-xs'
-                      onClick={() => {
-                        setSelectedLog(log);
-                        setDetailOpen(true);
-                      }}
-                    >
-                      <Eye className='size-3 mr-1' />
-                      {t('detail')}
-                    </Button>
+                  <TableCell className='text-center'>
+                    <ListActions>
+                      <ListActionButton
+                        icon={Eye}
+                        label={t('detail')}
+                        onClick={() => {
+                          setSelectedLog(log);
+                          setDetailOpen(true);
+                        }}
+                      />
+                    </ListActions>
                   </TableCell>
                 </TableRow>
               ))}

@@ -7,6 +7,10 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
+import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
@@ -131,27 +135,22 @@ export default function PerformancePage() {
                   ? t('defaultCount', { count: counts.get(policy.id) ?? 0 })
                   : t('assignedCount', { count: counts.get(policy.id) ?? 0 })}
               </CardDescription>
-              <CardAction className='flex gap-1'>
-                <Button
-                  size='icon-sm'
-                  variant='ghost'
-                  aria-label={t('edit')}
-                  asChild
-                >
-                  <Link href={`/performance/editor?id=${policy.id}`}>
-                    <Pencil />
-                  </Link>
-                </Button>
-                {!policy.is_default && (
-                  <Button
-                    size='icon-sm'
-                    variant='ghost'
-                    aria-label={t('delete')}
-                    onClick={() => setAction({ type: 'delete', policy })}
-                  >
-                    <Trash2 />
-                  </Button>
-                )}
+              <CardAction>
+                <ListActions align='end'>
+                  <ListActionButton
+                    icon={Pencil}
+                    label={t('edit')}
+                    href={`/performance/editor?id=${policy.id}`}
+                  />
+                  {!policy.is_default && (
+                    <ListActionButton
+                      icon={Trash2}
+                      label={t('delete')}
+                      tone='destructive'
+                      onClick={() => setAction({ type: 'delete', policy })}
+                    />
+                  )}
+                </ListActions>
               </CardAction>
             </CardHeader>
             <CardContent className='flex flex-wrap items-center justify-between gap-3'>

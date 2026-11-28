@@ -2,10 +2,20 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Rocket, Upload } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  Rocket,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
@@ -164,7 +174,7 @@ function DeploymentRow({
         active && 'border-l-4 border-l-solid border-l-primary',
       )}
     >
-      <div className='flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between'>
+      <div className='flex items-start justify-between gap-4 p-4 md:items-center'>
         <div className='flex min-w-0 items-start gap-2'>
           <Button
             type='button'
@@ -192,26 +202,21 @@ function DeploymentRow({
           </div>
         </div>
         {showActions ? (
-          <div className='flex gap-2 md:ml-10'>
-            <Button
-              type='button'
-              variant='outline'
-              size='sm'
+          <ListActions align='end' className='shrink-0'>
+            <ListActionButton
+              icon={Rocket}
+              label={t('history.activate')}
               disabled={active || actionPending}
               onClick={onActivate}
-            >
-              {t('history.activate')}
-            </Button>
-            <Button
-              type='button'
-              variant='destructive'
-              size='sm'
+            />
+            <ListActionButton
+              icon={Trash2}
+              label={t('history.delete')}
+              tone='destructive'
               disabled={active || actionPending}
               onClick={onDelete}
-            >
-              {t('history.delete')}
-            </Button>
-          </div>
+            />
+          </ListActions>
         ) : null}
       </div>
       {expanded ? (

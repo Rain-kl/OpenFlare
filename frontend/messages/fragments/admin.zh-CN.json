@@ -1423,6 +1423,8 @@
         "searchPlaceholder": "输入任务名称搜索...",
         "filter": "过滤",
         "newTask": "新建任务",
+        "edit": "编辑",
+        "delete": "删除",
         "columns": {
           "taskId": "任务编号",
           "taskName": "执行任务名称",
@@ -1446,7 +1448,9 @@
           "rowHover": "）。表格行悬浮交互采用温和过渡色",
           "monoFont": "编码、主键或唯一 ID 类字段一律采用等宽字体呈现：",
           "badgeStyle": "状态标签（Badge）尽量圆角化（",
-          "badgeStyle2": "），搭配浅色背景与状态圆点，呈现高对比度的清晰视觉效果。"
+          "badgeStyle2": "），搭配浅色背景与状态圆点，呈现高对比度的清晰视觉效果。",
+          "rowActions": "表格及列表行内操作统一使用纯图标控件（",
+          "rowActions2": "），表头与单元格居中对齐并保持单行紧凑排列，同时配备 Tooltip 与无障碍标签。"
         }
       },
       "dashboard": {

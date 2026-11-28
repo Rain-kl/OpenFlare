@@ -1,10 +1,20 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, RefreshCw, Route, Trash2 } from 'lucide-react';
+import {
+  Plus,
+  RefreshCw,
+  Route,
+  SlidersHorizontal,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
+
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 
 import {
   AlertDialog,
@@ -180,7 +190,7 @@ export function ProxyRoutesPageClient() {
                   <TableHead>{t('domain')}</TableHead>
                   <TableHead>{t('status')}</TableHead>
                   <TableHead>{t('upstream')}</TableHead>
-                  <TableHead className='text-right'>{t('actions')}</TableHead>
+                  <TableHead className='text-center'>{t('actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -207,27 +217,20 @@ export function ProxyRoutesPageClient() {
                     >
                       {getUpstreamSummary(route, t)}
                     </TableCell>
-                    <TableCell className='text-right'>
-                      <div className='flex justify-end gap-2'>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          className='h-7 text-xs'
-                          asChild
-                        >
-                          <Link href={`/proxy-routes/detail?id=${route.id}`}>
-                            {t('configure')}
-                          </Link>
-                        </Button>
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          className='h-7 text-xs text-destructive hover:text-destructive'
+                    <TableCell className='text-center'>
+                      <ListActions>
+                        <ListActionButton
+                          icon={SlidersHorizontal}
+                          label={t('configure')}
+                          href={`/proxy-routes/detail?id=${route.id}`}
+                        />
+                        <ListActionButton
+                          icon={Trash2}
+                          label={tc('delete')}
+                          tone='destructive'
                           onClick={() => setDeleteTarget(route)}
-                        >
-                          <Trash2 className='size-3.5' />
-                        </Button>
-                      </div>
+                        />
+                      </ListActions>
                     </TableCell>
                   </TableRow>
                 ))}

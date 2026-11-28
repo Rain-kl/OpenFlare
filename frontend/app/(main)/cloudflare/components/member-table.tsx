@@ -1,10 +1,12 @@
 import { ArrowRightLeft, CircleAlert, RefreshCw, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import {
   Table,
@@ -15,7 +17,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { CloudflareMember } from '@/lib/services/openflare';
-import { DnsActionMenu } from '../../dns/components/dns-action-menu';
 
 export function MemberTable({
   members,
@@ -71,7 +72,7 @@ export function MemberTable({
           <TableHead>{t('columns.desiredIp')}</TableHead>
           <TableHead>{t('columns.status')}</TableHead>
           <TableHead>{t('columns.proxied')}</TableHead>
-          <TableHead className='text-right'>{t('columns.actions')}</TableHead>
+          <TableHead className='text-center'>{t('columns.actions')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -129,33 +130,26 @@ export function MemberTable({
                 onCheckedChange={(proxied) => onProxy(member.id, proxied)}
               />
             </TableCell>
-            <TableCell>
-              <div className='flex justify-end gap-1'>
-                <Button
-                  variant='ghost'
-                  size='sm'
+            <TableCell className='text-center'>
+              <ListActions>
+                <ListActionButton
+                  icon={ArrowRightLeft}
+                  label={t('move')}
                   onClick={() => onMove(member)}
-                >
-                  <ArrowRightLeft data-icon='inline-start' />
-                  {t('move')}
-                </Button>
-                <DnsActionMenu name={member.domain}>
-                  <DropdownMenuItem
-                    disabled={syncing}
-                    onSelect={() => onSync(member.id)}
-                  >
-                    <RefreshCw />
-                    {t('sync')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    variant='destructive'
-                    onSelect={() => onRemove(member)}
-                  >
-                    <Trash2 />
-                    {t('remove')}
-                  </DropdownMenuItem>
-                </DnsActionMenu>
-              </div>
+                />
+                <ListActionButton
+                  icon={RefreshCw}
+                  label={t('sync')}
+                  loading={syncing}
+                  onClick={() => onSync(member.id)}
+                />
+                <ListActionButton
+                  icon={Trash2}
+                  label={t('remove')}
+                  tone='destructive'
+                  onClick={() => onRemove(member)}
+                />
+              </ListActions>
             </TableCell>
           </TableRow>
         ))}

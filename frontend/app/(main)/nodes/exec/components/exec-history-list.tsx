@@ -3,8 +3,11 @@
 import { Clock, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -90,19 +93,14 @@ export function ExecHistoryList({
                     </div>
                   </div>
 
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='icon'
-                    className='size-7 shrink-0 text-muted-foreground hover:text-destructive'
-                    aria-label={t('history.delete')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(task);
-                    }}
-                  >
-                    <Trash2 className='size-3.5' />
-                  </Button>
+                  <ListActions align='end' stopPropagation className='shrink-0'>
+                    <ListActionButton
+                      icon={Trash2}
+                      label={t('history.delete')}
+                      tone='destructive'
+                      onClick={() => onDelete(task)}
+                    />
+                  </ListActions>
                 </div>
               );
             })}

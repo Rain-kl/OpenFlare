@@ -8,8 +8,12 @@ import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { Edit2, Loader2, Play, Plus, Settings, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Play, Plus, Settings, Trash2 } from 'lucide-react';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -356,7 +360,7 @@ export function SettingsTab() {
                 <TableHead className='w-[80px] text-center whitespace-nowrap py-2 h-8'>
                   {t('colStatus')}
                 </TableHead>
-                <TableHead className='sticky right-0 text-center bg-background z-10 w-[180px] py-2 h-8'>
+                <TableHead className='sticky right-0 text-center bg-background z-10 w-[110px] py-2 h-8'>
                   {t('colActions')}
                 </TableHead>
               </TableRow>
@@ -412,36 +416,26 @@ export function SettingsTab() {
                     className='sticky right-0 text-center bg-background z-10 py-1'
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className='flex items-center justify-center gap-1'>
-                      <Button
-                        variant='ghost'
-                        size='sm'
+                    <ListActions>
+                      <ListActionButton
+                        icon={Play}
+                        label={t('test')}
+                        tone='primary'
                         onClick={() => handleTestChannelClick(ch.name)}
-                        className='h-6 px-2 text-[10px] text-primary hover:text-primary hover:bg-primary/10'
-                      >
-                        <Play className='size-2.5 mr-1' />
-                        {t('test')}
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='sm'
+                      />
+                      <ListActionButton
+                        icon={Pencil}
+                        label={t('edit')}
                         onClick={() => handleEditChannelClick(ch)}
-                        className='h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground'
-                      >
-                        <Edit2 className='size-2.5 mr-1' />
-                        {t('edit')}
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='sm'
+                      />
+                      <ListActionButton
+                        icon={Trash2}
+                        label={t('delete')}
+                        tone='destructive'
                         disabled={deleteChannelMutation.isPending}
                         onClick={() => setDeleteTarget(ch)}
-                        className='h-6 px-2 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10'
-                      >
-                        <Trash2 className='size-2.5 mr-1' />
-                        {t('delete')}
-                      </Button>
-                    </div>
+                      />
+                    </ListActions>
                   </TableCell>
                 </TableRow>
               ))}

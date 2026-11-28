@@ -16,6 +16,10 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { GroupDialog } from '@/app/(main)/cloudflare/components/group-dialog';
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -28,7 +32,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -38,7 +41,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DnsActionMenu } from '../dns/components/dns-action-menu';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
@@ -212,7 +214,7 @@ export function CloudflareGroupsTab({
                 <TableHead className='pl-4'>{t('groupsTitle')}</TableHead>
                 <TableHead>{t('currentPoint')}</TableHead>
                 <TableHead>{t('groupSyncStatus')}</TableHead>
-                <TableHead className='pr-4 text-right'>
+                <TableHead className='pr-4 text-center'>
                   {t('columns.actions')}
                 </TableHead>
               </TableRow>
@@ -268,31 +270,29 @@ export function CloudflareGroupsTab({
                       {group.enabled ? t('enabled') : t('disabled')}
                     </Badge>
                   </TableCell>
-                  <TableCell className='pr-4 text-right'>
-                    <DnsActionMenu name={group.name}>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/cloudflare/groups/${group.id}`}>
-                          <Settings />
-                          {t('manage')}
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
+                  <TableCell className='pr-4 text-center'>
+                    <ListActions>
+                      <ListActionButton
+                        icon={Settings}
+                        label={t('manage')}
+                        href={`/cloudflare/groups/${group.id}`}
+                      />
+                      <ListActionButton
+                        icon={RefreshCw}
+                        label={t('sync')}
+                        loading={syncMutation.isPending}
                         disabled={
                           !dnsReady || !group.enabled || syncMutation.isPending
                         }
-                        onSelect={() => syncMutation.mutate(group.id)}
-                      >
-                        <RefreshCw />
-                        {t('sync')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant='destructive'
-                        onSelect={() => setDeleteTarget(group)}
-                      >
-                        <Trash2 />
-                        {t('delete')}
-                      </DropdownMenuItem>
-                    </DnsActionMenu>
+                        onClick={() => syncMutation.mutate(group.id)}
+                      />
+                      <ListActionButton
+                        icon={Trash2}
+                        label={t('delete')}
+                        tone='destructive'
+                        onClick={() => setDeleteTarget(group)}
+                      />
+                    </ListActions>
                   </TableCell>
                 </TableRow>
               ))}

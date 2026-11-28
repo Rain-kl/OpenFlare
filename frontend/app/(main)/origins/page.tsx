@@ -1,10 +1,14 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MapPin, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Eye, MapPin, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 
 import {
   AlertDialog,
@@ -120,8 +124,8 @@ export default function OriginsPage() {
                 key={origin.id}
                 className='border-b border-dashed p-4 md:[&:nth-child(odd)]:border-r'
               >
-                <div className='flex flex-col gap-4'>
-                  <div className='space-y-2'>
+                <div className='flex items-start justify-between gap-4'>
+                  <div className='min-w-0 space-y-2'>
                     <div className='flex flex-wrap items-center gap-2'>
                       <h2 className='text-base font-semibold'>{origin.name}</h2>
                       <Badge
@@ -145,31 +149,27 @@ export default function OriginsPage() {
                       })}
                     </p>
                   </div>
-                  <div className='flex flex-wrap gap-2'>
-                    <Button variant='outline' size='sm' asChild>
-                      <Link href={`/origins/detail?id=${origin.id}`}>
-                        {t('detail')}
-                      </Link>
-                    </Button>
-                    <Button
-                      variant='outline'
-                      size='sm'
+                  <ListActions align='end' className='shrink-0'>
+                    <ListActionButton
+                      icon={Eye}
+                      label={t('detail')}
+                      href={`/origins/detail?id=${origin.id}`}
+                    />
+                    <ListActionButton
+                      icon={Pencil}
+                      label={t('edit')}
                       onClick={() => {
                         setEditingOrigin(origin);
                         setEditorOpen(true);
                       }}
-                    >
-                      {t('edit')}
-                    </Button>
-                    <Button
-                      variant='destructive'
-                      size='sm'
+                    />
+                    <ListActionButton
+                      icon={Trash2}
+                      label={tc('delete')}
+                      tone='destructive'
                       onClick={() => setDeleteTarget(origin)}
-                    >
-                      <Trash2 className='size-3.5 mr-1' />
-                      {tc('delete')}
-                    </Button>
-                  </div>
+                    />
+                  </ListActions>
                 </div>
               </article>
             ))}

@@ -13,6 +13,10 @@ import {
 import { toast } from 'sonner';
 
 import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
+import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
@@ -23,7 +27,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -32,7 +35,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DnsActionMenu } from '../dns/components/dns-action-menu';
 import { EmptyStateWithBorder } from '@/components/layout/empty';
 import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
@@ -134,7 +136,7 @@ export default function DnsAccountsPage() {
                 <TableHead>{t('provider')}</TableHead>
                 <TableHead>{t('verificationColumn')}</TableHead>
                 <TableHead>{t('scopesColumn')}</TableHead>
-                <TableHead className='pr-4 text-right'>
+                <TableHead className='pr-4 text-center'>
                   {t('actionsColumn')}
                 </TableHead>
               </TableRow>
@@ -187,44 +189,40 @@ export default function DnsAccountsPage() {
                         })}
                       </Button>
                     </TableCell>
-                    <TableCell className='pr-4 text-right'>
-                      <DnsActionMenu name={account.name}>
-                        <DropdownMenuItem
-                          disabled={refreshMutation.isPending}
-                          onSelect={() => refreshMutation.mutate(account.id)}
-                        >
-                          <RefreshCw />
-                          {t('refreshScope')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() =>
+                    <TableCell className='pr-4 text-center'>
+                      <ListActions>
+                        <ListActionButton
+                          icon={RefreshCw}
+                          label={t('refreshScope')}
+                          loading={refreshMutation.isPending}
+                          onClick={() => refreshMutation.mutate(account.id)}
+                        />
+                        <ListActionButton
+                          icon={ListTree}
+                          label={t('scopesColumn')}
+                          onClick={() =>
                             setExpandedId(
                               expandedId === account.id
                                 ? undefined
                                 : account.id,
                             )
                           }
-                        >
-                          <ListTree />
-                          {t('scopesColumn')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => {
+                        />
+                        <ListActionButton
+                          icon={Pencil}
+                          label={t('editTitle')}
+                          onClick={() => {
                             setEditing(account);
                             setCreateOpen(true);
                           }}
-                        >
-                          <Pencil />
-                          {t('editTitle')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant='destructive'
-                          onSelect={() => setDeleteTarget(account)}
-                        >
-                          <Trash2 />
-                          {tc('delete')}
-                        </DropdownMenuItem>
-                      </DnsActionMenu>
+                        />
+                        <ListActionButton
+                          icon={Trash2}
+                          label={tc('delete')}
+                          tone='destructive'
+                          onClick={() => setDeleteTarget(account)}
+                        />
+                      </ListActions>
                     </TableCell>
                   </TableRow>
                   {expandedId === account.id && (

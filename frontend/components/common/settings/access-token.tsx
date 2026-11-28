@@ -17,6 +17,10 @@ import {
   Trash2,
 } from 'lucide-react';
 
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -283,36 +287,30 @@ export function AccessTokenMain() {
                       </div>
                     </div>
                   </div>
-                  <div className='flex items-center gap-2 shrink-0 sm:self-center'>
-                    <Button
-                      type='button'
-                      variant='outline'
-                      size='sm'
-                      className='text-xs border-dashed text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg h-8 px-2.5'
+                  <ListActions align='end' className='shrink-0 sm:self-center'>
+                    <ListActionButton
+                      icon={RefreshCw}
+                      label={ta('rotate')}
+                      tone='primary'
+                      disabled={rotateTokenMutation.isPending}
+                      loading={
+                        rotateTokenMutation.isPending &&
+                        rotateTokenMutation.variables === token.id
+                      }
                       onClick={() =>
                         setRotateTarget({ id: token.id, name: token.name })
                       }
-                      disabled={rotateTokenMutation.isPending}
-                    >
-                      <RefreshCw
-                        className={`size-3.5 mr-1 ${rotateTokenMutation.isPending && rotateTokenMutation.variables === token.id ? 'animate-spin' : ''}`}
-                      />
-                      {ta('rotate')}
-                    </Button>
-                    <Button
-                      type='button'
-                      variant='outline'
-                      size='sm'
-                      className='text-xs border-dashed text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 hover:border-rose-500/20 rounded-lg h-8 px-2.5'
+                    />
+                    <ListActionButton
+                      icon={Trash2}
+                      label={ta('revoke')}
+                      tone='destructive'
+                      disabled={deleteTokenMutation.isPending}
                       onClick={() =>
                         setDeleteTarget({ id: token.id, name: token.name })
                       }
-                      disabled={deleteTokenMutation.isPending}
-                    >
-                      <Trash2 className='size-3.5 mr-1' />
-                      {ta('revoke')}
-                    </Button>
-                  </div>
+                    />
+                  </ListActions>
                 </div>
               ))}
             </div>

@@ -1,7 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
+import { Eye } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 
-import { Button } from '@/components/ui/button';
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 import {
   Table,
   TableBody,
@@ -58,7 +62,7 @@ export function AttackEventsTab({
             <TableHead>{t('count')}</TableHead>
             <TableHead>{t('duration')}</TableHead>
             <TableHead>{t('firstSeen')}</TableHead>
-            <TableHead className='pr-5 text-right'>{t('records')}</TableHead>
+            <TableHead className='pr-5 text-center'>{t('records')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -86,14 +90,14 @@ export function AttackEventsTab({
                   timeStyle: 'medium',
                 })}
               </TableCell>
-              <TableCell className='pr-5 text-right'>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={() => onOpen(event, filter)}
-                >
-                  {t('viewRecords')}
-                </Button>
+              <TableCell className='pr-5 text-center'>
+                <ListActions>
+                  <ListActionButton
+                    icon={Eye}
+                    label={t('viewRecords')}
+                    onClick={() => onOpen(event, filter)}
+                  />
+                </ListActions>
               </TableCell>
             </TableRow>
           ))}

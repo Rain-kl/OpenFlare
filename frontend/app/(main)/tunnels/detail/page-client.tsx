@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
+  Ban,
   Download,
   Network,
   Pencil,
@@ -18,6 +19,11 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+
+import {
+  ListActionButton,
+  ListActions,
+} from '@/components/common/list-actions';
 
 import {
   AlertDialog,
@@ -459,7 +465,7 @@ export function TunnelDetailPageClient() {
                   <TableHead className='h-8 py-2'>
                     {t('relays.lastSeen')}
                   </TableHead>
-                  <TableHead className='h-8 py-2 text-right'>
+                  <TableHead className='h-8 py-2 text-center'>
                     {t('common.actions')}
                   </TableHead>
                 </TableRow>
@@ -487,18 +493,18 @@ export function TunnelDetailPageClient() {
                         ? formatDateTime(c.last_seen_at)
                         : t('common.never')}
                     </TableCell>
-                    <TableCell className='py-2.5 text-right'>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        className='h-7 text-xs text-destructive hover:text-destructive'
-                        disabled={Boolean(c.revoked_at)}
-                        onClick={() =>
-                          revokeConnectorMutation.mutate(c.connector_id)
-                        }
-                      >
-                        {t('detail.revoke')}
-                      </Button>
+                    <TableCell className='py-2 text-center'>
+                      <ListActions>
+                        <ListActionButton
+                          icon={Ban}
+                          label={t('detail.revoke')}
+                          tone='destructive'
+                          disabled={Boolean(c.revoked_at)}
+                          onClick={() =>
+                            revokeConnectorMutation.mutate(c.connector_id)
+                          }
+                        />
+                      </ListActions>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -602,7 +608,7 @@ export function TunnelDetailPageClient() {
                   <TableHead className='h-8 py-2'>
                     {t('services.targetAddr')}
                   </TableHead>
-                  <TableHead className='h-8 py-2 text-right'>
+                  <TableHead className='h-8 py-2 text-center'>
                     {t('common.actions')}
                   </TableHead>
                 </TableRow>
@@ -622,28 +628,23 @@ export function TunnelDetailPageClient() {
                     <TableCell className='py-2.5 font-mono text-xs'>
                       {svc.target_addr}
                     </TableCell>
-                    <TableCell className='py-2.5'>
-                      <div className='flex justify-end gap-1'>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          className='h-7 text-xs'
+                    <TableCell className='py-2 text-center'>
+                      <ListActions>
+                        <ListActionButton
+                          icon={Pencil}
+                          label={t('common.edit')}
                           onClick={() => {
                             setEditingSvc(svc);
                             setSvcOpen(true);
                           }}
-                        >
-                          {t('common.edit')}
-                        </Button>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          className='h-7 text-xs text-destructive hover:text-destructive'
+                        />
+                        <ListActionButton
+                          icon={Trash2}
+                          label={t('common.delete')}
+                          tone='destructive'
                           onClick={() => deleteSvcMutation.mutate(svc.id)}
-                        >
-                          {t('common.delete')}
-                        </Button>
-                      </div>
+                        />
+                      </ListActions>
                     </TableCell>
                   </TableRow>
                 ))}
