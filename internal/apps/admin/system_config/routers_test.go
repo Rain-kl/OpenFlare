@@ -27,8 +27,6 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 )
 
-const expectedDefaultConfigsCount = 54
-
 func setupTestRouter(authUser *model.User) *gin.Engine {
 	r := testhelper.NewTestGinEngine()
 	adminGroup := r.Group("/api/v1/admin")
@@ -150,9 +148,20 @@ func TestListSystemConfigs(t *testing.T) {
 		var configs []model.SystemConfig
 		_ = json.Unmarshal(dataBytes, &configs)
 
-		// Defaults seed configurations
-		if len(configs) != expectedDefaultConfigsCount {
-			t.Errorf("expected %d default configs, got %d", expectedDefaultConfigsCount, len(configs))
+		// Verify representative defaults without coupling the endpoint to the
+		// total number of settings, which changes as features add configuration.
+		keys := make(map[string]struct{}, len(configs))
+		for _, config := range configs {
+			keys[config.Key] = struct{}{}
+		}
+		for _, key := range []string{
+			model.ConfigKeySiteName,
+			model.ConfigKeyRegistrationEnabled,
+			model.ConfigKeySmartDNSEnabled,
+		} {
+			if _, ok := keys[key]; !ok {
+				t.Errorf("expected seeded configuration %q in list", key)
+			}
 		}
 	})
 
@@ -168,8 +177,17 @@ func TestListSystemConfigs(t *testing.T) {
 		var configs []model.SystemConfig
 		_ = json.Unmarshal(dataBytes, &configs)
 
-		if len(configs) != 9 {
-			t.Errorf("expected 9 business configs, got %d: %v", len(configs), configs)
+		foundPoWPage := false
+		for _, config := range configs {
+			if config.Type != "business" {
+				t.Errorf("business filter returned config %q with type %q", config.Key, config.Type)
+			}
+			if config.Key == model.ConfigKeyPoWPage {
+				foundPoWPage = true
+			}
+		}
+		if !foundPoWPage {
+			t.Errorf("business filter omitted seeded configuration %q", model.ConfigKeyPoWPage)
 		}
 	})
 }
