@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
 	"github.com/Rain-kl/Wavelet/internal/model"
@@ -84,17 +83,7 @@ func decodeStrictJSON(c *gin.Context, target any, allowEmpty bool) bool {
 }
 
 func deploymentIDParam(c *gin.Context) (uint, bool) {
-	raw := c.Param("deployment_id")
-	if raw == "" {
-		response.AbortBadRequest(c, "Invalid ID")
-		return 0, false
-	}
-	id64, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || id64 == 0 {
-		response.AbortBadRequest(c, "Invalid ID")
-		return 0, false
-	}
-	return uint(id64), true
+	return httpx.NamedIDParam(c, "deployment_id")
 }
 
 func currentPagesActor(c *gin.Context) (string, bool) {

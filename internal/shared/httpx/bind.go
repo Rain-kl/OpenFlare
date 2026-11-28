@@ -5,8 +5,6 @@
 package httpx
 
 import (
-	"strconv"
-
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -35,10 +33,10 @@ func NamedIDParam(c *gin.Context, name string) (uint, bool) {
 		response.AbortBadRequest(c, errInvalidID)
 		return 0, false
 	}
-	id64, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || id64 == 0 {
+	id, err := ParseUint(raw)
+	if err != nil || id == 0 {
 		response.AbortBadRequest(c, errInvalidID)
 		return 0, false
 	}
-	return uint(id64), true
+	return id, true
 }

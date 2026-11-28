@@ -5,7 +5,6 @@ package ping
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
@@ -186,12 +185,12 @@ func ReorderTasksHandler(c *gin.Context) {
 	}
 	weights := make(map[uint]int, len(raw))
 	for rawID, weight := range raw {
-		parsed, err := strconv.ParseUint(rawID, 10, 64)
+		parsed, err := httpx.ParseUint(rawID)
 		if err != nil || parsed == 0 {
 			response.AbortBadRequest(c, errPingTaskWeightIDInvalid)
 			return
 		}
-		weights[uint(parsed)] = weight
+		weights[parsed] = weight
 	}
 	if err := ReorderTasks(c.Request.Context(), weights); handleLogicError(c, err) {
 		return

@@ -113,13 +113,17 @@ func GetTaskHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/network-tools/traceroute/history [get]
 func ListTracerouteHistoryHandler(c *gin.Context) {
+	targetASN, ok := httpx.OptionalPositiveUint32Query(c, "target_asn", errInvalidASN)
+	if !ok {
+		return
+	}
 	query := TracerouteHistoryQuery{
 		Page:        parsePositiveInt(c.Query("p"), 1),
 		PageSize:    parsePositiveInt(c.Query("page_size"), defaultHistoryPageSize),
 		NodeID:      c.Query("node_id"),
 		Target:      c.Query("target"),
 		TriggerType: c.Query("trigger_type"),
-		TargetASN:   uint32(parsePositiveInt(c.Query("target_asn"), 0)), //nolint:gosec // bounded uint32 ASN
+		TargetASN:   targetASN,
 	}
 	res, err := ListTracerouteHistory(c.Request.Context(), query)
 	if httpx.AbortBadRequestOnError(c, err) {
@@ -314,11 +318,15 @@ func TraceASPathHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/network-tools/quality-matrix [get]
 func ListQualityMatrixHandler(c *gin.Context) {
+	clientASN, ok := httpx.OptionalPositiveUint32Query(c, "client_asn", errInvalidASN)
+	if !ok {
+		return
+	}
 	query := model.NetworkQualityMatrixQuery{
 		Page:              parsePositiveInt(c.Query("p"), 1),
 		PageSize:          parsePositiveInt(c.Query("page_size"), defaultHistoryPageSize),
 		NodeID:            c.Query("node_id"),
-		ClientASN:         uint32(parsePositiveInt(c.Query("client_asn"), 0)), //nolint:gosec // bounded uint32 ASN
+		ClientASN:         clientASN,
 		ClientCountry:     c.Query("client_country"),
 		ClientRegion:      c.Query("client_region"),
 		IPFamily:          c.Query("ip_family"),
@@ -431,10 +439,14 @@ func TriggerNetIntelSyncHandler(c *gin.Context) {
 // @Failure 500 {object} response.Any "内部错误"
 // @Router /api/v1/d/network-tools/probe-targets [get]
 func ListProbeTargetsHandler(c *gin.Context) {
+	asn, ok := httpx.OptionalPositiveUint32Query(c, "asn", errInvalidASN)
+	if !ok {
+		return
+	}
 	query := model.ProbeTargetQuery{
 		Page:          parsePositiveInt(c.Query("p"), 1),
 		PageSize:      parsePositiveInt(c.Query("page_size"), defaultHistoryPageSize),
-		ASN:           uint32(parsePositiveInt(c.Query("asn"), 0)), //nolint:gosec // bounded uint32 ASN
+		ASN:           asn,
 		Country:       c.Query("country"),
 		IPFamily:      c.Query("ip_family"),
 		TargetType:    c.Query("target_type"),
@@ -531,12 +543,12 @@ func DeleteProbeTargetHandler(c *gin.Context) {
 }
 
 func parseUintParam(c *gin.Context, name string) (uint, bool) {
-	id, err := strconv.ParseUint(c.Param(name), 10, 64)
+	id, err := httpx.ParseUint(c.Param(name))
 	if err != nil || id == 0 {
 		response.AbortBadRequest(c, errProbeTargetNotFound)
 		return 0, false
 	}
-	return uint(id), true
+	return id, true
 }
 
 func parseOptionalBool(raw string) *bool {
@@ -553,13 +565,7 @@ func parseOptionalBool(raw string) *bool {
 }
 
 func parseASNParam(c *gin.Context) (uint32, bool) {
-	raw := c.Param("asn")
-	id, err := strconv.ParseUint(raw, 10, 32)
-	if err != nil || id == 0 {
-		response.AbortBadRequest(c, errInvalidASN)
-		return 0, false
-	}
-	return uint32(id), true
+	return httpx.PositiveUint32Param(c, "asn", errInvalidASN)
 }
 
 func parsePositiveInt(raw string, def int) int {

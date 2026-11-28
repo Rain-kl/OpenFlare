@@ -5,6 +5,7 @@ package netintel
 
 import (
 	"encoding/json"
+	"math"
 	"net"
 	"net/netip"
 	"os"
@@ -242,6 +243,9 @@ func (m *Manager) ListASNPrefixes(asn uint32, family string, page, pageSize int)
 		filtered = append(filtered, p)
 	}
 	total := len(filtered)
+	if page-1 > math.MaxInt/pageSize {
+		return []PrefixRecord{}, total
+	}
 	start := (page - 1) * pageSize
 	if start >= total {
 		return []PrefixRecord{}, total

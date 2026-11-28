@@ -84,6 +84,10 @@ func TestManagerLookupAndPrefixMatching(t *testing.T) {
 	if total != 1 || len(v4) != 1 || v4[0].CIDR != "1.1.1.0/24" {
 		t.Fatalf("unexpected IPv4 prefix list: total=%d list=%+v", total, v4)
 	}
+	overflowRecords, overflowTotal := mgr.ListASNPrefixes(13335, "", math.MaxInt, 20)
+	if overflowTotal != 2 || len(overflowRecords) != 0 {
+		t.Fatalf("expected empty page on huge page number, got total=%d len=%d", overflowTotal, len(overflowRecords))
+	}
 
 	// Topology path with observed edges (no CAIDA file on disk)
 	hops, path, ok := mgr.EstimateASPath(4134, 13335, map[uint32][]uint32{

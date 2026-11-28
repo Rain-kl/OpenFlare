@@ -8,11 +8,11 @@ import (
 	"errors"
 	"net/http"
 	"slices"
-	"strconv"
 	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/oauth"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -57,12 +57,7 @@ type listUsersResponse struct {
 }
 
 func parseUserID(c *gin.Context) (uint64, bool) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil || id == 0 {
-		response.AbortBadRequest(c, userNotFound)
-		return 0, false
-	}
-	return id, true
+	return httpx.PositiveUint64Param(c, "id", userNotFound)
 }
 
 func toUser(u model.User) user {

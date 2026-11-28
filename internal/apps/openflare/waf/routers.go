@@ -5,7 +5,6 @@ package waf
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/Rain-kl/Wavelet/internal/shared/httpx"
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
@@ -18,12 +17,12 @@ func routeIDParam(c *gin.Context) (uint, bool) {
 		response.AbortBadRequest(c, "invalid id")
 		return 0, false
 	}
-	id64, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || id64 == 0 {
+	id, err := httpx.ParseUint(raw)
+	if err != nil || id == 0 {
 		response.AbortBadRequest(c, "invalid id")
 		return 0, false
 	}
-	return uint(id64), true
+	return id, true
 }
 
 // GetSiteRuleGroupsHandler 获取站点的 WAF 规则组绑定。

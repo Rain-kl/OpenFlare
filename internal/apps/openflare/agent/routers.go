@@ -6,7 +6,6 @@ package agent
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"strings"
 
 	ofexec "github.com/Rain-kl/Wavelet/internal/apps/openflare/exec"
@@ -214,17 +213,7 @@ func allowPagesProject(ctx context.Context, c *gin.Context, projectID uint) bool
 }
 
 func pagesUintParam(c *gin.Context, name string) (uint, bool) {
-	raw := c.Param(name)
-	if raw == "" {
-		response.AbortBadRequest(c, "Invalid ID")
-		return 0, false
-	}
-	id64, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || id64 == 0 {
-		response.AbortBadRequest(c, "Invalid ID")
-		return 0, false
-	}
-	return uint(id64), true
+	return httpx.NamedIDParam(c, name)
 }
 
 // ReportPingResultHandler records a latency probe measurement reported over HTTP fallback.

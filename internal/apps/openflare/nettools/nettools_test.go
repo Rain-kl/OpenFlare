@@ -572,3 +572,112 @@ func TestPredictQualityMatrixCoLocatedZeroGeoPriorAndUnknownGeo(t *testing.T) {
 	require.InDelta(t, 120.0, noGeo.EffectiveRTTMs, 0.01)
 	require.InDelta(t, 120.0, noGeo.RTTP95Ms, 0.01)
 }
+
+func TestASNQueryParameterValidationPreventsUint32Truncation(t *testing.T) {
+	cleanup := setupNetToolsTestEnv(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	require.NoError(t, repository.CreateOpenFlareTracerouteRecord(ctx, &model.OpenFlareTracerouteRecord{
+		TaskID:      "trace-asn-4134",
+		TriggerType: "manual",
+		NodeID:      "edge-1",
+		Target:      "3.3.3.3",
+		TargetASN:   4134,
+		Protocol:    "icmp",
+	}))
+	require.NoError(t, repository.CreateOpenFlareTracerouteRecord(ctx, &model.OpenFlareTracerouteRecord{
+		TaskID:      "trace-asn-13335",
+		TriggerType: "manual",
+		NodeID:      "edge-1",
+		Target:      "1.1.1.1",
+		TargetASN:   13335,
+		Protocol:    "icmp",
+	}))
+	require.NoError(t, repository.CreateOpenFlareProbeTarget(ctx, &model.OpenFlareProbeTarget{
+		Name:       "ChinaNet Probe",
+		IP:         "3.3.3.3",
+		IPFamily:   pkgnetintel.IPFamilyIPv4,
+		ProbeProto: model.ProbeProtoICMP,
+		ASN:        4134,
+		TargetType: model.ProbeTargetTypeCustomerISP,
+		Enabled:    true,
+	}))
+	now := time.Now().UTC()
+	_, err := repository.ReplaceOpenFlareNetworkQualityMatrixSnapshot(ctx, []*model.OpenFlareNetworkQualityMatrix{
+		{
+			NodeID:            "edge-1",
+			NodeASN:           13335,
+			ClientASN:         4134,
+			ClientCountry:     "CN",
+			IPFamily:          pkgnetintel.IPFamilyIPv4,
+			AggregationLevel:  model.QualityAggregationLevelCountry,
+			StatsVersion:      model.NetworkQualityStatsVersionHist64,
+			TCPRTTP50Ms:       30,
+			EffectiveRTTMs:    30,
+			MeasurementSource: model.NetworkQualitySourceTCPPassive,
+			Confidence:        0.9,
+			QualityScore:      75,
+			DataSource:        model.QualityMatrixDataSourceMeasured,
+			LastObservedAt:    &now,
+		},
+	}, now.Add(-time.Hour))
+	require.NoError(t, err)
+
+	r := testhelper.NewTestGinEngine()
+	group := r.Group("/api/v1/d/network-tools")
+	group.GET("/traceroute/history", ListTracerouteHistoryHandler)
+	group.GET("/quality-matrix", ListQualityMatrixHandler)
+	group.GET("/probe-targets", ListProbeTargetsHandler)
+	group.GET("/lookup/asn/:asn/prefixes", ListASNPrefixesHandler)
+
+	endpoints := []struct {
+		path  string
+		param string
+	}{
+		{path: "/api/v1/d/network-tools/traceroute/history", param: "target_asn"},
+		{path: "/api/v1/d/network-tools/quality-matrix", param: "client_asn"},
+		{path: "/api/v1/d/network-tools/probe-targets", param: "asn"},
+	}
+
+	for _, ep := range endpoints {
+		// Overflowing uint32 values (which previously truncated to 0, 1, or 4134) and invalid inputs must return 400.
+		for _, invalid := range []string{"0", "-1", "4294967296", "4294967297", "4294971430", "abc"} {
+			req := httptest.NewRequest(http.MethodGet, ep.path+"?"+ep.param+"="+invalid, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			require.Equal(t, http.StatusBadRequest, w.Code, "expected 400 for %s?%s=%s", ep.path, ep.param, invalid)
+		}
+
+		// Valid max uint32 boundary must succeed without error.
+		maxReq := httptest.NewRequest(http.MethodGet, ep.path+"?"+ep.param+"=4294967295", nil)
+		maxW := httptest.NewRecorder()
+		r.ServeHTTP(maxW, maxReq)
+		require.Equal(t, http.StatusOK, maxW.Code, "expected 200 for max uint32 on %s", ep.path)
+
+		// Valid positive ASN filters properly.
+		okReq := httptest.NewRequest(http.MethodGet, ep.path+"?"+ep.param+"=4134", nil)
+		okW := httptest.NewRecorder()
+		r.ServeHTTP(okW, okReq)
+		require.Equal(t, http.StatusOK, okW.Code)
+	}
+
+	// Verify traceroute history filters strictly to AS4134 when target_asn=4134.
+	histReq := httptest.NewRequest(http.MethodGet, "/api/v1/d/network-tools/traceroute/history?target_asn=4134", nil)
+	histW := httptest.NewRecorder()
+	r.ServeHTTP(histW, histReq)
+	require.Equal(t, http.StatusOK, histW.Code)
+	var histResp struct {
+		Data TracerouteHistoryPage `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(histW.Body.Bytes(), &histResp))
+	require.EqualValues(t, 1, histResp.Data.Total)
+	require.Len(t, histResp.Data.Results, 1)
+	require.Equal(t, uint32(4134), histResp.Data.Results[0].TargetASN)
+
+	// Verify huge pagination offset does not panic.
+	prefixReq := httptest.NewRequest(http.MethodGet, "/api/v1/d/network-tools/lookup/asn/13335/prefixes?p=9223372036854775807", nil)
+	prefixW := httptest.NewRecorder()
+	r.ServeHTTP(prefixW, prefixReq)
+	require.Equal(t, http.StatusOK, prefixW.Code)
+}
