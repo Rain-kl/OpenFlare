@@ -16,6 +16,8 @@ OpenFlare 通过控制面多源网络情报（`NetIntel`）、边缘被动 `TCP_
 
 同步完成后自动为缺失 `asn` / `asn_org` 的边缘节点执行回填（每批最多 500 条），并持久化 `manifest.json`。
 
+CAIDA 关系图以连续邻接表存储。每个邻接项保存对端 ASN 和关系编码，名称、国家和标签在查询时从 ASN 元数据补齐。数据加载保留邻接项的文件顺序，路径搜索优先遍历实测 traceroute 边。
+
 ---
 
 ## 2. 被动质量采集 (`openflare-edge` → `netquality`)

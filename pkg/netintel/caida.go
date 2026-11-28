@@ -18,18 +18,59 @@ const (
 	maxASBFSDepth         = 6
 	caidaScannerInitBytes = 64 * 1024
 	caidaScannerMaxBytes  = 1024 * 1024
-	caidaMinEdgeFields    = 3
 	caidaBFSInitialCap    = 64
 )
 
 type caidaGraph struct {
-	neighbors map[uint32][]ASRelation
+	nodes     map[uint32]uint32
+	offsets   []int
+	peers     []uint32
+	relations []caidaRelation
+}
+
+type caidaRelation uint8
+
+const (
+	caidaCustomer caidaRelation = iota
+	caidaProvider
+	caidaPeer
+)
+
+var caidaRelationNames = [...]string{RelationCustomer, RelationProvider, RelationPeer}
+
+type caidaEdge struct {
+	from, to uint32
+	relation caidaRelation
+}
+
+func (g *caidaGraph) neighborBounds(asn uint32) (int, int) {
+	if g == nil {
+		return 0, 0
+	}
+	if id, ok := g.nodes[asn]; ok {
+		return g.offsets[id], g.offsets[id+1]
+	}
+	return 0, 0
+}
+
+func (g *caidaGraph) degree(asn uint32) int {
+	start, end := g.neighborBounds(asn)
+	return end - start
+}
+
+func caidaNodeID(nodes map[uint32]uint32, degrees *[]int, asn uint32) uint32 {
+	id, ok := nodes[asn]
+	if !ok {
+		id = uint32(len(*degrees)) //nolint:gosec // nonzero uint32 ASNs limit the number of distinct nodes
+		nodes[asn] = id
+		*degrees = append(*degrees, 0)
+	}
+	(*degrees)[id]++
+	return id
 }
 
 func loadCAIDAGraph(dir string, manifest *Manifest) (*caidaGraph, DatasetFileStatus) {
-	graph := &caidaGraph{
-		neighbors: make(map[uint32][]ASRelation),
-	}
+	graph := &caidaGraph{}
 	status := DatasetFileStatus{
 		Key:       "caida_as_rel",
 		Filename:  "caida-as-rel2.txt.bz2",
@@ -106,34 +147,69 @@ func parseCAIDAEdges(graph *caidaGraph, chosenPath string, f io.Reader) (int, er
 
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, caidaScannerInitBytes), caidaScannerMaxBytes)
-	edges := 0
+	graph.nodes = make(map[uint32]uint32)
+	var degrees []int
+	var edges []caidaEdge
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		parts := strings.Split(line, "|")
-		if len(parts) < caidaMinEdgeFields {
+		left, rest, found := strings.Cut(line, "|")
+		if !found {
 			continue
 		}
-		as1, ok1 := parseASNNumber(parts[0])
-		as2, ok2 := parseASNNumber(parts[1])
-		rel, err := strconv.Atoi(strings.TrimSpace(parts[2]))
+		right, rest, found := strings.Cut(rest, "|")
+		if !found {
+			continue
+		}
+		kind, _, _ := strings.Cut(rest, "|")
+		as1, ok1 := parseASNNumber(left)
+		as2, ok2 := parseASNNumber(right)
+		rel, err := strconv.Atoi(strings.TrimSpace(kind))
 		if !ok1 || !ok2 || err != nil || as1 == 0 || as2 == 0 || as1 == as2 {
 			continue
 		}
+		var relation caidaRelation
 		switch rel {
 		case -1:
-			graph.neighbors[as1] = append(graph.neighbors[as1], ASRelation{PeerASN: as2, Relation: RelationCustomer})
-			graph.neighbors[as2] = append(graph.neighbors[as2], ASRelation{PeerASN: as1, Relation: RelationProvider})
-			edges++
+			relation = caidaCustomer
 		case 0:
-			graph.neighbors[as1] = append(graph.neighbors[as1], ASRelation{PeerASN: as2, Relation: RelationPeer})
-			graph.neighbors[as2] = append(graph.neighbors[as2], ASRelation{PeerASN: as1, Relation: RelationPeer})
-			edges++
+			relation = caidaPeer
+		default:
+			continue
 		}
+		edges = append(edges, caidaEdge{
+			from:     caidaNodeID(graph.nodes, &degrees, as1),
+			to:       caidaNodeID(graph.nodes, &degrees, as2),
+			relation: relation,
+		})
 	}
-	return edges, scanner.Err()
+
+	graph.offsets = make([]int, len(degrees)+1)
+	for i, degree := range degrees {
+		graph.offsets[i+1] = graph.offsets[i] + degree
+	}
+	asns := make([]uint32, len(degrees))
+	for asn, id := range graph.nodes {
+		asns[id] = asn
+	}
+	graph.peers = make([]uint32, graph.offsets[len(degrees)])
+	graph.relations = make([]caidaRelation, len(graph.peers))
+	// Reuse the degree counts as write cursors and keep source order within each ASN.
+	copy(degrees, graph.offsets)
+	for _, edge := range edges {
+		from, to := degrees[edge.from], degrees[edge.to]
+		graph.peers[from] = asns[edge.to]
+		graph.peers[to] = asns[edge.from]
+		graph.relations[from], graph.relations[to] = edge.relation, caidaPeer
+		if edge.relation == caidaCustomer {
+			graph.relations[to] = caidaProvider
+		}
+		degrees[edge.from]++
+		degrees[edge.to]++
+	}
+	return len(edges), scanner.Err()
 }
 
 func (g *caidaGraph) estimatePath(srcASN, dstASN uint32, extraAdj map[uint32][]uint32) (int, []uint32, bool) {
@@ -178,8 +254,9 @@ func (g *caidaGraph) estimatePath(srcASN, dstASN uint32, extraAdj map[uint32][]u
 			}
 		}
 		if g != nil {
-			for _, rel := range g.neighbors[cur.asn] {
-				if visit(rel.PeerASN) {
+			start, end := g.neighborBounds(cur.asn)
+			for _, peer := range g.peers[start:end] {
+				if visit(peer) {
 					return nextDepth, reconstructPath(parent, srcASN, dstASN), true
 				}
 			}

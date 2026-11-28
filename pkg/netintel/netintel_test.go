@@ -110,7 +110,7 @@ func TestCAIDABzip2ParsingAndPath(t *testing.T) {
 		t.Skip("bzip2 binary not installed in environment; skipping bz2 generation check")
 	}
 	dir := t.TempDir()
-	txt := "# comment\n174|13335|-1\n4134|174|0\n"
+	txt := "# comment\n174|13335|-1|source\n4134|174|0\n4134|3356|0\n3356|13335|-1\n"
 	txtPath := filepath.Join(dir, "caida-as-rel2.txt")
 	if err := os.WriteFile(txtPath, []byte(txt), 0o600); err != nil {
 		t.Fatalf("write caida txt: %v", err)
@@ -124,12 +124,20 @@ func TestCAIDABzip2ParsingAndPath(t *testing.T) {
 		t.Fatalf("LoadFromDir: %v", err)
 	}
 	neighbors := mgr.LookupASNeighbors(174, 10)
-	if len(neighbors) != 2 {
-		t.Fatalf("expected 2 neighbors for AS174, got %+v", neighbors)
+	if len(neighbors) != 2 || neighbors[0].PeerASN != 13335 || neighbors[0].Relation != RelationCustomer ||
+		neighbors[1].PeerASN != 4134 || neighbors[1].Relation != RelationPeer {
+		t.Fatalf("unexpected ordered neighbors for AS174: %+v", neighbors)
+	}
+	if peers := mgr.LookupASNeighbors(13335, 1); len(peers) != 1 || peers[0].PeerASN != 174 || peers[0].Relation != RelationProvider {
+		t.Fatalf("unexpected reverse provider relationship: %+v", peers)
 	}
 	hops, path, ok := mgr.EstimateASPath(4134, 13335, nil)
-	if !ok || hops != 2 || len(path) != 3 {
+	if !ok || hops != 2 || len(path) != 3 || path[1] != 174 {
 		t.Fatalf("unexpected CAIDA path: ok=%v hops=%d path=%v", ok, hops, path)
+	}
+	hops, path, ok = mgr.EstimateASPath(4134, 13335, map[uint32][]uint32{4134: {3356}})
+	if !ok || hops != 2 || len(path) != 3 || path[1] != 3356 {
+		t.Fatalf("expected observed edge to take priority: ok=%v hops=%d path=%v", ok, hops, path)
 	}
 }
 

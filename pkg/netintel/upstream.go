@@ -121,7 +121,7 @@ func (m *Manager) LookupASUpstreamPaths(originASN uint32, maxDepth, maxDirect in
 	if s == nil || s.caida == nil || originASN == 0 {
 		return nil
 	}
-	if len(s.caida.neighbors[originASN]) == 0 {
+	if s.caida.degree(originASN) == 0 {
 		return nil
 	}
 	if maxDepth <= 0 {
@@ -135,7 +135,7 @@ func (m *Manager) LookupASUpstreamPaths(originASN uint32, maxDepth, maxDirect in
 		return extractTier1OriginPaths(s.caida, originASN, maxDirect)
 	}
 
-	directProviders := collectSortedCAIDARelatedASNs(s.caida, originASN, maxDirect, false, RelationProvider)
+	directProviders := collectSortedCAIDARelatedASNs(s.caida, originASN, maxDirect, false, caidaProvider)
 	if len(directProviders) == 0 {
 		return nil
 	}
@@ -155,7 +155,7 @@ func (m *Manager) LookupASUpstreamPaths(originASN uint32, maxDepth, maxDirect in
 }
 
 func extractTier1OriginPaths(graph *caidaGraph, originASN uint32, maxDirect int) [][]uint32 {
-	peers := collectSortedCAIDARelatedASNs(graph, originASN, maxDirect, true, RelationPeer)
+	peers := collectSortedCAIDARelatedASNs(graph, originASN, maxDirect, true, caidaPeer)
 	if len(peers) == 0 {
 		return nil
 	}
@@ -167,27 +167,29 @@ func extractTier1OriginPaths(graph *caidaGraph, originASN uint32, maxDirect int)
 }
 
 func collectTier1Interconnects(graph *caidaGraph, originASN, tier1Provider uint32) []uint32 {
-	raw := graph.neighbors[tier1Provider]
+	start, end := graph.neighborBounds(tier1Provider)
+	raw := graph.peers[start:end]
 	seen := make(map[uint32]struct{}, len(raw))
 	candidates := make([]uint32, 0)
-	for _, rel := range raw {
-		if rel.PeerASN == 0 || rel.PeerASN == originASN || rel.PeerASN == tier1Provider {
+	for i, peer := range raw {
+		if peer == 0 || peer == originASN || peer == tier1Provider {
 			continue
 		}
-		if rel.Relation != RelationPeer && rel.Relation != RelationProvider {
+		relation := graph.relations[start+i]
+		if relation != caidaPeer && relation != caidaProvider {
 			continue
 		}
-		if !IsTier1ASN(rel.PeerASN) {
+		if !IsTier1ASN(peer) {
 			continue
 		}
-		if _, ok := seen[rel.PeerASN]; ok {
+		if _, ok := seen[peer]; ok {
 			continue
 		}
-		seen[rel.PeerASN] = struct{}{}
-		candidates = append(candidates, rel.PeerASN)
+		seen[peer] = struct{}{}
+		candidates = append(candidates, peer)
 	}
 	sort.Slice(candidates, func(i, j int) bool {
-		di, dj := len(graph.neighbors[candidates[i]]), len(graph.neighbors[candidates[j]])
+		di, dj := graph.degree(candidates[i]), graph.degree(candidates[j])
 		if di != dj {
 			return di > dj
 		}
@@ -203,7 +205,7 @@ func walkCAIDAUpstreamToTier1(graph *caidaGraph, originASN, firstHop uint32, max
 	if maxDepth < minTwoHopDepth {
 		return [][]uint32{{originASN, firstHop}}
 	}
-	secondHops := collectSortedCAIDARelatedASNs(graph, firstHop, maxUpstreamHopProviders, false, RelationProvider)
+	secondHops := collectSortedCAIDARelatedASNs(graph, firstHop, maxUpstreamHopProviders, false, caidaProvider)
 	if len(secondHops) == 0 {
 		return [][]uint32{{originASN, firstHop}}
 	}
@@ -217,7 +219,7 @@ func walkCAIDAUpstreamToTier1(graph *caidaGraph, originASN, firstHop uint32, max
 			paths = append(paths, []uint32{originASN, firstHop, h2})
 			continue
 		}
-		thirdHops := collectSortedCAIDARelatedASNs(graph, h2, maxUpstreamHopProviders, false, RelationProvider)
+		thirdHops := collectSortedCAIDARelatedASNs(graph, h2, maxUpstreamHopProviders, false, caidaProvider)
 		added := false
 		for _, h3 := range thirdHops {
 			if h3 == originASN || h3 == firstHop || h3 == h2 {
@@ -241,30 +243,31 @@ func collectSortedCAIDARelatedASNs(
 	asn uint32,
 	limit int,
 	tier1Only bool,
-	relation string,
+	relation caidaRelation,
 ) []uint32 {
-	raw := graph.neighbors[asn]
+	start, end := graph.neighborBounds(asn)
+	raw := graph.peers[start:end]
 	seen := make(map[uint32]struct{}, len(raw))
 	out := make([]uint32, 0)
-	for _, rel := range raw {
-		if rel.PeerASN == 0 || rel.PeerASN == asn || rel.Relation != relation {
+	for i, peer := range raw {
+		if peer == 0 || peer == asn || graph.relations[start+i] != relation {
 			continue
 		}
-		if tier1Only && !IsTier1ASN(rel.PeerASN) {
+		if tier1Only && !IsTier1ASN(peer) {
 			continue
 		}
-		if _, ok := seen[rel.PeerASN]; ok {
+		if _, ok := seen[peer]; ok {
 			continue
 		}
-		seen[rel.PeerASN] = struct{}{}
-		out = append(out, rel.PeerASN)
+		seen[peer] = struct{}{}
+		out = append(out, peer)
 	}
 	sort.Slice(out, func(i, j int) bool {
 		t1i, t1j := IsTier1ASN(out[i]), IsTier1ASN(out[j])
 		if t1i != t1j {
 			return t1i
 		}
-		di, dj := len(graph.neighbors[out[i]]), len(graph.neighbors[out[j]])
+		di, dj := graph.degree(out[i]), graph.degree(out[j])
 		if di != dj {
 			return di > dj
 		}
@@ -312,18 +315,19 @@ func (m *Manager) ExtractASUpstreamProfile(asn uint32) ASUpstreamProfile {
 			prof.Tags = append([]string(nil), tags...)
 		}
 	}
-	if s.caida != nil && len(s.caida.neighbors[asn]) > 0 {
-		prof.DirectProviders = collectSortedCAIDARelatedASNs(s.caida, asn, defaultUpstreamMaxDirect, false, RelationProvider)
-		neighSeen := make(map[uint32]struct{}, len(s.caida.neighbors[asn]))
-		for _, rel := range s.caida.neighbors[asn] {
-			if rel.PeerASN == 0 || rel.PeerASN == asn {
+	if start, end := s.caida.neighborBounds(asn); start != end {
+		prof.DirectProviders = collectSortedCAIDARelatedASNs(s.caida, asn, defaultUpstreamMaxDirect, false, caidaProvider)
+		peers := s.caida.peers[start:end]
+		neighSeen := make(map[uint32]struct{}, len(peers))
+		for _, peer := range peers {
+			if peer == 0 || peer == asn {
 				continue
 			}
-			if _, ok := neighSeen[rel.PeerASN]; ok {
+			if _, ok := neighSeen[peer]; ok {
 				continue
 			}
-			neighSeen[rel.PeerASN] = struct{}{}
-			prof.Neighbors = append(prof.Neighbors, rel.PeerASN)
+			neighSeen[peer] = struct{}{}
+			prof.Neighbors = append(prof.Neighbors, peer)
 		}
 		sort.Slice(prof.Neighbors, func(i, j int) bool { return prof.Neighbors[i] < prof.Neighbors[j] })
 	}

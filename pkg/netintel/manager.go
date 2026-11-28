@@ -34,7 +34,7 @@ func NewManager() *Manager {
 	m := &Manager{}
 	m.snap.Store(&Snapshot{
 		bgp:   &bgpToolsIndex{asns: map[uint32]asnMeta{}, tags: map[uint32][]string{}, v6Buckets: map[int]map[[16]byte]prefixPayload{}, asnPrefixes: map[uint32][]PrefixRecord{}},
-		caida: &caidaGraph{neighbors: map[uint32][]ASRelation{}},
+		caida: &caidaGraph{},
 	})
 	return m
 }
@@ -188,8 +188,8 @@ func (m *Manager) LookupASN(asn uint32) *ASNInfo {
 	meta, hasMeta := s.bgp.asns[asn]
 	prefixes := s.bgp.asnPrefixes[asn]
 	tags := s.bgp.tags[asn]
-	neighbors := s.caida.neighbors[asn]
-	if !hasMeta && len(prefixes) == 0 && len(tags) == 0 && len(neighbors) == 0 {
+	neighborCount := s.caida.degree(asn)
+	if !hasMeta && len(prefixes) == 0 && len(tags) == 0 && neighborCount == 0 {
 		return nil
 	}
 
@@ -212,7 +212,7 @@ func (m *Manager) LookupASN(asn uint32) *ASNInfo {
 		Tags:         copiedTags,
 		IPv4Prefixes: v4Count,
 		IPv6Prefixes: v6Count,
-		NeighborCnt:  len(neighbors),
+		NeighborCnt:  neighborCount,
 	}
 }
 
@@ -262,7 +262,8 @@ func (m *Manager) LookupASNeighbors(asn uint32, limit int) []ASRelation {
 	if s == nil || asn == 0 {
 		return nil
 	}
-	raw := s.caida.neighbors[asn]
+	start, end := s.caida.neighborBounds(asn)
+	raw := s.caida.peers[start:end]
 	if len(raw) == 0 {
 		return []ASRelation{}
 	}
@@ -270,16 +271,16 @@ func (m *Manager) LookupASNeighbors(asn uint32, limit int) []ASRelation {
 		limit = len(raw)
 	}
 	out := make([]ASRelation, 0, limit)
-	for _, item := range raw[:limit] {
-		meta := s.bgp.asns[item.PeerASN]
+	for i, peer := range raw[:limit] {
+		meta := s.bgp.asns[peer]
 		rel := ASRelation{
-			PeerASN:     item.PeerASN,
+			PeerASN:     peer,
 			PeerName:    meta.Name,
 			PeerCountry: meta.Country,
 			PeerClass:   meta.Class,
-			Relation:    item.Relation,
+			Relation:    caidaRelationNames[s.caida.relations[start+i]],
 		}
-		if tags := s.bgp.tags[item.PeerASN]; len(tags) > 0 {
+		if tags := s.bgp.tags[peer]; len(tags) > 0 {
 			rel.Tags = append([]string(nil), tags...)
 		}
 		out = append(out, rel)
