@@ -264,13 +264,16 @@ fn build_query_packet(id: u16, fqdn: &str, client_v4: Ipv4Addr) -> Result<Vec<u8
     Ok(buf)
 }
 
-async fn blast_udp(
+async fn run_udp_workers<F>(
     addr: SocketAddr,
     packets: Arc<Vec<Vec<u8>>>,
-    total_queries: usize,
     concurrency: usize,
-) -> Result<Duration> {
-    let remaining = Arc::new(AtomicUsize::new(total_queries));
+    next_index: F,
+) -> Result<Duration>
+where
+    F: Fn(usize, &mut usize) -> Option<usize> + Send + Sync + 'static,
+{
+    let next_index = Arc::new(next_index);
     let mut handles = Vec::with_capacity(concurrency);
     let start = Instant::now();
 
@@ -278,19 +281,12 @@ async fn blast_udp(
         let sock = UdpSocket::bind("127.0.0.1:0").await?;
         sock.connect(addr).await?;
         let packets = packets.clone();
-        let remaining = remaining.clone();
+        let next_index = next_index.clone();
         handles.push(tokio::spawn(async move {
             let mut recv_buf = [0u8; 512];
             let mut seq = worker_id;
-            loop {
-                let prev = remaining.fetch_sub(1, Ordering::Relaxed);
-                if prev == 0 || prev > total_queries {
-                    // Restore if underflow occurred across threads before checking.
-                    break;
-                }
-                let pkt = &packets[seq % packets.len()];
-                seq = seq.wrapping_add(1);
-                sock.send(pkt).await?;
+            while let Some(idx) = next_index(packets.len(), &mut seq) {
+                sock.send(&packets[idx]).await?;
                 tokio::time::timeout(Duration::from_secs(2), sock.recv(&mut recv_buf))
                     .await
                     .context("UDP bench recv timeout")??;
@@ -303,6 +299,36 @@ async fn blast_udp(
         handle.await.context("bench worker join")??;
     }
     Ok(start.elapsed())
+}
+
+/// Prime each unique packet once across workers so warmup avoids cold-key stampedes.
+async fn prime_udp(addr: SocketAddr, packets: Arc<Vec<Vec<u8>>>, concurrency: usize) -> Result<()> {
+    let next = AtomicUsize::new(0);
+    run_udp_workers(addr, packets, concurrency, move |len, _| {
+        let idx = next.fetch_add(1, Ordering::Relaxed);
+        (idx < len).then_some(idx)
+    })
+    .await?;
+    Ok(())
+}
+
+async fn blast_udp(
+    addr: SocketAddr,
+    packets: Arc<Vec<Vec<u8>>>,
+    total_queries: usize,
+    concurrency: usize,
+) -> Result<Duration> {
+    let remaining = AtomicUsize::new(total_queries);
+    run_udp_workers(addr, packets, concurrency, move |len, seq| {
+        let prev = remaining.fetch_sub(1, Ordering::Relaxed);
+        if prev == 0 || prev > total_queries {
+            return None;
+        }
+        let idx = *seq % len;
+        *seq = seq.wrapping_add(1);
+        Some(idx)
+    })
+    .await
 }
 
 pub async fn run_bench(args: BenchArgs) -> Result<()> {
@@ -349,6 +375,7 @@ pub async fn run_bench(args: BenchArgs) -> Result<()> {
     let mut sdns_server = Server::new(sdns_handler);
     sdns_server.register_socket(sdns_sock);
 
+    prime_udp(sdns_addr, packets.clone(), concurrency.min(16)).await?;
     blast_udp(sdns_addr, packets.clone(), 256, concurrency.min(16)).await?;
     let sdns_elapsed = blast_udp(sdns_addr, packets.clone(), queries, concurrency).await?;
     sdns_server.shutdown_gracefully().await?;

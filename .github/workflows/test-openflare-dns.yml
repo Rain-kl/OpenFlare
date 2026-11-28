@@ -87,4 +87,4 @@ jobs:
             echo "unexpected binary version: $actual_version" >&2
             exit 1
           }
-          "$binary" bench --queries 200 --concurrency 4
+          "$binary" bench --queries 1000 --concurrency 4
