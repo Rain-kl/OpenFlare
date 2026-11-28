@@ -59,13 +59,14 @@ Intended for web dashboard operations and interactive user interfaces.
 - **Cookie structure**: Upon successful login, the server sets a session cookie named according to `app.session_cookie_name` (default: `openflare_session_id`).
 - **TTL**: Governed by `app.session_age` (default: 86400 seconds) or the system setting `login_session_ttl_hours`.
 
-### 3. Edge Node Protocol Credentials
+### 3. Data-Plane & Daemon Protocol Credentials
 
-OpenFlare Edge nodes, Relay nodes, and OpenFlared tunnel clients authenticate with the control plane using dedicated credentials:
+`openflare-edge`, `openflare-dns`, `openflare-relay`, and `openflared` authenticate with dedicated tokens and headers:
 
-- **Discovery Token**: A global token used for initial node registration, governed by the system setting `agent_discovery_token`.
-- **Node Agent Token**: A node-specific credential issued by the control plane upon registration, used for heartbeat reporting and configuration pull.
-- **Tunnel Token**: A dedicated token used by OpenFlared to authenticate tunnel sessions.
+- **Edge Node Credentials (`X-Agent-Token`)**: `POST /api/v1/agent/nodes/register` accepts the global `agent_discovery_token` for new nodes or a per-node token for re-registration; runtime polling, reporting, and WebSockets use the node token.
+- **SmartDNS Credentials (`X-DNS-Discovery-Token` / `X-DNS-Token`)**: Standalone `openflare-dns` registers with `X-DNS-Discovery-Token`, then uses `X-DNS-Token` for snapshots and heartbeats.
+- **Relay Credentials (`X-Relay-Bootstrap-Token` / `X-Relay-Token`)**: `openflare-relay` registers with `X-Relay-Bootstrap-Token`, then authenticates runtime requests via `X-Relay-Token`.
+- **Tunnel Credentials (`X-Tunnel-Token`)**: `openflared` authenticates control-plane polling and WebSockets with its tunnel token.
 
 ---
 
@@ -174,22 +175,29 @@ OpenFlare control plane endpoints are organized into clean functional groups:
 | Zones | `/api/v1/d/zones` | Zone management, DNS records, and Cloudflare DNS sync |
 | Origins | `/api/v1/d/origins` | Upstream origin server pools and health check probe settings |
 | Proxy Routes | `/api/v1/d/proxy-routes` | Reverse proxy routing rules and load-balancing policies |
-| Edge Nodes | `/api/v1/d/nodes` | OpenFlare Edge node inventory, health metrics, and restart triggers |
+| Edge Nodes | `/api/v1/d/nodes` | OpenFlare Edge node inventory, health metrics, restarts, and log streams |
 | Performance Policies | `/api/v1/d/performance/policies` | Edge runtime, upstream pools, HTTP/2, and caching templates |
-| WAF Protection | `/api/v1/d/waf` | WAF rulesets, attack detection modes (CRS), and IP group policies |
-| PoW Captcha | `/api/v1/d/pow` | Proof-of-Work challenge configurations and protection triggers |
-| Pages Static Sites | `/api/v1/d/pages` | Static site projects, package uploads (`.zip` / `.tar.gz`), and history |
+| Multi-Provider DNS & Pointing | `/api/v1/d/dns-accounts`, `/api/v1/d/cloudflare` | Cloudflare / AliDNS / Tencent Cloud accounts, records, and failover |
+| SmartDNS | `/api/v1/d/smartdns` | Delegated zones, instance health, and routing policies |
+| Tunnels | `/api/v1/d/tunnels` | Relay pools, relay PoPs, connectors, and L4 services |
+| Network Tools | `/api/v1/d/network-tools` | GeoIP lookup, active probes, latency matrix, and network groups |
+| WAF Protection | `/api/v1/d/waf` | WAF flows, CRS rule groups, and IP groups |
+| PoW Captcha | `/api/v1/d/pow` | Proof-of-Work challenge configurations and custom response pages |
+| Pages Static Sites | `/api/v1/d/pages` | Static site projects, archive uploads, and deployment history |
 | TLS Certificates | `/api/v1/d/certificates` | SSL/TLS certificate management and automated ACME renewal |
 
-### 4. Edge Communication Routes (`/api/v1/agent/*`, `/api/v1/relay/*`, `/api/v1/tunnel/*`)
+### 4. Data-Plane & Daemon Routes
 
-| Route | Protocol | Auth Type | Description |
+| Route | Protocol | Auth Header | Description |
 | --- | --- | --- | --- |
-| `/api/v1/agent/nodes/register` | HTTP POST | Discovery Token | Automated node registration |
-| `/api/v1/agent/nodes/heartbeat` | HTTP POST | Node Agent Token | Periodic health metrics reporting |
-| `/api/v1/agent/ws` | WebSocket | Node Agent Token | Persistent control plane channel for snapshot push |
-| `/api/v1/relay/ws` | WebSocket | Relay Agent Token | Relay node stream control |
-| `/api/v1/tunnel/ws` | WebSocket | Tunnel Token | Tunnel client daemon synchronization |
+| `/api/v1/agent/nodes/register` | HTTP POST | `X-Agent-Token` | Edge node registration (discovery token or existing node token) |
+| `/api/v1/agent/nodes/heartbeat` | HTTP POST | `X-Agent-Token` | Edge node status and health metrics reporting |
+| `/api/v1/agent/ws` | WebSocket | `X-Agent-Token` | Persistent control channel for snapshot push and commands |
+| `/api/v1/dns-agent/register` | HTTP POST | `X-DNS-Discovery-Token` | Standalone SmartDNS instance registration |
+| `/api/v1/dns-agent/heartbeat`, `/snapshot`, `/ws` | HTTP / WS | `X-DNS-Token` | SmartDNS heartbeat, immutable binary snapshot pull, and control stream |
+| `/api/v1/relay/register` | HTTP POST | `X-Relay-Bootstrap-Token` | Relay PoP initial registration |
+| `/api/v1/relay/heartbeat`, `/config`, `/ws` | HTTP / WS | `X-Relay-Token` | Relay health reporting, config pull, and control channel |
+| `/api/v1/tunnel/heartbeat`, `/config`, `/attachments`, `/ws` | HTTP / WS | `X-Tunnel-Token` | Connector heartbeat, tunnel sync, and relay attachments |
 
 ---
 
@@ -221,10 +229,16 @@ Response example:
 ### 2. Query Edge Nodes with Pagination
 
 ```bash
-curl -fsSL -X GET "https://panel.example.com/api/v1/d/nodes?page=1&page_size=10" \
+curl -fsSL -X GET "https://panel.example.com/api/v1/d/nodes/page?page=1&page_size=50&include_monitoring=true" \
   -H "Authorization: Bearer of_pat_9a8b7c6d5e4f3a2b1c" \
   -H "Accept: application/json"
 ```
+
+Passing `include_monitoring=true` attaches `monitoring` per node (OS info, latest 5-minute resource snapshot `metric`, and recent ping samples for up to 3 bound probes; sets `monitoring_unavailable` on partial telemetry unavailability).
+
+#### Real-Time Runtime Logs (`GET /api/v1/d/nodes/{id}/runtime-logs`)
+
+Requires admin privileges and streams `text/event-stream` events (`ready`, `logs` with `lines` and optional `dropped` count, and `closed`); returns HTTP `503` when the node is offline or unsupported. Disable response buffering on reverse proxies for SSE pass-through.
 
 ### 3. Create a Reverse Proxy Route
 
@@ -245,6 +259,6 @@ curl -fsSL -X POST "https://panel.example.com/api/v1/d/proxy-routes" \
 
 ## Related Documentation
 
-- [Configuration Reference](./configuration.md): Server, Agent, and Edge node parameters
+- [Configuration Reference](./configuration.md): Server, Edge, SmartDNS, and tunnel parameters
 - [Commands & Scripts Reference](./cli.md): Makefile targets, CLI flags, and build scripts
 - [Architecture Design](../design/architecture.md): Control-plane and data-plane communication models

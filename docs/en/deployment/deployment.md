@@ -1,109 +1,44 @@
-# Architecture & Deployment Notes
+# Deployment planning & baselines
 
-OpenFlare uses a decoupled architecture separating the control plane from the data plane. Production environments should use PostgreSQL as the primary database for the Server, with `APP_SESSION_SECRET` configured via configuration files or environment variables. Redis is required to drive the Asynq background task system; for high-volume access logs and metrics, ClickHouse can be integrated (see [Log Store Decoupling](../design/logstore.md)). The edge gateway (OpenFlare Edge) is built on OpenFlare Edge, running a resilient dual-process architecture.
+OpenFlare separates its control plane from its data plane. For network traffic flows across components, see [System Architecture](../design/architecture.md).
 
-## Network Topology and Traffic Paths
+## Runtime dependencies
 
-### 1. Standard Reverse Proxy Traffic Path
+- **Redis / Valkey (required)**: Required in all deployment modes for Asynq queues, cache invalidation, and multi-replica broadcasts.
+- **Primary database**: Supports embedded SQLite for evaluation or single-host setups, and PostgreSQL for production workloads.
+- **ClickHouse (optional)**: Offloads high-volume access logs and telemetry; falls back to the primary database when disabled (see [Log Store Decoupling](../design/logstore.md)).
+- **Session secret**: Set a long random `APP_SESSION_SECRET` (at least 32 bytes for MCP) before exposing the Server.
 
-Control plane and data plane traffic are isolated: user client requests flow directly to the OpenFlare Edge gateway, while the Server only distributes configuration snapshots and collects telemetry.
+## Network port matrix
 
-```text
-[Control Plane Flow]
-OpenFlare Server (Control plane, listens on :3000)
-       ^
-       | Periodic snapshot pull / Heartbeat / Log telemetry (HTTPS)
-       v
-OpenFlare Edge (Data plane gateway)
-
-[Data Plane Flow]
-User Client / Browser
-       |
-       v Inbound request (TCP 80 / 443)
-OpenFlare Edge (OpenFlare Edge: TLS termination, WAF filtering, caching, Pages hosting)
-       |
-       v Reverse proxy origin fetch (HTTP / HTTPS)
-Origin Service
-```
-
-### 2. Intranet Penetration Traffic Path
-
-Intranet penetration operates across the edge gateway, a public relay host, and the intranet client:
-
-```text
-[Control Plane Flow]
-OpenFlare Server (Control plane)
-    ^                             ^
-    | Config sync & heartbeat      | Tunnel token validation & heartbeat
-    v                             v
-Relay Node (frps supervisor)    OpenFlared (Intranet client)
-
-[Data Plane Flow]
-User Client / Browser
-    |
-    v Public access (TCP 80 / 443)
-OpenFlare Edge (OpenFlare Edge: Host routing, WAF evaluation, TLS termination)
-    |
-    v Local loopback forward (127.0.0.1:{vhostHTTPPort})
-OpenFlare Relay (frps daemon, listens on public relay port :7000)
-    |
-    | Encrypted FRP Tunnel (outbound connection from client)
-    v
-OpenFlared Client (frpc daemon, runs on private host)
-    |
-    v LAN forwarding (Internal IP / port)
-Internal Service (192.168.x.x)
-```
-
-## Hardware Baseline
-
-| Component | Entry Level | Production Recommended | Notes |
+| Component | Ports and protocols | Exposure | Purpose |
 | --- | --- | --- | --- |
-| **Server Control Plane** | 1 core CPU / 2 GB RAM / 20 GB disk | 2 cores CPU / 4 GB RAM / 50 GB+ disk | Scale disk capacity based on log retention policies and metric volume |
-| **Edge Gateway** | 1 core CPU / 512 MB RAM / 2 GB disk | 2 cores CPU / 2 GB RAM / 10 GB+ disk | Scale by OpenFlare Edge concurrent proxy connections, TLS handshakes, and WAF rules |
-| **OpenFlare DNS (SmartDNS)** | 1 core CPU / 256 MB RAM / 1 GB disk | 2 cores CPU / 512 MB RAM / 5 GB disk | Lightweight standalone authoritative DNS server with offline snapshot failover |
-| **Relay Node** | 1 core CPU / 1 GB RAM / 5 GB disk | 2 cores CPU / 2 GB RAM / 20 GB disk | frps throughput is bounded by network bandwidth and TCP socket limits |
-| **OpenFlared Client** | 1 core CPU / 256 MB RAM / 1 GB disk | 1 core CPU / 512 MB RAM / 5 GB disk | Runs on private host; minimal CPU/RAM overhead, depends on local network capacity |
+| OpenFlare Server | `3000/tcp` | Inbound (admin UI and nodes) | Console UI, Admin API, and node endpoints (configurable via `APP_ADDR`) |
+| PostgreSQL | `5432/tcp` | Internal to Server | Primary relational database |
+| Redis / Valkey | `6379/tcp` | Internal to Server | Asynq queues and cross-instance pub/sub |
+| ClickHouse (optional) | `9000/tcp`, `8123/tcp` | Internal to Server | Analytical log and observability storage |
+| Jaeger (optional) | `16686/tcp`, `4317/tcp`, `4318/tcp` | `16686` internal UI; `4317`/`4318` from Server | OpenTelemetry trace ingestion and UI |
+| OpenFlare Edge | `80/tcp`, `443/tcp` | Public inbound (`8080`, `8443` in container) | HTTP and HTTPS/TLS entry listeners |
+| OpenFlare DNS | `53/udp`, `53/tcp` | Public inbound (`5353` in container) | Authoritative DNS query listener |
+| OpenFlare Relay | `7443/tcp`, `7444/tcp` | Public inbound (from `openflared`) | `rathole` Noise/TCP (`7443`) and WebSocket (`7444`) transports |
+| OpenFlare Relay | `8443/tcp` | Reachable by Edge and `openflared` | Relay HTTP/WS Gateway and `/_openflare/health` probes |
+| OpenFlare Relay (L4) | Per service | Public inbound | Assigned L4 TCP/UDP tunnel ports |
+| OpenFlared | No inbound ports | Outbound only | Connects to Server and healthy pool relays |
 
-## Quick Deployment Reference
+## Hardware baselines
 
-### Docker Compose Server Deployment
+| Component | Entry level | Production recommended | Notes |
+| --- | --- | --- | --- |
+| OpenFlare Server | 1 vCPU / 2 GB RAM / 20 GB disk | 2 vCPU / 4 GB RAM / 50 GB+ disk | Scale disk by database growth and log retention |
+| OpenFlare Edge | 1 vCPU / 512 MB RAM / 2 GB disk | 2 vCPU / 2 GB RAM / 10 GB+ disk | Scale by concurrent connections, TLS handshakes, WAF load, and disk cache |
+| OpenFlare DNS | 1 vCPU / 256 MB RAM / 1 GB disk | 2 vCPU / 512 MB RAM / 5 GB disk | Memory holds zone snapshots, answer cache, and GeoIP databases |
+| OpenFlare Relay | 1 vCPU / 1 GB RAM / 5 GB disk | 2 vCPU / 2 GB RAM / 20 GB disk | Throughput depends on network bandwidth and concurrent streams |
+| OpenFlared | 1 vCPU / 256 MB RAM / 1 GB disk | 1 vCPU / 512 MB RAM / 5 GB disk | Runs on private hosts with low overhead |
 
-The repository root includes a standard orchestration file `docker-compose.yaml` with PostgreSQL, Redis, ClickHouse, and Jaeger:
+## Component deployment guides
 
-```bash
-curl -o .env.example https://raw.githubusercontent.com/Rain-kl/OpenFlare/refs/heads/main/.env.example
-cp .env.example .env
-# Edit .env, configure APP_SESSION_SECRET and database passwords
-docker compose up -d
-docker compose ps
-docker compose logs -f openflare
-```
-
-Access `http://localhost:3000` in your browser. The default administrator credentials are `admin` / `12345678`. Change the password in the admin console immediately upon first login. For configuration details, see [Server Deployment](./server.md).
-
-### Source Build Server Startup
-
-To compile and execute from source:
-
-```bash
-# 1. Build embedded admin frontend static bundle
-cd frontend
-corepack enable
-pnpm install
-pnpm build:embed
-cd ..
-
-# 2. Prepare configuration and start server
-cp config.example.yaml config.yaml
-export APP_SESSION_SECRET='replace-with-a-long-random-string'
-go run ./cmd/server all
-```
-
-The server listens on port `:3000` by default (configurable via `app.addr` in `config.yaml` or `APP_ADDR`).
-
-### Deploying Edge, SmartDNS, and Tunnel Components
-
-- Edge gateway deployment: See [OpenFlare Edge Deployment](./openflare-edge.md) (system specifications, systemd security hardening, atomic updates) or [Edge Node Quick Access](./agent.md) (tokens and quick install flags).
-- Intelligent authoritative DNS deployment: See [OpenFlare DNS Deployment](./openflare-dns.md) (Linux one-step installation, Docker deployment, and remote upgrades).
-- Tunnel infrastructure deployment: See [Relay Deployment](./relay.md) and [OpenFlared Deployment](./openflared.md).
+- Control plane Compose stacks and source builds: [Server deployment](./server.md)
+- Edge proxy gateway: [Deploy OpenFlare Edge](./openflare-edge.md)
+- Standalone authoritative DNS: [Deploy OpenFlare DNS](./openflare-dns.md)
+- Tunnel relay and connector: [Deploy OpenFlare Relay](./relay.md), [Deploy OpenFlared](./openflared.md)
+- Upgrades and rollbacks: [Upgrades & maintenance](./upgrade.md)

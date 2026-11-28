@@ -1,127 +1,54 @@
-# 登录验证码设计 (Login CAPTCHA Integration)
+# 登录验证码设计 (Cap PoW 集成)
 
-本文档阐述在 OpenFlare 控制面中引入基于 Proof-of-Work (PoW) 与无感浏览器指纹特征的开源 CAPTCHA 方案 —— Cap，以防止对登录 API 进行暴力破解与爬虫撞库攻击的设计。
-
----
-
-## 1. 业务背景与产品范围
-
-### 背景与痛点
-OpenFlare 的登录端点 `/api/v1/user/login` 缺少用户维度的防护机制，攻击者可使用代理池对高权限账户（如 `root`）实施撞库和暴力破解。同时，标准的视觉验证码对登录页用户体验和无障碍不够友好。
-
-### 产品范围与技术选型
-* **技术选型**：Cap (Proof-of-Work 驱动的无感无图像验证码解决方案)。
-  - **核心原理**：客户端（Widget/网页）从服务器获取工作量证明 (PoW) 的难题，使用浏览器后台计算求解并将答案回传。服务器验证答案的正确性，完成人机识别。
-  - **优势**：无感、无图像验证、不依赖任何外部第三方 API 节点（私密）、包极小。
-* **接入范围**：控制面 Server 登录 API（`/api/v1/user/login`）以及前端登录页面。
-* **配置粒度**：支持管理员通过控制台 Option 表随时开启/关闭验证码（`cap_login_enabled`）。
+OpenFlare 控制面在用户登录端点集成开源工作量证明（PoW）人机验证组件 Cap，由浏览器后台计算 SHA-256 难题换取一次性凭证，在不依赖第三方图像验证码 API 的前提下防范针对 `admin` 等管理员账户的暴力破解与撞库请求。
 
 ---
 
-## 2. 系统架构与交互时序
+## 1. 产品边界与模块分工
 
-### 2.1 模块分工
-1. **Frontend (前端)**：
-   * 在登录页面引入 `cap-widget`（React 19 自定义元素）。
-   * 提交表单时，伴随提交由 Widget 求解出并得到的 `cap-token`。
-2. **Server (控制面后端)**：
-   * 暴露 `POST /api/cap/challenge` 接口，为客户端分发 PoW 难题和签名的 JWT Token。
-   * 暴露 `POST /api/cap/redeem` 接口，校验客户端提交的 PoW 解答并核发带有失效时间的登录凭证（Redeem Token）。
-   * 将 Redeem Token 与对应过期时间保存在内存缓存/Redis 缓存中。
-   * 在 `POST /api/v1/user/login` 接口中，若启用了验证码保护，先校验并消耗（单次失效）对应的 `cap-token`。
+* **配置开关**：管理员可通过系统设置项 `cap_login_enabled` 动态开启或关闭登录验证码校验。
+* **控制面后端（`internal/apps/cap/`、`pkg/cap/`）**：
+  * `POST /api/cap/challenge`：公开接口，签发带过期时间的难题 JWT（默认 `scope = "login"`）与难度参数 `{ c, s, d }`；
+  * `POST /api/cap/redeem`：校验解答与难题 JWT 签名，核销难题并向前端颁发一次性凭证 `token`（有效期写入 Redis 或内存 `Store`）；
+  * `POST /api/v1/user/login`：挂载 `cap.VerifyMiddleware(mgr, "login")` 中间件，当开启验证时读取请求头 `X-Cap-Token` 并执行单次消费校验，无效或已消费则拦截返回 `401 Unauthorized`。
+* **前端登录页**：按配置状态挂载 `cap-widget` Web Component 在 Worker 中无感求解，并在提交登录表单时附加 `X-Cap-Token` 请求头。
 
-### 2.2 验证流时序图
+---
+
+## 2. 验证流与防重放机制
+
 ```mermaid
 sequenceDiagram
     autonumber
     actor User as 用户
-    participant Browser as 浏览器 (前端 Web)
-    participant Server as OpenFlare Server (后端)
-    participant Cache as 内存/Redis 缓存
+    participant Browser as 浏览器 (Web)
+    participant Server as OpenFlare Server
+    participant Store as Redis / 内存 Store
 
-    User->>Browser: 打开登录页面
-    Browser->>Server: POST /api/cap/challenge (获取难题)
-    Server->>Browser: 返回 {challenge, token, expires} (JWT 格式)
-    Note over Browser: Widget 在后台(WASM/Worker)执行 PoW 难题计算
-    Browser->>Server: POST /api/cap/redeem (提交 solutions + token)
-    alt 校验 PoW 解答通过
-        Server->>Cache: 存储 Redeem Token (tokenKey:expires)
-        Server->>Browser: 返回 {success: true, token} (即 cap-token)
-    else 校验失败
-        Server->>Browser: 返回 {success: false, reason}
-    end
-    User->>Browser: 输入账号密码，点击登录
-    Browser->>Server: POST /api/v1/user/login (在 HTTP 请求头中携带 X-Cap-Token)
-    alt CapLoginEnabled = true
-        Server->>Server: Middleware (CapAuth) 校验并消费 X-Cap-Token
-        alt token 合法且未过期且未被消费
-            Server->>Server: c.Next() -> 执行常规登录逻辑 (密码 Bcrypt 校验)
-            Server->>Browser: 返回登录成功 (Session Cookie)
-        else token 无效或已被消费
-            Server->>Browser: 拦截并返回验证码错误 (401 Unauthorized)
+    User->>Browser: 打开登录页
+    Browser->>Server: POST /api/cap/challenge
+    Server-->>Browser: { challenge: {c, s, d}, token (JWT), expires }
+    Note over Browser: cap-widget 在后台 Worker 求解 PoW
+    Browser->>Server: POST /api/cap/redeem (token + solutions)
+    Server->>Store: 验证解答与 JWT 签名防重放，写入一次性 Redeem Token
+    Server-->>Browser: { success: true, token }
+    User->>Browser: 提交账号与密码
+    Browser->>Server: POST /api/v1/user/login (Header: X-Cap-Token)
+    alt cap_login_enabled = true
+        Server->>Store: VerifyMiddleware 原子读取并删除一次性凭证
+        alt 凭证有效
+            Server->>Server: 执行账号与密码校验，签发 Session
+        else 缺失、过期或已消费
+            Server-->>Browser: 401 Unauthorized
         end
-    else CapLoginEnabled = false
-        Server->>Server: c.Next() -> 执行常规登录逻辑
+    else cap_login_enabled = false
+        Server->>Server: 直接执行登录逻辑
     end
 ```
 
----
+### 安全机制说明
 
-## 3. 核心接口与数据模型
-
-### 3.1 接口定义
-
-#### 1. 获取难题 (GET/POST /api/cap/challenge)
-* **请求方式**：`POST`
-* **接口权限**：公开
-* **响应负载**（统一 API 信封，`data` 为业务载荷）：
-  ```json
-  {
-    "error_msg": "",
-    "data": {
-      "challenge": {
-        "c": 1,
-        "s": 32,
-        "d": 4
-      },
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "expires": 1717660800000
-    }
-  }
-  ```
-
-#### 2. 核销难题 (POST /api/cap/redeem)
-* **请求方式**：`POST`
-* **请求负载**：
-  ```json
-  {
-    "token": "challenge_jwt_token_here",
-    "solutions": [12345, 67890, 54321]
-  }
-  ```
-* **响应负载 (成功)**：
-  ```json
-  {
-    "success": true,
-    "token": "random_id:ver_token",
-    "expires": 1717661000000
-  }
-  ```
-
-#### 3. 登录接口 (POST /api/v1/user/login)
-* **请求负载保持不变**：
-  ```json
-  {
-    "username": "root",
-    "password": "your_password"
-  }
-  ```
-* **验证码载体**：放置于 HTTP Request Header `X-Cap-Token` 中。
-
----
-
-## 4. 重放攻击防护与安全性权衡
-1. **JWT 临时状态绑定**：难题在生成时就被签入 JWT payload，包含过期时间限制（10 分钟）。
-2. **Replay 拦截（Nonce 消耗）**：当客户端调用 `/redeem` 提交解答时，后端在缓存中标记该 JWT Signature 已使用。重复提交相同的解密包将返回 `already_redeemed`。
-3. **Redeem 一次性核销（单次失效）**：当客户端登录并提交 `cap-token` 时，后端在检验到合法性后立即从缓存中删除该 Key，防止黑客提取历史正确的 `cap-token` 进行重放登录。
-4. **验证机制无感化**：通过调整 `c (难题数)`、`d (难度)` 等参数平衡求解耗时与反爬强度，用户在后台静默解出，不打断登录流程。
+1. **难题时效绑定**：难题签名 JWT 内置过期时间戳，过期难题在 `/api/cap/redeem` 直接拒绝。
+2. **难题防重放（Non-reusable Challenge）**：提交解答兑换凭证时以签名摘要作为防重放键，禁止同一难题被重复兑换多个 `X-Cap-Token`。
+3. **登录凭证一次性消费（Single-use Token）**：`VerifyMiddleware` 采用原子读取并删除语义，凭证在首次校验后立即失效，防止截获历史 `X-Cap-Token` 重放撞库。
+4. **多实例一致性**：生产环境启用 Redis 时自动使用 `pkgcap.NewRedisStore(db.Redis)` 在多副本之间共享凭证状态，未配置 Redis 时回落本地内存缓存。

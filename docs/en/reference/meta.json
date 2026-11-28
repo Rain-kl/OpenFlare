@@ -6,6 +6,7 @@
     "configuration",
     "cli",
     "api",
-    "pingora-benchmark"
+    "pingora-benchmark",
+    "credits"
   ]
 }

@@ -1,190 +1,54 @@
-# 故障排查
+# 常见故障排查
 
-你会学到：如何按症状排查 OpenFlare Server、数据库、登录、OpenFlare Edge 和配置同步问题。
+按症状定位控制面、Edge 节点、证书、缓存、观测与隧道接入问题。
 
-排查时先确认问题发生在哪一层：浏览器、Server、数据库、OpenFlare Edge、源站或 DNS。节点收到 WebSocket 通知后会重新获取配置清单，也会通过周期心跳重新同步。
+## 快速定位表
 
-## 快速定位
+| 现象 | 首选排查点 |
+| :--- | :--- |
+| 节点始终离线 | Server 公网地址可达性、Token 状态、防火墙出站端口与 `/var/lib/openflare-edge/identity.json` |
+| 配置保存后 Edge 未更新 | 控制面日志、WebSocket 推送连通性，以及轮询同步周期 |
+| 访问返回 `502` / `504` | Edge 到源站的连通性、`Host` 头、协议匹配（HTTP/HTTPS）与超时设置 |
+| TLS 握手或浏览器证书警告 | 站点覆盖证书是否已绑定、ACME 验证路径可达性及源站验证模式 |
+| 静态或半静态资源不命中缓存 | 源站 `Cache-Control: no-store` / `Set-Cookie` 响应头，及节点缓存规则 |
+| 访问分析页面无数据 | Server 与 Edge 时间同步、节点异步日志发送与日志库写入状态 |
+| 重定向循环（Too many redirects） | 源站与 Edge 的 HTTPS 强制跳转冲突 |
 
-| 现象 | 先看哪里 |
-| --- | --- |
-| 管理端打不开 | Server 容器或进程日志、端口监听 |
-| 登录异常 | 默认账号、Session Cookie、Server 日志 |
-| 数据无法保存 | 数据库连接、SQLite 文件权限、PostgreSQL 健康状态 |
-| Agent 离线 | Agent 日志、Token、Server 地址、网络连通性 |
-| 保存后节点未更新 | 节点心跳、应用记录、控制端快照编译日志 |
-| OpenFlare Edge 配置应用失败 | 应用记录、Edge 日志、证书、源站地址、端口占用 |
-| 访问分析无数据 | 节点心跳、Edge 访问日志队列和控制端日志 |
-| 静态资源总不命中缓存 | 全局/站点缓存开关、策略扩展名、配置是否已发布、访问日志 `cache_status`、源站 Set-Cookie / Cache-Control |
+## 节点注册失败与离线
 
-## Server 无法启动
+1. 在节点主机测试到控制面地址的 HTTPS 连通性：`curl -I https://your-openflare-server.com/api/v1/health`。
+2. 核对 `/var/lib/openflare-edge/bootstrap-token` 与状态文件（`identity.json`、`ready.json`），必要时在 **节点管理** 检查是否被禁用或删除，并按 [OpenFlare Edge 部署](../deployment/openflare-edge.md) 检查服务日志。
+3. 若使用 Discovery Token 批量接入，确认节点网络出口与服务日志存在正常心跳。
 
-1. 查看日志：
+## 配置未同步到 Edge 节点
 
-```bash
-docker compose logs -n 200 openflare
-```
+- 控制面默认通过 `/api/v1/agent/ws` 推送变更；若反向代理位于控制面之前，须放行 WebSocket `Upgrade` / `Connection` 请求头。
+- 在 **节点管理** 对比节点 `current_version` 与目标版本，或使用 CLI `openflare node health` 检查 `config_sync` 是否为 `synced`。
 
-源码运行时查看终端输出。
+## 访问源站报 `502` / `504` 或重定向循环
 
-2. 检查端口占用：
-
-```bash
-lsof -i :3000
-```
-
-3. 如果使用 PostgreSQL，确认数据库健康：
-
-```bash
-docker compose ps postgres
-docker compose logs -n 100 postgres
-```
-
-4. 如果使用 SQLite，确认数据库文件目录可写：
-
-```bash
-ls -ld "$(dirname /path/to/openflare.db)"
-```
-
-常见原因：
-
-| 日志或现象 | 处理 |
-| --- | --- |
-| 数据库连接失败 | 检查 `DB_HOST`、`DB_PORT`、`DB_USERNAME`、`DB_PASSWORD`、`DB_NAME`、`DB_SSL_MODE` 是否一致 |
-| SQLite 无法创建文件 | 检查 `SQLITE_PATH` 所在目录是否存在且可写 |
-| 端口被占用 | 修改 `PORT` 或 `--port`，或停止占用端口的进程 |
-
-## 管理端打不开或空白
-
-1. 确认 Server 正在监听：
-
-```bash
-curl -I http://127.0.0.1:3000
-```
-
-2. 检查浏览器访问地址是否与反向代理配置一致。
-
-## 默认账号无法登录
-
-默认账号是 `admin` / `12345678`。首次登录后如果已经修改密码，应使用修改后的密码。
-
-排查步骤：
-
-1. 确认连接的是预期数据库，避免 `SQLITE_PATH` 或 `DB_HOST` / `DB_NAME` 指向了另一个环境。
-2. 查看 Server 日志中使用的是 `sqlite` 还是 `postgres`。
-3. 在浏览器开发者工具中确认管理端 API 请求已正确携带 Session Cookie。
-4. 清理浏览器缓存及 Cookie 后重新登录。
-
-### 应急重置管理员密码
-
-忘记 `admin` 账户密码时，使用 `reset-passwd` 命令重置（支持 SQLite 与 PostgreSQL）：
-
-```bash
-go run ./cmd/server reset-passwd --user admin --password your-new-password
-```
-
-若使用 SQLite，建议先停止 Server 进程再执行，避免数据库文件锁冲突。未指定 `--password` 时命令会生成随机密码并输出到终端。重置成功后请立即登录并修改密码。
-
-## Agent 无法注册或一直离线
-
-在 Agent 节点执行：
-
-```bash
-curl -I http://your-server:3000
-```
-
-查看 Agent 日志：
-
-```bash
-journalctl -u openflare-agent -n 200 --no-pager
-```
-
-检查配置文件：
-
-```bash
-sed -n '1,160p' /opt/openflare-agent/agent.json
-```
-
-重点确认：
-
-| 配置 | 说明 |
-| --- | --- |
-| `server_url` | 必须是 Agent 节点能访问的 Server 地址 |
-| `agent_token` / `discovery_token` | 至少填写一个 |
-| `heartbeat_interval` | 支持毫秒整数或 Go duration 字符串 |
-| `request_timeout` | 网络较慢时可适当增大 |
-
-如果日志提示 Token 无效，重新在管理端准备 Token 并更新 `agent.json`，然后重启：
-
-```bash
-systemctl restart openflare-agent
-```
-
-## 保存后节点未更新
-
-1. 确认站点已启用，且节点的最近心跳时间持续更新。
-2. 查看节点详情的「应用记录」。节点会报告候选配置的错误，并继续使用最后一份健康快照。
-3. 控制端无法编译时，查看控制端日志中的 `refresh live edge snapshot`，修正配置后保存。
-4. 节点环境修复后，可在节点详情执行「强制同步」。节点重启也会清除失败标记并重试最新修订。
-
-## OpenFlare Edge 配置应用失败
-
-使用 `systemctl status openflare-edge` 查看服务状态，并通过 `journalctl -u openflare-edge` 查看节点拉取、校验、应用和监听日志。节点的 `ready.json` 包含实际加载的站点版本和内容摘要。
-
-
-## HTTPS 不生效
-
-1. 确认证书已经上传或托管。
-2. 确认网站配置中对应域名已经绑定证书。
-3. 确认站点和证书绑定已保存。
-4. 查看应用记录是否成功。
-5. 用 `curl` 查看证书和状态码：
-
-```bash
-curl -Iv https://your-domain
-```
-
-没有绑定证书的域名不会被自动加入 HTTPS 配置，这是预期行为。
-
-## 访问分析没有数据
-
-1. 确认 `openflare-edge` 服务正在运行，且节点心跳正常。
-2. 检查节点日志是否有内存队列丢弃、批次落盘失败或心跳确认失败的告警。落盘失败时检查状态目录的写入权限和磁盘空间。
-3. 确认 Server 侧没有因数据库清理策略删除对应时间窗口数据。队列与磁盘保留上限见[访问日志写入](./performance-policies.md#访问日志写入)。
+- **协议与证书**：若源站使用自签 HTTPS 证书，关闭源站证书严格校验或配置可信 CA 链；确保负载均衡/Cloudflare 与 OpenFlare 之间未同时开启相互冲突的“强制 HTTPS 跳转”。
+- **Host 与连接池**：源站校验域名时保持原 `Host` 透传；若偶发上游断连超时，可在 [性能策略配置](./performance-policies.md) 调高读取超时或调整连接池复用。
 
 ## 边缘缓存命中率异常
 
-访问日志中缓存三态：**命中**（HIT/STALE/REVALIDATED/UPDATING）、**回源**（MISS/EXPIRED）、**未缓存**（BYPASS 或空，请求时未进入可缓存路径或响应未入库）。设计说明见 [边缘缓存策略设计](../design/edge-cache-design.md)。
+- **完全未命中**：确认已开启路由 **边缘缓存**；若源站返回 `Cache-Control: private`、`no-store` 或携带 `Set-Cookie`，Edge 将默认跳过缓存。
+- **频繁失效或串页**：检查是否配置了错误的 **强制刷新** 周期、忽略查询串开关，或未关闭对敏感动态接口的路径匹配。
 
-### 检查清单
+## 访问分析页面无数据
 
-1. 节点性能策略中的缓存开关已开启。
-2. 站点 **缓存** 已启用，策略与路径匹配（「标准静态资源」只覆盖内置扩展名，**不含** HTML/JSON；`.js.map` 的扩展名是 `map`，在默认表内）。  
-3. 对应节点的「应用记录」显示最新配置已成功应用。
-4. 请求方法为 **GET**（非 GET 一律不缓存）。  
-5. 源站未对目标 URL 返回 **`Set-Cookie`**（有则不会写入边缘）。  
-6. 源站未声明 **`Cache-Control: private` / `no-store`**（共享缓存不会存）。  
-7. 浏览器 DevTools「禁用缓存」只影响浏览器；边缘是否 HIT 看访问日志 `cache_status`，不要只看 Network 面板。
+- 检查控制面与 Edge 节点系统时间是否经 NTP 对齐；Edge 会将未实时送达的访问日志先缓冲在本地 spool，待链路恢复后重传（机制详见 [OpenFlare Edge 架构设计](../design/pingora-edge-design.md#53-访问日志缓冲与磁盘-spool)）。
+- 确认控制台访问日志查询后端（ClickHouse / PostgreSQL / SQLite）可用且无写入报错。
 
-### 常见误解
+## 管理员忘记密码与登录异常
 
-| 现象 | 说明 |
-| --- | --- |
-| `static` 下 `/api/foo` 或 `/index.html` 未缓存 | 预期行为（扩展名不在默认可缓存表） |
-| 策略为 `all` 后 HTML 被串用户 | 源站未禁止共享缓存；改回 `static` 或给动态响应加 `private`/`no-store` |
-| 带 `?v=` 的 URL 命中率低 | 默认缓存键含完整 `$request_uri`，query 不同即不同对象 |
-| 第一次 MISS、第二次仍 MISS | 查源站是否每次 `Set-Cookie`、是否 `private`，或节点磁盘/缓存 inactive 过短 |
+- **重置管理员密码**（在 Server 主机或容器内执行交互式命令）：
 
-### 期望行为（对齐 Cloudflare 默认）
+```sh
+./bin/openflare-server reset-passwd
+# Docker Compose 环境：
+docker compose exec openflare openflare-server reset-passwd
+```
 
-* 带登录 Cookie 的用户访问 `/_app/**/*.js` 等静态资源：**可以 HIT**。  
-* 响应带 `Set-Cookie` 或 `private`：**不入库**。  
-* 无源站缓存头的可缓存状态码：使用默认 Edge TTL（如 200 约 120 分钟）。
-
-## 进一步获取支持
-
-若上述排查步骤未能定位问题，可通过以下渠道获取协助（建议附带 Server 日志、节点日志与版本信息）：
-
-* **Telegram 群组**：[https://t.me/OpenFlareCDN](https://t.me/OpenFlareCDN)，用于日常使用交流与部署答疑。
-* **GitHub Issues**：[https://github.com/Rain-kl/OpenFlare/issues](https://github.com/Rain-kl/OpenFlare/issues)，用于提交可复现的缺陷报告与功能建议。
-
+- **Auth / 验证码异常**：核对 **系统配置** > **安全设置** 中 Captcha 站点密钥、域名白名单，以及多实例间 `session_secret` 是否一致。
+- **附件/文件上传失败**：检查存储后端配额、目录写权限及反向代理 `client_max_body_size` 限制。

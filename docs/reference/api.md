@@ -59,13 +59,14 @@ Accept: application/json
 - **Cookie 结构**：登录成功后，服务端会在响应头中签发 Set-Cookie。Cookie 键名由配置项 `app.session_cookie_name`（默认 `openflare_session_id`）决定。
 - **有效期**：由 `app.session_age`（默认 86400 秒）或系统配置 `login_session_ttl_hours` 约束。
 
-### 3. 边缘节点专用协议凭证 (Node Protocols)
+### 3. 边缘与数据面协议凭证 (Node & Daemon Protocols)
 
-OpenFlare Edge 节点、Relay 中继节点与 OpenFlared 隧道客户端通过独立凭证与控制面建立 WebSocket 及 HTTP 通信：
+`openflare-edge`、`openflare-dns`、`openflare-relay` 与 `openflared` 通过独立令牌和专有请求头与控制面通信：
 
-- **Discovery Token**：新节点首次接入时的自动注册凭证，由系统配置 `agent_discovery_token` 控制。
-- **Node Agent Token**：节点完成注册后由控制面颁发的专属凭证，用于心跳上报与配置快照拉取。
-- **Tunnel Token**：OpenFlared 客户端专属隧道接入凭证。
+- **Edge 节点凭证（`X-Agent-Token`）**：`POST /api/v1/agent/nodes/register` 在首次接入时接受全局发现令牌（系统配置 `agent_discovery_token`），已有节点传专属 Node Token；后续上报、配置拉取与 WebSocket 均携带专属 Node Token。
+- **SmartDNS 凭证（`X-DNS-Discovery-Token` / `X-DNS-Token`）**：`openflare-dns` 注册时携带 `X-DNS-Discovery-Token`，注册完成后通过 `X-DNS-Token` 拉取快照与心跳。
+- **Relay 凭证（`X-Relay-Bootstrap-Token` / `X-Relay-Token`）**：`openflare-relay` 注册时携带 `X-Relay-Bootstrap-Token`，运行期使用下发的 `X-Relay-Token`。
+- **Tunnel 凭证（`X-Tunnel-Token`）**：`openflared` 通过控制台签发的隧道引导/认证令牌连接并维护附着状态。
 
 ---
 
@@ -174,22 +175,29 @@ OpenFlare 控制面路由按功能模块进行清晰分层：
 | 域名区 (Zones) | `/api/v1/d/zones` | 域名区增删改查、DNS 记录配置、Cloudflare 接入同步 |
 | 源站集群 (Origins) | `/api/v1/d/origins` | 业务真实源站服务器与健康检查探针配置 |
 | 反向代理路由 | `/api/v1/d/proxy-routes` | 站点路由规则、回源负载均衡分发策略 |
-| 边缘节点 | `/api/v1/d/nodes` | OpenFlare Edge 节点列表、状态监控、重启指令下发 |
+| 边缘节点 | `/api/v1/d/nodes` | OpenFlare Edge 节点列表、状态监控、重启与日志流 |
 | 性能策略 | `/api/v1/d/performance/policies` | 边缘节点运行时、回源连接池、HTTP/2 及缓存策略模板 |
-| WAF 防护 | `/api/v1/d/waf` | WAF 规则组配置、攻击检测模式（CRS）、IP 黑白名单组 |
-| 人机验证 (PoW) | `/api/v1/d/pow` | 本地算力防爆破难题下发策略与保护开关 |
-| Pages 静态站点 | `/api/v1/d/pages` | 静态项目创建、部署包上传 (`.zip` / `.tar.gz`)、发布历史 |
-| TLS 证书 | `/api/v1/d/certificates` | 自定义 SSL/TLS 证书上传、Let's Encrypt 自动化申请管理 |
+| 多云 DNS 与指向 | `/api/v1/d/dns-accounts`、`/api/v1/d/cloudflare` | Cloudflare / 阿里云 / 腾讯云 DNS 账号及自动指向与故障切换 |
+| SmartDNS | `/api/v1/d/smartdns` | 权威委派域、实例状态与解析调度策略 |
+| 内网穿透 | `/api/v1/d/tunnels` | 中继池、Relay 节点、隧道连接器与 L4 服务 |
+| 网络质量 | `/api/v1/d/network-tools` | GeoIP 检索、主动探测任务、延迟矩阵与网络组 |
+| WAF 防护 | `/api/v1/d/waf` | WAF 规则流、攻击防护组（CRS）与 IP 组 |
+| 人机验证 (PoW) | `/api/v1/d/pow` | PoW 难度配置与挑战页策略 |
+| Pages 静态站点 | `/api/v1/d/pages` | 静态项目、部署包上传及发布历史 |
+| TLS 证书 | `/api/v1/d/certificates` | SSL/TLS 证书管理与 ACME 自动续签 |
 
-### 4. 边缘节点通信路由 (`/api/v1/agent/*`, `/api/v1/relay/*`, `/api/v1/tunnel/*`)
+### 4. 数据面节点通信路由
 
 | 路由路径 | 协议 | 鉴权方式 | 接口说明 |
 | --- | --- | --- | --- |
-| `/api/v1/agent/nodes/register` | HTTP POST | Discovery Token | 边缘节点首次接入自动注册 |
-| `/api/v1/agent/nodes/heartbeat` | HTTP POST | Node Agent Token | 边缘节点状态与系统指标周期上报 |
-| `/api/v1/agent/ws` | WebSocket | Node Agent Token | 实时长连接，用于快照下发与控制指令推流 |
-| `/api/v1/relay/ws` | WebSocket | Relay Agent Token | 中继节点实时控制流 |
-| `/api/v1/tunnel/ws` | WebSocket | Tunnel Token | 内网穿透客户端隧道会话保持与配置同步 |
+| `/api/v1/agent/nodes/register` | HTTP POST | `X-Agent-Token` | 边缘节点首次自动注册或凭专属令牌重连 |
+| `/api/v1/agent/nodes/heartbeat` | HTTP POST | `X-Agent-Token` | 边缘节点状态与指标上报 |
+| `/api/v1/agent/ws` | WebSocket | `X-Agent-Token` | 实时配置快照推送与控制指令通道 |
+| `/api/v1/dns-agent/register` | HTTP POST | `X-DNS-Discovery-Token` | 独立 SmartDNS 实例注册 |
+| `/api/v1/dns-agent/heartbeat`、`/snapshot`、`/ws` | HTTP / WS | `X-DNS-Token` | SmartDNS 心跳上报与二进制快照同步 |
+| `/api/v1/relay/register` | HTTP POST | `X-Relay-Bootstrap-Token` | 中继节点注册并领取长期凭证 |
+| `/api/v1/relay/heartbeat`、`/config`、`/ws` | HTTP / WS | `X-Relay-Token` | 中继状态上报、配置拉取与控制通道 |
+| `/api/v1/tunnel/heartbeat`、`/config`、`/attachments`、`/ws` | HTTP / WS | `X-Tunnel-Token` | 连接器心跳、隧道配置与附着关系同步 |
 
 ---
 
@@ -226,15 +234,11 @@ curl -fsSL -X GET "https://panel.example.com/api/v1/d/nodes/page?page=1&page_siz
   -H "Accept: application/json"
 ```
 
-控制台的节点列表和卡片视图均使用 50 条分页。`search` 匹配名称、节点标识、IP、地区或操作系统名称。延迟摘要使用绿色表示 0–120 ms，橙色表示超过 120 ms 至 250 ms，红色表示超过 250 ms 或探测失败。点击延迟摘要可打开该节点的延迟与丢包图表，通过任务名称筛选曲线，并查看 1 小时至 30 天的记录。
+`include_monitoring=true` 返回当前页节点的 `monitoring`（含操作系统名称、最近 5 分钟资源快照 `metric` 与最多 3 个 Ping 任务的近期延迟样本；部分监控暂不可读时附带 `monitoring_unavailable` 标记）。
 
-`include_monitoring=true` 为当前页的节点返回 `monitoring`。其中 `system` 为操作系统名称，`metric` 为在线节点最近 5 分钟内的最新资源快照，`net_in` 和 `net_out` 分别以字节每秒表示下载和上传速率。`ping` 按任务顺序返回最多 3 个已绑定任务，每个任务最多包含 12 条按时间升序排列的样本。延迟值以毫秒计，负值表示探测失败。部分监控数据暂时无法读取时，响应仍返回节点列表，并标记 `monitoring_unavailable`。
+#### 实时运行日志 (`GET /api/v1/d/nodes/{id}/runtime-logs`)
 
-#### 实时运行日志
-
-`GET /api/v1/d/nodes/{id}/runtime-logs` 需要管理员权限。连接建立后返回 `text/event-stream`，发送 `ready` 事件。后续的 `logs` 事件携带 `lines` 字符串数组，若节点跳过积压日志，则同批返回 `dropped` 数量。订阅结束时发送 `closed` 事件。节点离线、版本不支持或无法建立订阅时返回 HTTP 503。
-
-SSE 仅包含连接后产生的 OpenFlare Edge 运行日志。响应禁止缓存，主控不持久化日志。使用反向代理部署主控时，需允许该路径持续传输 SSE。
+需管理员权限，返回 `text/event-stream`：依次推送 `ready`、携带 `lines`（及积压丢弃计数 `dropped`）的 `logs` 与结束时的 `closed` 事件；节点离线或版本不支持时返回 HTTP `503`。SSE 仅推送建连后的实时日志且不持久化，经过反向代理时须禁用缓冲。
 
 ### 3. 创建反向代理路由规则
 
@@ -255,6 +259,6 @@ curl -fsSL -X POST "https://panel.example.com/api/v1/d/proxy-routes" \
 
 ## 相关文档
 
-- [配置项参考](./configuration.md)：Server、Agent 与边缘节点参数
+- [配置项参考](./configuration.md)：Server、Edge、SmartDNS 与隧道参数
 - [命令与脚本参考](./cli.md)：Makefile、CLI 二进制启动与构建
 - [架构设计规范](../design/architecture.md)：控制面与数据面通信模型

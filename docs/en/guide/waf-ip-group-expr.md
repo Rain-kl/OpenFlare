@@ -1,190 +1,70 @@
 # WAF Auto IP Group Rule Syntax
 
-Auto IP groups aggregate metrics per client IP from request logs, then use Expr expressions to determine whether to include an IP in the group. Auto IP groups can be referenced by IP Match nodes in WAF rules. Rule topologies synchronize with site configuration snapshots, while IP group memberships update independently.
+Aggregate edge request logs per client IP over a lookback window and evaluate Expr boolean expressions to populate WAF **IP Match** groups.
 
-## Config Structure
+## 1. Configuration Schema & Scope
 
-An auto IP group config is a JSON object:
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `lookback` | string | Go Duration window (`30m`, `1h`); default `1h`, max `30d` (legacy integer `lookback_minutes` supported) |
+| `rules` | array | Rule list; any rule returning `true` adds the client IP |
+| `rules[].name` | string | Rule label displayed in the console and error messages |
+| `rules[].expr` | string | Expr expression returning a boolean |
+
+Both scheduled runs and **Test Rule** group by normalized `remote_addr` while automatically skipping private IPv4, IPv6 ULA, loopback, link-local, unspecified, multicast, and broadcast addresses (including IPv4-mapped IPv6).
+
+## 2. Variables & Functions
+
+| Identifier | Type | Description |
+| :--- | :--- | :--- |
+| `ip` | string | Client IP address under evaluation |
+| `request_count` | number | Total requests in `lookback` |
+| `status_404_count` | number | Requests returning HTTP `404` |
+| `status_404_ratio` | number | Ratio of `404` responses (`0` to `1`, e.g. `0.8` = 80%) |
+| `ip_host_count` | number | Requests using an IP-literal `Host` header (e.g. `203.0.113.10`) |
+| `ip_host_ratio` | number | Ratio of IP-literal `Host` requests (`0` to `1`) |
+| `client_error_count` | number | Responses with `4xx` status codes |
+| `server_error_count` | number | Responses with `5xx` status codes |
+| `last_seen_unix` | number | Unix timestamp (seconds) of the latest request |
+| `StatusCount(code)` | number | Response count for an exact code (`403`) or class (`"4xx"`) |
+| `StatusRatio(code)` | number | Response ratio (`0` to `1`) for an exact code (`502`) or class (`"5xx"`) |
+
+## 3. Operators & Presets
+
+| Operator | Meaning | Example |
+| :--- | :--- | :--- |
+| `>`, `>=`, `<`, `<=` | Numeric comparison | `request_count > 100` |
+| `==`, `!=` | Equality | `ip != "203.0.113.10"` |
+| `&&`, `||`, `!` | Logical AND, OR, NOT | `request_count > 100 && StatusRatio(404) >= 0.8` |
+| `in`, `not in` | Membership | `ip not in ["203.0.113.10", "198.51.100.20"]` |
+| `()` | Grouping | `(client_error_count > 80 && request_count > 100) || server_error_count > 30` |
+
+Built-in presets available in the editor:
+
+| Preset | Expression |
+| :--- | :--- |
+| Single-IP 404 scanning | `request_count > 100 && StatusRatio(404) >= 0.8` |
+| Single-IP direct-IP access | `ip_host_count > 50 && ip_host_ratio > 0.5` |
+
+Combined example:
 
 ```json
 {
-  "lookback": "1h",
+  "lookback": "2h",
   "rules": [
     {
       "name": "Single-IP high-frequency 404 scanning",
       "expr": "request_count > 100 && StatusRatio(404) >= 0.8"
-    }
-  ]
-}
-```
-
-Field reference:
-
-| Field | Type | Purpose |
-| --- | --- | --- |
-| `lookback` | string | Lookback window duration in Go Duration syntax (e.g. `30m`, `1h`, `90m`). Defaults to `1h`, maximum 30 days. Compatible with legacy `lookback_minutes`. |
-| `rules` | array | Automatic rule list. If any rule matches, the IP is added to the IP group. |
-| `rules[].name` | string | Rule name, used for display and error reporting. |
-| `rules[].expr` | string | Expr expression, must return a boolean. |
-
-## Execution Semantics
-
-Auto IP groups aggregate metrics per client IP before evaluating expressions:
-
-1. The Server reads request logs within the configured `lookback` duration.
-2. Groups logs by normalized `remote_addr` IP, skipping IPv4 private networks, IPv6 Unique Local Addresses (ULA), loopback, link-local, unspecified, multicast, and broadcast addresses. IPv4-mapped IPv6 addresses resolve to the underlying IPv4 address.
-3. Calculates request counts, 404 counts, direct IP Host counts, and related metrics for each IP.
-4. Evaluates `rules[].expr` against each candidate IP.
-5. If an IP matches any rule, it is added to the auto IP group list.
-
-**Test Rule** executes the same address filtering logic as production background evaluation. When an auto IP group updates on schedule, historical entries matching private or loopback ranges are purged automatically regardless of TTL. Manual and subscription IP groups are not filtered by this mechanism.
-
-Whether a request represents "access via IP literal" is evaluated using the `Host` header: IPv4 or IPv6 literals (such as `203.0.113.10`, `[2001:db8::10]`, or `203.0.113.10:443`) increment `ip_host_count`.
-
-## Available Keywords
-
-The expression can use these fields directly:
-
-| Keyword | Type | Purpose |
-| --- | --- | --- |
-| `ip` | string | the client IP currently being judged. |
-| `request_count` | number | the current IP's total requests in the lookback window. |
-| `status_404_count` | number | the current IP's requests returning 404 in the window. |
-| `status_404_ratio` | number | 404 ratio, computed as `status_404_count / request_count`. |
-| `ip_host_count` | number | requests where the current IP accessed via an IP-literal Host. |
-| `ip_host_ratio` | number | ratio of IP-address access, computed as `ip_host_count / request_count`. |
-| `client_error_count` | number | the current IP's requests returning 4xx. |
-| `server_error_count` | number | the current IP's requests returning 5xx. |
-| `last_seen_unix` | number | the current IP's last request Unix timestamp (seconds) in the window. |
-
-Ratio fields are decimals between `0` and `1`. 80% is written `0.8`, 50% is `0.5`.
-
-### Custom Status Code Matching
-
-If the built-in `status_404_count` / `status_404_ratio` don't fit, use these built-in methods to match arbitrary status codes:
-
-* **`StatusCount(code)`**: request count of the current IP returning the given status code (or class) in the window.
-  * exact code: `StatusCount(403) > 10`
-  * status class (`1xx`–`5xx`, case-insensitive): `StatusCount("4xx") > 50`
-* **`StatusRatio(code)`**: the ratio of the above count to the IP's total requests.
-  * exact code: `StatusRatio(502) >= 0.5`
-  * status class: `StatusRatio("4xx") >= 0.8`, `StatusRatio("5xx") >= 0.3`
-
-A status class aggregates all codes in that hundred range, e.g. `"4xx"` covers 400–499, `"2xx"` covers 200–299.
-
-## Common Expr Patterns
-
-Auto IP groups use Expr syntax; the expression must return a boolean.
-
-Common operators:
-
-| Pattern | Purpose | Example |
-| --- | --- | --- |
-| `>`、`>=`、`<`、`<=` | numeric comparison | `request_count > 100` |
-| `==`、`!=` | equal / not equal | `ip != "127.0.0.1"` |
-| `&&` | and | `request_count > 100 && StatusRatio(404) >= 0.8` |
-| `||` | or | `StatusRatio(404) >= 0.8 || server_error_count > 20` |
-| `!` | negation | `!(ip == "127.0.0.1")` |
-| `in` | value in list | `ip in ["203.0.113.10", "198.51.100.20"]` |
-| `not in` | value not in list | `ip not in ["127.0.0.1"]` |
-| `()` | grouping precedence | `(request_count > 100 && StatusRatio(404) >= 0.8) || server_error_count > 50` |
-
-## Built-in Presets
-
-The admin panel ships two preset rules that can be added and then adjusted:
-
-```json
-{
-  "name": "Single-IP high-frequency 404 scanning",
-  "expr": "request_count > 100 && StatusRatio(404) >= 0.8"
-}
-```
-
-Meaning: a single IP has over 100 requests in the window and a 404 ratio of at least 80%.
-
-```json
-{
-  "name": "Single-IP direct-access anomaly",
-  "expr": "ip_host_count > 50 && ip_host_ratio > 0.5"
-}
-```
-
-Meaning: a single IP accessed via IP-literal Host over 50 times, and that access ratio exceeds 50%.
-
-## Examples
-
-High-frequency 404 scanning:
-
-```json
-{
-  "lookback": "1h",
-  "rules": [
+    },
     {
-      "name": "High-frequency 404 scanning",
-      "expr": "request_count > 100 && StatusRatio(404) >= 0.8"
+      "name": "High error ratio excluding trusted IPs",
+      "expr": "ip not in [\"203.0.113.10\", \"198.51.100.20\"] && request_count > 100 && (StatusRatio(\"4xx\") >= 0.8 || StatusRatio(\"5xx\") >= 0.3)"
     }
   ]
 }
 ```
 
-IP direct-access anomaly:
+## 4. Best Practices
 
-```json
-{
-  "lookback": "30m",
-  "rules": [
-    {
-      "name": "IP direct-access anomaly",
-      "expr": "ip_host_count > 50 && ip_host_ratio > 0.5"
-    }
-  ]
-}
-```
-
-Catching both high 4xx and high 5xx:
-
-```json
-{
-  "lookback": "2h",
-  "rules": [
-    {
-      "name": "Abnormal error rate",
-      "expr": "(client_error_count > 80 && request_count > 100) || server_error_count > 30"
-    }
-  ]
-}
-```
-
-Using status-class syntax (equivalent thinking to `client_error_count` / `server_error_count`):
-
-```json
-{
-  "lookback": "2h",
-  "rules": [
-    {
-      "name": "High 4xx or 5xx ratio",
-      "expr": "request_count > 100 && (StatusRatio(\"4xx\") >= 0.8 || StatusRatio(\"5xx\") >= 0.3)"
-    }
-  ]
-}
-```
-
-Excluding trusted IPs:
-
-```json
-{
-  "lookback": "1h",
-  "rules": [
-    {
-      "name": "404 scanning excluding trusted IPs",
-      "expr": "ip not in [\"203.0.113.10\", \"198.51.100.20\"] && request_count > 100 && StatusRatio(404) >= 0.8"
-    }
-  ]
-}
-```
-
-## Usage Tips
-
-Start with a shorter lookback and higher thresholds to observe hits, then tune gradually. The admin IP group page supports clicking **Test Rule** before saving to directly view the IPs hit in the current window; when the auto IP group actually runs, it overwrites the group's IP list. To keep certain addresses long-term, put them in a manual IP group and reference both the manual and auto groups in the WAF rule group.
-
-When an IP group changes, the controller notifies online nodes to refresh the configuration manifest. Nodes use the digest to fetch changed groups. Periodic heartbeats continue detecting changes during WebSocket outages.
+- Validate new thresholds with **Test Rule** over a short `lookback` before saving.
+- Store permanent allow or block entries in a separate manual IP group, since scheduled evaluations overwrite auto IP group membership on each run.

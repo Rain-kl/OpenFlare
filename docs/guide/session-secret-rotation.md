@@ -1,15 +1,10 @@
----
-title: 更换会话密钥
-description: 使用 OpenFlare Server 命令检查并重新加密存量凭据，然后切换会话密钥。
----
+# 轮换 Session Secret
 
-# 更换会话密钥
-
-OpenFlare Server 使用 `app.session_secret` 签名浏览器会话，并加密 TLS 证书私钥、DNS 凭据、ACME 账户私钥和 Cloudflare 独立令牌。MCP 要求密钥至少 32 字节。`rotate-credentials` 会检查数据库中受旧密钥保护的凭据，并可在一个事务内用新密钥重新加密。
+OpenFlare Server 使用 `app.session_secret` 签名会话并加密 TLS 私钥、DNS 凭证、ACME 密钥与 Cloudflare 令牌（MCP 要求至少 32 字节）；更换密钥前必须先用 `rotate-credentials` 重加密库内记录。
 
 ## 1. 生成新密钥并预检
 
-使用与当前 Server 相同的配置、环境变量、工作目录和主数据库。此时保留原来的 `app.session_secret` 或 `APP_SESSION_SECRET`。如果两者同时设置，环境变量优先。
+在原配置或 `APP_SESSION_SECRET` 环境变量保持生效的条件下执行预检（环境变量优先于配置文件）：
 
 ```sh
 rotation_secret_file="$HOME/.openflare-new-session-secret"
@@ -17,21 +12,19 @@ rotation_secret_file="$HOME/.openflare-new-session-secret"
 openflare-server rotate-credentials --new-secret-file "$rotation_secret_file"
 ```
 
-预检按凭据字段显示待迁移数和已使用新密钥的记录数，数据库中的凭据保持原样。待迁移数全部为零时，可跳到第 3 步。遇到解密错误时，输出会标出记录 ID。先核对旧密钥和数据库，确认预检通过后再继续。
+预检输出待迁移记录数；若全部待迁移计数为 `0` 可直接跳至第 3 步；若提示解密失败，先核对旧密钥与目标数据库是否匹配。
 
-## 2. 停服务、备份并迁移
+## 2. 停服、备份并执行重加密
 
-停止连接该数据库的所有 OpenFlare Server 实例，包括 API、Worker 和调度器。保留数据库与 Redis 等依赖服务，备份主数据库及包含旧密钥的配置。SQLite 可用 `(umask 077; sqlite3 /实际路径/openflare.db '.backup openflare-before-rotation.db')`，PostgreSQL 使用对应实例的 `pg_dump`。
+1. 停止连接该主库的所有 OpenFlare Server 进程（`api`、`worker`、`scheduler`），保持数据库与 Redis 运行。
+2. 备份旧密钥配置与主数据库（SQLite 示例：`(umask 077; sqlite3 /actual/path/openflare.db '.backup openflare-before-rotation.db')`；PostgreSQL 使用 `pg_dump`）。
+3. 在单事务内完成重加密与解密校验：
 
 ```sh
 openflare-server rotate-credentials --new-secret-file "$rotation_secret_file" --apply
 ```
 
-命令确认所有凭据都可以用新密钥解密后才提交。运行失败时，修正错误后可使用同一密钥文件重试。若需确认上次是否写入成功，可再次预检，检查待迁移数是否为零。
-
-### Docker Compose
-
-在使用 `openflare` 作为服务名的部署中，先运行 `docker compose stop openflare`，然后用一次性容器执行命令，复用原服务的数据库配置和卷：
+Docker Compose 环境（服务名 `openflare`）先执行 `docker compose stop openflare`，再通过一次性容器执行（去掉 `--apply` 即为预检）：
 
 ```sh
 docker compose run --rm --no-deps \
@@ -39,13 +32,8 @@ docker compose run --rm --no-deps \
   openflare rotate-credentials --new-secret-file /run/secrets/new-session-secret --apply
 ```
 
-确认容器的运行用户可读取密钥文件。去掉 `--apply` 即为预检。拆分部署时，同时停止其他 OpenFlare Server 进程。
+## 3. 更新配置、重启与回滚
 
-## 3. 切换配置并启动
-
-1. 将密钥文件中的值写入有效的 `app.session_secret` 或 `APP_SESSION_SECRET`，并给所有 Server 实例使用同一个值。
-2. 启动 Server。Docker Compose 可使用 `docker compose up -d openflare` 使环境变量生效。
-3. 重新登录控制台，确认 MCP 设置可以读取。若已使用 OAuth 连接 CLI 或 MCP，重新授权。
-4. 保留受保护的备份和旧密钥，清理迁移时使用的临时密钥文件。
-
-若需要恢复，停止 Server，将**迁移前的数据库备份和旧密钥**一并还原，再启动服务。只切回旧密钥会导致已迁移的凭据无法解密。
+1. 在所有 Server 实例同步更新 `app.session_secret` 或 `APP_SESSION_SECRET` 后重启服务（Docker Compose 执行 `docker compose up -d openflare`）。
+2. 登录控制台检查 **MCP** 标签页状态，并为既有 OAuth CLI / MCP 连接重新授权，确认无误后删除 `$rotation_secret_file`。
+3. 如需回滚，须先停服并同时恢复迁移前数据库备份与旧密钥；仅还原密钥会导致已重加密凭证无法解密。

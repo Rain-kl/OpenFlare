@@ -22,7 +22,7 @@ The WAF comparison enabled `threads_auto`, which overrode the manual settings of
 
 The client used `h2load` (nghttp2 `1.68.0`) to connect directly to each instance IP over a peer-to-peer private network, bypassing DNS resolution and Cloudflare. The HTTP `Host` header and TLS SNI selected the Pages site and certificate. With site rate limiting disabled, local Pages served the same 923 B file on both nodes, without using the reverse proxy cache or an upstream service.
 
-The isolated instances kept their state directories on the in-memory filesystem `tmpfs`. The tested version still wrote and called `sync_data()` for each request. The [new asynchronous log writer](../guide/troubleshooting.md#access-analytics-empty) has not been benchmarked on these nodes.
+The isolated instances kept their state directories on the in-memory filesystem `tmpfs`. The tested version still wrote and called `sync_data()` for each request. The [new asynchronous log spooler](../design/pingora-edge-design.md#53-access-log-buffering-and-spooling) has not been benchmarked on these nodes.
 
 ## WAF Comparison
 

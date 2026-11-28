@@ -1,86 +1,68 @@
 # Log Store Decoupling
 
-You will learn: which tables are log-purpose, why they must not be pinned to ClickHouse, and which code path a new log table must follow.
+OpenFlare isolates all append-only, time-retention analytics and telemetry tables behind `internal/repository/logstore`. When ClickHouse is enabled, high-volume writes batch into columnar ClickHouse storage; when ClickHouse is disabled, PostgreSQL or SQLite handles all ingestion, real-time aggregation, and retention cleanup seamlessly, and operators can migrate live between backends.
 
-Observability fields and the reporting protocol are still governed by [Observability Protocol & Tables](./observability-data-model.md); this document only defines **where data is stored and how to switch databases**.
-
----
-
-## 1. Goals
-
-* **ClickHouse optional**: when not enabled, PostgreSQL (or SQLite when the primary DB is off) fully takes over writes, queries, aggregation, and cleanup.
-* **Upper layers don't touch the underlying DB**: apps only face `internal/repository/logstore` (or the `repository` facade). `db.ChConn` / `db.ChDB` and ClickHouse native batch IO are only used inside `logstore`'s ClickHouse implementation.
-* **Switchable**: 「Switch Log Database」in Task Management copies data between PostgreSQL/SQLite and ClickHouse and flips the primary; writes are frozen during migration, the switch only happens on success, and source data is not deleted.
+See [OpenFlare Edge Reporting Protocol & Observability Data Model](./observability-data-model.md) for field contracts and schemas.
 
 ---
 
-## 2. What Counts as a Log Table
+## 1. Design Goals
 
-A table enters logstore only if it meets all of:
+* **Optional ClickHouse**: Disabling ClickHouse leaves PostgreSQL (or SQLite when standalone) fully responsible for writes, queries, aggregations, and retention pruning.
+* **Driver isolation**: Packages under `internal/apps/*` interact solely with `internal/repository/logstore` (or `repository` facades). Raw `db.ChConn`, `db.ChDB`, and ClickHouse native batches are confined inside `logstore`.
+* **Online database switching**: The `of_log_db_switch` ("Switch Log Database") task copies historical rows between PostgreSQL/SQLite and ClickHouse and flips `log_database` atomically without deleting source data.
 
-* Append-only writes, almost no row updates
-* Query or aggregate by time, deletable by retention days
-* Must still support writes and queries when ClickHouse is off
-* Does not participate in transactional consistency for websites / nodes / certificates, etc.
+---
 
-**Don't** make these log tables: Zones, nodes, config versions, task executions, upload metadata. These go through the business primary DB `repository`.
+## 2. Classification Criteria and Active Domains
 
-Current log domains:
+A table belongs in `logstore` only when all four conditions hold:
 
-| Domain | Interface | Tables |
-| --- | --- | --- |
-| Node access logs | `AccessLogStore` | `of_node_access_logs` |
-| Observability time series | `ObservabilityStore` | `of_node_metric_snapshots` / `of_node_edge_health` / `of_node_obs_frps` / `of_node_obs_frpc` |
+* Append-mostly workload with negligible per-row updates;
+* Time-bounded queries/aggregations and retention-based pruning;
+* Must remain readable and writable when ClickHouse is disabled;
+* Excluded from transactional consistency of websites, nodes, or certificates.
+
+Core entities (Zones, nodes, config versions, task executions, upload records) stay on the business primary DB (`repository`). Active `logstore` interfaces (`internal/repository/logstore/logstore.go`):
+
+| Domain | Interface | Physical Tables |
+| :--- | :--- | :--- |
+| Edge node access logs | `AccessLogStore` | `of_node_access_logs` |
+| Node metrics, probes, network quality, DNS metrics | `ObservabilityStore` | `of_node_metric_snapshots`, `of_node_ping_records`, `of_network_quality_samples`, `of_dns_metric_snapshots` |
 | User access audit | `UserAccessLogStore` | `w_user_access_logs` |
 
-Hourly materialized views on ClickHouse (e.g. `of_access_log_hourly`) only serve CH query acceleration. PostgreSQL / SQLite **do not** build isomorphic aggregation tables; queries aggregate in real time from raw logs.
+ClickHouse hourly materialized views (`of_access_log_hourly`, `of_node_metric_capacity_hourly`) serve purely as acceleration layers; PostgreSQL and SQLite aggregate directly from raw partitioned/indexed tables. Legacy `of_node_edge_health`, `of_node_obs_frps`, and `of_node_obs_frpc` tables have been removed.
 
 ---
 
 ## 3. Layering
 
-| Layer | Path | Responsibility |
-| --- | --- | --- |
-| Abstraction | `internal/repository/logstore` | Interfaces + `Active` / `BuildForMigration`; selects implementation by `log_database` |
-| CH implementation | `logstore/clickhouse_store.go` + `logstore/ch_*.go` | Native batch (`PrepareBatch` / `Append` / `Send`) + aggregation SQL |
-| Primary DB implementation | `logstore/postgres_store.go` | PostgreSQL (high-frequency tables partitioned monthly) and SQLite (plain tables) share GORM |
-| Model | `internal/model/analytics` | Entities and batch SQL, no IO |
-| Enqueue | `openflare/logwriter` / `risk_control` + `batchwriter` | `FlushFunc` calls `logstore.Active`; node logs / observability enqueue via hooks |
-| Constraint | `logstore/imports_test.go` | apps are forbidden from importing ClickHouse drivers, `migrator`, or persistence internals |
+| Layer | Location | Responsibility |
+| :--- | :--- | :--- |
+| Facade & interfaces | `internal/repository/logstore` | Interfaces + `Active` / `BuildForMigration` routing by `log_database` |
+| ClickHouse store | `logstore/clickhouse_store.go`, `logstore/ch_*.go` | Native `PrepareBatch` / `Append` / `Send` and analytical queries |
+| Primary DB store | `logstore/postgres_store.go` | Shared GORM store for monthly partitioned PostgreSQL and plain SQLite tables |
+| Analytics models | `internal/model/analytics` | Pure structs and insert column definitions, zero I/O |
+| Async batching | `openflare/logwriter`, `risk_control` + `batchwriter` | `FlushFunc` calls `logstore.Active`; logs and metrics enqueue via hooks |
+| Architecture guard | `logstore/imports_test.go` | Blocks `apps` packages from importing ClickHouse drivers, `migrator`, or raw DB connections |
 
-`log_database` has only two legal states: **follow the business primary DB** (`postgres` or `sqlite`) or **`clickhouse`**. "Primary PostgreSQL + log SQLite" does not exist. `log_database` / `log_db_migration` are protected and cannot be changed from the admin panel.
-
-At startup: `log_database=clickhouse` but ClickHouse not enabled → startup is refused; you must re-enable ClickHouse, switch back to the primary DB, and only then turn it off.
+`log_database` accepts only **the active business primary DB** (`postgres` or `sqlite`) or **`clickhouse`**. Both `log_database` and `log_db_migration` are protected keys blocked from manual option edits. Startup fails fast if `log_database=clickhouse` while ClickHouse is disabled.
 
 ---
 
-## 4. Switch Protocol
+## 4. Online Switch Protocol (`of_log_db_switch`)
 
-Task type `of_log_db_switch` (admin name 「Switch Log Database」), parameter `target`.
-
-1. Validate the target is legal and not the current DB.
-2. Write `log_db_migration=migrating`, drain in-flight batchwriter (`Drain`, not `Stop` writer). Writes return a clear error afterward (HTTP 503), not queued backlog.
-3. Clear the target log tables, then copy by id in pages; call `EnsurePartitions` on the PostgreSQL target before copying.
-4. Only on full success write `log_database=target` and clear the migration marker; on failure clear the marker and writes continue on the source DB.
-5. Source data is not deleted; re-clear the target before retry to guarantee idempotency.
-
-Don't invent another switch protocol, and don't bypass `logstore` via direct `db.ChConn` or ClickHouse drivers inside tasks.
+1. Validate target backend differs from the active `log_database`.
+2. Persist `log_db_migration=migrating` and call `Drain` (never `Stop`) on active `batchwriter` instances; incoming writes return HTTP 503 (`ErrMigrating`) during the freeze.
+3. Truncate target tables, call `EnsurePartitions` when copying into PostgreSQL, and paginate by ascending Snowflake `id` across all `logstore` tables (`of_node_access_logs`, `of_node_metric_snapshots`, `of_node_ping_records`, `of_network_quality_samples`, `of_dns_metric_snapshots`, `w_user_access_logs`).
+4. Flip `log_database=target` and clear `log_db_migration` only after full completion; failures clear the lock and resume writes against the original backend while keeping source rows intact for idempotent retries.
 
 ---
 
 ## 5. Adding a New Log Table
 
-Column names must be identical across the three goose migrations (ClickHouse / PostgreSQL / SQLite). Key points:
+* **Identical schemas**: Keep column names identical across `internal/infra/persistence/migrator/goose/{clickhouse,postgres,sqlite}` and preserve Snowflake `uint64` IDs verbatim during migration.
+* **High-volume partitioning**: ClickHouse uses `MergeTree` + `toYYYYMM` + native `TTL`; PostgreSQL uses `PARTITION BY RANGE` with the partition key included in the primary key; SQLite uses plain indexed tables.
+* **No bypass writes**: Route async inserts through a dedicated `batchwriter` calling `logstore.Active`, and register the table in both switch-task `copy*` paths and `cleanup.go`.
 
-* High-frequency tables: CH uses `MergeTree` + `toYYYYMM`; PG uses `PARTITION BY RANGE(time column)` with the partition key in the primary key; SQLite uses a plain table + indexes.
-* IDs use snowflake `uint64`, preserved as-is during migration.
-* Writes go through a dedicated `batchwriter`; flush calls `logstore.Active` instead of bypassing to raw ClickHouse inserts.
-* The switch task's `copy*` must cover the new table; cleanup uses existing `log_retention_days_*` or `metric_retention_days`, don't use the wrong TTL.
-
-Runtime config: [Configuration Reference · Log Storage](../reference/configuration.md#8-日志存储log-database).
-
----
-
-## 6. Related Docs
-
-* Observability fields and reporting protocol: [Observability Protocol & Tables](./observability-data-model.md)
+Runtime settings: [Configuration Reference · Log Storage](../reference/configuration.md#8-log-database).

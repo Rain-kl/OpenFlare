@@ -5,13 +5,10 @@
     "index",
     "---入门指引---",
     "quick-start",
-    "first-site",
-    "dashboard-map",
     "---流量代理与加速---",
     "proxy-config",
     "certificates",
     "performance-policies",
-    "zone-domain-migration",
     "smartdns",
     "---边缘安全防护---",
     "waf-usage",
@@ -22,11 +19,10 @@
     "tunnel-usage",
     "uptime-kuma",
     "sso",
-    "---运维支持---",
+    "---运维与自动化---",
     "network-tools",
     "automation",
     "session-secret-rotation",
-    "troubleshooting",
-    "credits"
+    "troubleshooting"
   ]
 }

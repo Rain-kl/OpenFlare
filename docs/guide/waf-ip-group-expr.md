@@ -1,190 +1,70 @@
-# WAF 自动 IP 组规则语法
+# 自动 IP 组规则语法
 
-自动 IP 组用于从请求日志中按单个客户端 IP 聚合指标，再用 Expr 表达式判断是否把该 IP 加入组内名单。自动 IP 组可以被 WAF 规则组的 IP 黑名单或白名单引用；规则拓扑随站点快照同步，IP 组成员可以独立更新。
+按时间窗口聚合访问日志并执行 Expr 布尔表达式，将命中异常特征的公网 IP 自动写入 WAF **IP 匹配**组。
 
-## 配置结构
+## 1. 配置结构与过滤口径
 
-自动 IP 组的配置是一个 JSON 对象：
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `lookback` | string | 回溯窗口（Go Duration 语法，如 `30m`、`1h`），默认 `1h`，上限 `30` 天（兼容旧整数字段 `lookback_minutes`） |
+| `rules` | array | 规则列表；任一条规则返回 `true` 即收录该 IP |
+| `rules[].name` | string | 用于控制台展示与错误提示的规则名称 |
+| `rules[].expr` | string | 返回布尔值的 Expr 表达式 |
 
-```json
-{
-  "lookback": "1h",
-  "rules": [
-    {
-      "name": "单 IP 404 高频扫描",
-      "expr": "request_count > 100 && StatusRatio(404) >= 0.8"
-    }
-  ]
-}
-```
+评估与 **测试规则** 均按规范化 `remote_addr` 聚合，并自动跳过私网 IPv4、IPv6 ULA、回环、链路本地、未指定、组播及广播地址（含 IPv4-mapped IPv6）；定时任务会自动清理不符合该口径的历史记录。
 
-字段说明：
+## 2. 可用变量与函数
 
-| 字段 | 类型 | 作用 |
-| --- | --- | --- |
-| `lookback` | string | 回看窗口时长，使用 Go Duration 写法，例如 `30m`、`1h`、`90m`。未填写时默认 `1h`，最大 30 天。兼容旧字段 `lookback_minutes`（整数分钟）。 |
-| `rules` | array | 自动规则列表。任意一条规则命中时，该 IP 会进入自动 IP 组名单。 |
-| `rules[].name` | string | 规则名称，只用于界面展示和错误提示。 |
-| `rules[].expr` | string | Expr 表达式，必须返回布尔值。 |
+| 标识符 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `ip` | string | 当前评估的客户端 IP |
+| `request_count` | number | 窗口内总请求数 |
+| `status_404_count` | number | 返回 HTTP `404` 的请求数 |
+| `status_404_ratio` | number | `404` 请求占比（`0` 到 `1`，如 `0.8` 表示 80%） |
+| `ip_host_count` | number | `Host` 头为纯 IP 字面量（如 `203.0.113.10`）的请求数 |
+| `ip_host_ratio` | number | 纯 IP `Host` 请求占比（`0` 到 `1`） |
+| `client_error_count` | number | `4xx` 响应总数 |
+| `server_error_count` | number | `5xx` 响应总数 |
+| `last_seen_unix` | number | 窗口内最近一次请求的 Unix 秒级时间戳 |
+| `StatusCount(code)` | number | 指定状态码（`403`）或状态分类（`"4xx"`）计数 |
+| `StatusRatio(code)` | number | 指定状态码（`502`）或状态分类（`"5xx"`）占比（`0` 到 `1`） |
 
-## 执行口径
+## 3. 运算符与内置预设
 
-自动 IP 组先按单个客户端 IP 聚合指标，再对每个 IP 执行规则表达式：
-
-1. Server 读取最近 `lookback` 时长内的请求日志。
-2. 按 `remote_addr` 归一化后的 IP 分组，跳过 IPv4 私网、IPv6 唯一本地地址（ULA）、回环、链路本地、未指定、组播及广播地址；IPv4 映射 IPv6 地址按对应的 IPv4 地址判断。
-3. 为每个 IP 计算请求数、404 数、直连 IP Host 次数等指标。
-4. 逐个 IP 执行 `rules[].expr`。
-5. 只要某个 IP 命中任意规则，就写入该自动 IP 组的 `IP / IP 段` 列表。
-
-**测试规则**与实际自动抓取使用相同的地址过滤逻辑。自动 IP 组下次同步时，也会清理历史抓取结果中的上述地址，不受存活时间（TTL）限制。手动 IP 组和订阅 IP 组不受此过滤影响。
-
-Host 是否为“通过 IP 访问”按请求日志中的 `Host` 字段判断：如果 Host 是 IPv4 或 IPv6 字面量，例如 `203.0.113.10`、`[2001:db8::10]`、`203.0.113.10:443`，就计入 `ip_host_count`。
-
-## 可用关键字
-
-表达式中可以直接使用以下字段：
-
-| 关键字 | 类型 | 作用 |
-| --- | --- | --- |
-| `ip` | string | 当前正在判断的客户端 IP。 |
-| `request_count` | number | 当前 IP 在回看窗口内的总请求数。 |
-| `status_404_count` | number | 当前 IP 在回看窗口内返回 404 的请求数。 |
-| `status_404_ratio` | number | 404 请求占比，计算方式为 `status_404_count / request_count`。 |
-| `ip_host_count` | number | 当前 IP 通过 IP 地址作为 Host 访问的请求数。 |
-| `ip_host_ratio` | number | 通过 IP 地址访问的占比，计算方式为 `ip_host_count / request_count`。 |
-| `client_error_count` | number | 当前 IP 返回 4xx 状态码的请求数。 |
-| `server_error_count` | number | 当前 IP 返回 5xx 状态码的请求数。 |
-| `last_seen_unix` | number | 当前 IP 在回看窗口内最后一次请求的 Unix 秒级时间戳。 |
-
-比例字段都是 `0` 到 `1` 之间的小数。80% 应写成 `0.8`，50% 应写成 `0.5`。
-
-### 自定义状态码匹配方法
-
-如果内置的 `status_404_count` 和 `status_404_ratio` 不能满足您的需求，您可以使用以下内置方法来匹配任意状态码的请求数与占比：
-
-* **`StatusCount(code)`**: 获取当前 IP 在回看窗口内返回指定状态码（或状态码类）的请求数。
-  * 精确状态码：`StatusCount(403) > 10`
-  * 状态码类（`1xx`–`5xx`，大小写不敏感）：`StatusCount("4xx") > 50`
-* **`StatusRatio(code)`**: 获取上述计数占该 IP 总请求数的比例。
-  * 精确状态码：`StatusRatio(502) >= 0.5`
-  * 状态码类：`StatusRatio("4xx") >= 0.8`、`StatusRatio("5xx") >= 0.3`
-
-状态码类会汇总该百位区间内全部状态码，例如 `"4xx"` 包含 400–499，`"2xx"` 包含 200–299。
-
-## Expr 常用写法
-
-自动 IP 组使用 Expr 语法，当前表达式必须返回布尔值。
-
-常用运算符：
-
-| 写法 | 作用 | 示例 |
-| --- | --- | --- |
+| 运算符 | 含义 | 示例 |
+| :--- | :--- | :--- |
 | `>`、`>=`、`<`、`<=` | 数值比较 | `request_count > 100` |
-| `==`、`!=` | 相等或不相等 | `ip != "127.0.0.1"` |
-| `&&` | 并且 | `request_count > 100 && StatusRatio(404) >= 0.8` |
-| `||` | 或者 | `StatusRatio(404) >= 0.8 || server_error_count > 20` |
-| `!` | 取反 | `!(ip == "127.0.0.1")` |
-| `in` | 判断值是否在列表中 | `ip in ["203.0.113.10", "198.51.100.20"]` |
-| `not in` | 判断值是否不在列表中 | `ip not in ["127.0.0.1"]` |
-| `()` | 分组控制优先级 | `(request_count > 100 && StatusRatio(404) >= 0.8) || server_error_count > 50` |
+| `==`、`!=` | 等值比较 | `ip != "203.0.113.10"` |
+| `&&`、`||`、`!` | 逻辑与、或、非 | `request_count > 100 && StatusRatio(404) >= 0.8` |
+| `in`、`not in` | 列表成员判断 | `ip not in ["203.0.113.10", "198.51.100.20"]` |
+| `()` | 优先级分组 | `(client_error_count > 80 && request_count > 100) || server_error_count > 30` |
 
-## 内置预设
+编辑器内置两条常用预设：
 
-管理端内置两个预设规则，可以直接添加后再按需调整：
+| 预设名称 | 表达式 |
+| :--- | :--- |
+| 单 IP 高频 404 扫描 | `request_count > 100 && StatusRatio(404) >= 0.8` |
+| 单 IP 直连 IP 访问 | `ip_host_count > 50 && ip_host_ratio > 0.5` |
 
-```json
-{
-  "name": "单 IP 404 高频扫描",
-  "expr": "request_count > 100 && StatusRatio(404) >= 0.8"
-}
-```
-
-含义：单个 IP 在回看窗口内请求数大于 100，并且 404 状态码占比不低于 80%。
+组合示例：
 
 ```json
 {
-  "name": "单 IP 直连访问异常",
-  "expr": "ip_host_count > 50 && ip_host_ratio > 0.5"
-}
-```
-
-含义：单个 IP 通过 IP 地址作为 Host 访问的次数大于 50，并且这种访问占比大于 50%。
-
-## 示例
-
-高频 404 扫描：
-
-```json
-{
-  "lookback": "1h",
+  "lookback": "2h",
   "rules": [
     {
-      "name": "高频 404 扫描",
+      "name": "Single-IP high-frequency 404 scanning",
       "expr": "request_count > 100 && StatusRatio(404) >= 0.8"
-    }
-  ]
-}
-```
-
-IP 直连访问异常：
-
-```json
-{
-  "lookback": "30m",
-  "rules": [
+    },
     {
-      "name": "IP 直连访问异常",
-      "expr": "ip_host_count > 50 && ip_host_ratio > 0.5"
+      "name": "High error ratio excluding trusted IPs",
+      "expr": "ip not in [\"203.0.113.10\", \"198.51.100.20\"] && request_count > 100 && (StatusRatio(\"4xx\") >= 0.8 || StatusRatio(\"5xx\") >= 0.3)"
     }
   ]
 }
 ```
 
-同时捕获高 4xx 与高 5xx：
+## 4. 使用建议
 
-```json
-{
-  "lookback": "2h",
-  "rules": [
-    {
-      "name": "异常错误率",
-      "expr": "(client_error_count > 80 && request_count > 100) || server_error_count > 30"
-    }
-  ]
-}
-```
-
-使用状态码类写法（与 `client_error_count` / `server_error_count` 等价思路）：
-
-```json
-{
-  "lookback": "2h",
-  "rules": [
-    {
-      "name": "高 4xx 或 5xx 占比",
-      "expr": "request_count > 100 && (StatusRatio(\"4xx\") >= 0.8 || StatusRatio(\"5xx\") >= 0.3)"
-    }
-  ]
-}
-```
-
-排除可信 IP：
-
-```json
-{
-  "lookback": "1h",
-  "rules": [
-    {
-      "name": "排除可信 IP 的 404 扫描",
-      "expr": "ip not in [\"203.0.113.10\", \"198.51.100.20\"] && request_count > 100 && StatusRatio(404) >= 0.8"
-    }
-  ]
-}
-```
-
-## 使用建议
-
-先用较短的回看窗口和较高阈值观察命中结果，再逐步调整阈值。管理端 IP 组页面支持在保存前点击 **测试规则**，直接查看当前回看窗口内命中的 IP；自动 IP 组真正执行后会覆盖该组的 IP 列表。如果要长期保留某些地址，建议放入手动 IP 组，并在 WAF 规则组中同时引用手动组和自动组。
-
-自动 IP 组更新时，控制端通知在线节点刷新配置清单。节点比较摘要后拉取变化的 IP 组。WebSocket 断开时，周期心跳会继续检查变更。
+- 上线前先用较短 `lookback` 与宽松阈值点击 **测试规则** 预览命中名单，避免误封。
+- 定时刷新会整体覆盖自动 IP 组列表；长期白名单或永久封禁请放在手动 IP 组中并于 WAF 规则流联合引用。

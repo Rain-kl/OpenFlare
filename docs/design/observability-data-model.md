@@ -1,743 +1,132 @@
-# Agent 上报协议与观测落库数据模型
+# OpenFlare Edge 上报协议与观测数据模型
 
-你会学到：重构后 Agent 心跳/WS 上报的 **数据结构**、Server **如何解析与写入**、ClickHouse / 关系库 **目标表结构**。  
-**无协议兼容层**：Agent 以销毁重建或二进制替换升级；旧字段不解析、旧缓冲整文件丢弃。
-
-本设计是 [边缘可观测与业务流量统计重构](./observability-design.md) 的 **协议与存储专章**，实现时以本文字段与 DDL 为准。
-
-**先读传输全景与示例：** [观测数据传输模型](./observability-transport-model.md)。
+本文档定义 `openflare-edge` 与控制面之间的 `NodePayload` 心跳/WebSocket 上报契约、归一化入库流水线，以及 ClickHouse 与 PostgreSQL/SQLite（经 `internal/repository/logstore`）的表结构模型。传输分层与采集频次参见 [边缘可观测性与流量统计架构](./observability-design.md)。
 
 ---
 
-## 1. 设计目标
-
-| 目标 | 说明 |
-| --- | --- |
-| Agent 只报事实 | 明细 + 主机读数 + 边缘健康瞬时态；无业务预聚合 |
-| 一张业务明细表 | 访问日志是 L1 唯一写入路径 |
-| 聚合在库内/控制面 | 小时汇总由 ClickHouse MV 或查询生成，Agent 不写汇总表 |
-| 字段不重叠 | `bytes_sent` = 已提供数据；网卡 `network_*` = 宿主机；不再有业务 `openresty_tx` |
-| 可演进 | 新字段可选；缺省数值填 0，不解析已删除的旧协议字段 |
-
----
-
-## 2. 分层与写入总览
+## 1. 分层写入总览
 
 ```text
-                    Agent NodePayload (v2)
-                              │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-         access_logs     host_metrics    edge_health
-         (L1 明细)       (L3 读数)       (L2 瞬时)
-              │               │               │
-              ▼               ▼               ▼
-     of_node_access_logs  of_node_metric_  of_nodes (PG/SQLite)
-              │           snapshots        openresty_status / message / connections
-              │               │
-              ▼               ▼
-     of_access_log_hourly  of_node_metric_
-     (MV, Server 侧)       capacity_hourly (MV)
-              │               │
-              └─────── 管理端聚合 API ───────────┘
-
-关系库 (PostgreSQL/SQLite)：节点最新状态（含 openresty_connections）、Profile、健康事件（非明细湖）
+NodePayload (schema_version=2, engine="pingora")
+  ├─ access_logs[] + buffered[].access_logs ─▶ logstore.AccessLogs ─▶ of_node_access_logs ─▶ of_access_log_hourly (CH MV)
+  │                                        └─▶ TCP_INFO + NetIntel ─▶ netquality.passive ─▶ of_network_quality_samples
+  ├─ host_metrics + buffered[].host_metrics  ─▶ logstore.Observability ─▶ of_node_metric_snapshots ─▶ of_node_metric_capacity_hourly (CH MV)
+  ├─ edge_health + openresty_status/message  ─▶ 主库 of_nodes 最新态（of_node_edge_health 已移除）
+  ├─ profile                                 ─▶ 主库 of_node_system_profiles（硬件清单 upsert）
+  └─ health_events[]                         ─▶ 主库健康事件表（不进入分析明细库）
 ```
 
-| 层 | 含义 | Agent 上报块 | 存储表 |
-| --- | --- | --- | --- |
-| L1 | 业务交付 | `access_logs` | `of_node_access_logs` |
-| L2 | 边缘健康 | `edge_health` | `of_nodes`（`openresty_status` / `openresty_message` / `openresty_connections`） |
-| L3 | 宿主机资源（`openflare-probe`） | `host_metrics` | `of_node_metric_snapshots` |
-| L4 | 网络延迟探测（`openflare-probe`） | WebSocket `ping_result` / `POST /api/v1/agent/ping/result` | `of_node_ping_records` |
+独立控制通道同时承载主动探测与 DNS 监控写入：
 
-关系库（PostgreSQL / SQLite）同时维护延迟检测任务配置表 `of_ping_tasks` 以及远程命令执行任务与结果表 `of_exec_tasks`、`of_exec_task_results`；节点硬件画像表 `of_node_system_profiles` 已补充 `cpu_physical_cores`、`virtualization`、`gpu_name`、`swap_total_bytes`、`ipv4`、`ipv6`、`probe_version` 等字段。
+* 边缘探测任务结果（WebSocket `ping_result` / `POST /api/v1/agent/ping/result`）→ `of_node_ping_records`（任务定义在 `of_ping_tasks`）；
+* SmartDNS 心跳与嵌入式 DNS 统计 → `of_dns_metric_snapshots`（via `logstore.Observability.InsertDNSMetricSnapshot`）。
 
 ---
 
-## 3. Agent 上报数据结构（协议 v2）
+## 2. 上报数据结构 (`internal/openflare/protocol/agent.go`)
 
-### 3.1 顶层 `NodePayload`
+### 2.1 顶层 `NodePayload`
 
-传输：HTTP 心跳 body 与 WebSocket `status` 消息共用同一结构。
-
-```json
-{
-  "schema_version": 2,
-  "node_id": "n_xxx",
-  "name": "edge-1",
-  "ip": "1.2.3.4",
-  "version": "3.3.0",
-  "ext_version": "",
-  "current_version": "cfg-checksum-or-version",
-  "last_error": "",
-  "profile": { },
-  "host_metrics": { },
-  "edge_health": { },
-  "access_logs": [ ],
-  "buffered": [ ],
-  "health_events": [ ],
-  "waf_ip_group_checksums": { "1": "md5..." }
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `schema_version` | int | 建议 | 固定为 `2`（本设计） |
-| `node_id` | string | ✅ | 节点 ID |
-| `name` | string | ✅ | 显示名 |
-| `ip` | string | ✅ | 上报 IP |
-| `version` / `ext_version` | string | ✅ | Agent 版本 |
-| `current_version` | string | | 本地激活配置版本摘要 |
-| `last_error` | string | | 最近同步/运行错误，可空 |
-| `openresty_status` | string | ✅（有 OpenResty 时） | **最新健康态权威字段** → 写 PG 节点表 |
-| `openresty_message` | string | | **最新健康说明权威字段** → 写 PG 节点表（**不进 CH**） |
-| `profile` | object | | 主机概况，变化时上报（可节流） |
-| `host_metrics` | object | 建议每拍 | L3 资源快照 |
-| `edge_health` | object | 建议每拍 | L2 连接数与健康状态（写入节点表最新态） |
-| `access_logs` | array | | 本拍增量访问明细 |
-| `buffered` | array | | 离线补传的事实批次（见 §3.6） |
-| `health_events` | array | | 边缘健康事件 |
-| `waf_ip_group_checksums` | map | | 差分同步用，非观测湖 |
-
-**已删除、Server 不再解析的字段（无兼容层）：**
-
-| 旧字段 | 处置 |
-| --- | --- |
-| `traffic_report` | 不存在于协议；不落库 |
-| `openresty_observation` | 不存在；连接与状态走 `edge_health` |
-| `snapshot` | 不存在；仅用 `host_metrics` |
-| `buffered_observability` | 不存在；仅用 `buffered` |
-
-### 3.2 `profile` — 主机概况（低频）
-
-对应关系库 `of_node_system_profiles`（或现有等价表），**不进 ClickHouse 明细湖**。
-
-```json
-{
-  "hostname": "edge-1",
-  "os_name": "linux",
-  "os_version": "...",
-  "kernel_version": "...",
-  "architecture": "amd64",
-  "cpu_model": "...",
-  "cpu_cores": 8,
-  "total_memory_bytes": 16106127360,
-  "total_disk_bytes": 107374182400,
-  "uptime_seconds": 864000,
-  "reported_at_unix": 1720000000
-}
-```
-
-| 字段 | 语义 |
-| --- | --- |
-| 硬件/OS 描述字段 | 事实读数 |
-| `reported_at_unix` | Agent 采集时刻（UTC 秒） |
-
-### 3.3 `host_metrics` — 宿主机资源（L3）
-
-**全部为读数，不做 24h 业务总量。**  
-网卡/磁盘字节为 **内核累计计数器原值**（单调递增，重启可归零）；CPU 为瞬时百分比；内存/磁盘占用为当前用量。
-
-```json
-{
-  "captured_at_unix": 1720000000,
-  "cpu_usage_percent": 12.5,
-  "memory_used_bytes": 4294967296,
-  "memory_total_bytes": 16106127360,
-  "storage_used_bytes": 50000000000,
-  "storage_total_bytes": 107374182400,
-  "disk_read_bytes": 9000000000,
-  "disk_write_bytes": 12000000000,
-  "network_rx_bytes": 500000000000,
-  "network_tx_bytes": 800000000000
-}
-```
-
-| 字段 | 类型 | 语义 | Server 如何用 |
-| --- | --- | --- | --- |
-| `captured_at_unix` | int64 | 采样时刻 | `captured_at` |
-| `cpu_usage_percent` | float | 瞬时 CPU% | 直接存；趋势取平均 |
-| `memory_*` / `storage_*` | int64 | 当前用量/总量 | 直接存；算占用率 |
-| `disk_read_bytes` / `disk_write_bytes` | int64 | **累计** IO 字节 | 存原值；查询时相邻差分 |
-| `network_rx_bytes` / `network_tx_bytes` | int64 | **累计** 网卡字节 | 存原值；查询时相邻差分 →「宿主机网卡入/出站」 |
-
-> Agent **禁止** 在上报前对网卡/磁盘做「本周期增量」替换累计值（否则 Server 差分会错）。
-
-### 3.4 `edge_health` — OpenResty 边缘健康（L2）
-
-**仅瞬时态，不包含业务吞吐。**
-
-```json
-{
-  "captured_at_unix": 1720000000,
-  "status": "healthy",
-  "message": "",
-  "connections": 42
-}
-```
+HTTP 心跳（`POST /api/v1/agent/nodes/heartbeat`）与 WebSocket `status` 消息共用同一结构体：
 
 | 字段 | 类型 | 语义 |
-| --- | --- | --- |
-| `status` | string | `healthy` / `unhealthy` / `unknown`（须与顶层 `openresty_status` 一致） |
-| `message` | string | 状态说明（上报可带；仅写 PG/SQLite 节点表最新态） |
-| `connections` | int64 | stub_status Active connections（写入节点表 `openresty_connections`） |
+| :--- | :--- | :--- |
+| `schema_version` | `int` | 协议版本号（当前为 `2`） |
+| `node_id` / `name` / `ip` | `string` | 节点标识、名称与当前上报公网 IP |
+| `version` / `ext_version` | `string` | `openflare-edge` 版本号 |
+| `current_version` / `latest_config_version` | `string` | 当前正在服务的健康配置修订与最新观测修订 |
+| `engine` / `contract_version` / `config_sync_version` | `string` / `int` | 运行引擎（`pingora`）、配置契约版本（`4`）与同步版本（`1`） |
+| `edge_update_supported` / `edge_update_ready` | `bool` | 是否具备自更新条件及新版本就绪确认 |
+| `last_error` | `string` | 最近配置应用或运行错误信息 |
+| `openresty_status` / `openresty_message` | `string` | 沿用兼容字段名，保存边缘网关最新健康态（`healthy` / `unhealthy` / `unknown`）及说明，仅写主库 `of_nodes` |
+| `profile` | `*NodeSystemProfile` | Komari 对齐主机静态/硬件画像（`of_node_system_profiles`） |
+| `host_metrics` | `*NodeMetricSnapshot` | L3 Komari 对齐主机实时读数与累计计数器 |
+| `edge_health` | `*NodeEdgeHealth` | L2 瞬时健康态与 `/proc/self/fd` 连接数（写 `of_nodes.openresty_connections`） |
+| `access_logs` | `[]NodeAccessLog` | L1 增量请求访问明细（含 `TCP_INFO` 与 WAF 审计） |
+| `buffered` | `[]BufferedObservabilityRecord` | 离线回放批次（包含历史窗 `host_metrics`、`edge_health`、`access_logs`） |
+| `health_events` | `[]NodeHealthEvent` | 边缘健康状态变更事件 |
 
-#### 健康状态权威源（收敛）
+> [!NOTE]
+> 旧版 `traffic_report`、`openresty_observation`、`snapshot` 与 `buffered_observability` 别名以及旧版心跳内嵌 `waf_ip_group_checksums` 字段均已从契约移除；WAF IP 组改为通过 `config_sync v1` 资源清单 `waf.ip-group.v1/<id>` 独立协商同步。
 
-| 数据 | 权威存储 | 说明 |
-| --- | --- | --- |
-| **当前** OpenResty 是否健康、说明文案及连接数 | **关系库节点表** `openresty_status` / `openresty_message` / `openresty_connections` | UI 徽章、列表、告警、节点快照连接数均以这里为准 |
-| Agent 上报 | 顶层 status/message + `edge_health` | Server 归一化后统一写入节点表；已移除 `of_node_edge_health` 时序表 |
+### 2.2 `profile`（Komari 对齐硬件画像）
 
-因此：查「现在是否 unhealthy」或「当前连接数」均直接读主库 `of_nodes`（旧版 `of_node_edge_health` 时序表已移除）。
-### 3.5 `access_logs[]` — 访问明细（L1，业务唯一事实）
+写入主库 `of_node_system_profiles`，包含 `hostname`、`os_name`、`os_version`、`kernel_version`、`architecture`、`cpu_model`、`cpu_cores`、`cpu_physical_cores`、`virtualization`、`gpu_name`、`total_memory_bytes`、`swap_total_bytes`、`total_disk_bytes`、`ipv4`、`ipv6`、`probe_version`、`uptime_seconds` 与 `reported_at_unix`。
 
-Agent：tail access.log → 解析 JSON 行 → 原样字段上报（可截断 path）。
+### 2.3 `host_metrics`（Komari 对齐主机指标）
 
-```json
-{
-  "logged_at_unix": 1720000001,
-  "remote_addr": "203.0.113.10",
-  "host": "www.example.com",
-  "path": "/api/v1/ping",
-  "status_code": 200,
-  "bytes_sent": 1024,
-  "request_length": 128,
-  "request_time_ms": 15,
-  "user_agent": "Mozilla/5.0 ...",
-  "cache_status": "HIT"
-}
-```
+所有网卡与磁盘字节字段上报 OS **累计计数器原值**，由控制面在查询时做相邻采样非负差分（节点重启计数器归零时当段记为 `0`），禁止边缘在本地折算为 24 小时增量或混同业务「已提供数据」：
 
-| 字段 | 类型 | 必填 | 来源（OpenResty） | 业务含义 |
-| --- | --- | --- | --- | --- |
-| `logged_at_unix` | int64 | ✅ | `$time_iso8601` 解析 | 请求完成时间 |
-| `remote_addr` | string | ✅ | `$remote_addr` | 客户端 IP → UV |
-| `host` | string | ✅ | `$host` | 域名 → Zone 归属 |
-| `path` | string | ✅ | `$request_uri`，Agent 可截断 | 路径 |
-| `status_code` | int | ✅ | `$status` | 状态码 |
-| `bytes_sent` | int64 | ✅ | **`$body_bytes_sent`** | **已提供数据**（响应体） |
-| `request_length` | int64 | 建议 | `$request_length` | **接收数据** |
-| `request_time_ms` | int64 | 可选 | `$request_time * 1000` | 耗时；缺省 0 |
-| `user_agent` | string | 建议 | `$http_user_agent` | UA；可截断入库 |
-| `cache_status` | string | 建议 | **`$upstream_cache_status`** | 边缘缓存结果（见 §3.5.1） |
+| 协议字段 | 入库列 (`of_node_metric_snapshots`) | 含义 |
+| :--- | :--- | :--- |
+| `captured_at_unix` | `captured_at` | 采集时间戳（UTC） |
+| `cpu_usage_percent` / `gpu_usage_percent` | `cpu` / `gpu` | 瞬时 CPU / GPU 利用率（%） |
+| `memory_used_bytes` / `memory_total_bytes` | `ram` / `ram_total` | 内存当前已用量与总量（字节） |
+| `swap_used_bytes` / `swap_total_bytes` | `swap` / `swap_total` | Swap 当前已用量与总量（字节） |
+| `load1` / `load5` / `load15` / `temp` | `load` / `load5` / `load15` / `temp` | 1/5/15 分钟系统负载与温度 |
+| `storage_used_bytes` / `storage_total_bytes` | `disk` / `disk_total` | 磁盘已用量与总量（字节） |
+| `disk_read_bytes` / `disk_write_bytes` | `disk_read_bytes` / `disk_write_bytes` | 磁盘累计读/写字节 |
+| `net_in` / `net_out` | `net_in` / `net_out` | 瞬时宿主机网卡入/出速率 |
+| `net_total_down` / `net_total_up` | `net_total_down` / `net_total_up` | 宿主机网卡累计接收/发送总字节 |
+| `process_count` / `tcp_connections` / `udp_connections` / `uptime_seconds` | `process` / `connections` / `connections_udp` / `uptime` | 系统进程数、TCP/UDP 连接数与运行秒数 |
 
-**明确不由 Agent 上报（由 Server 写入）：**
+### 2.4 `edge_health`（L2 瞬时态）
 
-* `region` / 国家：入库时 GeoIP 解析  
-* `id` / `created_at`：Server 生成  
-* `node_id`：取自 payload / 鉴权上下文  
+包含 `captured_at_unix`、`status`（`healthy`/`unhealthy`/`unknown`）、`message` 与 `connections`（当前已连接套接字数）。控制面规范化后统一写回主库 `of_nodes` 最新状态，已不再写入任何独立健康时序表。
 
-**明确不上报：**
+### 2.5 `access_logs[]`（L1 业务明细与被动链路观测）
 
-* `upstream_addr` / 回源地址 / `origin_fetched`：不做回源端点追踪；「是否回源」仅由 `cache_status` 在控制面推导（§3.5.1）
+| 字段 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `logged_at_unix` | `int64` | 请求完成时间戳（UTC 秒） |
+| `remote_addr` | `string` | 下游客户端 IP（用于 UV 与 NetIntel 查询） |
+| `host` | `string` | 请求 Host（用于 Zone 归属） |
+| `path` | `string` | 请求路径及查询串（控制面常规截断至 `100` 字符；WAF 命中记录按攻击日志长度策略保留） |
+| `user_agent` | `string` | User-Agent（入库截断至 `512` 字符） |
+| `cache_status` | `string` | 缓存阶段：`HIT`、`MISS`、`BYPASS`、`EXPIRED`、`STALE`、`UPDATING`、`REVALIDATED`、`-` |
+| `status_code` | `int` | 最终 HTTP 响应状态码 |
+| `bytes_sent` | `int64` | 响应体交付字节数（业务口径「已提供数据」） |
+| `request_length` | `int64` | 请求头与请求体估算接收字节数（业务口径「接收数据」） |
+| `request_time_ms` | `int64` | 请求总耗时（毫秒） |
+| `tcp_rtt_us` / `tcp_min_rtt_us` / `tcp_rtt_var_us` | `uint32` | 可选，内核 `TCP_INFO` 平滑 RTT、最小 RTT 与抖动（微秒） |
+| `tcp_retrans` / `tcp_segs_out` | `uint32` | 可选，`TCP_INFO` 累计重传数与出向段数（用于被动重传率计算） |
+| `tls_handshake_ms` | `uint32` | 可选，TLS 握手耗时（毫秒） |
+| `waf` | `*WAFAudit` | 可选，拦截或仅观察命中时携带 `action`、`reason`、`flow_id`、`flow_node_id`、`attack_group_id`、`rules` 与截断请求预览；控制面拆分写入 `waf_action` 与 `waf_audit` |
 
-### 3.5.1 `cache_status` — 缓存命中与回源（明细优先）
-
-**目标（第一期）：** 访问日志明细/详情能展示「是否命中缓存 / 是否回源 / 未使用缓存」。  
-**口径：** 只存 OpenResty `$upstream_cache_status` 原始值；**不上报** upstream 地址。
-
-#### 原始值（入库）
-
-| 值 | 含义（OpenResty） |
-| --- | --- |
-| `HIT` | 命中缓存 |
-| `MISS` | 未命中，向 upstream 取内容 |
-| `BYPASS` | 跳过缓存（如 method/cookie/策略导致 `$openflare_skip_cache`） |
-| `EXPIRED` | 缓存过期后回源 |
-| `STALE` | 提供陈旧缓存（stale） |
-| `UPDATING` | 后台更新中，可能返回旧缓存 |
-| `REVALIDATED` | 协商验证后仍用缓存 |
-| `-` 或空 | 未经过 `proxy_cache`（如 Pages 本地静态、非代理 location） |
-
-#### UI 三态推导（不落库）
-
-控制面展示用派生枚举 `cache_outcome`，**不写 CH**：
-
-| 三态 | 条件（`cache_status`） | 列表标签建议 |
-| --- | --- | --- |
-| **命中缓存** | `HIT` / `STALE` / `REVALIDATED` / `UPDATING` | 命中 |
-| **回源** | `MISS` / `EXPIRED` | 回源 |
-| **未使用缓存** | `BYPASS` / `-` / `""` | 未缓存 |
-
-详情可同时显示三态 + 原始 `cache_status`。
-
-#### 边界
-
-* Pages 静态 / 无 `proxy_cache` 的 location：多为空或 `-` → **未使用缓存**，不得标成「命中」。  
-* 明细详情展示缓存状态；命中率看板与 hourly 维度可基于同一列扩展。
-
-**单次心跳条数建议：**
-
-* 软上限例如 2000 条/拍；超出进入 `buffered` 下一批，**禁止** 在 Agent 压成 TrafficReport。
-
-### 3.6 `buffered[]` — 离线补传（只装事实）
-
-```json
-{
-  "captured_at_unix": 1719999900,
-  "host_metrics": { },
-  "edge_health": { },
-  "access_logs": [ ]
-}
-```
-
-| 字段 | 说明 |
-| --- | --- |
-| `captured_at_unix` | 该批次采集/缓冲时刻，用于 ack 与去重窗口 |
-| `host_metrics` / `edge_health` / `access_logs` | 与主 payload 同结构；可省略空块 |
-
-**禁止** 在 buffered 中携带 `traffic_report` 或 rx/tx 吞吐。
-
-### 3.7 `health_events[]`
-
-```json
-{
-  "event_type": "openresty_unhealthy",
-  "severity": "critical",
-  "message": "...",
-  "triggered_at_unix": 1720000000,
-  "metadata": { }
-}
-```
-
-写入关系库健康事件表（现有模型即可），不进访问日志湖。
-
-### 3.8 Go 协议结构
-
-```go
-// internal/openflare/protocol/agent.go（当前实现）
-
-type NodePayload struct {
-    SchemaVersion       int                    `json:"schema_version,omitempty"`
-    NodeID              string                 `json:"node_id"`
-    Name                string                 `json:"name"`
-    IP                  string                 `json:"ip"`
-    Version             string                 `json:"version"`
-    ExtVersion          string                 `json:"ext_version"`
-    CurrentVersion      string                 `json:"current_version"`
-    LastError           string                 `json:"last_error"`
-    OpenrestyStatus     string                 `json:"openresty_status"`  // PG 最新态权威
-    OpenrestyMessage    string                 `json:"openresty_message"` // PG 最新态权威；不进 CH
-    Profile             *NodeSystemProfile     `json:"profile,omitempty"`
-    HostMetrics         *NodeHostMetrics       `json:"host_metrics,omitempty"`
-    EdgeHealth          *NodeEdgeHealth        `json:"edge_health,omitempty"`
-    AccessLogs          []NodeAccessLog        `json:"access_logs,omitempty"`
-    Buffered            []BufferedFacts        `json:"buffered,omitempty"`
-    HealthEvents        []NodeHealthEvent      `json:"health_events"`
-    WAFIPGroupChecksums map[string]string      `json:"waf_ip_group_checksums,omitempty"`
-}
-
-type NodeHostMetrics struct {
-    CapturedAtUnix    int64   `json:"captured_at_unix"`
-    CPUUsagePercent   float64 `json:"cpu_usage_percent"`
-    MemoryUsedBytes   int64   `json:"memory_used_bytes"`
-    MemoryTotalBytes  int64   `json:"memory_total_bytes"`
-    StorageUsedBytes  int64   `json:"storage_used_bytes"`
-    StorageTotalBytes int64   `json:"storage_total_bytes"`
-    DiskReadBytes     int64   `json:"disk_read_bytes"`
-    DiskWriteBytes    int64   `json:"disk_write_bytes"`
-    NetworkRxBytes    int64   `json:"network_rx_bytes"`
-    NetworkTxBytes    int64   `json:"network_tx_bytes"`
-}
-
-type NodeEdgeHealth struct {
-    CapturedAtUnix int64  `json:"captured_at_unix"`
-    Status         string `json:"status"`
-    Message        string `json:"message"`
-    Connections    int64  `json:"connections"`
-}
-
-type NodeAccessLog struct {
-    LoggedAtUnix  int64  `json:"logged_at_unix"`
-    RemoteAddr    string `json:"remote_addr"`
-    Host          string `json:"host"`
-    Path          string `json:"path"`
-    UserAgent     string `json:"user_agent,omitempty"`
-    CacheStatus   string `json:"cache_status,omitempty"` // $upstream_cache_status
-    StatusCode    int    `json:"status_code"`
-    BytesSent     int64  `json:"bytes_sent"`      // body_bytes_sent，已提供数据
-    RequestLength int64  `json:"request_length"`  // 接收数据
-    RequestTimeMs int64  `json:"request_time_ms"` // 可选
-}
-
-type BufferedFacts struct {
-    CapturedAtUnix int64            `json:"captured_at_unix"`
-    HostMetrics    *NodeHostMetrics `json:"host_metrics,omitempty"`
-    EdgeHealth     *NodeEdgeHealth  `json:"edge_health,omitempty"`
-    AccessLogs     []NodeAccessLog  `json:"access_logs,omitempty"`
-}
-```
+控制面在 `internal/apps/openflare/agent/observability.go` 中自动补全 `id`（Snowflake UInt64）、`region`（GeoIP）与 `client_asn`（NetIntel），并在 `client_asn > 0 && tcp_rtt_us > 0` 时异步投递至 `netquality.RecordPassiveSampleInput`。
 
 ---
 
-## 4. Server 解析与落库流程
+## 3. 核心表结构（ClickHouse / 业务主库同构）
 
-### 4.1 入口
+> 在 ClickHouse 与 PostgreSQL/SQLite 双端均通过 `internal/infra/persistence/migrator/goose/` 维护同名列；PostgreSQL 对高频明细/指标表按月建立 `PARTITION BY RANGE`，ClickHouse 采用 `MergeTree` / `SummingMergeTree` / `AggregatingMergeTree` 与 `toYYYYMM` 分区及原生 TTL。
 
-* HTTP：`POST /api/v1/agent/...` 心跳（现有路径）  
-* WebSocket：`type=status` payload = `NodePayload`  
-* 鉴权：`X-Agent-Token` → 绑定 `node_id`（payload.node_id 必须与 token 节点一致）
+### 3.1 `of_node_access_logs`（L1 业务明细，默认 90 天保留）
 
-### 4.2 处理流水线（单次 payload）
+* **ClickHouse 主键排序**：`ORDER BY (node_id, logged_at, host, status_code, remote_addr)`，TTL `90 DAY`。
+* **核心列**：`id`、`node_id`、`logged_at`、`remote_addr`、`region`、`host`、`path`、`user_agent`、`cache_status`、`status_code`、`bytes_sent`、`request_length`、`request_time_ms`、`waf_action`、`waf_audit`、`client_asn`、`tcp_rtt_us`、`created_at`。
+* **派生小时物化视图（仅 ClickHouse）**：`of_access_log_hourly`（`SummingMergeTree`，按 `(node_id, hour, host)` 汇总 `request_count`、`error_count`、`bytes_sent`、`request_length`），供 24 小时以上趋势加速查询；PostgreSQL/SQLite 关闭物化视图并直接从原表实时聚合。
 
-```text
-1. 反序列化 NodePayload
-2. 归一化（normalize）
-   - schema_version < 2：
-       host_metrics ← snapshot
-       edge_health.status ← openresty_status
-       edge_health.connections ← openresty_observation.connections（若有）
-       traffic_report → drop
-       openresty_observation.rx/tx → drop
-       buffered ← buffered_observability
-   - path 再截断、status 范围钳制、负数字节 → 0
-3. 关系库事务（节点最新态）
-   - 更新 node 在线时间、IP、版本、`openresty_status`、`openresty_message`、`openresty_connections`
-   - upsert profile（若有）
-   - insert health_events（若有）
-4. ClickHouse 异步 batch（失败记日志，不阻断心跳响应的配置下发）
-   a. access_logs + buffered[].access_logs
-        → 补 region（GeoIP）
-        → 分配 snowflake id
-        → BatchInsert of_node_access_logs
-   b. host_metrics + buffered[].host_metrics
-        → of_node_metric_snapshots
-5. 返回心跳响应（settings / active_config / waf 差分）
-6. 若使用 buffer ack：按 buffered.captured_at_unix 列表确认
-```
+### 3.2 `of_node_metric_snapshots`（L3 主机快照，默认 30 天保留）
 
-### 4.3 归一化规则（硬约束）
+* **ClickHouse 主键排序**：`ORDER BY (node_id, captured_at, id)`，TTL `30 DAY`。
+* **核心列**：`id`、`node_id`、`captured_at`、`cpu`、`gpu`、`ram`、`ram_total`、`swap`、`swap_total`、`load`、`load5`、`load15`、`temp`、`disk`、`disk_total`、`disk_read_bytes`、`disk_write_bytes`、`net_in`、`net_out`、`net_total_up`、`net_total_down`、`process`、`connections`、`connections_udp`、`uptime`、`created_at`。
+* **派生小时物化视图（仅 ClickHouse）**：`of_node_metric_capacity_hourly`（`AggregatingMergeTree`，保存 CPU/内存加和与计数，以及 `net_total_down`、`net_total_up`、`disk_read_bytes`、`disk_write_bytes` 的小时 `min`/`max`）。
 
-| 规则 | 行为 |
-| --- | --- |
-| `logged_at` 超前 now+5m | 钳制为 now 或丢弃该条（实现选定一种并单测） |
-| `logged_at` 早于 now−TTL | 仍可写入，依赖表 TTL 清理 |
-| 空 `host` | 允许，聚合进「未归属」 |
-| `bytes_sent` / `request_length` < 0 | 置 0 |
-| 单批 access_logs > N | 截断并打点监控（或只入 buffer 队列），不改为预聚合 |
-| 重复补传 | CH 允许少量重复行；查询用 sum 近似（不强制精确去重） |
+### 3.3 `of_node_ping_records` 与 `of_dns_metric_snapshots`
 
-### 4.4 字段映射表（上报 → 表）
+* **`of_node_ping_records`**：记录 `id`、`node_id`、`task_id`、`recorded_at`、`value`（毫秒，失败通常为 `-1`）、`created_at`；ClickHouse 按 `(node_id, task_id, recorded_at, id)` 排序，TTL `30 DAY`。
+* **`of_dns_metric_snapshots`**：记录 `id`、`instance_id`、`captured_at`、`queries_total`、`queries_success`、`queries_nxdomain`、`queries_servfail`、`queries_ratelimited`、`qps`、`latency_p50_ms`、`latency_p95_ms`、`latency_p99_ms`、`cache_hit_ratio`、`snapshot_version`、`cpu`、`ram_percent`、`created_at`；ClickHouse 按 `(instance_id, captured_at, id)` 排序，TTL `30 DAY`。
 
-| 上报路径 | 目标存储 | 列 |
-| --- | --- | --- |
-| `access_logs[]` | CH `of_node_access_logs` | 见 §5.1 |
-| `host_metrics` | CH `of_node_metric_snapshots` | 见 §5.2 |
-| `edge_health` | 关系库 `of_nodes` 最新状态（`openresty_status` / `openresty_message` / `openresty_connections`） | 见 §5.6 |
-| `profile` | PG `of_node_system_profiles` | 现有列 |
-| `health_events` | PG 健康事件表 | 现有模型 |
-| `waf_ip_group_checksums` | 不落观测表 | 同步逻辑 |
-| `traffic_report`（旧） | **不写** | — |
-| `openresty_rx/tx`（旧） | **不写** | — |
+### 3.4 `of_network_quality_samples`（网络质量分桶样本，默认 30 天保留）
 
-### 4.5 查询侧（不落新「业务出站」列）
+* **ClickHouse 主键排序**：`ORDER BY (node_id, client_asn, captured_at, id)`，TTL `30 DAY`。
+* **核心列**：`id`、`node_id`、`node_asn`、`client_asn`、`client_country`、`client_region`、`ip_family`、`source`（`tcp_passive`/`tcp_active`/`icmp_active`/`traceroute`）、`sample_count`、`rtt_min_ms`、`rtt_p50_ms`、`rtt_p95_ms`、`retrans_rate`、`loss_rate`、`hop_count`、`stats_version`、`rtt_hist`（Base64 `LogHistogram64`）、`prefix_sketch`（`PrefixSketch`）、`distinct_prefix_count`、`client_lat`、`client_lon`、`geo_accuracy_km`、`geo_source`、`captured_at`、`created_at`。
 
-| 产品指标 | SQL 语义（示意） |
-| --- | --- |
-| 已提供数据 | `sum(bytes_sent)` |
-| 接收数据 | `sum(request_length)` |
-| 请求数 | `count()` |
-| UV | `uniqExact(remote_addr)` |
-| 5xx | `countIf(status_code >= 500)` |
-| 按域名/状态码/地区 | `GROUP BY host / status_code / region` |
-| 宿主机网卡出站 | 对 `network_tx_bytes` 按 node 时间序非负差分后 sum |
-| OpenResty 连接 | `of_nodes.openresty_connections` 最新值 |
+### 3.5 已移除的历史观测表
 
----
+以下旧版 OpenResty / FRP / 冗余时序表均已通过 Goose 迁移删除，不再存在写入或查询路径：
 
-## 5. 表结构（DDL）
-
-> 引擎与 TTL 与现网一致倾向：访问日志 90 天，指标 30 天。  
-> `id` 使用控制面 Snowflake/唯一 UInt64。
-
-### 5.1 L1 事实表：`of_node_access_logs`
-
-```sql
-CREATE TABLE IF NOT EXISTS of_node_access_logs
-(
-    id              UInt64,
-    node_id         String,
-    logged_at       DateTime64(3, 'UTC'),
-    remote_addr     String,
-    region          String,              -- Server GeoIP 写入，Agent 不传
-    host            String,
-    path            String,
-    user_agent      String DEFAULT '',   -- $http_user_agent
-    cache_status    String DEFAULT '',   -- $upstream_cache_status
-    status_code     Int32,
-    bytes_sent      UInt64,              -- 已提供数据（body）
-    request_length  UInt64 DEFAULT 0,    -- 接收数据
-    request_time_ms UInt32 DEFAULT 0,    -- 可选
-    created_at      DateTime64(3, 'UTC')
-)
-ENGINE = MergeTree()
-PARTITION BY toYYYYMM(logged_at)
-ORDER BY (node_id, logged_at, host, status_code, remote_addr)
-TTL toDateTime(logged_at) + INTERVAL 90 DAY
-SETTINGS index_granularity = 8192;
-```
-
-| 列 | 类型 | 来源 |
-| --- | --- | --- |
-| `id` | UInt64 | Server |
-| `node_id` | String | 鉴权/payload |
-| `logged_at` | DateTime64(3) | `logged_at_unix` |
-| `remote_addr` | String | 上报 |
-| `region` | String | Server GeoIP |
-| `host` | String | 上报 |
-| `path` | String | 上报 |
-| `user_agent` | String | 上报（可空） |
-| `cache_status` | String | 上报（可空）→ **缓存状态** |
-| `status_code` | Int32 | 上报 |
-| `bytes_sent` | UInt64 | 上报 → **已提供数据** |
-| `request_length` | UInt64 | 上报 → **接收数据** |
-| `request_time_ms` | UInt32 | 上报可选 |
-| `created_at` | DateTime64(3) | Server now |
-
-**迁移：** 现表已有 `bytes_sent` / `request_length` / `request_time_ms` / `user_agent`；缓存状态新增：
-
-```sql
-ALTER TABLE of_node_access_logs
-    ADD COLUMN IF NOT EXISTS cache_status String DEFAULT '';
-```
-
-### 5.2 L1 小时汇总（Server 侧 MV）
-
-**禁止 Agent 写入。** 供看板/节点 24h 快速查询请求数、错误数、字节量。
-
-**已实现选型：`SummingMergeTree` + 不含 UV 列。**
-
-```sql
-CREATE TABLE IF NOT EXISTS of_access_log_hourly
-(
-    node_id         String,
-    hour            DateTime('UTC'),
-    host            String,
-    request_count   UInt64,
-    error_count     UInt64,
-    bytes_sent      UInt64,
-    request_length  UInt64
-)
-ENGINE = SummingMergeTree()
-PARTITION BY toYYYYMM(hour)
-ORDER BY (node_id, hour, host)
-TTL hour + INTERVAL 90 DAY;
-
-CREATE MATERIALIZED VIEW IF NOT EXISTS of_access_log_hourly_mv
-TO of_access_log_hourly
-AS
-SELECT
-    node_id,
-    toStartOfHour(logged_at) AS hour,
-    host,
-    toUInt64(count()) AS request_count,
-    toUInt64(countIf(status_code >= 500)) AS error_count,
-    sum(bytes_sent) AS bytes_sent,
-    sum(request_length) AS request_length
-FROM of_node_access_logs
-GROUP BY node_id, hour, host;
-```
-
-历史小时（MV 创建前已入库的明细）需一次性回填，见迁移 `202607180003_backfill_access_log_hourly.sql`（ANTI JOIN 防重）。
-
-#### UV 策略（必须遵守）
-
-| 场景 | 数据源 | 算法 | 说明 |
-| --- | --- | --- | --- |
-| **窗口总 UV**（看板汇总、节点卡片、Zone 汇总） | `of_node_access_logs` 明细 | `uniqExact(remote_addr)`（`TrafficSummary` / 节点聚合） | **唯一权威**；不可用小时 UV 相加 |
-| **24h 趋势折线请求/错误/字节** | `of_access_log_hourly` 优先，缺数据回落明细桶 | `sum(request_count)` 等 | 小时路径 **不填** `unique_visitor_count`（恒为 0） |
-| **24h 趋势折线分时 UV** | 仅明细桶路径 | 桶内 `uniqExact` | 走 hourly 时 UI 应展示空/0 或隐藏 UV 序列，**禁止**对小时行做 `sum(UV)` |
-
-**为何 hourly 不存 UV：**
-
-1. `SummingMergeTree` 只能安全合并可加和计数；`uniqExact` 跨 part 合并需要 `AggregatingMergeTree` + state，实现与查询更重。  
-2. 即便存每小时 UV，对多小时窗口 **相加会严重高估**（同一 IP 跨小时重复计）。  
-3. 产品「24h 独立访客」只认整窗 `uniqExact`；趋势图主序列是请求量/错误/字节，分时 UV 非主指标。
-
-### 5.3 L3 事实表：`of_node_metric_snapshots`（保留，语义明确）
-
-```sql
-CREATE TABLE IF NOT EXISTS of_node_metric_snapshots
-(
-    id                  UInt64,
-    node_id             String,
-    captured_at         DateTime64(3, 'UTC'),
-    cpu_usage_percent   Float64,
-    memory_used_bytes   Int64,
-    memory_total_bytes  Int64,
-    storage_used_bytes  Int64,
-    storage_total_bytes Int64,
-    disk_read_bytes     Int64,    -- 累计原值
-    disk_write_bytes    Int64,
-    network_rx_bytes    Int64,    -- 累计原值 → 宿主机网卡入站
-    network_tx_bytes    Int64,    -- 累计原值 → 宿主机网卡出站
-    created_at          DateTime64(3, 'UTC')
-)
-ENGINE = MergeTree()
-PARTITION BY toYYYYMM(captured_at)
-ORDER BY (node_id, captured_at, id)
-TTL toDateTime(captured_at) + INTERVAL 30 DAY
-SETTINGS index_granularity = 8192;
-```
-
-列与现网一致；**文档与 API 必须标注 network_* 为宿主机网卡累计值**。
-
-### 5.4 L3 小时汇总：`of_node_metric_capacity_hourly`（保留）
-
-现有 min/max 用于累计计数器小时增量近似 + CPU/内存平均。逻辑不变：
-
-* `network_tx_max - network_tx_min` ≈ 该小时宿主机出站  
-* **不得** 用于「已提供数据」
-
-### 5.5 L2 事实表：`of_node_edge_health`（已移除）
-
-该表已从 PostgreSQL / SQLite / ClickHouse 移除；`edge_health.status`、`edge_health.message` 与 `edge_health.connections` 直接写入主库 `of_nodes` 最新状态列，不再保留逐心跳历史时序。
-### 5.6 关系库（节点最新态，非分析湖）
-
-与观测湖分离，保持「最新一份」：
-
-| 表（逻辑名） | 用途 | 关键列 |
-| --- | --- | --- |
-| `of_nodes`（或现节点表） | 在线、版本、IP、连接数 | `last_seen_at`, `openresty_status`, `openresty_message`, `openresty_connections`, `agent_version` |
-| `of_node_system_profiles` | profile upsert | hostname, cpu_cores, total_memory_bytes, ... |
-| 健康事件表 | `health_events` | event_type, severity, message, triggered_at |
-
-> 具体物理表名以仓库现有 GORM 模型为准；本设计不强制改名，只强制 **不再把业务吞吐写进节点表**。
-
-### 5.7 废弃表（停止写入 → TTL 后删除）
-
-| 表 | 原因 | 替代 |
-| --- | --- | --- |
-| `of_node_request_reports` | Agent 预聚合 | `of_node_access_logs` + hourly |
-| `of_node_traffic_hourly` + MV | 依赖 request_reports | `of_access_log_hourly` |
-| `of_node_obs_openresty` | 含业务 rx/tx | `of_nodes` + `of_node_access_logs` |
-| `of_node_openresty_hourly` + MV | 业务吞吐差分 | `of_access_log_hourly` 的 bytes_* |
-
-Relay 专用 `of_node_obs_frps` / `of_node_obs_frpc` **保留**（非本 Agent 主路径，但同属 CH 观测）。
-
----
-
-## 6. 表与协议对照总表
-
-| 产品概念 | 协议字段 | 表.列 | 聚合 |
-| --- | --- | --- | --- |
-| 已提供数据 | `access_logs[].bytes_sent` | `of_node_access_logs.bytes_sent` | `sum` |
-| 接收数据 | `access_logs[].request_length` | `...request_length` | `sum` |
-| 请求数 | 行数 | — | `count` |
-| UV（窗口总） | `remote_addr` | 同左明细 | `uniqExact`（**禁止** sum 小时 UV） |
-| Top 域名 | `host` | 同左 | `group by` |
-| 状态码分布 | `status_code` | 同左 | `group by` |
-| 来源地区 | — | `region`（Server） | `group by` |
-| 宿主机网卡出站 | `host_metrics.network_tx_bytes` | `of_node_metric_snapshots.network_tx_bytes` | 时间序差分 |
-| 宿主机网卡入站 | `network_rx_bytes` | 同左 | 差分 |
-| 磁盘读/写 | `disk_*_bytes` | 同左 | 差分 |
-| CPU/内存 | 瞬时字段 | 同左 | avg |
-| OpenResty 连接 | `edge_health.connections` | `of_nodes.openresty_connections` | 最新值 |
-| OpenResty 健康 | `edge_health.status` | `of_nodes.openresty_status` | 最新值 |
-
-**不再存在的映射：**
-
-| 旧概念 | 旧字段 | 处置 |
-| --- | --- | --- |
-| OpenResty 出站 | `openresty_tx_bytes` | 删除；用已提供数据 |
-| OpenResty 入站 | `openresty_rx_bytes` | 删除；用接收数据 |
-| 窗口请求报告 | `traffic_report` | 删除 |
-
----
-
-## 7. OpenResty 日志格式（与明细对齐）
-
-目标 `log_format`（保证 `bytes_sent` 键 = body；含 UA 与缓存状态）：
-
-```nginx
-log_format openflare_json escape=json
-  '{"ts":"$time_iso8601","host":"$host","path":"$request_uri",'
-  '"remote_addr":"$remote_addr","status":$status,'
-  '"request_time":$request_time,'
-  '"bytes_sent":$body_bytes_sent,"request_length":$request_length,'
-  '"user_agent":"$http_user_agent",'
-  '"cache_status":"$upstream_cache_status"}';
-```
-
-Agent 解析：
-
-* `ts` → `logged_at_unix`  
-* `bytes_sent` → 协议 `bytes_sent`（已提供）  
-* `request_length` → 协议 `request_length`  
-* `request_time` → 可选 `request_time_ms = round(sec * 1000)`  
-* `user_agent` → 协议 `user_agent`  
-* `cache_status` → 协议 `cache_status`（原样透传，不做三态压缩）
-
----
-
-## 8. 升级策略（无兼容层）
-
-| 项 | 策略 |
-| --- | --- |
-| Agent 升级 | **销毁重建**优先；允许**二进制替换** |
-| 协议 | 仅 schema v2 字段；旧 JSON 字段不解析 |
-| 本地观测缓冲 | 若仍是旧格式（含 `snapshot` / `openresty_observation` / `traffic_report`）或损坏 → **整文件删除**，运行中重建 |
-| 读路径 | 业务 API **只读** access_logs（及 hourly）；健康当前态与连接数读主库 `of_nodes` |
-| 旧 Agent | 必须升级；控制面不提供 v1 双读路径 |
-
----
-
-## 9. 示例：一次心跳的落库结果
-
-**Agent 上报（节选）：**
-
-```json
-{
-  "schema_version": 2,
-  "node_id": "n1",
-  "host_metrics": {
-    "captured_at_unix": 1720000000,
-    "cpu_usage_percent": 10,
-    "memory_used_bytes": 1,
-    "memory_total_bytes": 2,
-    "storage_used_bytes": 3,
-    "storage_total_bytes": 4,
-    "disk_read_bytes": 100,
-    "disk_write_bytes": 200,
-    "network_rx_bytes": 1000,
-    "network_tx_bytes": 2000
-  },
-  "edge_health": {
-    "captured_at_unix": 1720000000,
-    "status": "healthy",
-    "message": "",
-    "connections": 5
-  },
-  "access_logs": [
-    {
-      "logged_at_unix": 1720000001,
-      "remote_addr": "1.1.1.1",
-      "host": "a.example.com",
-      "path": "/",
-      "status_code": 200,
-      "bytes_sent": 500,
-      "request_length": 80
-    }
-  ]
-}
-```
-
-**写入：**
-
-1. PG 节点最新态：`openresty_status` / `openresty_message` / `openresty_connections=5`（若上报）  
-2. `of_node_metric_snapshots` 1 行（network_tx=2000 累计）  
-3. `of_node_access_logs` 1 行（bytes_sent=500, request_length=80, region=Server 填充）  
-4. MV 异步计入 `of_access_log_hourly`  
-
-**查询 24h 已提供数据：** `sum(bytes_sent)` → 至少 500（加历史）  
-**查询宿主机出站：** 对 snapshots 差分，与 500 **无强制相等关系**。
-
----
-
-## 10. 修订记录
-
-| 日期 | 说明 |
-| --- | --- |
-| 2026-07-17 | 初稿：协议 v2、Server 落库流水线、CH/关系库目标表结构与废弃表清单 |
+* `of_node_edge_health`（PG/SQLite 迁移 `202611270006`、ClickHouse 迁移 `202611270003` 移除，最新连接数合并至 `of_nodes.openresty_connections`）
+* `of_node_obs_frps`、`of_node_obs_frpc`（ClickHouse 迁移 `202611230001` 移除）
+* `of_node_request_reports`、`of_node_traffic_hourly`、`of_node_obs_openresty`、`of_node_openresty_hourly`

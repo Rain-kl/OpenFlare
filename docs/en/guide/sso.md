@@ -1,93 +1,43 @@
 # SSO Login Configuration
 
-You will learn: how to configure an OIDC third-party login entry for OpenFlare, fill in the callback URL, and how third-party accounts bind to local users.
+Integrate third-party identity providers such as Google, Keycloak, authentik, Logto, or Casdoor via standard OIDC Discovery.
 
-OpenFlare connects third-party login through OIDC auth sources. Any service providing standard OIDC Discovery (Google, Keycloak, authentik, Logto, Casdoor, etc.) can be integrated.
+## 1. Prerequisites
 
-After an auth source is configured and enabled, it appears in the third-party account login area on the login page. Users can log in with a third-party account, or bind a third-party account to the current local account while logged in.
+| Item | Requirement |
+| :--- | :--- |
+| Server access URL | Configured in **Admin** > **System settings** > **System** > **General**; must match the exact scheme, host, and port visited by users |
+| Auth source name | Unique identifier (such as `company-oidc`) starting with an alphanumeric character using letters, digits, `-`, or `_` |
+| Client ID / Secret | Application credentials issued by your OIDC provider |
+| OIDC Discovery URL | Metadata endpoint typically ending in `/.well-known/openid-configuration` |
 
-## Prerequisites
-
-| Item | Description |
-| --- | --- |
-| Server access URL | configured in admin「System Settings」->「System Settings」tab ->「General Settings」; must match the address users' browsers actually visit (protocol, domain, port) |
-| Auth source name | unique identifier inside OpenFlare, e.g. `company-oidc` |
-| Client ID | provided after creating the app on the third-party platform |
-| Client Secret | provided after creating the app on the third-party platform |
-| OIDC Discovery URL | e.g. `https://idp.example.com/.well-known/openid-configuration` |
-
-The auth source name may only contain letters, digits, hyphens, or underscores, and must start with a letter or digit.
-
-## Callback URL
-
-The Redirect URI / Callback URL on the third-party platform is fixed to:
+All auth sources share one callback URL (Redirect URI) without appending the source name:
 
 ```text
 <server access URL>/login
 ```
 
-For example, with a server access URL of `https://openflare.example.com`:
+## 2. Configure an OIDC Auth Source
 
-```text
-https://openflare.example.com/login
-```
+1. Create a Web / Confidential client in your provider with Redirect URI `<server access URL>/login`.
+2. Open **Admin** > **System settings** > **Security** > **Auth Source Management**, click **Add auth source**, and select `OIDC`.
+3. Fill in Name, Display Name, Client ID, Client Secret, Discovery URL, and Scope (default `openid profile email`), then save and enable (leave Secret blank when editing to preserve).
 
-The callback URL only relates to the「server access URL」and does not include the auth source name. After the third-party platform completes authorization, it redirects here, and the OpenFlare login page uses the authorization code to complete login or binding.
-
-## Configure OIDC Login
-
-1. Create an app or client on the OIDC Provider; choose Web / Confidential Client as the app type.
-2. Set the Redirect URI / Callback URL to `<server access URL>/login`.
-3. Copy the Client ID and Client Secret.
-4. Get the Provider's Discovery URL, usually ending in `/.well-known/openid-configuration`.
-5. Log in to the OpenFlare admin panel, go to **「System Settings」**, select the **「Security Settings」** tab, and add an auth source in the **「Auth Source Management」** section.
-6. Choose type `OIDC`; fill in the auth source name, display name, Client ID, Client Secret, and OIDC Discovery URL.
-7. Scope defaults to `openid profile email`. If the Provider restricts scopes, adjust according to the Provider's allowed values.
-8. Save and enable the auth source.
-
-Once enabled, the login page shows the corresponding third-party login button.
-
-## Login and Binding Behavior
-
-When a third-party account returns to OpenFlare, it is handled as follows:
+## 3. Account Binding & Troubleshooting
 
 | Scenario | Behavior |
-| --- | --- |
-| Third-party account already bound to a local user | log in directly |
-| User already logged in and initiates third-party authorization | bind to the current local user |
-| Third-party account not bound, and registration allowed | auto-create a normal user and bind |
-| Third-party account not bound, and registration disabled | require entering an existing local account password to bind |
+| :--- | :--- |
+| External identity bound | Signs straight into the linked local account |
+| Signed-in user authorizes | Binds external identity to the active local account |
+| Unbound & registration open | Auto-provisions a standard user and binds it |
+| Unbound & registration closed | Prompts for local credentials to bind once |
 
-To allow only existing users to use SSO, turn off user registration. Unbound third-party accounts then enter the bind-existing-account flow.
+Identities bind by `auth_source + sub`, preserving links across upgrades.
 
-Third-party identities associate with local users via `auth_source + sub`. Auto-registration generates independent local user IDs and does not adopt third-party `id` or numeric `sub` fields as local primary keys. System upgrades preserve existing user IDs and account bindings.
-
-## Modifying an Auth Source
-
-When editing an auth source, leaving the Client Secret input empty keeps the existing secret; entering a new value overwrites and saves it.
-
-Changing the auth source name does not affect the callback URL, so the third-party platform config doesn't need to change.
-
-## FAQ
-
-### "Internal Server Error" Returned After Casdoor Authorization
-
-Older versions parsed non-standard `id` claims in ID Tokens as integers, whereas Casdoor returns string UUIDs, which caused callback failures after successful authorization. Upgrade to a version containing this fix and initiate authorization anew from the login page instead of refreshing stale callback URLs.
-
-If errors persist after upgrading, inspect the HTTP status code and `error_msg` of `POST /api/v1/oauth/callback` in browser developer tools to distinguish between token exchange, ID Token validation, and database errors. Never share authorization codes, access tokens, or Client Secrets when troubleshooting.
-
-### Returns `invalid_scope`
-
-The third-party platform doesn't allow the currently configured scope. The OIDC default scope is `openid profile email`. Adjust the scope on the auth source edit page, or allow the scope on the third-party platform.
-
-### Callback URL mismatch
-
-Check that the Redirect URI / Callback URL on the third-party platform exactly matches `<server access URL>/login`. Protocol, domain, port, and path must all match.
-
-### Login page doesn't show the third-party login button
-
-Check that the auth source is enabled and that the Client ID and Client Secret are saved. OpenFlare validates these fields before enabling the auth source.
-
-### Client Secret saved, but the list doesn't show the plaintext
-
-This is expected. OpenFlare never echoes the Client Secret through the API; it only shows whether a secret is configured.
+| Symptom | Fix |
+| :--- | :--- |
+| `invalid_scope` | Align Scope on the auth source or permit `openid profile email` in your provider |
+| Redirect URI mismatch | Verify exact scheme, host, port, and `/login` path against `<server access URL>/login` |
+| Error on callback redirect | Check `POST /api/v1/oauth/callback` in DevTools and restart login from `/login` rather than refreshing |
+| Provider button missing | Confirm **Allow OIDC login** is enabled under **Security** and the source is active with saved credentials |
+| Client Secret hidden | Expected behavior; plaintext secrets are never returned after saving |

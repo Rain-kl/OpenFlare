@@ -1,93 +1,43 @@
-# SSO 登录配置
+# SSO 单点登录配置
 
-你会学到：如何为 OpenFlare 配置 OIDC 第三方登录入口、填写回调地址，以及第三方账号如何绑定本地用户。
+通过标准 OIDC Discovery 接入 Google、Keycloak、authentik、Logto 或 Casdoor 等第三方身份提供商。
 
-OpenFlare 通过 OIDC 认证源接入第三方登录。任意提供标准 OIDC Discovery 的服务（如 Google、Keycloak、authentik、Logto、Casdoor 等）都可以接入。
+## 1. 前置准备
 
-认证源配置完成并启用后，会显示在登录页的第三方账号登录区域。用户可以通过第三方账号登录，也可以在已登录状态下把第三方账号绑定到当前本地账号。
+| 准备项 | 说明 |
+| :--- | :--- |
+| 服务器访问地址 | 在 **系统管理** > **系统设置** > **系统配置** > **通用设置** 配置，须与用户访问协议、域名和端口一致 |
+| 认证源名称 | 唯一标识（如 `company-oidc`），仅允许字母、数字、`-` 与 `_`，且以字母或数字开头 |
+| Client ID / Secret | 第三方身份提供商分配的应用凭证 |
+| OIDC Discovery URL | 通常以 `/.well-known/openid-configuration` 结尾 |
 
-## 使用前准备
-
-| 项目 | 说明 |
-| --- | --- |
-| 服务器访问地址 | 在管理端「系统设置」->「系统设置」选项卡 ->「通用设置」中配置，须与用户浏览器实际访问的地址一致（协议、域名、端口） |
-| 认证源名称 | OpenFlare 内部唯一标识，例如 `company-oidc` |
-| Client ID | 第三方平台创建应用后提供 |
-| Client Secret | 第三方平台创建应用后提供 |
-| OIDC Discovery URL | 例如 `https://idp.example.com/.well-known/openid-configuration` |
-
-认证源名称只能包含字母、数字、短横线或下划线，并且必须以字母或数字开头。
-
-## 回调地址
-
-第三方平台中的 Redirect URI / Callback URL 固定填写：
+所有认证源统一使用同一回调地址（Redirect URI），无需拼接认证源名称：
 
 ```text
 <服务器访问地址>/login
 ```
 
-例如服务器访问地址为 `https://openflare.example.com` 时：
+## 2. 配置 OIDC 认证源
 
-```text
-https://openflare.example.com/login
-```
+1. 在身份提供商创建 Web / Confidential 客户端并将 Redirect URI 设为 `<服务器访问地址>/login`。
+2. 进入 **系统管理** > **系统设置** > **安全设置** > **认证源管理**，点击 **添加认证源** 并选择 `OIDC`。
+3. 填写名称、展示名、Client ID、Client Secret、Discovery URL 与 Scope（默认 `openid profile email`），保存并启用；编辑时密钥留空可保留原值。
 
-回调地址只与「服务器访问地址」相关，不包含认证源名称。第三方平台授权完成后会跳转到该地址，OpenFlare 登录页携带授权码完成登录或绑定。
-
-## 配置 OIDC 登录
-
-1. 在 OIDC Provider 中创建应用或客户端，应用类型选择 Web / Confidential Client。
-2. Redirect URI / Callback URL 填写 `<服务器访问地址>/login`。
-3. 复制 Client ID 和 Client Secret。
-4. 获取 Provider 的 Discovery URL，通常以 `/.well-known/openid-configuration` 结尾。
-5. 登录 OpenFlare 管理端，进入左侧导航 **「系统设置」**，选择 **「安全设置」** 选项卡，在 **「认证源管理」** 栏目中新增认证源。
-6. 类型选择 `OIDC`，填写认证源名称、展示名称、Client ID、Client Secret、OIDC Discovery URL。
-7. Scope 默认使用 `openid profile email`。如果 Provider 限制了 scope，请按 Provider 允许的值调整。
-8. 保存并启用认证源。
-
-启用后，登录页会显示对应的第三方登录按钮。
-
-## 登录与绑定行为
-
-第三方账号回到 OpenFlare 后按以下规则处理：
+## 3. 绑定行为与排查
 
 | 场景 | 行为 |
-| --- | --- |
-| 第三方账号已绑定本地用户 | 直接登录 |
-| 用户已登录并发起第三方授权 | 绑定到当前本地用户 |
-| 第三方账号未绑定，且允许注册 | 自动创建普通用户并绑定 |
-| 第三方账号未绑定，且关闭注册 | 要求输入已有本地账号密码完成绑定 |
+| :--- | :--- |
+| 外部身份已绑定 | 直接登录对应本地账号 |
+| 已登录用户发起授权 | 将外部身份绑定到当前本地账号 |
+| 未绑定且开放注册 | 自动创建普通用户并完成绑定 |
+| 未绑定且关闭注册 | 引导输入已有本地账号密码完成一次性绑定 |
 
-如果希望只允许已有用户使用 SSO，可以关闭用户注册。未绑定的第三方账号会进入绑定已有账号流程。
+外部身份通过 `auth_source + sub` 绑定本地用户，系统升级会保留现有绑定关系。
 
-第三方身份通过「认证源 + `sub`」关联本地用户；自动注册时独立生成本地用户 ID，不使用第三方的 `id` 或数字 `sub` 作为本地用户主键。升级不会修改已有用户 ID 或账号绑定。
-
-## 修改认证源
-
-修改认证源时，Client Secret 输入框留空表示保留已有密钥；填写新值则会覆盖保存。
-
-修改认证源名称不会影响回调地址，无需同步修改第三方平台配置。
-
-## 常见问题
-
-### Casdoor 授权后提示「服务器内部错误，请稍后重试」
-
-旧版本将 ID Token 中非标准的 `id` 字段按整数解析，而 Casdoor 返回的 `id` 是字符串（通常为 UUID），可能导致授权成功后回调失败。请升级到包含此修复的版本，并从登录页重新发起授权，不要刷新或重复使用旧的回调链接。
-
-如果升级后仍失败，请在浏览器开发者工具的 Network 中检查 `POST /api/v1/oauth/callback` 的状态码和响应 `error_msg`，以区分令牌兑换、ID Token 校验或数据库错误。排查时不要分享授权码、Token、Client Secret 或完整用户信息。
-
-### 返回 `invalid_scope`
-
-说明第三方平台不允许当前配置的 Scope。OIDC 默认 Scope 是 `openid profile email`。请到认证源编辑页调整 Scope，或在第三方平台放行对应 Scope。
-
-### 提示回调地址不匹配
-
-检查第三方平台中配置的 Redirect URI / Callback URL 是否与 `<服务器访问地址>/login` 完全一致。协议、域名、端口和路径都必须一致。
-
-### 登录页没有显示第三方登录按钮
-
-检查认证源是否已启用，并确认 Client ID 和 Client Secret 已保存。启用认证源前，OpenFlare 会校验这些字段。
-
-### 已经保存 Client Secret，但列表不显示明文
-
-这是预期行为。OpenFlare 不会通过 API 回显 Client Secret，只显示该密钥是否已配置。
+| 常见故障 | 处理方式 |
+| :--- | :--- |
+| 报 `invalid_scope` | 核对认证源 Scope 或在身份提供商允许 `openid profile email` |
+| Redirect URI 不匹配 | 校验回调 URL 与 `<服务器访问地址>/login` 的协议、域名、端口和路径完全一致 |
+| 回调后报错 | 查看浏览器 `POST /api/v1/oauth/callback` 响应并从 `/login` 重新发起登录，勿刷新过期回调链接 |
+| 登录页无 OIDC 按钮 | 确认 **安全设置** 已开启 **允许 OIDC 登录**，且认证源已启用并保存完整凭证 |
+| 列表中不显示 Client Secret | 正常行为，接口不回传已保存的明文密钥 |

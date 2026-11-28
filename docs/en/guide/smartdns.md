@@ -1,59 +1,54 @@
----
-title: SmartDNS Authoritative Resolution
-description: Intelligent authoritative DNS routing with standalone OpenFlare DNS instances, multi-provider DNS accounts, NS delegation, and visual scheduling flows.
----
+# SmartDNS
 
-# SmartDNS Authoritative Resolution
+Route `A` and `AAAA` answers based on client geography, network topology, and live node capacity using embedded or standalone SmartDNS instances.
 
-OpenFlare SmartDNS combines real-time multi-window network quality matrices, node capacity limits, and a visual scheduling flow editor to deliver low-latency, EDNS0 Client Subnet (ECS)-aware authoritative DNS routing across your OpenFlare Edge cluster.
+## 1. Deploy and Enable
 
-OpenFlare supports two authoritative execution modes:
+- **Embedded mode (lightweight)**: Set `smartdns.enabled: true` in Server configuration (default `:53`) and expose `53/UDP` and `53/TCP`.
+- **Standalone mode (production)**: Deploy `openflare-dns` on dedicated hosts via [Deploy SmartDNS](../deployment/openflare-dns.md) and register with a discovery token.
 
-- **Standalone `OpenFlare DNS` (`openflare-dns`)**: A high-performance standalone authoritative DNS server with multi-core UDP/TCP listening, sharded in-memory response caching, response rate limiting (RRL), and offline snapshot failover.
-- **Control-plane built-in fallback engine**: Runs alongside OpenFlare Server when SmartDNS is enabled for lightweight evaluation or fallback resolution.
+> On Linux hosts running `systemd-resolved`, disable its stub listener before binding port `53`.
 
----
+## 2. Console Setup
 
-## How SmartDNS Works
+1. Open **DNS** > **SmartDNS** > **Instances** and confirm at least one instance is **Online**.
+2. In **Policies**, select a built-in preset (**Smart Allocation** / **Capacity Load Balance**) or create a custom policy.
+3. In **Delegated Zones**, enter a delegation domain (such as `edge.example.com`) and NS hostnames (such as `ns1.dns-infra.example`), adjust default TTL (`60s`), and enable it.
+4. On **Proxy Routes**, set the pointing mode to **SmartDNS**, or attach records centrally under **Global Records**.
 
-SmartDNS takes authoritative control of a dedicated delegated subdomain via `NS` delegation, and business domains point to hostnames under that delegated subdomain via DNS-only `CNAME` records. Recursive resolvers forward queries (along with ECS subnet details) directly to your `OpenFlare DNS` instances, which return optimal healthy edge node `A`/`AAAA` records.
+## 3. Registrar Delegation & Constraints
 
-| Role | Example | Hosted Zone | Description |
-| :--- | :--- | :--- | :--- |
-| **Business domain** | `www.example.com` | Primary DNS provider | Public site domain pointing to the CNAME target with proxy disabled (DNS-only) |
-| **Delegated subdomain** | `sdns.example.com` | Delegated via `NS` to SmartDNS | Authoritative zone managed by SmartDNS |
-| **CNAME target hostname** | `app.sdns.example.com` | Inside `sdns.example.com` | Target generated automatically by a pointing group in SmartDNS mode or specified manually |
-| **Authoritative NS hostnames** | `ns1.example.com`, `ns2.example.com` | Primary DNS provider (outside `sdns.example.com`) | `A`/`AAAA` records pointing to the public IPs of your `OpenFlare DNS` instances |
+| Constraint | Requirement |
+| :--- | :--- |
+| NS placement | NS hostnames must live outside the delegated zone unless backed by parent-zone glue records |
+| Site records | Point site domains to the delegated subdomain with a DNS-only `CNAME` (proxy disabled) |
+| Protocols | Allow both `53/UDP` and `53/TCP` in host firewalls and cloud security groups |
+| Zone apex | Root domains cannot use standard `CNAME` without provider ALIAS/ANAME/CNAME flattening |
+| Rollout order | Verify online instances and local query answers before adding `NS` records at your registrar |
 
-```mermaid
-flowchart LR
-  Client["Visitor / Recursive Resolver"] -->|"1. Query www.example.com"| ParentDNS["Parent DNS (CNAME -> app.sdns.example.com)"]
-  ParentDNS -->|"2. Follow NS delegation for sdns.example.com"| DelegNS["NS: ns1.example.com"]
-  DelegNS -->|"3. Resolve ns1.example.com"| Glue["Instance Public IP"]
-  Glue -->|"4. Query app.sdns.example.com (with ECS)"| SmartDNS["OpenFlare DNS Instance (UDP/TCP 53)"]
-  SmartDNS -->|"5. Evaluate flow rules & quality score"| Client
-  Client -->|"6. Connect to optimal edge node"| Edge["OpenFlare Edge Node"]
+## 4. Policy Variables (Optional)
+
+Custom **Policies** DAG graphs combine weights (`latency`, `load`, `geo`), tag weights (`use_tag_weights`), and filters over these variables:
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `client.country` / `client.region` | Client ISO 2-letter country and region | `"CN"`, `"California"` |
+| `client.asn` | Client autonomous system number | `4134` |
+| `client.ip_family` | Client IP family | `"v4"` / `"v6"` |
+| `domain` / `qtype` | Queried domain and DNS record type | `"www.example.com"`, `"A"` |
+
+## 5. Verification & Troubleshooting
+
+```sh
+dig @<SMARTDNS_IP> www.edge.example.com A +short
+dig +trace www.edge.example.com A
 ```
 
----
+| Symptom | Check |
+| :--- | :--- |
+| Timeout / `SERVFAIL` | Verify `openflare-dns` is online and both `53/UDP` and `53/TCP` are open |
+| `NXDOMAIN` | Confirm the delegated zone is enabled and the route or global record targets SmartDNS |
+| Unexpected node returned | Check GeoIP/ASN coverage for the client IP, node health, and policy filter constraints |
+| UDP works, TCP fails | Open `53/TCP` for large responses and `dig +trace` fallback |
 
-## Key Requirements Before Setup
-
-1. **Out-of-bailiwick NS hostnames**: Place NS hostnames outside the delegated subdomain (for example, `ns1.example.com` for delegated zone `sdns.example.com`), and create DNS-only `A`/`AAAA` records pointing to your `OpenFlare DNS` public IPs.
-2. **DNS-only records (no proxy)**: Both the NS `A`/`AAAA` records and business `CNAME` records must remain DNS-only so recursive resolvers reach port `53` directly and client subnets are preserved.
-3. **Firewall ports**: Allow inbound **`53/udp`** and **`53/tcp`** on every `OpenFlare DNS` host.
-4. **High availability**: Deploy at least two standalone `OpenFlare DNS` instances (`ns1` and `ns2`) across separate availability zones or providers for production.
-5. **Recommended order**: Save delegation settings and bring at least one authoritative instance online before adding parent-zone `NS` records and running public delegation verification.
-
----
-
-## Quick Configuration Workflow
-
-1. **Connect DNS Accounts**: Open **DNS → DNS Accounts** to configure and verify Cloudflare, Alibaba Cloud DNS, or Tencent Cloud DNSPod credentials with automatic domain scope discovery.
-2. **Configure Node Attributes**: In **Nodes**, optionally assign global routing tags, network groups, bandwidth/concurrency limits, and capacity baseline weights to edge nodes.
-3. **Deploy Authoritative Instances**: Open **DNS → SmartDNS → Authoritative Instances**, copy the prefilled Linux or Docker deployment command, and bring instances online. See [OpenFlare DNS Deployment](../deployment/openflare-dns.md).
-4. **Configure and Verify Delegation**: Open **DNS → SmartDNS → Delegation Settings**, configure the delegated subdomain and NS hostnames, synchronize parent-zone `NS` records via Cloudflare or Alibaba Cloud DNS (or add them manually), and run public NS verification.
-5. **Create Scheduling Policies**: Open **DNS → SmartDNS → Scheduling Policies** to build visual flow rules filtering by country, continent, ASN, client subnet, node tags, or network group, and verify decisions with the built-in ECS simulator.
-6. **Bind Domains via Pointing Groups**: Open **DNS → DNS Resolution**, create or update a pointing group in **SmartDNS** mode, and bind your business domains.
-
-For full reference details and troubleshooting examples, see the [Chinese SmartDNS Guide](/guide/smartdns).
+See [Network Tools](./network-tools.md) for probing data and [SmartDNS Architecture Design](../design/smartdns-design.md) for internals.

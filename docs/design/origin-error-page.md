@@ -1,185 +1,27 @@
 # 源站错误页设计
 
-源站或网关返回指定错误状态码时，OpenFlare 使用全局可配置页面替代透传响应。配置进入不可变配置快照，边缘 OpenFlare Edge 网关在保持真实 HTTP 状态码的前提下渲染错误页面并在正文中展示该状态码。
-
-本设计是 [系统架构](./architecture.md) 中反代流量路径的产品化补充；配置同步模型见 [边缘节点设计](./pingora-edge-design.md)。
+当源站或边缘网关产生指定 HTTP 错误状态码时，OpenFlare Edge 使用全局配置的自定义或内置默认 HTML 页面替代原始错误响应，同时严格保持真实的 HTTP 响应状态码并在正文中注入当前状态码与请求域名。
 
 ---
 
-## 1. 目标与非目标
+## 1. 行为边界与产品语义
 
-### 1.1 目标
-
-* **可拦截**：在用户配置的状态码集合上，用统一 HTML 替换原先透传的源站或默认错误响应。
-* **可关闭**：全局开关关闭后行为与现状一致（透传源站响应或返回内置默认错误）。
-* **默认可视**：默认启用，默认状态码标签 `500-599`，默认展示内置错误页。
-* **自带标识**：内置错误页和离线页直接嵌入黑色 OpenFlare 标识，无需加载外部图片。
-* **可自定义**：管理员可在线编辑完整 HTML；空 HTML 表示使用内置默认模板。
-* **状态码透传**：HTTP 响应 `status` 保持原错误码（如 502、522）；页面正文通过 `{{status}}` 展示同一数值。
-* **全局统一**：侧栏「网站管理 → 响应页面」单一配置，全站反代路由共用。
-* **与发布一致**：配置经 Option 持久化，进入配置快照后随同步与回滚下发。
-
-### 1.2 非目标
-
-* 按反代路由 / Zone 覆盖错误页  
-* 通过上传文件托管错误页（仅在线 HTML）  
-* 修改 WAF / PoW / 限流自有响应页（除非用户把对应状态码加入列表）  
-* Pages 静态路由错误页  
-* 多语言错误页、品牌资源 CDN  
+* **全局统一配置**：错误页作为全局运维配置存在于控制台「网站管理 → 响应页面」（`/responses`、`/responses/error-page/edit`、`/responses/error-page/preview`），全站反向代理路由共用；**不适用于** Pages 静态托管路由、WAF/PoW/限流自带拦截页面（除非主动将对应状态码纳入列表）以及命中陈旧缓存（`stale`）成功响应的场景。
+* **状态码严格透传**：网关仅替换响应正文并设置 `Content-Type: text/html; charset=utf-8`，HTTP 响应码保持原始值（如 `500`、`502`、`504`），绝不篡改为 `200`。
+* **GET-only 模式**：开启 `origin_error_page_get_only` 时，仅替换 `GET` 请求的错误响应；`POST`、API 回调等非 `GET` 请求保持透传原始响应。
+* **模板与占位符**：内置极简风格 HTML 模板（`internal/openflare/edgeconfig/origin_error_page.go`）直接内嵌品牌 SVG 标识，无需外部资源请求；运行时支持 `{{status}}` 与 `{{host}}` 内存替换。由于属于管理员全局运维配置，存储时不做 XSS 消毒（界面提示勿嵌入不可信第三方脚本）。
 
 ---
 
-## 2. 产品行为
+## 2. 配置模型与编译流
 
-### 2.1 何时替换
+配置项作为标准 Option 持久化于 `w_system_configs`（复用 `GET /api/v1/d/option` 与 `POST /api/v1/d/option/update-batch`），并在编译站点快照时打包进 `sites.v1` 下发至边缘节点：
 
-| 条件 | 行为 |
-| --- | --- |
-| 开关开启，且响应状态码落在展开后的集合内 | 返回自定义/默认 HTML，**status 不变** |
-| 开关开启且启用 GET-only，非 GET 请求返回匹配状态码 | 透传源站原始响应，不替换 |
-| 开关关闭 | 不拦截错误码，透传原始响应 |
-| 状态码不在集合内 | 不替换 |
-| Pages 上游路由 | 不应用本功能 |
-| 源站成功返回 2xx/3xx/4xx（未配置时） | 不替换 |
+| 配置键 | 类型 | 默认值 | 校验与约束 |
+| :--- | :--- | :--- | :--- |
+| `origin_error_page_enabled` | bool 字符串 | `true` | 总开关；关闭后所有请求透传原始响应 |
+| `origin_error_page_status_codes` | JSON 字符串数组 | `["500-599"]` | 支持单码（如 `522`）或闭区间（如 `500-599`），展开后须位于 `400–599` 且启用时非空 |
+| `origin_error_page_html` | 文本 | `""` | 空字符串表示使用内置默认模板；字节上限 `256 KiB` |
+| `origin_error_page_get_only` | bool 字符串 | `false` | 控制是否仅拦截替换 `GET` 请求错误 |
 
-全方法模式下对反代路由统一拦截源站返回的匹配 5xx 与网关本地错误；GET-only 模式仅替换 GET 请求的响应正文，非 GET 请求保持透传。
-
-### 2.2 状态码标签语法
-
-Tags Input 每条标签：
-
-| 形式 | 示例 | 含义 |
-| --- | --- | --- |
-| 单码 | `522` | 仅该码 |
-| 闭区间 | `500-599` | 含端点展开 |
-
-* 合法范围：单码与区间两端均在 **400–599**；`lo ≤ hi`。  
-* 默认标签列表：`["500-599"]`。  
-* 持久化存**原始标签**（JSON 数组字符串）；渲染时展开、去重、排序。  
-* 启用时展开结果为空 → 保存拒绝。  
-* 非法标签 → 保存拒绝并返回可读错误。
-
-### 2.3 页面占位符
-
-| 占位符 | 含义 |
-| --- | --- |
-| `{{status}}` | 当前响应状态码（与 HTTP status 一致） |
-| `{{host}}` | 请求 Host |
-
-自定义 HTML 与默认模板均支持上述占位符；运行时在边缘替换。未使用的占位符可不出现在模板中。
-
-### 2.4 默认页
-
-内置 OpenFlare 极简白底默认页：大号透传状态码、简短英文说明、Host 与品牌页脚。支持占位符 `{{status}}` / `{{host}}`；前端可在编辑页从内置模板目录加载预制风格。
-
----
-
-## 3. 配置模型
-
-### 3.1 Option keys（`w_system_configs` / OpenFlare Option API）
-
-| Key | 类型 | 默认 | 说明 |
-| --- | --- | --- | --- |
-| `origin_error_page_enabled` | bool 字符串 | `true` | 总开关 |
-| `origin_error_page_status_codes` | JSON 字符串数组 | `["500-599"]` | 原始标签 |
-| `origin_error_page_html` | 文本 | `""` | 空 = 内置默认；最大 **256 KiB** |
-| `origin_error_page_get_only` | bool 字符串 | `false` | 仅对 GET 请求替换错误页，其它方法透传 |
-
-API 复用：
-
-* `GET /api/v1/d/option`  
-* `POST /api/v1/d/option/update-batch`  
-
-不新增独立资源路由。goose 迁移写入 seed；常量定义于 `internal/model` 配置 key 区。
-
-### 3.2 校验（update-batch）
-
-1. `enabled`：可解析为 bool。  
-2. `status_codes`：合法 JSON 数组；每项 `^\d{3}$` 或 `^\d{3}-\d{3}$`；展开后均在 400–599；启用时非空。  
-3. `html`：长度 ≤ 256 KiB（按字节）；允许空。  
-4. 解析/展开逻辑为**纯函数**（位于 `internal/openflare/edgeconfig/origin_error_page.go`），供 API 与边缘快照编译共用，避免前后端与渲染语义分叉。
-
-不对 HTML 做 XSS 消毒：属管理员全局运维配置，与边缘公开展示一致；文档提示勿嵌入不可信第三方脚本。
-
-### 3.3 配置版本快照
-
-快照结构中包含以下字段：
-
-```go
-OriginErrorPageEnabled     bool
-OriginErrorPageStatusCodes []string  // 原始标签
-OriginErrorPageHTML        string    // 空则渲染器用内置默认
-OriginErrorPageGetOnly     bool
-```
-
-构建快照时从 Option 读取；节点只消费快照，不直读控制面 DB。
-
----
-
-## 4. 边缘渲染与处理
-
-### 4.1 边缘网关处理机制
-
-OpenFlare Edge 边缘网关在响应处理阶段拦截错误：
-
-1. 当响应状态码命中配置集合且未被关闭时，触发错误页处理逻辑。
-2. 若开启 `get_only` 且当前请求方法不为 `GET`，则跳过替换，透传原始响应。
-3. 动态读取快照中的模板 HTML（若为空则使用内置默认模板），并在内存中将 `{{status}}` 与 `{{host}}` 占位符替换为当前请求上下文的实际值。
-4. HTTP 响应 Header 中的 `Content-Type` 设置为 `text/html; charset=utf-8`，HTTP 状态码严格保留原错误码（如 500、502、504），禁止统一篡改为 HTTP 200。
-
-### 4.2 关闭与旁路
-
-当配置关闭时，网关不拦截任何错误码，所有源站响应或网络层错误按原有链路直接返回客户端。
-
-### 4.3 与缓存 stale 的关系
-
-若配置了特定错误码返回陈旧缓存（stale cache），成功返回 stale 内容时不会触发错误页逻辑。仅当最终产生面向客户端的错误状态码时才渲染错误页。
-
----
-
-## 5. 前端
-
-### 5.1 入口
-
-* 侧栏「网站管理 → 响应页面」：错误页 Tab（`/responses`），编辑页 `/responses/error-page/edit`、预览页 `/responses/error-page/preview`。  
-
-### 5.2 页面结构
-
-* 页头说明：保存后由控制端自动编译并同步生效。  
-* **开关 + Tags Input**（`@/components/ui/tags-input`）：状态码标签。  
-* **HTML 编辑区** +「加载默认模板」「恢复默认（清空）」+ 占位符说明。  
-* **客户端预览**：用示例 `status=502`、`host=example.com` 替换后 sandbox/iframe 预览。  
-* 保存：`OptionService.updateBatch`；权限与管理员设置保持一致。  
-
----
-
-## 6. 数据流
-
-```text
-管理员 /responses（错误页 Tab）
-    → Option update-batch（校验标签与 HTML）
-    → w_system_configs
-
-保存配置并自动同步
-    → 快照编译写入 sites.v1
-    → 边缘节点拉取并原子替换
-    → OpenFlare Edge 内存热生效
-
-访客请求反代域名
-    → 源站或网关产生匹配状态码
-    → OpenFlare Edge 响应拦截阶段
-    → 替换占位符，HTTP status 保持原码，返回 HTML
-```
-
----
-
-## 7. 决策记录
-
-| 决策 | 选择 | 原因 |
-| --- | --- | --- |
-| 配置范围 | 全局 | 统一错误展示；降低单站配置复杂度 |
-| 存储 | Option + 配置快照 | 与系统配置模型一致，支持随版本同步与回滚 |
-| 状态码输入 | 标签：单码与区间 | 既可覆盖完整 5xx，也可单独指定 522 等自定义码 |
-| 响应 status | 保持原码 | 保证监控、客户端与 SEO 语义正确 |
-| 运行时替换 | 内存占位符替换 | 满足每请求 host 与 status 动态绑定的要求 |
-| 自定义方式 | 在线 HTML | 避免依赖额外文件上传链路 |
+标签展开与校验逻辑由共享纯函数实现（`internal/openflare/edgeconfig/origin_error_page.go`），确保 API 校验与快照编译语义完全一致；`openflare-edge` 在原子切换 `sites.v1` 后立即在内存热生效。

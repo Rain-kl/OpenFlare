@@ -1,4 +1,4 @@
-# 内网穿透隧道设计文档
+# 内网穿透隧道设计
 
 本文档说明 OpenFlare 原生内网穿透子系统的架构设计、控制面数据模型、多中继高可用调度机制、内嵌 rathole 数据面协议、边界安全校验与独立版本升级机制。
 
@@ -17,16 +17,16 @@
 
 ## 控制面数据模型
 
-控制面在主数据库维护 6 张核心关系表（统一采用 `w_` 前缀，无物理外键，由 `internal/repository/openflare_tunnel.go` 与 `internal/apps/openflare/tunnel/` 驱动）：
+控制面在主数据库维护 6 张核心关系表（统一采用 `of_` 前缀，无物理外键，由 `internal/repository/openflare_tunnel.go` 与 `internal/apps/openflare/tunnel/` 驱动）：
 
 | 数据表 | 核心职责 |
 | :--- | :--- |
-| `w_tunnel_relay_pools` | 中继池定义：配置默认传输偏好（`auto` / `noise` / `websocket` / `tcp`）、回退传输顺序、默认高可用中继数（`ha_relays`）、就近探测策略、允许/禁止回源 CIDR 及升级渠道。 |
-| `w_tunnel_relays` | 公网中继实例：记录公网传输地址、网关地址、`transport_port`（默认 7443）、`ws_port`（默认 7444）、`gateway_port`（默认 8443）、Noise 公私钥、网关签名密钥、`zone_tag`、`colocated_edge_node_id`、排水状态（`draining`）、隔离状态与运行时遥测。 |
-| `w_tunnels` | 逻辑隧道实体：绑定所属中继池（`pool_id`）、默认传输协议与独立 CIDRs 安全策略，签发唯一 `tunnel_token` 并支持紧急隔离与密钥轮换。 |
-| `w_tunnel_connectors` | 内网连接器实例：同一隧道可横向部署多个 `openflared` 副本（按持久化 `connector_id` 区分），记录公网出口 IP、版本号、契约版本与在线租约（`lease_expires_at`）。 |
-| `w_tunnel_attachments` | 隧道附加状态账本：记录各连接器当前附着的中继、活跃传输协议、服务编号、往返时延（RTT）与负载摘要。 |
-| `w_tunnel_services` | L4/L7 转发服务定义：声明 `tcp` / `udp` 监听端口、目标内网地址及扩展选项（L7 HTTP/WS 可直接由 `/proxy-routes` 绑定 `tunnel_id` 自动接入，亦支持静态服务配置）。 |
+| `of_tunnel_relay_pools` | 中继池定义：配置默认传输偏好（`auto` / `noise` / `websocket` / `tcp`）、回退传输顺序、默认高可用中继数（`ha_relays`）、就近探测策略、允许/禁止回源 CIDR 及升级渠道。 |
+| `of_tunnel_relays` | 公网中继实例：记录公网传输地址、网关地址、`transport_port`（默认 7443）、`ws_port`（默认 7444）、`gateway_port`（默认 8443）、Noise 公私钥、网关签名密钥、`zone_tag`、`colocated_edge_node_id`、排水状态（`draining`）、隔离状态与运行时遥测。 |
+| `of_tunnels` | 逻辑隧道实体：绑定所属中继池（`pool_id`）、默认传输协议与独立 CIDRs 安全策略，签发唯一 `tunnel_token` 并支持紧急隔离与密钥轮换。 |
+| `of_tunnel_connectors` | 内网连接器实例：同一隧道可横向部署多个 `openflared` 副本（按持久化 `connector_id` 区分），记录公网出口 IP、版本号、契约版本与在线租约（`lease_expires_at`）。 |
+| `of_tunnel_attachments` | 隧道附加状态账本：记录各连接器当前附着的中继、活跃传输协议、服务编号、往返时延（RTT）与负载摘要。 |
+| `of_tunnel_services` | L4/L7 转发服务定义：声明 `tcp` / `udp` 监听端口、目标内网地址及扩展选项（L7 HTTP/WS 可直接由 `/proxy-routes` 绑定 `tunnel_id` 自动接入，亦支持静态服务配置）。 |
 
 > [!NOTE]
 > 数据库迁移 `202611230004`–`202611230006` 及 ClickHouse 迁移 `202611230001` 会清除旧版 FRP 表结构与 `tunnel_relay`/`tunnel_client` 遗留节点记录，保证现有实例平滑升级至新体系。

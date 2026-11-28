@@ -1,12 +1,12 @@
 # Commands & Scripts
 
-You will learn: command-line flags, build targets, and quality gate commands for OpenFlare Server, OpenFlare Edge, Relay, OpenFlared, the admin frontend, Swagger, and the documentation site.
+Command-line flags, subcommands, build targets, and quality gate commands for `openflare-server`, `openflare` CLI, `openflare-edge`, `openflare-dns`, `openflare-relay`, `openflared`, the frontend, Swagger, and the documentation site.
 
 > All commands run at the **repository root** unless noted otherwise.
 
 ---
 
-## Control Plane Service (OpenFlare Server)
+## Control Plane Service (`openflare-server`)
 
 ### 1. Subcommands and CLI Flags
 
@@ -26,6 +26,10 @@ Built binary outputs to `bin/openflare-server` (or run directly via Go source: `
 
 # Reset password for a specific account
 ./bin/openflare-server reset-passwd --user admin --password "NewPassword123!"
+
+# Dry-run and re-encrypt stored credentials (before rotating app.session_secret)
+./bin/openflare-server rotate-credentials --new-secret-file ~/.openflare-new-session-secret
+./bin/openflare-server rotate-credentials --new-secret-file ~/.openflare-new-session-secret --apply
 ```
 
 `reset-passwd` parameters:
@@ -53,9 +57,25 @@ GOCACHE=/tmp/openflare-go-cache go test ./...
 
 ---
 
-## Edge Gateway (OpenFlare Edge)
+## Operations CLI (`openflare`)
 
-OpenFlare Edge is implemented in Rust on top of Cloudflare OpenFlare Edge. The binary is named `openflare-edge`.
+Interactive and scriptable operator CLI (`cmd/openflare`) for sites, zones, certificates, WAF rules, nodes, and probes. See [CLI and MCP](../guide/automation.md) for usage examples.
+
+```bash
+# Build the operations CLI binary
+go build -o bin/openflare ./cmd/openflare
+
+# Authenticate against a control plane and inspect available commands
+openflare auth login --server https://openflare.example.com
+openflare connection info
+openflare operations list
+```
+
+---
+
+## Edge Gateway (`openflare-edge`)
+
+OpenFlare Edge is built in Rust with Cloudflare Pingora and ships as `openflare-edge`.
 
 ### 1. Subcommands and Flags
 
@@ -78,100 +98,124 @@ openflare-edge run --upgrade \
   --http-listen "0.0.0.0:80" \
   --tls-listen "0.0.0.0:443"
 
-# Print supported controller configuration sync protocol version
+# Protocol versions, rule catalog, and isolated network probe worker
 openflare-edge config-sync-version
-
-# Print supported auto-update protocol version
 openflare-edge self-update-version
-
-# Output WAF / CRS attack rule catalog (JSON format)
 openflare-edge attack-rule-catalog
+openflare-edge probe-worker --idle-timeout-secs 300
 ```
 
 `openflare-edge run` flag details:
 
 | Flag | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `--server-url` | `string` | yes | none | OpenFlare control-plane address (e.g. `https://panel.example.com`) |
-| `--token-type` | `string` | no | `discovery` | Auth token type: `discovery` for initial registration; `node` for dedicated node credential |
-| `--token-file` | `path` | yes | none | Local path to file containing auth token |
+| `--server-url` | `string` | yes | none | OpenFlare control-plane URL |
+| `--token-type` | `string` | no | `discovery` | Auth token type: `discovery` for initial enrollment; `node` for dedicated node credential |
+| `--token-file` | `path` | yes | none | Local path to auth token file |
 | `--state-dir` | `path` | yes | none | Persistent storage and snapshot state directory (e.g. `/var/lib/openflare-edge`) |
-| `--http-listen` | `string` | no | `127.0.0.1:8080` | HTTP listening socket address (production systemd uses `0.0.0.0:80`) |
-| `--tls-listen` | `string` | no | empty | HTTPS/TLS listening socket address (production systemd uses `0.0.0.0:443`) |
-| `--upgrade` | `bool` | no | `false` | Upgrade mode; requires active configuration restore if snapshot exists |
+| `--http-listen` | `string` | no | `127.0.0.1:8080` | HTTP listening socket (`0.0.0.0:80` in systemd services) |
+| `--tls-listen` | `string` | no | empty | HTTPS/TLS listening socket (`0.0.0.0:443` in systemd services) |
+| `--upgrade` | `bool` | no | `false` | Upgrade mode; requires restoring existing active snapshot |
+
+### 2. Build, Lint, and Test Targets
+
+```bash
+# Build OpenFlare Edge release binary (edge/target/release/openflare-edge)
+make build-edge
+
+# Format, lint, unit tests, and runtime smoke verification
+cargo fmt --manifest-path edge/Cargo.toml --check
+cargo clippy --manifest-path edge/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path edge/Cargo.toml --locked
+python3 edge/tests/runtime_smoke.py
+```
+
+---
+
+## Authoritative SmartDNS (`openflare-dns`)
+
+`openflare-dns` is implemented in Rust under `dns/` and runs either as a standalone authoritative server or an external process supervised by Server.
+
+### 1. Subcommands and Flags
+
+```bash
+# Run standalone SmartDNS authoritative server
+openflare-dns serve \
+  --controller-url "https://panel.example.com" \
+  --discovery-token "<DISCOVERY_TOKEN>" \
+  --listen "0.0.0.0:53" \
+  --geoip-dir "/var/lib/openflare-dns/geoip" \
+  --cache-dir "/var/lib/openflare-dns"
+
+# Run handler throughput benchmark
+openflare-dns bench
+```
+
+See [Configuration Reference](./configuration.md#openflare-dns-flags--env-vars) for all `openflare-dns serve` flags and environment variable overrides.
 
 ### 2. Build and Test Targets
 
 ```bash
-# Compile OpenFlare Edge release binary
-make build-edge
-# Output located at: edge/target/release/openflare-edge
+# Build openflare-dns (output: bin/openflare-dns)
+make build-dns
 
-# Run Rust test suite
-cargo test --manifest-path edge/Cargo.toml --locked
+# Run SmartDNS unit tests
+make test-dns
 ```
 
 ---
 
-## Traffic Relay (Relay)
+## Traffic Relay (`openflare-relay`)
 
-Relay handles reverse proxy traffic distribution for tunnels, managing the embedded `frps` daemon.
+`openflare-relay` is the Rust public tunnel relay server implemented under `tunnel/relay`.
 
 ### 1. Execution and Flags
 
 ```bash
-# Run from source
-go run ./cmd/relay -config /path/to/relay.json
-
-# Run binary
-./bin/openflare-relay -config /etc/openflare-relay/relay.json
+openflare-relay \
+  --server-url "https://panel.example.com" \
+  --bootstrap-token "<RELAY_TOKEN>" \
+  --state-dir "/var/lib/openflare-relay" \
+  --public-addr "203.0.113.10" \
+  --transport-port 7443 \
+  --ws-port 7444 \
+  --gateway-port 8443
 ```
 
-Accepts only `-config <PATH>` (default `./relay.json`). Supports environment variable overrides:
-- `OPENFLARE_SERVER_URL`: Control-plane URL
-- `OPENFLARE_AGENT_TOKEN`: Relay node auth token
-- `OPENFLARE_DISCOVERY_TOKEN`: Global discovery token
-- `OPENFLARE_NODE_NAME`: Node name
-- `OPENFLARE_NODE_IP`: Public egress IP
-- `OPENFLARE_DATA_DIR`: Runtime data directory
-- `OPENFLARE_FRPS_PATH`: System `frps` binary path
-- `LOG_LEVEL`: Log level (default `info`)
+See [Configuration Reference](./configuration.md#relay-flags--env-vars) for all CLI flags and `OPENFLARE_RELAY_*` environment variables.
 
-### 2. Build Target
+### 2. Build and Test Targets
 
 ```bash
-make build-relay
 # Output: bin/openflare-relay
+make build-relay
+
+# Run tunnel workspace tests (shared with openflared)
+make test-tunnel
 ```
 
 ---
 
-## Tunnel Client (OpenFlared)
+## Tunnel Client (`openflared`)
 
-OpenFlared is the tunnel client daemon running on user origin servers, establishing encrypted tunnels to relay nodes via `frpc`.
+`openflared` is the Rust private-network connector daemon implemented under `tunnel/flared`.
 
 ### 1. Execution and Flags
 
 ```bash
-# Run from source
-go run ./cmd/flared -config /path/to/flared.json
-
-# Run binary
-./bin/flared -config /etc/openflared/flared.json
+openflared \
+  --server-url "https://panel.example.com" \
+  --token-file "/var/lib/openflared/bootstrap-token" \
+  --state-dir "/var/lib/openflared"
 ```
 
-Accepts only `-config <PATH>` (default `./flared.json`). Supports environment variable overrides:
-- `OPENFLARE_SERVER_URL`: Control-plane URL
-- `OPENFLARE_TUNNEL_TOKEN`: Dedicated tunnel auth token
-- `OPENFLARE_DATA_DIR`: Runtime data directory
-- `OPENFLARE_FRPC_PATH`: System `frpc` binary path
-- `LOG_LEVEL`: Log level (default `info`)
+See [Configuration Reference](./configuration.md#openflared-flags--env-vars) for CLI flags and environment variables.
 
 ### 2. Build Target
 
 ```bash
+# Output: bin/openflared
 make build-flared
-# Output: bin/flared
 ```
 
 ---
@@ -181,7 +225,7 @@ make build-flared
 ### 1. One-Click Full Build
 
 ```bash
-# Build all project binaries (Server, Edge, Relay, Flared)
+# Build all binaries (Server, Edge, Relay, OpenFlared, SmartDNS)
 make build-all
 ```
 
@@ -190,13 +234,15 @@ make build-all
 ```bash
 make format
 ```
-Runs `goimports` to clean up and organize Go imports and runs Prettier across all frontend code under `frontend/`.
 
-### 3. Quality Gate (Code Check)
+Runs `goimports` to organize Go imports and Prettier across `frontend/`.
+
+### 3. Quality Gate (`make code-check`)
 
 ```bash
 make code-check
 ```
+
 Executes verification steps in order:
 1. **Architectural Guard**: Validates that `internal/model` does not import `db.DB` or Redis;
 2. **Attack Rule IDs**: Checks WAF rule ID consistency;
@@ -207,14 +253,14 @@ Executes verification steps in order:
 
 ## Swagger Specification Generation
 
-Whenever API doc annotations are modified, regenerate OpenAPI / Swagger specification files:
+Whenever API annotations change, regenerate OpenAPI / Swagger specs:
 
 ```bash
 make swagger
 # Output files: api/swagger/swagger.json, api/swagger/swagger.yaml
 ```
 
-Access the interactive UI in non-production environments at: `http://localhost:3000/api/swagger/index.html`.
+Interactive console in non-production environments: `http://localhost:3000/api/swagger/index.html`.
 
 ---
 

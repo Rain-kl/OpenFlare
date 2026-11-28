@@ -22,7 +22,7 @@ WAF 对照开启 `threads_auto`。自动模式覆盖策略中的手动值（1 �
 
 客户端使用 `h2load`（nghttp2 `1.68.0`）通过点对点私有网络直连实例 IP，不经 DNS 解析或 Cloudflare。HTTP `Host` 和 TLS SNI 仅用于匹配 Pages 站点和证书。站点请求频率限制关闭，两端均由本地 Pages 提供同一份 923 B 静态文件，不经过反向代理缓存或上游服务。
 
-隔离实例的状态目录位于内存文件系统 `tmpfs`。测试版本仍逐请求写入并调用 `sync_data()`；新版[内存队列与异步落盘](../guide/performance-policies.md#访问日志写入)尚未在这两台节点上复测。
+隔离实例的状态目录位于内存文件系统 `tmpfs`。测试版本仍逐请求写入并调用 `sync_data()`；新版[异步日志缓冲与磁盘 Spool](../design/pingora-edge-design.md#53-访问日志缓冲与磁盘-spool)尚未在这两台节点上复测。
 
 ## WAF 对照
 

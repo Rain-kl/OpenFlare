@@ -1,164 +1,40 @@
-# Tunnel & Intranet Penetration
+# Tunnels and Intranet Penetration
 
-You will learn: the design principles of OpenFlare's intranet penetration tunnels, core concepts (relay nodes and tunnel clients), and how to publish an intranet dev environment or private cloud service to a public domain step by step, securely and stably.
+Expose private L7 web apps and L4 TCP/UDP services across OpenFlare edge nodes through **Relay Pools → Public Relays (`openflare-relay`) → Tunnels & Connectors (`openflared`)**.
 
-In many real development and ops scenarios, origin services run inside a LAN, on a local dev machine, or in a private VPC — with no public IP and no way to configure port mapping on the border firewall or router.
+## 1. Configure a Relay Pool
 
-OpenFlare provides a complete **reverse-relay tunnel penetration** solution. You only initiate an outbound secure connection from the intranet to a public relay node — no inbound ports need to be configured — and public web traffic is routed into the intranet origin, while enjoying the gateway's automatic TLS certificate management and WAF protection.
+Open **Tunnels** > **Relay Pools** to inspect the default pool or create one:
 
----
+1. Set **Preferred Transport** (`auto` negotiates in order: `noise`, `websocket`, then `tcp`).
+2. Set **HA Relay Count** (default `2`; deploy at least two relays across separate zones in production).
+3. Configure **Allowed / Blocked Target CIDRs** (`169.254.169.254/32` is blocked by default; an empty allowlist permits all non-blocked targets).
 
-## Core Concepts
+## 2. Deploy Public Relays
 
-Before using intranet penetration, get familiar with these components:
+1. Open **Tunnels** > **Relay PoPs**, add a relay or copy the discovery bootstrap command, and optionally set a **Failure-Domain Zone Tag** and **Co-located Edge Node ID**.
+2. Start `openflare-relay` on a public host following [Deploy Relay](../deployment/relay.md) and confirm it reaches **Online**.
 
-| Component | Description | Corresponding Entity |
-| --- | --- | --- |
-| **Relay node** | a traffic relay service deployed at the public edge; listens for the intranet client's long connections and bridges gateway (OpenFlare Edge) and intranet traffic | `tunnel_relay` node guarded by `openflare-relay` |
-| **Tunnel** | a logical penetration client instance with a globally unique ID and an auth token, identifying one concrete intranet environment | `tunnel_client` node created in「Node Management」, assigned a dedicated Tunnel Token |
-| **Tunnel client** | a lightweight controller running in the intranet; auto-manages the underlying frpc tunnel child processes based on Server-dispatched config | `openflared` container or standalone binary deployed in the intranet |
-| **Tunnel upstream** | a special reverse proxy type in route rules. With this type, the gateway forwards public traffic to the local relay's Vhost port, eventually reaching the intranet origin | reverse proxy type configured in the「Rule Management」detail page, origin mode「Intranet Tunnel」with a bound Tunnel node |
+## 3. Create a Tunnel and Start Connectors
 
----
+1. Open **Tunnels** > **Tunnels** > **Create Tunnel**, select the **Relay Pool**, transport preference, and tunnel-level **Allowed / Blocked Target CIDRs**.
+2. Copy the `oftok1_` bootstrap token and launch `openflared` on your private host following [Deploy OpenFlared](../deployment/openflared.md).
+3. Verify the connector is **Online** with active relay attachments in the tunnel detail view.
 
-## Recommended Order
+## 4. Expose Services
 
-To publish an intranet service to the public, follow this order:
+- **L7 HTTP / WebSocket sites**: Under **Proxy Routes**, set origin mode to **Intranet Tunnel**, select the tunnel, and enter the internal upstream URL (such as `http://127.0.0.1:8080`; enable `insecure_skip_verify` for self-signed internal HTTPS).
+- **L4 TCP / UDP services**: On the tunnel detail page, click **Add L4 Service**, select protocol, target relay, public listen port (avoid `7443`, `7444`, `8443`, and ports in use), and private target address (such as `127.0.0.1:22`), then expose via `<RELAY_PUBLIC_IP>:<LISTEN_PORT>`.
 
-1. Register and deploy at least one public **Relay node** and keep it online.
-2. Go to **「Node Management」**, create a node of type **Tunnel node (tunnel_client)**, and get the dedicated Token.
-3. Deploy and start the **tunnel client (OpenFlared)** on the intranet server.
-4. Confirm the Tunnel node's status shows「Online」in the admin panel.
-5. Add or edit a rule in **「Rule Management」**; in the「Reverse Proxy」tab choose origin mode **「Intranet Tunnel」**, bind the Tunnel node, and enter the intranet service port (e.g. `127.0.0.1:8080`).
-6. Save the route and wait for edge nodes to sync.
-7. Access via the public domain to verify the tunnel link.
+## Operations & Troubleshooting
 
----
+| Action / Symptom | Guidance |
+| :--- | :--- |
+| Drain relay | Click **Drain** on a relay detail page to stop new assignments and let active `openflared` sessions migrate before maintenance |
+| Active-active HA | Run multiple `openflared` instances with the same tunnel token for automatic failover |
+| Quarantine & rotate | Click **Quarantine** on a tunnel or relay to revoke access immediately; **Release Quarantine** issues a fresh token |
+| Connector offline | Verify outbound connectivity to the Server URL and relay ports `7443`, `7444`, and `8443`, and ensure a healthy relay exists; after rotation, update `/var/lib/openflared/bootstrap-token` and restart |
+| HTTP `403` / `502` | Check pool and tunnel CIDR rules for `403`; verify target reachability from `openflared` or enable `insecure_skip_verify` for `502` |
+| L4 service bind failure | Avoid `7443`, `7444`, `8443`, and conflicting L4 ports, and open the listen port in host and cloud firewalls |
 
-## Detailed Steps
-
-### Step 1: Prepare a Relay Node
-
-Intranet traffic needs a public relay node to transit. Before starting, make sure you have a usable relay server on the public network.
-
-1. Log in to the admin panel, go to **「Node Management」**.
-2. Add a new node and set **Node Type** to **Relay node (tunnel_relay)**.
-3. After saving, copy the node's dedicated `agent_token`.
-4. Start `openflare-relay` on your public server. Docker quick run:
-
-   ```bash
-   docker run -d --name openflare-relay --restart unless-stopped \
-     -p 7000:7000 \
-     -e OPENFLARE_SERVER_URL=http://<your-Server-public-IP>:3000 \
-     -e OPENFLARE_AGENT_TOKEN=<the-AgentToken-you-copied> \
-     -v openflare-relay-data:/var/lib/openflare-relay \
-     ghcr.io/rain-kl/openflare-relay:latest
-   ```
-
-   > [!IMPORTANT]
-   > Open port `7000` (the frpc client connection control port, default `relay_bind_port`) in the cloud server's security group. If your Server and relay node are on the same machine, `OPENFLARE_SERVER_URL` here should point to the Server's public or intranet communication IP.
-
-### Step 2: Create a Tunnel Node in the Admin Panel
-
-1. Navigate to **「Node Management」** in the admin sidebar.
-2. Click **「Add Node」**; in the dialog choose node type **「Tunnel node (tunnel_client)」**.
-3. Fill in the node name and description, click save.
-4. Click into the Tunnel node's detail page; find the dedicated **Tunnel Token** and the one-click client deployment command.
-
-### Step 3: Deploy the Intranet Client (OpenFlared)
-
-Back on your intranet server, run the client with the copied deployment command.
-
-#### Option A: Deploy with Docker (recommended)
-
-The official `openflared` image bundles the supervisor daemon and the `frpc` runtime — out of the box, no extra dependencies:
-
-```bash
-docker run -d --name openflared --restart unless-stopped \
-  -e OPENFLARE_SERVER_URL=http://<your-Server-public-IP>:3000 \
-  -e OPENFLARE_TUNNEL_TOKEN=<the-TunnelToken-you-copied> \
-  -v openflared-data:/app/data \
-  ghcr.io/rain-kl/openflared:latest
-```
-
-#### Option B: Run the host binary manually
-
-If Docker isn't convenient, download or build the `flared` binary yourself:
-
-1. Create a `flared.json` config file next to the program on the intranet machine:
-   ```json
-   {
-     "server_url": "http://<your-Server-public-IP>:3000",
-     "tunnel_token": "<the-TunnelToken-you-copied>",
-     "frpc_path": "/usr/local/bin/frpc",
-     "data_dir": "./data"
-   }
-   ```
-2. Start it:
-   ```bash
-   ./flared -config ./flared.json
-   ```
-
-#### Status Confirmation
-
-After starting, the intranet client sends heartbeat syncs to the control plane over outbound connections:
-1. Refresh the **「Node Management」** list; the Tunnel node's status light should turn green **「Online」**.
-2. Click into the node detail page to see which public Relay nodes the intranet client is connected to.
-
-### Step 4: Configure the Route and Bind the Tunnel Upstream
-
-Now configure public reverse proxying and domain access for your intranet service:
-
-1. First go to **「Website Management」->「Domain List」** and register the domain you want to expose.
-2. Go to **「Rule Management」**, click **「New Rule」** or edit an existing rule.
-3. In the **「Reverse Proxy」** tab, switch the **origin mode** to **「Intranet Tunnel」**.
-4. Select the online **Tunnel node** from the dropdown.
-5. Fill in the **intranet target address** (a local address/port reachable by the intranet client, e.g. `127.0.0.1:8080`) and **intranet protocol** (usually `http`).
-6. Configure other regular site options and save.
-
-### Step 5: Verify Public Access
-
-After you save the route, OpenFlare Edge syncs automatically and forwards matching requests to the relay virtual host port. Open the bound domain to verify the origin responds through the tunnel.
-
----
-
-## Advanced Scenarios
-
-### 1. One Tunnel, Multiple Services (multi-port mapping)
-
-You don't need a separate `openflared` container for every intranet service.
-
-To map multiple services in one intranet environment (e.g. `127.0.0.1:80` blog, `127.0.0.1:8080` API, `192.168.1.120:9000` intranet drive):
-1. Keep this one `openflared` client online.
-2. Create three separate website configs in the admin panel (each bound to its own public domain).
-3. Select **the same tunnel** as the origin mode for all three.
-4. Fill in the corresponding different ports or LAN IPs in each intranet target address (e.g. `127.0.0.1:80`, `127.0.0.1:8080`, `192.168.1.120:9000`).
-5. Save the routes and verify each domain after the nodes sync.
-
-### 2. Reuse Gateway Security Capabilities
-
-Public traffic is first received by edge nodes on the public network, where TLS handshakes terminate and WAF rule validations execute before requests route through the relay tunnel to the intranet service. Intranet services require no separate certificate management or edge security configuration:
-* **TLS Encrypted Transport**: bind or issue TLS certificates in the admin panel to encrypt external traffic.
-* **WAF Protection**: apply rule sets to inspect SQL injection, XSS, suspicious IPs, and geographic restrictions.
-* **Proof-of-Work (PoW)**: trigger client-side proof-of-work challenges based on path-matching rules.
-
----
-
-## Troubleshooting
-
-### 1. Tunnel shows「Offline」in the admin panel
-
-* **Check the Token**: verify the `tunnel_token` in `flared` logs or env vars matches the one generated in the admin panel.
-* **Check network connectivity**: the intranet server must be able to reach the Server address over outbound connections.
-* **Relay firewall not open**: check that the relay node's public `7000` port (or custom `relay_bind_port`) is opened to the public in the security group.
-
-### 2. Public domain returns 502 Bad Gateway / 504 Gateway Timeout
-
-* **Intranet service not running**: confirm the service at the intranet target address is started and listening on the intranet server.
-* **Target address unreachable**: if the intranet address is `127.0.0.1:8080`, ensure the service runs on the same host as `openflared`; if it's a LAN IP `192.168.x.x`, test LAN reachability from inside the `openflared` container.
-* **Check node state and logs**: view the Tunnel node detail and「Apply Records」in the admin panel; frpc process errors are logged in detail in the `flared` logs on the intranet host.
-
-### 3. Multi-relay network flapping or retry failures
-
-* When the control plane is associated with multiple Relay nodes, `openflared` spawns a separate frpc supervisor per Relay and periodically pulls topology state from the control plane within the `sync_interval` configured in `flared.json` (default 30s).
-* If a relay node frequently drops due to network jitter, the system auto-triggers exponential backoff retries (initial 1s, cap 60s). You may see `frpc process missing, starting` in the host logs — that's normal process self-healing; it reconnects automatically after the network recovers.
+See [Tunnel Architecture Design](../design/tunnel-design.md) for protocol internals.

@@ -1,20 +1,20 @@
 # Zone 与域名资源设计
 
-## 目标
+OpenFlare 以可注册根域（Zone）作为站点域名的管理边界。管理员通过稳定的 Zone ID 入口维护根域下显式声明的具体域名或通配符域名，并将域名关联至反代路由与 TLS 证书；反向代理策略（上游、缓存、限流、WAF 与 Pages）仍以路由为配置单元。
 
-将“网站”重构为以可注册根域为入口的 Zone 管理体验。`example.com` 之类的 Zone 是稳定的管理边界；用户通过稳定 ID 路径进入该 Zone，查看并维护其中明确声明的域名、域名所绑定的反代路由和证书，以及路由级 WAF、Pages 等能力。
+Zone 核心不内建权威 DNS 记录托管；如需将域名记录同步至外部 DNS 服务商或接入 SmartDNS 调度，使用独立模块[多云 DNS 指向与故障切换设计](./cloudflare-pointing.md)。
 
-本设计替代 `managed_domains` 的概念、表与 API。Zone 核心 **不** 内建权威 DNS 解析记录管理；若需将 ZoneDomain 的 A 记录指向边缘节点，使用可选模块 [Cloudflare DNS 指向](./cloudflare-pointing.md)。
+---
 
-## 范围与约束
+## 1. 范围与约束
 
-* Zone 根域使用 Public Suffix List 解析，例如 `api.example.co.uk` 归属 `example.co.uk`。
-* URL 使用 ID：列表为 `/websites`，详情为 `/websites/:zoneId`；不使用域名作为 URL 参数。
-* Zone 根域不允许通配符；Zone 域名支持具体 FQDN 或最左侧完整标签为 `*` 的通配符 FQDN，例如 `*.example.com`、`*.s3.example.com`。后端去掉 `*.` 后校验注册根域归属，并拒绝非法 DNS 标签、空白与配置分隔符。
-* 一个 Zone 域名至多关联一条反代路由；一条反代路由可关联多个 Zone 域名，因而可跨 Zone 共享同一套上游、缓存、限流、WAF 与 Pages 配置。
-* Zone 模型本身不新增 DNS 记录、边缘函数、预览子域或租户隔离能力。对外 DNS A 记录的创建/更新由独立的 Cloudflare 指向模块负责，且不改变 Zone / ZoneDomain 表职责。
+* **根域解析**：Zone 根域通过 Public Suffix List（`publicsuffix`）识别，例如 `api.example.co.uk` 归属于 `example.co.uk`。管理端路由采用稳定 ID（`/websites`、`/websites/:zoneId`），避免将域名放入路径参数。
+* **具体与通配符域名**：Zone 根域禁止使用通配符；Zone 域名支持具体 FQDN 或最左侧单标签通配符（例如 `*.example.com`、`*.s3.example.com`）。校验阶段去除 `*.` 前缀后核对注册根域归属，拒绝非法 DNS 标签与空白字符。
+* **多对一绑定边界**：一个 Zone 域名至多绑定一条反代路由；一条反代路由可跨 Zone 绑定多个域名，共享同一套上游、WAF、限流与缓存配置。
 
-## 核心模型
+---
+
+## 2. 核心数据模型
 
 ```mermaid
 erDiagram
@@ -37,67 +37,32 @@ erDiagram
   }
 ```
 
-### `of_zones`
+* **`of_zones`**：持久化全局唯一的注册根域（创建后不可就地改名）。删除 Zone 前须先清空其下全部域名。
+* **`of_zone_domains`**：持久化 `zone_id`、ASCII/Punycode 唯一域名 `domain`、可空 `proxy_route_id` 与可空 `cert_id`。所有外联字段均建索引且不设物理外键。删除已绑定路由的域名须先解除绑定。
+* **编译期组装**：`of_proxy_routes` 仅保留路由策略，不再持久化域名或证书列；编译 `sites.v1` 快照时，控制面在内存中从关联的 `of_zone_domains` 聚合 `domains` 与 `domain_cert_ids` 下发至边缘节点。
 
-保存根域、创建时间与更新时间。根域全局唯一且创建后不可原地修改；需要变更时新建 Zone 并迁移域名。删除 Zone 前必须先清空其 Zone 域名。
+---
 
-### `of_zone_domains`
+## 3. API 与前端集成
 
-保存 `zone_id`、具体或通配符 `domain`、可空的 `proxy_route_id`、可空的 `cert_id` 及时间戳。`domain` 全局唯一；所有关系字段建立索引但不建立物理外键。`proxy_route_id` 允许为空，以承接已准备证书但尚未配置反代的历史域名。通配符作为一条普通域名记录存储，不展开为子域名列表，不需要额外列或迁移。
+管理端在 `internal/apps/openflare/zone/` 暴露 `GET/POST /api/v1/d/zones`、`/zones/:id/update|delete|overview|stats|domains` 等接口；反代路由写入通过 `zone_domain_ids` 完成绑定，控制面在单一事务内校验域名归属、全局唯一性与 TLS 证书 SAN 覆盖范围。
 
-`of_proxy_routes` 逐步移除 `domain`、`domains`、`cert_id`、`cert_ids` 与 `domain_cert_ids` 等域名/证书冗余列。路由不得再指定任何 TLS 证书；路由名称 `site_name` 成为稳定的人类可读标识，编译器从关联的 Zone 域名读取 `server_name` 与其 `cert_id`。这使每个明确域名的证书只有一个来源。
+控制台 `/websites/:zoneId` 聚合展示当前 Zone 的域名清单、关联路由、引用证书与流量统计（`24h` / `7d` / `30d`）；支持按 `*` 快捷补全通配符子域并联动管理 DNS 指向状态。
 
-## 业务与 API
+---
 
-管理端新增 Zone 资源：
+## 4. 通配符运行与统计语义
 
-* `GET/POST /api/v1/d/zones`
-* `GET/POST /api/v1/d/zones/:id/update`
-* `POST /api/v1/d/zones/:id/delete`
-* `POST /api/v1/d/zones/:id/domains`（列表经 overview 返回）
-* `POST /api/v1/d/zones/:id/domains/:domainID/update`
-* `POST /api/v1/d/zones/:id/domains/:domainID/delete`
-* `GET /api/v1/d/zones/:id/overview`
+1. **边缘路由与 TLS SNI 匹配（`openflare-edge`）**：
+   * `edge/src/config.rs`（`find_route` 与 `domain_matches`）对通配符执行**单层左标签匹配**（`*.example.com` 匹配 `a.example.com`，不匹配 `example.com` 根域，也不跨级匹配 `a.b.example.com`），当精确域名与通配符同时命中时优先匹配精确域名。
+   * HTTPS 路由要求证书 SAN 显式覆盖对应通配符（例如 `*.s3.example.com` 需含 `*.s3.example.com` SAN），发布前由控制面统一核验。
+2. **Zone 流量统计归属（`zone/stats.go` + `logstore`）**：
+   * Zone 流量报表按请求 `host` 精确或通配符后缀匹配统计流量、UV 与字节数，在 ClickHouse、PostgreSQL 与 SQLite 上保持一致的去重归并口径——若同时登记了 `*.example.com` 与更具体的子规则（如 `*.a.example.com` 或 `x.a.example.com`），各域归属互不重复计数。
+3. **探测与监控边界**：
+   * Uptime Kuma 自动监控与诊断探测优先选取绑定路由的具体域名；若路由仅包含通配符域名，则跳过新增/更新探测任务并记录原因，保留现有监控项不受影响。
 
-反代路由的创建、更新请求改用 `zone_domain_ids`，不再提交 `domains`、`cert_id`、`cert_ids` 或 `domain_cert_ids`。服务端在事务中验证域名归属、全局唯一性和证书 SAN 覆盖；失败通过 `response.Abort*` 统一返回。删除已绑定路由的 Zone 域名必须先解除或删除该路由；删除仍有域名的 Zone 必须拒绝。
+---
 
-WAF、Pages、上游与发布版本仍属于 `proxy_routes`。Zone 概览只聚合展示其域名关联的路由状态，不复制或重新定义这些配置。
+## 5. 数据不变性与演进说明
 
-## 前端体验
-
-`/websites` 只展示 Zone 根域，显示已配置域名数、路由数与状态，并提供搜索、创建和操作菜单。点击进入 `/websites/:zoneId`。
-
-详情页包含：
-
-* 概览：域名、路由和有效证书统计；域名—路由—证书摘要；路由级 WAF 与 Pages 摘要。
-* 域名：具体或通配符 FQDN 的列表、证书选择和关联路由；快捷新增支持 `*` 展开为 `*.当前根域`，多级泛域名须输入完整名称。
-* 路由：筛选到当前 Zone 的路由并链接到既有路由详情。
-* 证书：当前 Zone 域名实际引用的证书。
-* 设置：Zone 备注和受保护的删除操作。
-
-新增路由时从 Zone 域名中选择；用户也可以先在 Zone 中登记域名，再绑定路由。全局反代路由入口保留，但改用同一套 Zone 域名选择器。
-
-### 通配符运行语义
-
-* 配置快照保留 `*.suffix` 原文；绑定路由并发布激活版本后，Agent 使用共享渲染器生成 `server_name *.suffix;`。仅登记域名而未绑定路由不会生成代理规则。
-* 路由匹配沿用 OpenResty/Nginx 的规则：具体域名优先于通配符，多个通配符中更长的匹配后缀优先；`*.example.com` 不包含 `example.com` 本身，但可匹配多层子域名。
-* TLS 覆盖范围与 HTTP 路由匹配不同：`*.s3.example.com` 站点必须绑定含相应通配符 SAN 的证书；它不能用仅覆盖某个具体子域名的证书替代。单层通配符证书不覆盖根自身或更深层子域名，发布时保留证书覆盖校验。
-* Zone 流量统计按实际请求 Host 匹配具体域名或非空通配符后缀。ClickHouse、PostgreSQL 与 SQLite 使用相同的匹配约定，重叠的具体域名/通配符条件不会重复计数；域名数量仍表示登记记录数。
-* 通配符不可直接作为访问或探测 URL。Uptime Kuma 同步优先选择路由绑定的具体域名；只有通配符时跳过创建/更新并记录原因，保留已有监控。
-
-## 数据迁移
-
-本次改造分两个发布阶段，以免 SQL 用错误的“末两段域名”规则处理多级公共后缀。操作细则见 [Zone 域名迁移与发布验收](../guide/zone-domain-migration.md)。
-
-1. **第一阶段 DDL**：PostgreSQL 与 SQLite 同版本 Goose 创建 `of_zones` / `of_zone_domains`；暂时保留 `of_managed_domains` 与路由冗余列。
-2. **数据导入（自动）**：Server 启动时 `migrator.Migrate()` 先应用 goose SQL 至 `202607120002`，再自动导入旧路由域名 / `managed_domains`（`publicsuffix` 解析注册根域，写入 `cert_id` 与 `proxy_route_id`），最后继续后续 SQL。冲突时启动失败；修复后重启可幂等重试。无需手动命令。
-3. **代码切换**：控制面 API、配置快照、渲染、前端均以 Zone 域名为唯一来源；路由写入仅使用 `zone_domain_ids`。
-4. **第二阶段清理**：Goose SQL `202607130001_drop_legacy_route_domain_columns` 删除 `of_managed_domains` 与 `of_proxy_routes` 冗余列。Down 仅恢复开发库空结构，不回填历史数据。
-
-历史数据升级导入时，Unicode 域名经 IDNA 转换并保存为 ASCII（Punycode）形式，以统一根域归属、全局唯一性、HTTP 路由匹配及 HTTPS 证书校验；原记录的证书和站点绑定保持不变。新增域名仍须符合 ASCII DNS 标签规则。
-
-### 运行时模型边界
-
-* 持久化：域名与证书只存在于 `of_zone_domains`；`of_proxy_routes` 仅保存路由策略（上游、缓存、限流、WAF 绑定键等）。
-* 渲染：配置快照在内存中组装临时 `Domains` / `DomainCertIDs` 供 OpenResty 渲染，不写回数据库。
-* 结构迁移仅使用 `internal/infra/persistence/migrator/goose/{postgres,sqlite}/*.sql`；启动时自动导入历史域名，第二阶段后旧列不存在则为空操作。
+当前系统中 `of_zone_domains` 为域名与证书绑定关系的唯一权威数据源，所有新增域名均遵循 ASCII/IDNA（Punycode）规范入库。历史版本曾通过分阶段迁移（Goose `202607120002` 与 `202607130001`）完成旧路由内嵌域名列与 `of_managed_domains` 表的迁移清理，现行代码已完全移除历史冗余列及兼容写入路径。

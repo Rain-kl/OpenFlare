@@ -5,13 +5,10 @@
     "index",
     "---Getting Started---",
     "quick-start",
-    "first-site",
-    "dashboard-map",
     "---Traffic & Routing---",
     "proxy-config",
     "certificates",
     "performance-policies",
-    "zone-domain-migration",
     "smartdns",
     "---Edge Security---",
     "waf-usage",
@@ -22,10 +19,10 @@
     "tunnel-usage",
     "uptime-kuma",
     "sso",
-    "---Operations---",
+    "---Operations & Automation---",
+    "network-tools",
     "automation",
     "session-secret-rotation",
-    "troubleshooting",
-    "credits"
+    "troubleshooting"
   ]
 }

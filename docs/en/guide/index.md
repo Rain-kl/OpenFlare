@@ -1,75 +1,31 @@
-# Guide Overview
+# User guides
 
-OpenFlare is a distributed reverse proxy, edge security gateway, and intelligent authoritative DNS platform built on OpenFlare Edge. It provides multi-node cluster orchestration, snapshot-based configuration hot-synchronization, quality-aware SmartDNS traffic steering, multi-provider DNS account management, edge WAF, proof-of-work (PoW) challenge defense, intranet tunnels, and Pages static hosting. It can operate as a standalone private CDN or as an origin shield behind upstream CDNs.
+Step-by-step operational tasks across the OpenFlare console, CLI, and edge nodes.
 
-Documentation in this section is organized into five operational areas, guiding users from initial deployment through daily traffic management, security hardening, and troubleshooting.
+## Getting started & traffic routing
 
----
-
-## Guide Index
-
-### Getting Started
-For users deploying OpenFlare or connecting edge nodes for the first time:
-- [Quick Start](./quick-start.md): deploy the Server controller with Docker Compose, complete first-time login, obtain credentials, and connect your first edge node.
-- [Create Your First Reverse Proxy Rule](./first-site.md): create a baseline HTTP proxy site and verify edge node synchronization.
-- [Dashboard Geographic Distribution](./dashboard-map.md): explore the global dashboard, 2D/3D map switching, metric calculation methods, and country request rankings.
-
-### Traffic & Routing
-Configure reverse proxy routing, TLS encryption, and edge caching:
-- [Create a Reverse Proxy Config](./proxy-config.md): configure upstream origins, domain route bindings, wildcard routing, IP HTTPS upstreams, and access authentication.
-- [TLS Certificates & Auto-Renewal](./certificates.md): import existing certificates or automate wildcard issuance and renewal using ACME and Cloudflare DNS API.
-- [OpenFlare Edge Performance Policies](./performance-policies.md): configure worker thread counts, upstream connection pools, HTTP/2 concurrency, TinyUFO memory cache, and disk cache limits.
-- [Zone Domain Migration](./zone-domain-migration.md): understand automatic migration to the Zone root domain model, backup procedures, and post-upgrade acceptance checks.
-- [SmartDNS Authoritative Resolution](./smartdns.md): configure standalone `OpenFlare DNS` authoritative instances, NS delegation verification, multi-provider DNS accounts, and visual scheduling policies.
-
-### Edge Security
-Configure edge firewalls and proof-of-work challenge defenses:
-- [WAF Security Protection](./waf-usage.md): build visual DAG workflow rules, configure IP matching, geo-filtering, and OWASP CRS attack protection rule groups.
-- [Proof-of-Work (PoW) Protection](./pow-usage.md): configure client-side proof-of-work challenges for routes, manage trigger path filters, and customize challenge pages.
-- [WAF Auto IP Group Expressions](./waf-ip-group-expr.md): write Expr-based dynamic metric aggregation and auto-blocking rules with custom HTTP status code filters.
-
-### Apps & Integrations
-Extend gateway capabilities with static hosting, intranet tunnels, and monitoring:
-- [Pages Static Hosting Usage](./pages-usage.md): deploy pre-built static site archives, configure SPA Fallback and API reverse proxy paths, and manage release rollbacks.
-- [Tunnel & Intranet Penetration](./tunnel-usage.md): deploy Relay nodes and OpenFlared clients to securely expose intranet services without public IP addresses.
-- [Uptime Kuma Monitoring Sync](./uptime-kuma.md): configure automated differential synchronization with Uptime Kuma to track site availability.
-- [SSO Login Configuration](./sso.md): configure standard OIDC identity providers for third-party single sign-on, user binding, and registration controls.
-
-### Operations
-Maintenance, diagnostic procedures, and open-source references:
-- [Troubleshooting](./troubleshooting.md): resolve issues with controller startup, database connections, Agent registration, OpenFlare Edge configuration application, and edge cache misses.
-- [Open Source Acknowledgments](./credits.md): review core open-source projects, derived code provenance, third-party components, and license notices.
-
----
-
-## Common Scenarios
-
-| Goal | Recommended Guide |
+| Guide | Scope |
 | --- | --- |
-| Start controller and connect first node | [Quick Start](./quick-start.md) |
-| Test basic HTTP proxy routing | [Create Your First Reverse Proxy Rule](./first-site.md) |
-| Configure HTTPS certificates and origin routing | [Create a Reverse Proxy Config](./proxy-config.md) and [TLS Certificates & Auto-Renewal](./certificates.md) |
-| Enable SmartDNS intelligent traffic steering | [SmartDNS Authoritative Resolution](./smartdns.md) and [OpenFlare DNS Deployment](../deployment/openflare-dns.md) |
-| Tune worker threads, connection pools, and cache sizes | [OpenFlare Edge Performance Policies](./performance-policies.md) |
-| Enable WAF blocking and anti-CC challenge rules | [WAF Security Protection](./waf-usage.md) and [Proof-of-Work (PoW) Protection](./pow-usage.md) |
-| Host single-page applications with API proxying | [Pages Static Hosting Usage](./pages-usage.md) |
-| Expose intranet services to the public internet | [Tunnel & Intranet Penetration](./tunnel-usage.md) |
-| Synchronize site uptime monitoring | [Uptime Kuma Monitoring Sync](./uptime-kuma.md) |
-| Configure enterprise OIDC / OAuth2 login | [SSO Login Configuration](./sso.md) |
-| Diagnose failed configuration sync or cache misses | [Troubleshooting](./troubleshooting.md) |
+| [Quick start](./quick-start.md) | Start Server and connect your first `openflare-edge` node |
+| [Configure a reverse proxy](./proxy-config.md) | Set up origins, domains, certs, site auth, caching, and sync checks |
+| [TLS certificates and auto-renewal](./certificates.md) | Import PEM certs or automate ACME DNS-01 issuance |
+| [OpenFlare Edge performance policies](./performance-policies.md) | Configure worker threads, upstream pools, and cache storage |
+| [SmartDNS authoritative resolution](./smartdns.md) | Configure NS delegation, `openflare-dns` nodes, and steering policies |
 
----
+## Security, integrations & operations
 
-## Documentation Structure
+| Guide | Scope |
+| --- | --- |
+| [WAF security protection](./waf-usage.md) | Build WAF DAG workflows, attack protection rule sets, and allowlists |
+| [PoW protection](./pow-usage.md) | Enable route PoW challenges and customize challenge pages |
+| [WAF auto IP group syntax](./waf-ip-group-expr.md) | Write Expr rules over access logs to maintain IP groups |
+| [Pages static hosting](./pages-usage.md) | Deploy static bundles from uploads, Remote URLs, or GitHub Releases |
+| [Tunnels and intranet penetration](./tunnel-usage.md) | Configure relay pools, relays, and `openflared` for L7 and L4 services |
+| [Uptime Kuma monitoring sync](./uptime-kuma.md) | Sync enabled sites into Uptime Kuma monitors |
+| [SSO login configuration](./sso.md) | Integrate OIDC identity providers and account binding |
+| [Network tools and quality matrix](./network-tools.md) | Run multi-location probes, ASN/DNS diagnostics, and quality simulations |
+| [CLI and MCP](./automation.md) | Authorize `openflare` CLI and MCP for routine operations |
+| [Rotate the session secret](./session-secret-rotation.md) | Re-encrypt stored credentials before rotating `app.session_secret` |
+| [Troubleshooting](./troubleshooting.md) | Diagnose Server, login, edge node, HTTPS, and caching issues |
 
-- [Deployment](../deployment/index.md): choose a deployment method, install components, and upgrade nodes.
-- [Reference](../reference/index.md): look up configuration settings, commands, protocols, and benchmarks.
-- [Architecture](../design/index.md): explore system architecture, data models, configuration synchronization, and security.
-- [Changelog](../changelog/index.md): review release changes and upgrade notes.
-
----
-
-## Community & Support
-
-- [Telegram Group](https://t.me/OpenFlareCDN): usage discussions, deployment questions, and community feedback.
-- [GitHub Issues](https://github.com/Rain-kl/OpenFlare/issues): bug reports and feature requests.
+See [Deployment](../deployment/index.md) for installation, [Reference](../reference/index.md) for configuration and APIs, and [Architecture](../design/index.md) for internals.

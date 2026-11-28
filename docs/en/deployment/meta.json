@@ -6,7 +6,6 @@
     "deployment",
     "---Components---",
     "server",
-    "agent",
     "openflare-edge",
     "openflare-dns",
     "---Tunnel Infrastructure---",
