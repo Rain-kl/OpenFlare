@@ -42,6 +42,39 @@ def unused_port():
         return listener.getsockname()[1]
 
 
+def recv_ws_exact(conn, size):
+    buf = bytearray()
+    while len(buf) < size:
+        chunk = conn.recv(size - len(buf))
+        if not chunk:
+            raise EOFError("unexpected EOF reading WebSocket frame")
+        buf.extend(chunk)
+    return bytes(buf)
+
+
+def read_ws_frame(conn):
+    b0, b1 = recv_ws_exact(conn, 2)
+    length = b1 & 0x7F
+    if length == 126:
+        length = struct.unpack("!H", recv_ws_exact(conn, 2))[0]
+    elif length == 127:
+        length = struct.unpack("!Q", recv_ws_exact(conn, 8))[0]
+    mask = recv_ws_exact(conn, 4) if (b1 & 0x80) else None
+    payload = recv_ws_exact(conn, length)
+    if mask:
+        payload = bytes(byte ^ mask[i % 4] for i, byte in enumerate(payload))
+    return b0 & 0x0F, payload
+
+
+def send_ws_text(conn, payload):
+    header = (
+        struct.pack("!BB", 0x81, len(payload))
+        if len(payload) < 126
+        else struct.pack("!BBH", 0x81, 126, len(payload))
+    )
+    conn.sendall(header + payload)
+
+
 def assert_valid_reported_ip(raw):
     assert isinstance(raw, str) and raw, f"missing reported IP: {raw!r}"
     if raw == "0.0.0.0":
@@ -133,6 +166,8 @@ class Controller(http.server.BaseHTTPRequestHandler):
                 headers=(("X-OpenFlare-Quarantined", "true"),),
             )
         elif self.path.endswith("/heartbeat"):
+            if self.server.wait_for_control_ws:
+                wait_for(lambda: self.server.config_ws)
             assert_valid_reported_ip(payload.get("ip"))
             self.server.heartbeats.append(payload)
             self.data({"config": {"version": 1, "resources": self.manifest(payload.get("latest_config_version"))},
@@ -202,9 +237,15 @@ class Controller(http.server.BaseHTTPRequestHandler):
             self.server.config_ws = self.connection
             self.connection.settimeout(20)
             try:
-                while self.connection.recv(4096):
-                    pass
-            except OSError:
+                while True:
+                    opcode, payload = read_ws_frame(self.connection)
+                    if opcode == 8:
+                        break
+                    if opcode == 1:
+                        message = json.loads(payload)
+                        if message.get("type") == "net_probe_result":
+                            self.server.probe_results.append(message["payload"])
+            except (EOFError, OSError):
                 pass
             finally:
                 if self.server.config_ws is self.connection:
@@ -261,36 +302,6 @@ def start_ws_tls_origin(cert_path, key_path):
     ctx.set_alpn_protocols(["h2", "http/1.1"])
     state = {"alpn": [], "stop": False}
 
-    def recv_exact(conn, size):
-        buf = bytearray()
-        while len(buf) < size:
-            chunk = conn.recv(size - len(buf))
-            if not chunk:
-                raise EOFError("unexpected EOF reading WebSocket frame")
-            buf.extend(chunk)
-        return bytes(buf)
-
-    def read_frame(conn):
-        b0, b1 = recv_exact(conn, 2)
-        length = b1 & 0x7F
-        if length == 126:
-            length = struct.unpack("!H", recv_exact(conn, 2))[0]
-        elif length == 127:
-            length = struct.unpack("!Q", recv_exact(conn, 8))[0]
-        mask = recv_exact(conn, 4) if (b1 & 0x80) else None
-        payload = recv_exact(conn, length)
-        if mask:
-            payload = bytes(byte ^ mask[i % 4] for i, byte in enumerate(payload))
-        return b0 & 0x0F, payload
-
-    def send_frame(conn, payload):
-        header = (
-            struct.pack("!BB", 0x81, len(payload))
-            if len(payload) < 126
-            else struct.pack("!BBH", 0x81, 126, len(payload))
-        )
-        conn.sendall(header + payload)
-
     def handle(raw_conn):
         conn = None
         try:
@@ -332,15 +343,15 @@ def start_ws_tls_origin(cert_path, key_path):
             )
             conn.settimeout(5)
             while True:
-                opcode, payload = read_frame(conn)
+                opcode, payload = read_ws_frame(conn)
                 if opcode == 8:
                     conn.sendall(struct.pack("!BB", 0x88, 0))
                     break
                 if payload == b"slow":
                     time.sleep(1.3)
-                    send_frame(conn, b"slow-ok")
+                    send_ws_text(conn, b"slow-ok")
                 else:
-                    send_frame(conn, b"echo:" + payload)
+                    send_ws_text(conn, b"echo:" + payload)
         except (EOFError, OSError):
             pass
         finally:
@@ -546,6 +557,8 @@ def main(binary):
     server.pulls = []
     server.site_pull_conflict = False
     server.config_ws = None
+    server.wait_for_control_ws = False
+    server.probe_results = []
     server.performance = None
     server.heartbeat_interval = 250
     server.offline = False
@@ -582,7 +595,7 @@ def main(binary):
     def send_ws_event(event):
         ws = wait_for(lambda: server.config_ws)
         payload = json.dumps(event).encode()
-        ws.sendall(struct.pack("!BB", 0x81, len(payload)) + payload)
+        send_ws_text(ws, payload)
 
     def wake(force=False):
         send_ws_event({"type": "config_changed", "payload": {"force": force}})
@@ -937,16 +950,34 @@ def main(binary):
 
                     edge.kill()
                     edge.wait(timeout=5)
+                    wait_for(lambda: server.config_ws is None)
                     shutil.copy2(binary, staged)
                     before_trial = len(server.heartbeats)
+                    # Force the supervisor to initialize from the trial process before promotion.
+                    server.wait_for_control_ws = True
                     edge = launch("--token-type", "node", env=systemd)
                     wait_for(lambda: active.exists() and json.loads(ready.read_text())["pid"] == edge.pid)
+                    server.wait_for_control_ws = False
                     assert notify.recv(4096).startswith(b"READY=1\n")
                     assert os.path.abspath(running_argv0(edge.pid)) == os.path.abspath(trial)
                     assert not trial.exists() and not staged.exists()
                     wait_for(lambda: any(h["edge_update_ready"] for h in server.heartbeats[before_trial:]))
                     assert server.heartbeats[before_trial]["edge_update_supported"]
                     assert not server.heartbeats[before_trial]["edge_update_ready"]
+                    send_ws_event({"type": "net_probe_task", "payload": {
+                        "probe_id": "after-update",
+                        "kind": "ping_batch",
+                        "ping": {
+                            "protocol": "tcp",
+                            "target": "127.0.0.1",
+                            "port": origin_server.server_port,
+                            "count": 1,
+                        },
+                    }})
+                    probe = wait_for(lambda: next(
+                        (item for item in server.probe_results if item["probe_id"] == "after-update"), None))
+                    # The worker must handle the task and reject loopback under its normal policy.
+                    assert "blocked by SSRF" in (probe.get("error") or ""), probe
 
                     edge.kill()
                     edge.wait(timeout=5)

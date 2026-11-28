@@ -32,6 +32,10 @@ pub struct ProbeSupervisorConfig {
 
 impl ProbeSupervisorConfig {
     pub fn for_current_exe_subcommand(subcommand: &str) -> Option<Self> {
+        // Follow the running executable even if the updater renames its trial file.
+        #[cfg(target_os = "linux")]
+        let program = PathBuf::from("/proc/self/exe");
+        #[cfg(not(target_os = "linux"))]
         let program = std::env::current_exe().ok()?;
         Some(Self {
             program,

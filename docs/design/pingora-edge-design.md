@@ -90,7 +90,7 @@ systemd (Type=notify, Restart=always, RestartSec=5)
 ### 5.4 公网 IP 探测与自更新通道
 
 * **公网 IP 识别（`edge/src/control/node_ip.rs`）**：启动时及每 60 秒优先扫描本地网卡地址，过滤全部内网及保留 CIDR（`0.0.0.0/8`、`10.0.0.0/8`、`100.64.0.0/10`、`127.0.0.0/8`、`169.254.0.0/16`、`172.16.0.0/12`、`192.0.0.0/24`、`192.0.2.0/24`、`192.88.99.0/24`、`192.168.0.0/16`、`198.18.0.0/15`、`198.51.100.0/24`、`203.0.113.0/24`、`224.0.0.0/4`、`240.0.0.0/4` 及对应 IPv6 保留前缀）；网卡无公网地址时依次向 `https://api.ip.sb/ip`、`https://ip.me`、`https://api.ip2location.io/` 与控制端 `GET /api/geoip` 探测并校验公网可达性，全部不可达时回退上报 `0.0.0.0`。
-* **三槽位安全自更新（`edge/src/control/update/mod.rs`）**：在受 systemd 托管（存在 `NOTIFY_SOCKET` 与 `INVOCATION_ID`）的非 root Linux（`x86_64` / `aarch64`）环境上，支持以 6 小时间隔检查 GitHub `edge-v*` 发行版或响应控制台手动下发的更新指令。下载包须通过 HTTPS 白名单重定向、大小限制（压缩包 128 MiB / 解压 256 MiB）、SHA-256 摘要校验与协议版本探测（`config-sync-version` / `self-update-version`），随后沿 `edge-update-next → edge-update-trial → edge-update-active` 完成试运行与提交；试运行超时（15 分钟）自动回滚至稳定版本。
+* **三槽位安全自更新（`edge/src/control/update/mod.rs`）**：在受 systemd 托管（存在 `NOTIFY_SOCKET` 与 `INVOCATION_ID`）的非 root Linux（`x86_64` / `aarch64`）环境上，支持以 6 小时间隔检查 GitHub `edge-v*` 发行版或响应控制台手动下发的更新指令。下载包须通过 HTTPS 白名单重定向、大小限制（压缩包 128 MiB / 解压 256 MiB）、SHA-256 摘要校验与协议版本探测（`config-sync-version` / `self-update-version`），随后沿 `edge-update-next → edge-update-trial → edge-update-active` 完成试运行与提交；试运行超时（15 分钟）自动回滚至稳定版本。Linux 上的探测子进程通过 `/proc/self/exe` 启动，试运行文件提交后仍可执行定时延迟检测和主动网络探测。
 
 ---
 
