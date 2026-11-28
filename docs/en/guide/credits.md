@@ -1,8 +1,8 @@
 # Open Source Acknowledgments and Dependencies
 
-The creation and ongoing evolution of OpenFlare rely deeply on the outstanding contributions of the global open-source community. From the underlying Rust high-performance network proxy engine and secure multi-protocol tunneling to server-side distributed task scheduling, enterprise observability pipelines, and a modern frontend interface, the platform integrates dozens of exceptional open-source software libraries and engineering frameworks.
+The creation and ongoing evolution of OpenFlare rely deeply on the outstanding contributions of the global open-source community. From the underlying Rust high-performance network proxy engine, secure multi-protocol tunneling, and authoritative DNS rule evaluation to WAF rulesets, host telemetry probes, IP/ASN intelligence datasets, and a modern frontend interface, the platform integrates dozens of exceptional open-source software libraries, rulesets, and engineering frameworks.
 
-We extend our sincere respect and gratitude to the authors, maintainers, and contributors of all referenced projects. This page catalogs the core open-source projects, derivative code origins, and licensing information utilized throughout OpenFlare.
+We extend our sincere respect and gratitude to the authors, maintainers, and contributors of all referenced projects. This page catalogs the core open-source projects, derivative code origins, datasets, and licensing information utilized throughout OpenFlare.
 
 ---
 
@@ -20,17 +20,52 @@ We extend our sincere respect and gratitude to the authors, maintainers, and con
 - **Overview**: OpenFlare includes software derived from Wavelet, including its core control plane patterns, permission models, and foundational designs. Original copyright notices and modification statements are retained in the project root's [NOTICE](https://github.com/Rain-kl/OpenFlare/blob/main/NOTICE) file.
 - **Copyright Statement**: `Copyright 2025 Arctel.net. Licensed under the Apache License, Version 2.0.`
 
-### 3. FRP (Fast Reverse Proxy)
-- **Role in Project**: Intranet penetration and secure tunnel transport engine
+### 3. Rathole
+- **Role in Project**: Intranet penetration and encrypted tunnel transport engine
 - **License**: Apache-2.0
-- **Overview**: A high-performance reverse proxy application developed by fatedier. OpenFlare's tunnel relay manager (`openflare-relay`) orchestrates and supervises the `frps` core, while the client `openflared` supervises local multiplexed `frpc` tunnel channels to securely expose internal web services without public IPs or inbound open ports.
-- **Repository**: [fatedier/frp](https://github.com/fatedier/frp)
+- **Overview**: A reverse proxy for NAT traversal written in Rust. OpenFlare embeds `rathole` directly in-process inside both the tunnel relay (`openflare-relay`) and connector (`openflared`), supporting Noise, WebSocket, and TCP transports with hot-reloadable configuration for L4 TCP/UDP forwarding and L7 gateway proxying.
+- **Repository**: [rathole-org/rathole](https://github.com/rathole-org/rathole)
 
 ### 4. Gin Web Framework
 - **Role in Project**: Server HTTP routing and middleware pipeline
 - **License**: MIT
 - **Overview**: High-performance Go HTTP web framework serving as the primary API router for the OpenFlare Server control plane, powering RESTful dashboard requests, multi-node authentication handshakes, and event distribution.
 - **Repository**: [gin-gonic/gin](https://github.com/gin-gonic/gin)
+
+### 5. ZEN Engine (GoRules Zen)
+- **Role in Project**: SmartDNS JDM scheduling policy and expression evaluation engine
+- **License**: MIT
+- **Overview**: An open-source Rust business rules engine supporting JSON Decision Model (JDM) graphs and expression evaluation. OpenFlare's standalone authoritative DNS server (`openflare-dns`) embeds `zen-engine` to evaluate visual scheduling policies against client location, ASN, ECS subnet, and node routing tags.
+- **Repository**: [gorules/zen](https://github.com/gorules/zen)
+
+### 6. Komari
+- **Role in Project**: Node observability, latency probing, and remote task schema design
+- **License**: MIT
+- **Overview**: A lightweight self-hosted server monitoring and management project. OpenFlare aligns its node hardware/OS profiles, real-time telemetry snapshots, latency probe records (`PingTask` / `PingRecord`), and remote command execution models (`Task` / `TaskResult`) with Komari's monitoring schema.
+- **Repository**: [komari-monitor/komari](https://github.com/komari-monitor/komari)
+
+### 7. komari-monitor-rs
+- **Role in Project**: Rust host probe, latency check, and remote execution foundation
+- **License**: WTFPL
+- **Overview**: A Rust monitoring agent implementation for the Komari ecosystem. OpenFlare's reusable pure-Rust probe crate `openflare-probe` (`shared/probe`) is derived from and modernized based on `komari-monitor-rs`, supplying host telemetry collection, latency probing, and bounded remote execution for node runtimes.
+- **Repository**: [GenshinMinecraft/komari-monitor-rs](https://github.com/GenshinMinecraft/komari-monitor-rs)
+
+### 8. OWASP Core Rule Set (CRS) & zentinel-modsec
+- **Role in Project**: Edge WAF attack-protection ruleset and ModSecurity evaluation engine
+- **License**: Apache-2.0
+- **Overview**: `openflare-edge` bundles an unmodified subset of OWASP CRS v4.30.0 (`edge/vendor/owasp-crs`) and executes request initialization and attack-category rules in pure Rust via `zentinel-modsec`.
+- **Repositories**: [coreruleset/coreruleset](https://github.com/coreruleset/coreruleset) · [zentinelproxy/zentinel-modsec](https://github.com/zentinelproxy/zentinel-modsec)
+
+---
+
+## IP, ASN, and Network Intelligence Databases
+
+| Dataset | License | Purpose & Integration Scope | Source |
+| :--- | :--- | :--- | :--- |
+| **MaxMind GeoLite2 (FyraLabs / Loyalsoldier mirrors)** | CC BY-SA 4.0 / MaxMind GeoLite2 EULA | Provides `GeoLite2-Country`, `GeoLite2-City`, and `GeoLite2-ASN` MMDB databases (`Loyalsoldier/geoip` as the embedded fallback Country DB) for WAF geo-matching, SmartDNS geolocation, access-log enrichment, and ASN lookup | [FyraLabs/geolite2](https://github.com/FyraLabs/geolite2) · [Loyalsoldier/geoip](https://github.com/Loyalsoldier/geoip) |
+| **sapics / ip-location-db** | PDDL-1.0 | Alternative open GeoIP Country and ASN MMDB source (`@ip-location-db/geo-whois-asn-country-mmdb` and `@ip-location-db/asn-mmdb`) selectable for control-plane network intelligence sync | [sapics/ip-location-db](https://github.com/sapics/ip-location-db) |
+| **bgp.tools** | bgp.tools (Attribution Required) | Global BGP routing table (`table.jsonl`), ASN organization directory (`asns.csv`), and ASN characteristic tags (`tags/*.txt`) powering prefix-to-ASN resolution and network diagnostics | [bgp.tools](https://bgp.tools/) |
+| **CAIDA AS Relationships** | CAIDA Public AUA (Runtime-Only, Citation Required) | Optional runtime AS-relationship dataset (`serial-2`) loaded by `pkg/netintel` for upstream ISP topology and path analysis (never redistributed in binaries or container images) | [CAIDA AS Relationships](https://publicdata.caida.org/datasets/as-relationships/serial-2/) |
 
 ---
 
