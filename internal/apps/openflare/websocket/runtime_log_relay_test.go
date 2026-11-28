@@ -69,6 +69,9 @@ func TestRuntimeLogRelayUsesEphemeralRedactedPublications(t *testing.T) {
 
 	view.Close()
 	receiveRuntimeLogTestEvent(t, ctx, view.Done)
+	require.Eventually(t, func() bool {
+		return redisServer.PubSubNumSub(topic)[topic] == 0
+	}, time.Second, 10*time.Millisecond, "runtime log viewer should unsubscribe before relay cleanup")
 	// A new publication detects that the viewing replica has unsubscribed.
 	agent.dispatchRuntimeLogFrame(protocol.RuntimeLogFrame{StreamID: subscription.StreamID, Lines: []string{"after closing"}})
 	receiveRuntimeLogTestEvent(t, ctx, relayed)

@@ -27,7 +27,7 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/shared/response"
 )
 
-const expectedDefaultConfigsCount = 42
+const expectedDefaultConfigsCount = 54
 
 func setupTestRouter(authUser *model.User) *gin.Engine {
 	r := testhelper.NewTestGinEngine()
