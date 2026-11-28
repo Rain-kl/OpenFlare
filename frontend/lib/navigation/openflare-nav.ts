@@ -127,7 +127,6 @@ export const openflareDNSNavGroup: OpenFlareNavGroup = {
 export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
   { kind: 'item', titleKey: 'dashboard', url: '/', icon: LayoutDashboard },
   { kind: 'group', ...openflareNodeNavGroup },
-  { kind: 'group', ...openflareNetworkToolsNavGroup },
   {
     kind: 'item',
     titleKey: 'tunnels',
@@ -144,6 +143,7 @@ export const openflareSidebarNav: OpenFlareSidebarNavEntry[] = [
   },
   { kind: 'group', ...openflareWebsiteNavGroup },
   { kind: 'group', ...openflareDNSNavGroup },
+  { kind: 'group', ...openflareNetworkToolsNavGroup },
   { kind: 'group', ...openflareSecurityNavGroup },
   {
     kind: 'item',

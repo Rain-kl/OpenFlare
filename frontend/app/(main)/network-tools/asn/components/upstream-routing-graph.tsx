@@ -335,6 +335,11 @@ function buildGraphLayout(
   };
 }
 
+const DEFAULT_ZOOM = 0.75;
+const MIN_ZOOM = 0.6;
+const MAX_ZOOM = 1.8;
+const ZOOM_STEP = 0.15;
+
 export function UpstreamRoutingGraph({
   data,
   isLoading,
@@ -344,7 +349,7 @@ export function UpstreamRoutingGraph({
 }: UpstreamRoutingGraphProps) {
   const t = useTranslations('networkTools');
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [hoveredAsn, setHoveredAsn] = useState<number | null>(null);
   const [hoveredEdgeKey, setHoveredEdgeKey] = useState<string | null>(null);
 
@@ -456,9 +461,11 @@ export function UpstreamRoutingGraph({
             type='button'
             variant='outline'
             size='sm'
-            disabled={zoom <= 0.6}
+            disabled={zoom <= MIN_ZOOM}
             onClick={() =>
-              setZoom((z) => Math.max(0.6, Number((z - 0.15).toFixed(2))))
+              setZoom((z) =>
+                Math.max(MIN_ZOOM, Number((z - ZOOM_STEP).toFixed(2))),
+              )
             }
             aria-label={t('asn.upstreamGraph.zoomOut')}
           >
@@ -468,7 +475,7 @@ export function UpstreamRoutingGraph({
             type='button'
             variant='outline'
             size='sm'
-            onClick={() => setZoom(1)}
+            onClick={() => setZoom(DEFAULT_ZOOM)}
             className='min-w-[54px] font-mono text-xs'
           >
             {Math.round(zoom * 100)}%
@@ -477,9 +484,11 @@ export function UpstreamRoutingGraph({
             type='button'
             variant='outline'
             size='sm'
-            disabled={zoom >= 1.8}
+            disabled={zoom >= MAX_ZOOM}
             onClick={() =>
-              setZoom((z) => Math.min(1.8, Number((z + 0.15).toFixed(2))))
+              setZoom((z) =>
+                Math.min(MAX_ZOOM, Number((z + ZOOM_STEP).toFixed(2))),
+              )
             }
             aria-label={t('asn.upstreamGraph.zoomIn')}
           >

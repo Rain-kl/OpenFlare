@@ -352,19 +352,6 @@ export function NetworkToolsAsnPageClient() {
             </CardContent>
           </Card>
 
-          {resolvedAsn > 0 ? (
-            <UpstreamRoutingGraph
-              data={upstreamGraphQuery.data}
-              isLoading={upstreamGraphQuery.isLoading}
-              isFetching={
-                upstreamGraphQuery.isFetching ||
-                refreshUpstreamMutation.isPending
-              }
-              onRefresh={() => refreshUpstreamMutation.mutate()}
-              onSelectAsn={handleSelectUpstreamAsn}
-            />
-          ) : null}
-
           {pathMutation.data ? (
             <Card>
               <CardHeader className='pb-3'>
@@ -465,6 +452,19 @@ export function NetworkToolsAsnPageClient() {
                 </Table>
               </CardContent>
             </Card>
+          ) : null}
+
+          {resolvedAsn > 0 ? (
+            <UpstreamRoutingGraph
+              data={upstreamGraphQuery.data}
+              isLoading={upstreamGraphQuery.isLoading}
+              isFetching={
+                upstreamGraphQuery.isFetching ||
+                refreshUpstreamMutation.isPending
+              }
+              onRefresh={() => refreshUpstreamMutation.mutate()}
+              onSelectAsn={handleSelectUpstreamAsn}
+            />
           ) : null}
 
           <div className='grid grid-cols-1 gap-6 lg:grid-cols-2'>
