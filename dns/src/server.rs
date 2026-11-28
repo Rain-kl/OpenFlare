@@ -616,6 +616,7 @@ pub async fn run_serve(args: ServeArgs) -> Result<()> {
         args.snapshot_interval_secs,
         store.clone(),
         metrics.clone(),
+        crate::update::RemoteUpdate::from_service(std::path::Path::new(&args.cache_dir)),
     );
 
     let handler = SmartDnsHandler::new(store, geo, rrl, cache, hysteresis, metrics);

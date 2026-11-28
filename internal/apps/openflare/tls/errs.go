@@ -5,6 +5,8 @@
 package tls
 
 const (
+	errDNSAccountNotFound           = "DNS account not found"
+	errDNSAccountOperation          = "DNS account operation failed"
 	errCertificateNameRequired      = "certificate name cannot be empty"
 	errCertificateNameExists        = "certificate name already exists"
 	errCertificateContentRequired   = "certificate content and key content cannot be empty"
@@ -17,5 +19,8 @@ const (
 	errCertificateFilesRequired     = "certificate file and key file cannot be empty"
 	errCertificatePEMInvalid        = "invalid certificate PEM content"
 
-	errDNSAccountInUse = "this DNS account is used by certificates and cannot be deleted"
+	errDNSAccountNameRequired = "DNS account name is required"
+	errDNSAccountTypeChange   = "DNS account provider cannot be changed"
+	errDNSAccountUsedByDNS    = "this DNS account is used by DNS resolution and cannot be deleted"
+	errDNSAccountInUse        = "this DNS account is used by certificates and cannot be deleted"
 )

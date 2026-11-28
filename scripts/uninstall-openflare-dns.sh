@@ -36,6 +36,10 @@ done
 [[ "$STATE_DIR" != "/" && "$STATE_DIR" != "." ]] || { printf 'Refusing unsafe state directory\n' >&2; exit 1; }
 
 if command -v systemctl >/dev/null 2>&1; then
+  if [[ -f /etc/systemd/system/openflare-dns-update.path ]]; then
+    systemctl disable --now openflare-dns-update.path
+    systemctl stop openflare-dns-update.service
+  fi
   if systemctl is-active --quiet "$SERVICE_NAME"; then
     log "stopping $SERVICE_NAME"
     systemctl stop "$SERVICE_NAME"
@@ -44,7 +48,9 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl disable "$SERVICE_NAME" >/dev/null 2>&1 || true
   fi
 fi
-rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+rm -f "/etc/systemd/system/${SERVICE_NAME}.service" \
+  "/etc/systemd/system/${SERVICE_NAME}.service.d/remote-update.conf" \
+  /etc/systemd/system/openflare-dns-update.path /etc/systemd/system/openflare-dns-update.service
 if command -v systemctl >/dev/null 2>&1; then
   systemctl daemon-reload || true
   systemctl reset-failed "$SERVICE_NAME" >/dev/null 2>&1 || true

@@ -31,7 +31,6 @@
       "certificates": "Сертификаты TLS",
       "dnsAccounts": "Учётные записи DNS",
       "dnsResolve": "Разрешение DNS",
-      "dnsSettings": "Подключение Cloudflare",
       "smartDns": "SmartDNS",
       "cloudflare": "Cloudflare",
       "origins": "Серверы-источники",

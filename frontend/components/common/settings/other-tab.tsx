@@ -112,12 +112,6 @@ const MENU_GROUPS: MenuGroup[] = [
         icon: Globe2,
       },
       {
-        path: '/dns/settings',
-        labelKey: 'dnsSettings',
-        descKey: 'descDnsSettings',
-        icon: SlidersHorizontal,
-      },
-      {
         path: '/dns/smartdns',
         labelKey: 'smartDns',
         descKey: 'descSmartDns',

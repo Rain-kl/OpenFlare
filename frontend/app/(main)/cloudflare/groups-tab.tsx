@@ -136,6 +136,8 @@ export function CloudflareGroupsTab({
     ].some((value) => value?.toLowerCase().includes(keyword)),
   );
 
+  const dnsReady = overview?.dns_ready ?? overview?.connection.ready;
+
   return (
     <div className='flex flex-col gap-4'>
       {overviewQuery.isLoading ? (
@@ -148,14 +150,14 @@ export function CloudflareGroupsTab({
           message={getErrorMessage(overviewQuery.error)}
           onRetry={() => void overviewQuery.refetch()}
         />
-      ) : !overview?.connection.ready ? (
+      ) : !dnsReady ? (
         <Alert>
           <AlertTriangle />
           <AlertTitle>{t('notReadyTitle')}</AlertTitle>
           <AlertDescription className='flex flex-wrap items-center gap-x-3 gap-y-1'>
             <span>{t('notReadyDesc')}</span>
             <Button asChild variant='link' className='h-auto px-0 py-0'>
-              <Link href='/dns/settings'>{t('configure')}</Link>
+              <Link href='/dns-accounts'>{t('configure')}</Link>
             </Button>
           </AlertDescription>
         </Alert>
@@ -276,9 +278,7 @@ export function CloudflareGroupsTab({
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         disabled={
-                          !overview?.connection.ready ||
-                          !group.enabled ||
-                          syncMutation.isPending
+                          !dnsReady || !group.enabled || syncMutation.isPending
                         }
                         onSelect={() => syncMutation.mutate(group.id)}
                       >

@@ -30,6 +30,9 @@ function report(file, source, offset, text) {
   if (compatibilityFiles.has(name) && legacyCategoryKeys.has(text)) return;
   // Historical persisted notification recipient alias, not display text.
   if (name === 'internal/apps/admin/push/logics.go' && text === '系统') return;
+  // DNSPod requires this literal RecordLine value in record mutation requests.
+  if (name === 'internal/openflare/dnsprovider/tencent.go' && text === '默认')
+    return;
   const line = source.slice(0, offset).split('\n').length;
   failures.push(`${name}:${line}`);
 }

@@ -7,6 +7,7 @@ package bootstrap
 import (
 	"github.com/Rain-kl/Wavelet/internal/apps/admin/push"
 	cf "github.com/Rain-kl/Wavelet/internal/apps/openflare/cloudflare"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/dnsaccount"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netintel"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/netquality"
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/pages"
@@ -62,6 +63,9 @@ func registerBuiltInTasks() {
 	task.RegisterTaskMeta(cf.SyncByNodeMeta)
 	task.RegisterHandler(cf.FailoverCheckTask, &cf.FailoverCheckTaskHandler{})
 	task.RegisterTaskMeta(cf.FailoverCheckMeta)
+
+	task.RegisterHandler(dnsaccount.RefreshTask, &dnsaccount.RefreshHandler{})
+	task.RegisterTaskMeta(dnsaccount.RefreshMeta)
 
 	// pages source actions are only dispatched by the Pages domain API/scanner.
 	task.RegisterHandler(pages.PagesSourceScanTask, &pages.SourceScanHandler{})

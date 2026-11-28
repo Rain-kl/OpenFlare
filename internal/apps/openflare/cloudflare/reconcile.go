@@ -11,6 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/dnsaccount"
+	"github.com/Rain-kl/Wavelet/internal/openflare/dnsprovider"
+
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
@@ -57,26 +60,14 @@ func reconcileMember(ctx context.Context, memberID uint) error {
 	if err != nil {
 		return err
 	}
-	connection, err := repository.GetCFConnection(ctx)
-	if err != nil || connection.Status != model.CFConnectionStatusReady {
-		return errors.New(errConnectionNotConfigured)
-	}
-	token, err := resolveToken(ctx, connection)
+	target, err := resolveMemberDNS(ctx, state)
 	if err != nil {
 		return err
 	}
-	client := clientFactory(token)
-	zoneID := state.Member.CFZoneID
-	if zoneID == "" {
-		zone, findErr := client.FindZone(ctx, state.Zone.Domain)
-		if findErr != nil {
-			return findErr
-		}
-		zoneID = zone.ID
-	}
+	client, zoneID := target.client, target.zoneID
 	input.Name = state.Domain.Domain
 	input.Proxied = state.Member.Proxied
-	if state.Group.TargetMode == model.CFPointingTargetModeSmartDNS {
+	if !target.supportsProxy || state.Group.TargetMode == model.CFPointingTargetModeSmartDNS {
 		input.Proxied = false
 	}
 	input.TTL = groupTTL(&state.Group)
@@ -84,8 +75,8 @@ func reconcileMember(ctx context.Context, memberID uint) error {
 		input.TTL = automaticTTL
 	}
 	recordID := state.Member.CFRecordID
-	if recordID != "" {
-		completed, cachedErr := reconcileCachedRecord(ctx, client, memberID, zoneID, recordID, input)
+	if recordID != "" && sameDNSOwner(&state.Member, target) {
+		completed, cachedErr := reconcileCachedRecord(ctx, target, memberID, recordID, input)
 		if errors.Is(cachedErr, errCachedRecordUnavailable) {
 			cachedErr = nil
 		}
@@ -112,19 +103,23 @@ func reconcileMember(ctx context.Context, memberID uint) error {
 	if err != nil {
 		return err
 	}
-	return markMemberSynced(ctx, memberID, zoneID, record.ID, input.Content)
+	return markMemberSynced(ctx, memberID, target, record.ID, input.Content)
 }
 
 func reconcileCachedRecord(
 	ctx context.Context,
-	client Client,
+	target memberDNSTarget,
 	memberID uint,
-	zoneID, recordID string,
+	recordID string,
 	input RecordInput,
 ) (bool, error) {
+	client, zoneID := target.client, target.zoneID
 	current, err := client.GetRecord(ctx, zoneID, recordID)
 	if err != nil {
 		return false, errors.Join(errCachedRecordUnavailable, err)
+	}
+	if current.Name != "" && !strings.EqualFold(strings.TrimSuffix(current.Name, "."), strings.TrimSuffix(input.Name, ".")) {
+		return false, errCachedRecordUnavailable
 	}
 	if current.Type != input.Type {
 		return false, client.DeleteRecord(ctx, zoneID, recordID)
@@ -133,7 +128,7 @@ func reconcileCachedRecord(
 	if err != nil {
 		return false, err
 	}
-	return true, markMemberSynced(ctx, memberID, zoneID, record.ID, input.Content)
+	return true, markMemberSynced(ctx, memberID, target, record.ID, input.Content)
 }
 
 func desiredRecordInput(state *repository.CFPointingMemberContext) (RecordInput, error) {
@@ -160,12 +155,16 @@ func desiredRecordInput(state *repository.CFPointingMemberContext) (RecordInput,
 	return RecordInput{Type: "A", Content: ip}, nil
 }
 
-func markMemberSynced(ctx context.Context, memberID uint, zoneID, recordID, ip string) error {
+func markMemberSynced(ctx context.Context, memberID uint, target memberDNSTarget, recordID, ip string) error {
 	now := time.Now()
-	return repository.UpdateCFPointingMemberColumns(ctx, memberID, map[string]any{
-		"cf_zone_id": zoneID, "cf_record_id": recordID, "desired_ip": ip,
+	columns := map[string]any{
+		"cf_zone_id": target.zoneID, "cf_record_id": recordID, "dns_account_id": target.accountID, "desired_ip": ip,
 		memberSyncStatusColumn: model.CFMemberSyncOK, memberLastErrorColumn: "", "synced_at": &now,
-	})
+	}
+	if !target.supportsProxy {
+		columns["proxied"] = false
+	}
+	return repository.UpdateCFPointingMemberColumns(ctx, memberID, columns)
 }
 
 // DeleteManagedRecord deletes the cached or uniquely discoverable managed record.
@@ -177,24 +176,24 @@ func DeleteManagedRecord(ctx context.Context, memberID uint) error {
 		}
 		return err
 	}
-	connection, err := repository.GetCFConnection(ctx)
-	if err != nil {
-		return err
-	}
-	token, err := resolveToken(ctx, connection)
-	if err != nil {
-		return err
-	}
-	client := clientFactory(token)
-	zoneID := state.Member.CFZoneID
-	if zoneID == "" {
-		zone, findErr := client.FindZone(ctx, state.Zone.Domain)
-		if findErr != nil {
-			return findErr
+	target, err := resolveMemberDNS(ctx, state)
+	if state.Member.DNSAccountID != nil && state.Member.CFRecordID != "" && (err != nil || !sameDNSOwner(&state.Member, target)) {
+		account, accountErr := repository.GetDNSAccountByID(ctx, *state.Member.DNSAccountID)
+		if accountErr != nil {
+			return accountErr
 		}
-		zoneID = zone.ID
+		client, accountErr := dnsaccount.OpenAdapter(account)
+		if accountErr != nil {
+			return accountErr
+		}
+		target = memberDNSTarget{client: client, accountID: &account.ID, zoneID: state.Member.CFZoneID}
+		err = nil
 	}
-	if state.Member.CFRecordID != "" {
+	if err != nil {
+		return err
+	}
+	client, zoneID := target.client, target.zoneID
+	if state.Member.CFRecordID != "" && sameDNSOwner(&state.Member, target) {
 		if deleteErr := client.DeleteRecord(ctx, zoneID, state.Member.CFRecordID); deleteErr == nil {
 			return nil
 		}
@@ -220,4 +219,66 @@ func DeleteManagedRecord(ctx context.Context, memberID uint) error {
 		return errors.New(errMultipleDNSRecords)
 	}
 	return client.DeleteRecord(ctx, zoneID, records[0].ID)
+}
+
+type memberDNSTarget struct {
+	client        Client
+	accountID     *uint
+	zoneID        string
+	supportsProxy bool
+}
+
+func sameDNSOwner(member *model.CFPointingMember, target memberDNSTarget) bool {
+	return equalOptionalUint(member.DNSAccountID, target.accountID) && member.CFZoneID == target.zoneID
+}
+
+func resolveMemberDNS(ctx context.Context, state *repository.CFPointingMemberContext) (memberDNSTarget, error) {
+	accounts, err := repository.ListDNSAccounts(ctx)
+	if err != nil {
+		return memberDNSTarget{}, err
+	}
+	legacy, err := repository.GetCFConnection(ctx)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return memberDNSTarget{}, err
+	}
+	var preferred []uint
+	if state.Member.DNSAccountID != nil {
+		preferred = append(preferred, *state.Member.DNSAccountID)
+	}
+	if legacy != nil && legacy.DNSAccountID != nil {
+		preferred = append(preferred, *legacy.DNSAccountID)
+	}
+	route, err := dnsaccount.Resolve(accounts, state.Domain.Domain, false, preferred...)
+	if err != nil {
+		return memberDNSTarget{}, err
+	}
+	if route != nil {
+		client, openErr := route.Open()
+		return memberDNSTarget{client: client, accountID: &route.Account.ID, zoneID: route.Zone.ID, supportsProxy: dnsprovider.SupportsProxy(route.Account.Type)}, openErr
+	}
+	if legacy == nil || legacy.Status != model.CFConnectionStatusReady {
+		return memberDNSTarget{}, errors.New(errDNSProviderScopeUnavailable)
+	}
+	// A previously verified Cloudflare connection remains usable until its DNS account has been probed.
+	if legacy.DNSAccountID != nil {
+		for _, account := range accounts {
+			if account.ID == *legacy.DNSAccountID && account.LastCheckedAt != nil {
+				return memberDNSTarget{}, errors.New(errDNSProviderScopeUnavailable)
+			}
+		}
+	}
+	token, err := resolveToken(ctx, legacy)
+	if err != nil {
+		return memberDNSTarget{}, err
+	}
+	client := clientFactory(token)
+	zoneID := state.Member.CFZoneID
+	if zoneID == "" || !equalOptionalUint(state.Member.DNSAccountID, legacy.DNSAccountID) {
+		zone, findErr := client.FindZone(ctx, state.Zone.Domain)
+		if findErr != nil {
+			return memberDNSTarget{}, findErr
+		}
+		zoneID = zone.ID
+	}
+	return memberDNSTarget{client: client, accountID: legacy.DNSAccountID, zoneID: zoneID, supportsProxy: true}, nil
 }

@@ -21,9 +21,6 @@
     "memberDialog": {
       "smartdnsDnsOnlyHint": "Эта группа использует маршрутизацию SmartDNS; проксирование Cloudflare отключено."
     },
-    "settings": {
-      "redirecting": "Перенаправление к настройкам подключения DNS..."
-    },
     "smartdnsTargetSummary": "Политика SmartDNS «{policy}» → CNAME {host}",
     "smartdnsAutoHost": "Автоматический хост",
     "smartdnsDnsOnlySummary": "Участников: {count} · только DNS (SmartDNS CNAME)",
@@ -45,7 +42,7 @@
     },
     "batchRemoveDialog": {
       "title": "Подтвердить пакетное удаление домена",
-      "desc": "Удалить выбранные домены ({count}) из текущей группы? Их записи DNS в Cloudflare также будут удалены.",
+      "desc": "Удалить выбранные домены ({count}) из текущей группы? Их записи DNS также будут удалены у настроенного провайдера.",
       "confirm": "Подтвердить удаление",
       "removing": "Удаление..."
     },

@@ -52,7 +52,7 @@
     "verifyObserved": "Observed public NS records: {records}",
     "verifyMissing": "Missing configured NS hosts: {hosts}",
     "instances": {
-      "discoveryTitle": "Connect a standalone instance",
+      "discoveryTitle": "Discovery registration",
       "discoveryDesc": "Copy and run the command on the target server to register the instance with the discovery token.",
       "rotateDiscovery": "Rotate discovery token",
       "discoveryRotated": "Discovery token rotated",
@@ -67,7 +67,7 @@
       "listTitle": "Authoritative instances",
       "listDesc": "Review instance health, snapshot versions, and query performance.",
       "refresh": "Refresh",
-      "create": "Pre-register instance",
+      "create": "Add",
       "loading": "Loading SmartDNS instances...",
       "empty": "No SmartDNS instances registered.",
       "colName": "Instance",
@@ -86,7 +86,7 @@
       "unquarantine": "Unquarantine",
       "delete": "Delete",
       "editTitle": "Edit Instance",
-      "createTitle": "Register Instance",
+      "createTitle": "Add authoritative instance",
       "dialogDesc": "Configure instance name, public endpoint address, listen socket, and region.",
       "nameLabel": "Instance Name",
       "publicAddrLabel": "Public Address / Host",
@@ -111,7 +111,6 @@
       "deleteTitle": "Delete Instance",
       "deleteDesc": "Delete instance “{name}”? This action cannot be undone.",
       "confirmDelete": "Confirm Delete",
-      "openEnrollment": "Connect an instance",
       "discoveryTokenLabel": "Discovery token",
       "loadingToken": "Loading enrollment credentials…",
       "rotateDiscoveryDescription": "Commands using the old token will no longer register new instances. Copy the updated command after rotating the token.",
@@ -119,7 +118,25 @@
       "releaseChannel": "Release channel",
       "showToken": "Show token",
       "hideToken": "Hide token",
-      "deploymentMethod": "Deployment method"
+      "deploymentMethod": "Deployment method",
+      "preRegister": "Pre-register",
+      "remoteUpdate": "Update",
+      "updateUnavailable": "Update (requires host support)",
+      "batchUpdate": "Update selected ({count})",
+      "selectAll": "Select all eligible instances",
+      "selectInstance": "Select instance {name}",
+      "updateDescription": "Select a release channel for {count, plural, one {# authoritative instance} other {# authoritative instances}}. Each instance briefly restarts during the update.",
+      "updateChannel": "Release channel",
+      "updateStable": "Stable",
+      "updateCanary": "Canary",
+      "updateQueued": "Update requested for {count, plural, one {# instance} other {# instances}}.",
+      "updateStatus": {
+        "queued": "Update queued",
+        "running": "Updating",
+        "succeeded": "Update complete",
+        "failed": "Update failed",
+        "timed_out": "Update timed out"
+      }
     },
     "policies": {
       "listTitle": "Routing Policies",
@@ -285,7 +302,7 @@
     "openInstances": "Manage authoritative instances",
     "advancedSettings": "Advanced service settings",
     "settingsLoading": "Loading SmartDNS settings…",
-    "saveBeforeVerify": "Save the delegated subdomain and name servers before checking the public records.",
+    "saveBeforeVerify": "Save the delegation domain and nameservers before configuring or verifying delegation.",
     "monitoringWindow": "Monitoring period",
     "filters": {
       "any": "Any",
@@ -297,6 +314,9 @@
       "selected": "Selected",
       "clear": "Clear selection",
       "retry": "Reload options"
-    }
+    },
+    "applyDelegation": "Configure delegation",
+    "applyDelegationConfirm": "Synchronize the following NS records for {domain} in its parent DNS zone and remove NS records outside this list. Supported providers are Cloudflare and Alibaba Cloud DNS.",
+    "applyDelegationSuccess": "Delegation updated in {zone}. Added {created}, removed {removed}."
   }
 }

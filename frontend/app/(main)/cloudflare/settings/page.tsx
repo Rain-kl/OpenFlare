@@ -9,10 +9,10 @@ import { LoadingStateWithBorder } from '@/components/layout/loading';
 
 export default function CloudflareSettingsRedirectPage() {
   const router = useRouter();
-  const t = useTranslations('cloudflare.settings');
+  const t = useTranslations('dnsAccounts');
 
   useEffect(() => {
-    router.replace('/dns/settings');
+    router.replace('/dns-accounts');
   }, [router]);
 
   return (

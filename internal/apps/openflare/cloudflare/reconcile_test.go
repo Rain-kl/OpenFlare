@@ -7,12 +7,16 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/credential"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/dnsaccount"
 	db "github.com/Rain-kl/Wavelet/internal/infra/persistence"
 	"github.com/Rain-kl/Wavelet/internal/model"
 	"github.com/Rain-kl/Wavelet/internal/repository"
 	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
@@ -221,4 +225,40 @@ func TestUpdateMemberDoesNotDispatchWhenGroupIsDisabled(t *testing.T) {
 	if dispatchCount != 0 {
 		t.Errorf("dispatch count = %d, want 0", dispatchCount)
 	}
+}
+
+func TestDNSRoutingUsesLongestSavedScopeAndPreservesItOnFailedRefresh(t *testing.T) {
+	ctx, memberID := setupCloudflareLogicDB(t)
+	parent := model.DNSAccount{Name: "parent", Type: "cloudflare", Authorization: `{"api_token":"test-token"}`}
+	child := model.DNSAccount{Name: "child", Type: "tencentcloud", Authorization: `{"secret_id":"test-id","secret_key":"test-key"}`}
+	require.NoError(t, repository.CreateDNSAccountRecord(ctx, &parent))
+	require.NoError(t, repository.CreateDNSAccountRecord(ctx, &child))
+	now := time.Now().UTC()
+	require.NoError(t, repository.SaveDNSAccountVerification(ctx, &parent, now, model.DNSAccountStatusReady, []model.DNSAccountScope{{ID: "zone-1", Name: "example.com"}}))
+	childScope := []model.DNSAccountScope{{ID: "api.example.com", Name: "api.example.com"}}
+	require.NoError(t, repository.SaveDNSAccountVerification(ctx, &child, now, model.DNSAccountStatusReady, childScope))
+
+	state, err := repository.GetCFPointingMemberContext(ctx, memberID)
+	require.NoError(t, err)
+	target, err := resolveMemberDNS(ctx, state)
+	require.NoError(t, err)
+	require.NotNil(t, target.accountID)
+	assert.Equal(t, child.ID, *target.accountID)
+	assert.False(t, target.supportsProxy)
+
+	require.NoError(t, repository.SaveDNSAccountVerification(ctx, &child, now.Add(time.Second), model.DNSAccountStatusError, nil))
+	require.NoError(t, repository.SaveDNSAccountVerification(ctx, &child, now, model.DNSAccountStatusReady, nil))
+	current, err := repository.GetDNSAccountByID(ctx, child.ID)
+	require.NoError(t, err)
+	assert.Equal(t, childScope, current.Scopes)
+	assert.Equal(t, model.DNSAccountStatusError, current.VerificationStatus)
+	_, err = resolveMemberDNS(ctx, state)
+	require.ErrorContains(t, err, "API is unavailable")
+
+	accounts, err := repository.ListDNSAccounts(ctx)
+	require.NoError(t, err)
+	delegation, err := dnsaccount.Resolve(accounts, state.Domain.Domain, true)
+	require.NoError(t, err)
+	require.NotNil(t, delegation)
+	assert.Equal(t, parent.ID, delegation.Account.ID)
 }

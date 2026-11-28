@@ -5,6 +5,7 @@ package smartdns
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
@@ -195,4 +196,49 @@ func TestSimulatorSettingsInstancesAndOverviewLifecycle(t *testing.T) {
 	assert.Equal(t, model.DNSInstanceStatusOffline, uInst.Status)
 
 	require.NoError(t, DeleteInstance(ctx, inst.ID))
+}
+
+func TestInstanceRemoteUpdateBatchAndHeartbeatReceipts(t *testing.T) {
+	t.Cleanup(setupSmartDNSTestDB(t))
+	ctx := t.Context()
+	first, err := CreateInstance(ctx, InstanceInput{Name: "first"})
+	require.NoError(t, err)
+	second, err := CreateInstance(ctx, InstanceInput{Name: "second"})
+	require.NoError(t, err)
+	heartbeat := func(id uint, req protocol.DNSHeartbeatRequest) *protocol.DNSHeartbeatResponse {
+		row, loadErr := repository.GetDNSInstanceByID(ctx, id)
+		require.NoError(t, loadErr)
+		resp, reportErr := RecordDNSHeartbeat(ctx, row, req)
+		require.NoError(t, reportErr)
+		return resp
+	}
+	capable := protocol.DNSHeartbeatRequest{RemoteUpdateSupported: true}
+	heartbeat(first.ID, capable)
+	input := InstanceUpdateInput{InstanceIDs: []uint{first.ID, second.ID}, Channel: "canary"}
+	_, err = RequestInstanceUpdates(ctx, input)
+	var conflict *logicError
+	require.ErrorAs(t, err, &conflict)
+	assert.Equal(t, http.StatusConflict, conflict.status)
+	assert.Nil(t, heartbeat(first.ID, capable).Update, "rejected batch must leave both nodes unchanged")
+
+	heartbeat(second.ID, capable)
+	result, err := RequestInstanceUpdates(ctx, input)
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.Queued)
+	firstCommand := heartbeat(first.ID, capable).Update
+	require.NotNil(t, firstCommand)
+	assert.Equal(t, "canary", firstCommand.Channel)
+	require.NotNil(t, heartbeat(second.ID, capable).Update)
+	_, err = RequestInstanceUpdates(ctx, input)
+	require.ErrorAs(t, err, &conflict)
+
+	capable.UpdateReceipt = &protocol.DNSUpdateReceipt{ID: firstCommand.ID, Status: model.DNSUpdateRunning}
+	assert.Nil(t, heartbeat(first.ID, capable).Update)
+	capable.UpdateReceipt.Status = model.DNSUpdateSucceeded
+	heartbeat(first.ID, capable)
+	capable.UpdateReceipt.Status = model.DNSUpdateFailed
+	heartbeat(first.ID, capable)
+	instance, err := repository.GetDNSInstanceByID(ctx, first.ID)
+	require.NoError(t, err)
+	assert.Equal(t, model.DNSUpdateSucceeded, instance.UpdateStatus, "a terminal receipt is immutable")
 }

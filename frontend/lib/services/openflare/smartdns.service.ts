@@ -1,5 +1,6 @@
 import { OpenFlareBaseService } from './base.service';
 import type {
+  SmartDNSDelegationApplyResult,
   SmartDNSDelegationVerifyResult,
   SmartDNSDiscoveryToken,
   SmartDNSInstance,
@@ -13,6 +14,7 @@ import type {
   SmartDNSQuarantineInput,
   SmartDNSSettings,
   SmartDNSSettingsInput,
+  SmartDNSUpdateChannel,
   SmartDNSSimulateInput,
   SmartDNSSimulateResult,
 } from './types';
@@ -36,6 +38,19 @@ export class SmartDNSService extends OpenFlareBaseService {
     payload: SmartDNSSettingsInput,
   ): Promise<SmartDNSSettings> {
     return this.post<SmartDNSSettings>('/settings', payload);
+  }
+
+  static applyDelegation(
+    domain: string,
+    hosts: string[],
+  ): Promise<SmartDNSDelegationApplyResult> {
+    return this.post<SmartDNSDelegationApplyResult>(
+      '/settings/apply-delegation',
+      {
+        delegation_domain: domain,
+        ns_hosts: hosts,
+      },
+    );
   }
 
   static verifyDelegation(): Promise<SmartDNSDelegationVerifyResult> {
@@ -67,6 +82,16 @@ export class SmartDNSService extends OpenFlareBaseService {
     payload: SmartDNSInstanceInput,
   ): Promise<SmartDNSInstance> {
     return this.post<SmartDNSInstance>(`/instances/${id}/update`, payload);
+  }
+
+  static requestInstanceUpdates(
+    instanceIds: number[],
+    channel: SmartDNSUpdateChannel,
+  ): Promise<{ queued: number }> {
+    return this.post('/instances/remote-update', {
+      instance_ids: instanceIds,
+      channel,
+    });
   }
 
   static deleteInstance(id: number): Promise<void> {

@@ -52,7 +52,7 @@
     "verifyObserved": "当前公网观测到的 NS 记录：{records}",
     "verifyMissing": "缺失的预期 NS 主机名：{hosts}",
     "instances": {
-      "discoveryTitle": "接入独立实例",
+      "discoveryTitle": "Discovery 注册",
       "discoveryDesc": "复制启动命令到目标服务器运行，实例将使用发现令牌自动注册。",
       "rotateDiscovery": "轮换发现令牌",
       "discoveryRotated": "Discovery Token 已重新生成",
@@ -67,7 +67,7 @@
       "listTitle": "权威实例",
       "listDesc": "查看实例的在线状态、快照版本和解析性能。",
       "refresh": "刷新",
-      "create": "预注册实例",
+      "create": "新增",
       "loading": "正在加载实例列表...",
       "empty": "暂无注册的 SmartDNS 实例。",
       "colName": "实例名称",
@@ -86,7 +86,7 @@
       "unquarantine": "解除隔离",
       "delete": "删除",
       "editTitle": "编辑实例",
-      "createTitle": "预注册实例",
+      "createTitle": "新增权威实例",
       "dialogDesc": "维护 SmartDNS 实例名称、对外声明地址、监听端口与所属地区。",
       "nameLabel": "实例名称",
       "publicAddrLabel": "公网地址 / 域名",
@@ -111,7 +111,6 @@
       "deleteTitle": "删除 SmartDNS 实例",
       "deleteDesc": "确认删除实例「{name}」吗？该操作不可撤销。",
       "confirmDelete": "确认删除",
-      "openEnrollment": "接入独立实例",
       "discoveryTokenLabel": "发现令牌",
       "loadingToken": "正在加载接入凭据…",
       "rotateDiscoveryDescription": "轮换后，使用旧发现令牌的启动命令将无法注册新实例。请重新复制启动命令。",
@@ -119,7 +118,25 @@
       "releaseChannel": "发布通道",
       "showToken": "显示令牌",
       "hideToken": "隐藏令牌",
-      "deploymentMethod": "部署方式"
+      "deploymentMethod": "部署方式",
+      "preRegister": "预注册实例",
+      "remoteUpdate": "更新",
+      "updateUnavailable": "更新（需要主机支持）",
+      "batchUpdate": "批量更新（{count}）",
+      "selectAll": "选择全部可更新实例",
+      "selectInstance": "选择实例 {name}",
+      "updateDescription": "为 {count} 个权威实例选择发行渠道。更新期间实例将短暂重启。",
+      "updateChannel": "发行渠道",
+      "updateStable": "正式版",
+      "updateCanary": "Canary 版",
+      "updateQueued": "已为 {count} 个实例下发更新请求。",
+      "updateStatus": {
+        "queued": "等待更新",
+        "running": "正在更新",
+        "succeeded": "更新完成",
+        "failed": "更新失败",
+        "timed_out": "更新超时"
+      }
     },
     "policies": {
       "listTitle": "调度策略",
@@ -285,7 +302,7 @@
     "openInstances": "管理权威实例",
     "advancedSettings": "高级运行参数",
     "settingsLoading": "正在加载 SmartDNS 设置…",
-    "saveBeforeVerify": "请先保存委派子域及 NS 主机名，再检查公网记录。",
+    "saveBeforeVerify": "请先保存委派域名和 NS 主机，再配置或校验委派。",
     "monitoringWindow": "监控时段",
     "filters": {
       "any": "不限",
@@ -297,6 +314,9 @@
       "selected": "已选中",
       "clear": "清除已选",
       "retry": "重新加载选项"
-    }
+    },
+    "applyDelegation": "一键配置",
+    "applyDelegationConfirm": "在父级 DNS 区域为 {domain} 同步下列 NS 记录，并移除该域名不在列表中的 NS 记录。支持 Cloudflare 和阿里云 DNS。",
+    "applyDelegationSuccess": "已在 {zone} 更新委派。新增 {created} 条，移除 {removed} 条。"
   }
 }

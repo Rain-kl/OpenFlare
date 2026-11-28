@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Globe2,
   Save,
+  WandSparkles,
   ShieldCheck,
   XCircle,
 } from 'lucide-react';
@@ -18,6 +19,15 @@ import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Card,
   CardContent,
@@ -81,6 +91,8 @@ export function SmartDNSSettingsTab() {
 function SmartDNSSettingsForm({ settings }: { settings: SmartDNSSettings }) {
   const t = useTranslations('smartdns');
   const queryClient = useQueryClient();
+  const common = useTranslations('common');
+  const [applyOpen, setApplyOpen] = useState(false);
   const [changes, setChanges] = useState<Partial<ReturnType<typeof toDraft>>>(
     {},
   );
@@ -110,6 +122,25 @@ function SmartDNSSettingsForm({ settings }: { settings: SmartDNSSettings }) {
     mutationFn: () => SmartDNSService.verifyDelegation(),
     onError: (error) => toast.error(getErrorMessage(error)),
   });
+  const applyMutation = useMutation({
+    mutationFn: () =>
+      SmartDNSService.applyDelegation(
+        settings.delegation_domain,
+        settings.ns_hosts,
+      ),
+    onSuccess: (result) => {
+      verifyMutation.reset();
+      setApplyOpen(false);
+      toast.success(
+        t('applyDelegationSuccess', {
+          zone: result.zone,
+          created: result.created,
+          removed: result.removed,
+        }),
+      );
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
   const saveMutation = useMutation({
     mutationFn: () =>
       SmartDNSService.saveSettings({
@@ -132,7 +163,15 @@ function SmartDNSSettingsForm({ settings }: { settings: SmartDNSSettings }) {
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
-  const busy = saveMutation.isPending || verifyMutation.isPending;
+  const busy =
+    saveMutation.isPending ||
+    verifyMutation.isPending ||
+    applyMutation.isPending;
+  const canApply =
+    !busy &&
+    !delegationDirty &&
+    !!settings.delegation_domain &&
+    !!settings.ns_hosts?.length;
   const verifyResult = verifyMutation.data;
   return (
     <Card>
@@ -276,6 +315,15 @@ function SmartDNSSettingsForm({ settings }: { settings: SmartDNSSettings }) {
             </Button>
             <Button
               variant='outline'
+              type='button'
+              disabled={!canApply}
+              onClick={() => setApplyOpen(true)}
+            >
+              <WandSparkles data-icon='inline-start' />
+              {t('applyDelegation')}
+            </Button>
+            <Button
+              variant='outline'
               onClick={() => verifyMutation.mutate()}
               type='button'
               disabled={
@@ -290,6 +338,39 @@ function SmartDNSSettingsForm({ settings }: { settings: SmartDNSSettings }) {
             </Button>
           </div>
         </form>
+        <AlertDialog
+          open={applyOpen}
+          onOpenChange={(open) =>
+            !applyMutation.isPending && setApplyOpen(open)
+          }
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('applyDelegation')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('applyDelegationConfirm', {
+                  domain: settings.delegation_domain,
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <ul className='space-y-1 font-mono text-sm'>
+              {settings.ns_hosts?.map((host) => (
+                <li key={host}>{host}</li>
+              ))}
+            </ul>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={applyMutation.isPending}>
+                {common('cancel')}
+              </AlertDialogCancel>
+              <Button
+                disabled={!canApply}
+                onClick={() => applyMutation.mutate()}
+              >
+                {t('applyDelegation')}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         {delegationDirty && (
           <p className='mt-3 text-sm text-muted-foreground'>
             {t('saveBeforeVerify')}

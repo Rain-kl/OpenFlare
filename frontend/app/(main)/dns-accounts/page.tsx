@@ -1,10 +1,16 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
-import { KeyRound, Plus, Settings, Trash2 } from 'lucide-react';
+import { Fragment, useState } from 'react';
+import {
+  KeyRound,
+  ListTree,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
-import Link from 'next/link';
 
 import {
   AlertDialog,
@@ -32,8 +38,8 @@ import { ErrorInline } from '@/components/layout/error';
 import { LoadingStateWithBorder } from '@/components/layout/loading';
 import type { DnsAccountItem } from '@/lib/services/openflare';
 import {
-  CloudflareService,
   cloudflareQueryKey,
+  dnsAccountsQueryKey,
   DnsAccountService,
 } from '@/lib/services/openflare';
 import { formatDateTime } from '@/lib/utils';
@@ -43,13 +49,13 @@ import { useTranslations } from 'next-intl';
 import { DnsAccountCreateDialog } from '../websites/components/dns-account-create-dialog';
 import { getErrorMessage } from '../websites/components/website-utils';
 
-const dnsAccountsQueryKey = ['openflare', 'dns-accounts'];
-
 export default function DnsAccountsPage() {
   const t = useTranslations('dnsAccounts');
   const tc = useTranslations('common');
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<DnsAccountItem>();
+  const [expandedId, setExpandedId] = useState<number>();
   const [deleteTarget, setDeleteTarget] = useState<DnsAccountItem | null>(null);
 
   const dnsAccountsQuery = useQuery({
@@ -57,9 +63,19 @@ export default function DnsAccountsPage() {
     queryFn: () => DnsAccountService.list(),
   });
 
-  const connectionQuery = useQuery({
-    queryKey: [...cloudflareQueryKey, 'connection'],
-    queryFn: () => CloudflareService.getConnection(),
+  const refreshMutation = useMutation({
+    mutationFn: (id: number) => DnsAccountService.refresh(id),
+    onSuccess: async (account) => {
+      setExpandedId(account.id);
+      if (account.verification_status === 'ready')
+        toast.success(t('refreshSuccess'));
+      else toast.error(t('refreshFailed'));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: dnsAccountsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: cloudflareQueryKey }),
+      ]);
+    },
+    onError: (error) => toast.error(getErrorMessage(error, t('requestFailed'))),
   });
 
   const deleteMutation = useMutation({
@@ -73,7 +89,6 @@ export default function DnsAccountsPage() {
   });
 
   const accounts = dnsAccountsQuery.data ?? [];
-  const linkedID = connectionQuery.data?.dns_account_id;
 
   return (
     <div className='flex w-full flex-col gap-5 py-6 px-1'>
@@ -85,12 +100,6 @@ export default function DnsAccountsPage() {
           </h1>
         </div>
         <div className='flex flex-wrap items-center gap-2'>
-          <Button variant='outline' size='sm' asChild>
-            <Link href='/dns/settings'>
-              <Settings data-icon='inline-start' />
-              {t('connectionSettings')}
-            </Link>
-          </Button>
           <Button size='sm' onClick={() => setCreateOpen(true)}>
             <Plus data-icon='inline-start' />
             {t('addAccount')}
@@ -99,12 +108,6 @@ export default function DnsAccountsPage() {
       </div>
       <p className='text-sm text-muted-foreground'>{t('listDesc')}</p>
 
-      {connectionQuery.isError && (
-        <ErrorInline
-          message={t('connectionStatusError')}
-          onRetry={() => void connectionQuery.refetch()}
-        />
-      )}
       {dnsAccountsQuery.isPending ? (
         <LoadingStateWithBorder
           icon={KeyRound}
@@ -129,7 +132,8 @@ export default function DnsAccountsPage() {
               <TableRow>
                 <TableHead className='pl-4'>{t('accountName')}</TableHead>
                 <TableHead>{t('provider')}</TableHead>
-                <TableHead>{t('createdColumn')}</TableHead>
+                <TableHead>{t('verificationColumn')}</TableHead>
+                <TableHead>{t('scopesColumn')}</TableHead>
                 <TableHead className='pr-4 text-right'>
                   {t('actionsColumn')}
                 </TableHead>
@@ -137,47 +141,115 @@ export default function DnsAccountsPage() {
             </TableHeader>
             <TableBody>
               {accounts.map((account) => (
-                <TableRow key={account.id}>
-                  <TableCell className='py-3 pl-4'>
-                    <div className='flex flex-wrap items-center gap-2'>
-                      <span className='font-medium'>{account.name}</span>
-                      {linkedID === account.id && (
-                        <Link href='/dns/settings'>
-                          <Badge variant='secondary'>{t('linked')}</Badge>
-                        </Link>
+                <Fragment key={account.id}>
+                  <TableRow>
+                    <TableCell className='py-3 pl-4 font-medium'>
+                      {account.name}
+                    </TableCell>
+                    <TableCell>{t(`providers.${account.type}`)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          account.verification_status === 'ready'
+                            ? 'default'
+                            : account.verification_status === 'error'
+                              ? 'destructive'
+                              : 'secondary'
+                        }
+                      >
+                        {t(
+                          account.verification_status === 'ready'
+                            ? 'apiReady'
+                            : account.verification_status === 'error'
+                              ? 'apiError'
+                              : 'apiPending',
+                        )}
+                      </Badge>
+                      {account.last_checked_at && (
+                        <div className='mt-1 text-xs text-muted-foreground'>
+                          {formatDateTime(account.last_checked_at)}
+                        </div>
                       )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {account.type === 'cloudflare'
-                      ? 'Cloudflare'
-                      : account.type}
-                  </TableCell>
-                  <TableCell className='text-muted-foreground tabular-nums'>
-                    {formatDateTime(account.created_at)}
-                  </TableCell>
-                  <TableCell className='pr-4 text-right'>
-                    <DnsActionMenu name={account.name}>
-                      {linkedID === account.id ? (
-                        <DropdownMenuItem asChild>
-                          <Link href='/dns/settings'>
-                            <Settings />
-                            {t('connectionSettings')}
-                          </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        aria-expanded={expandedId === account.id}
+                        onClick={() =>
+                          setExpandedId(
+                            expandedId === account.id ? undefined : account.id,
+                          )
+                        }
+                      >
+                        {t('scopeCount', {
+                          count: account.scopes?.length ?? 0,
+                        })}
+                      </Button>
+                    </TableCell>
+                    <TableCell className='pr-4 text-right'>
+                      <DnsActionMenu name={account.name}>
+                        <DropdownMenuItem
+                          disabled={refreshMutation.isPending}
+                          onSelect={() => refreshMutation.mutate(account.id)}
+                        >
+                          <RefreshCw />
+                          {t('refreshScope')}
                         </DropdownMenuItem>
-                      ) : (
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            setExpandedId(
+                              expandedId === account.id
+                                ? undefined
+                                : account.id,
+                            )
+                          }
+                        >
+                          <ListTree />
+                          {t('scopesColumn')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            setEditing(account);
+                            setCreateOpen(true);
+                          }}
+                        >
+                          <Pencil />
+                          {t('editTitle')}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           variant='destructive'
-                          disabled={!connectionQuery.isSuccess}
                           onSelect={() => setDeleteTarget(account)}
                         >
                           <Trash2 />
                           {tc('delete')}
                         </DropdownMenuItem>
-                      )}
-                    </DnsActionMenu>
-                  </TableCell>
-                </TableRow>
+                      </DnsActionMenu>
+                    </TableCell>
+                  </TableRow>
+                  {expandedId === account.id && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className='whitespace-normal px-4 py-3'
+                      >
+                        {account.scopes?.length ? (
+                          <ul className='flex flex-wrap gap-2'>
+                            {account.scopes.map((scope) => (
+                              <li key={scope.id}>
+                                <Badge variant='outline'>{scope.name}</Badge>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className='text-sm text-muted-foreground'>
+                            {t('emptyScopes')}
+                          </p>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
               ))}
             </TableBody>
           </Table>
@@ -186,8 +258,16 @@ export default function DnsAccountsPage() {
 
       <DnsAccountCreateDialog
         open={createOpen}
-        onOpenChange={setCreateOpen}
-        onCreated={() => toast.success(t('created'))}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) setEditing(undefined);
+        }}
+        account={editing}
+        onCreated={(account) => {
+          toast.success(t(editing ? 'saved' : 'created'));
+          if (account.verification_status === 'error')
+            toast.error(t('refreshFailed'));
+        }}
       />
 
       <AlertDialog
@@ -209,9 +289,7 @@ export default function DnsAccountsPage() {
             </AlertDialogCancel>
             <Button
               variant='destructive'
-              disabled={
-                deleteMutation.isPending || linkedID === deleteTarget?.id
-              }
+              disabled={deleteMutation.isPending}
               onClick={() =>
                 deleteTarget && deleteMutation.mutate(deleteTarget.id)
               }

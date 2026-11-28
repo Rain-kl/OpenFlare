@@ -129,6 +129,7 @@ type AvailableDomain struct {
 
 // Overview summarizes Cloudflare pointing readiness and sync health.
 type Overview struct {
+	DNSReady     bool           `json:"dns_ready"`
 	Connection   ConnectionView `json:"connection"`
 	GroupCount   int            `json:"group_count"`
 	MemberCount  int            `json:"member_count"`

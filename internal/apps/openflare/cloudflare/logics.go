@@ -1083,7 +1083,19 @@ func GetOverview(ctx context.Context) (*Overview, error) {
 	if err != nil {
 		return nil, err
 	}
+	accounts, err := repository.ListDNSAccounts(ctx)
+	if err != nil {
+		return nil, err
+	}
 	overview := &Overview{Connection: *connection, GroupCount: len(groups)}
+	overview.DNSReady = connection.Ready && connection.Source == model.CFConnectionSourceStandalone
+	for _, account := range accounts {
+		if (account.VerificationStatus == model.DNSAccountStatusReady && len(account.Scopes) > 0) ||
+			(connection.Ready && connection.DNSAccountID != nil && account.ID == *connection.DNSAccountID && account.LastCheckedAt == nil) {
+			overview.DNSReady = true
+			break
+		}
+	}
 	for _, group := range groups {
 		members, listErr := repository.ListCFPointingMembersByGroupID(ctx, group.ID)
 		if listErr != nil {

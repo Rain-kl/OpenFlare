@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Download,
   KeyRound,
   Plus,
   RefreshCw,
@@ -26,7 +27,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { SmartDNSEnrollmentSheet } from './enrollment-sheet';
+import { SmartDNSInstanceForm } from './instance-form';
+import { SmartDNSUpdateDialog, canUpdateInstance } from './update-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DnsActionMenu } from '../components/dns-action-menu';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
@@ -70,14 +73,10 @@ export function SmartDNSInstancesTab() {
   const tc = useTranslations('common');
   const queryClient = useQueryClient();
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [editing, setEditing] = useState<SmartDNSInstance | null>(null);
-  const [name, setName] = useState('');
-  const [publicAddr, setPublicAddr] = useState('');
-  const [listenAddr, setListenAddr] = useState('0.0.0.0:53');
-  const [geoName, setGeoName] = useState('');
+  const [formTarget, setFormTarget] = useState<SmartDNSInstance | 'create'>();
+  const [selected, setSelected] = useState<number[]>([]);
+  const [updateTargets, setUpdateTargets] = useState<SmartDNSInstance[]>([]);
 
-  const [enrollmentOpen, setEnrollmentOpen] = useState(false);
   const [rotateTarget, setRotateTarget] = useState<SmartDNSInstance | null>(
     null,
   );
@@ -99,29 +98,13 @@ export function SmartDNSInstancesTab() {
     await queryClient.invalidateQueries({ queryKey: smartdnsQueryKey });
   };
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const payload = {
-        name: name.trim(),
-        public_addr: publicAddr.trim(),
-        listen_addr: listenAddr.trim() || '0.0.0.0:53',
-        geo_name: geoName.trim(),
-      };
-      if (editing) {
-        return SmartDNSService.updateInstance(editing.id, payload);
-      }
-      return SmartDNSService.createInstance(payload);
-    },
-    onSuccess: async (inst) => {
-      toast.success(editing ? t('updated') : t('created'));
-      setEditOpen(false);
-      if (!editing && inst.access_token) {
-        setSecretView(inst);
-      }
-      await refresh();
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
+  const instances = instancesQuery.data ?? [];
+  const eligible = instances.filter(canUpdateInstance);
+  const selectedInstances = eligible.filter((instance) =>
+    selected.includes(instance.id),
+  );
+  const allSelected =
+    eligible.length > 0 && selectedInstances.length === eligible.length;
 
   const rotateTokenMutation = useMutation({
     mutationFn: (id: number) => SmartDNSService.rotateInstanceToken(id),
@@ -165,24 +148,6 @@ export function SmartDNSInstancesTab() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
-  const openCreate = () => {
-    setEditing(null);
-    setName('');
-    setPublicAddr('');
-    setListenAddr('0.0.0.0:53');
-    setGeoName('');
-    setEditOpen(true);
-  };
-
-  const openEdit = (inst: SmartDNSInstance) => {
-    setEditing(inst);
-    setName(inst.name);
-    setPublicAddr(inst.public_addr);
-    setListenAddr(inst.listen_addr || '0.0.0.0:53');
-    setGeoName(inst.geo_name);
-    setEditOpen(true);
-  };
-
   return (
     <div className='flex flex-col gap-5'>
       <Card>
@@ -192,14 +157,16 @@ export function SmartDNSInstancesTab() {
             <CardDescription>{t('listDesc')}</CardDescription>
           </div>
           <div className='flex flex-wrap items-center gap-2'>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={() => setEnrollmentOpen(true)}
-            >
-              <KeyRound data-icon='inline-start' />
-              {t('openEnrollment')}
-            </Button>
+            {selectedInstances.length > 0 && (
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setUpdateTargets(selectedInstances)}
+              >
+                <Download data-icon='inline-start' />
+                {t('batchUpdate', { count: selectedInstances.length })}
+              </Button>
+            )}
             <Button
               variant='outline'
               size='sm'
@@ -212,7 +179,7 @@ export function SmartDNSInstancesTab() {
               />
               {t('refresh')}
             </Button>
-            <Button size='sm' onClick={openCreate}>
+            <Button size='sm' onClick={() => setFormTarget('create')}>
               <Plus data-icon='inline-start' />
               {t('create')}
             </Button>
@@ -226,7 +193,7 @@ export function SmartDNSInstancesTab() {
               message={getErrorMessage(instancesQuery.error)}
               onRetry={() => void instancesQuery.refetch()}
             />
-          ) : (instancesQuery.data ?? []).length === 0 ? (
+          ) : instances.length === 0 ? (
             <div className='flex flex-col items-start gap-2 rounded-lg border border-dashed p-4'>
               <p className='text-sm text-muted-foreground'>{t('empty')}</p>
             </div>
@@ -234,6 +201,26 @@ export function SmartDNSInstancesTab() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className='w-10'>
+                    <Checkbox
+                      aria-label={t('selectAll')}
+                      disabled={eligible.length === 0}
+                      checked={
+                        allSelected
+                          ? true
+                          : selectedInstances.length > 0
+                            ? 'indeterminate'
+                            : false
+                      }
+                      onCheckedChange={(checked) =>
+                        setSelected(
+                          checked === true
+                            ? eligible.map((instance) => instance.id)
+                            : [],
+                        )
+                      }
+                    />
+                  </TableHead>
                   <TableHead>{t('colName')}</TableHead>
                   <TableHead>{t('colMode')}</TableHead>
                   <TableHead>{t('colStatus')}</TableHead>
@@ -246,8 +233,24 @@ export function SmartDNSInstancesTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(instancesQuery.data ?? []).map((inst) => (
+                {instances.map((inst) => (
                   <TableRow key={inst.id}>
+                    <TableCell>
+                      <Checkbox
+                        aria-label={t('selectInstance', { name: inst.name })}
+                        disabled={!canUpdateInstance(inst)}
+                        checked={
+                          canUpdateInstance(inst) && selected.includes(inst.id)
+                        }
+                        onCheckedChange={(checked) =>
+                          setSelected((previous) =>
+                            checked === true
+                              ? [...previous, inst.id]
+                              : previous.filter((id) => id !== inst.id),
+                          )
+                        }
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className='font-medium'>{inst.name}</div>
                       <div className='font-mono text-xs text-muted-foreground'>
@@ -296,6 +299,11 @@ export function SmartDNSInstancesTab() {
                       <div className='text-muted-foreground'>
                         {inst.version || '-'}
                       </div>
+                      {inst.update_status && (
+                        <div className='mt-1 font-sans text-muted-foreground'>
+                          {t(`updateStatus.${inst.update_status}`)}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className='text-xs tabular-nums'>
                       <div>{inst.qps.toFixed(1)} QPS</div>
@@ -309,11 +317,24 @@ export function SmartDNSInstancesTab() {
                         <Button
                           variant='ghost'
                           size='sm'
-                          onClick={() => openEdit(inst)}
+                          onClick={() => setFormTarget(inst)}
                         >
                           {t('edit')}
                         </Button>
                         <DnsActionMenu name={inst.name}>
+                          {inst.mode === 'standalone' && (
+                            <DropdownMenuItem
+                              disabled={!canUpdateInstance(inst)}
+                              onSelect={() => setUpdateTargets([inst])}
+                            >
+                              <Download />
+                              {t(
+                                inst.remote_update_supported
+                                  ? 'remoteUpdate'
+                                  : 'updateUnavailable',
+                              )}
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             onSelect={() => setRotateTarget(inst)}
                           >
@@ -359,10 +380,23 @@ export function SmartDNSInstancesTab() {
         </CardContent>
       </Card>
 
-      <SmartDNSEnrollmentSheet
-        open={enrollmentOpen}
-        onOpenChange={setEnrollmentOpen}
-      />
+      {formTarget && (
+        <SmartDNSInstanceForm
+          instance={formTarget === 'create' ? undefined : formTarget}
+          onClose={() => setFormTarget(undefined)}
+          onCreated={setSecretView}
+        />
+      )}
+      {updateTargets.length > 0 && (
+        <SmartDNSUpdateDialog
+          instances={updateTargets}
+          onClose={() => setUpdateTargets([])}
+          onQueued={() => {
+            setSelected([]);
+            void refresh();
+          }}
+        />
+      )}
       <AlertDialog
         open={rotateTarget !== null}
         onOpenChange={(open) =>
@@ -392,66 +426,6 @@ export function SmartDNSInstancesTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editing ? t('editTitle') : t('createTitle')}
-            </DialogTitle>
-            <DialogDescription>{t('dialogDesc')}</DialogDescription>
-          </DialogHeader>
-          <div className='space-y-3'>
-            <div className='space-y-1.5'>
-              <Label htmlFor='sdns-inst-name'>{t('nameLabel')}</Label>
-              <Input
-                id='sdns-inst-name'
-                value={name}
-                placeholder='hk-dns-01'
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className='space-y-1.5'>
-              <Label htmlFor='sdns-inst-pub'>{t('publicAddrLabel')}</Label>
-              <Input
-                id='sdns-inst-pub'
-                value={publicAddr}
-                placeholder='203.0.113.53'
-                onChange={(e) => setPublicAddr(e.target.value)}
-              />
-            </div>
-            <div className='space-y-1.5'>
-              <Label htmlFor='sdns-inst-listen'>{t('listenAddrLabel')}</Label>
-              <Input
-                id='sdns-inst-listen'
-                value={listenAddr}
-                placeholder='0.0.0.0:53'
-                onChange={(e) => setListenAddr(e.target.value)}
-              />
-            </div>
-            <div className='space-y-1.5'>
-              <Label htmlFor='sdns-inst-geo'>{t('geoNameLabel')}</Label>
-              <Input
-                id='sdns-inst-geo'
-                value={geoName}
-                placeholder='Hong Kong'
-                onChange={(e) => setGeoName(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant='outline' onClick={() => setEditOpen(false)}>
-              {tc('cancel')}
-            </Button>
-            <Button
-              disabled={saveMutation.isPending || !name.trim()}
-              onClick={() => saveMutation.mutate()}
-            >
-              {t('save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog
         open={secretView !== null}

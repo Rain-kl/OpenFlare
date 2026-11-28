@@ -4,6 +4,7 @@ use crate::protocol::{
     ApiEnvelope, HeartbeatResponse, RegisterRequest, RegisterResponse, WsWakeMessage,
 };
 use crate::snapshot::{SnapshotStore, pull_snapshot};
+use crate::update::RemoteUpdate;
 use anyhow::{Context, Result};
 use futures_util::StreamExt;
 use reqwest::Client;
@@ -217,6 +218,7 @@ pub fn spawn_control_loops(
     interval_secs: u64,
     store: Arc<SnapshotStore>,
     metrics: Arc<DnsMetrics>,
+    remote_update: Option<RemoteUpdate>,
 ) {
     let wake = Arc::new(Notify::new());
 
@@ -258,13 +260,22 @@ pub fn spawn_control_loops(
                 }
                 _ = hb_tick.tick() => {
                     let (ver, etag) = store.current_version_and_etag();
-                    let hb = metrics.snapshot_heartbeat(&listen_addr, &public_addr, ver, &etag, &last_err);
+                    let mut hb = metrics.snapshot_heartbeat(&listen_addr, &public_addr, ver, &etag, &last_err);
+                    if let Some(updater) = &remote_update {
+                        hb.remote_update_supported = true;
+                        hb.update_receipt = updater.receipt().await;
+                    }
                     let base = controller_url.trim_end_matches('/');
                     let url = format!("{base}/api/v1/dns-agent/heartbeat");
                     match client.post(&url).header("X-DNS-Token", &token).json(&hb).send().await {
                         Ok(resp) if resp.status().is_success() => {
                             if let Ok(env) = resp.json::<ApiEnvelope<HeartbeatResponse>>().await {
                                 if let Some(d) = env.data {
+                                    if let (Some(updater), Some(command)) = (&remote_update, d.update) {
+                                        if let Err(err) = updater.queue(command).await {
+                                            warn!("could not queue remote update: {err}");
+                                        }
+                                    }
                                     if d.snapshot_version > ver || (!d.snapshot_etag.is_empty() && d.snapshot_etag != etag) {
                                         ws_wake_notify(&wake);
                                     }

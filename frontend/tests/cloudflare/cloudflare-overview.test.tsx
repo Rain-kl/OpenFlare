@@ -55,7 +55,7 @@ function renderPage() {
   );
 }
 
-describe('Cloudflare overview', () => {
+describe('DNS resolution overview', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', '/cloudflare');
     vi.mocked(CloudflareService.listGroups).mockResolvedValue([]);
@@ -67,6 +67,7 @@ describe('Cloudflare overview', () => {
       page_size: 10,
     });
     vi.mocked(CloudflareService.getOverview).mockResolvedValue({
+      dns_ready: false,
       connection: {
         configured: false,
         ready: false,
@@ -83,21 +84,26 @@ describe('Cloudflare overview', () => {
     });
   });
 
-  it('shows the token readiness gate without the synchronization boundary card', async () => {
+  it('links to DNS accounts when no provider is ready', async () => {
     renderPage();
 
-    expect(await screen.findByText('Cloudflare 连接尚未就绪')).toBeVisible();
+    expect(await screen.findByText('暂无可用 DNS 账号')).toBeVisible();
+    expect(screen.getByRole('link', { name: '管理 DNS 账号' })).toHaveAttribute(
+      'href',
+      '/dns-accounts',
+    );
     expect(screen.queryByText('同步边界')).not.toBeInTheDocument();
   });
 
   it('opens pointing groups and sync history from their tabs', async () => {
     vi.mocked(CloudflareService.getOverview).mockResolvedValue({
+      dns_ready: true,
       connection: {
-        configured: true,
-        ready: true,
-        source: 'standalone',
+        configured: false,
+        ready: false,
+        source: '',
         dns_account_id: null,
-        status: 'ready',
+        status: '',
         verified_at: null,
       },
       group_count: 1,

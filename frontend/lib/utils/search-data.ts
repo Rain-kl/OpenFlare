@@ -185,14 +185,6 @@ export const searchData: SearchItemSource[] = [
     keywordKey: 'search.keywords.console-dns-resolve',
   },
   {
-    id: 'console-dns-settings',
-    titleKey: 'nav.dnsSettings',
-    descriptionKey: 'search.items.dnsSettingsDesc',
-    url: '/dns/settings',
-    category: 'page',
-    keywordKey: 'search.keywords.console-dns-settings',
-  },
-  {
     id: 'console-smartdns',
     titleKey: 'nav.smartDns',
     descriptionKey: 'search.items.smartDnsDesc',

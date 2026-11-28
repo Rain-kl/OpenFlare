@@ -17,7 +17,7 @@ OpenFlare 是基于 OpenFlare Edge 边缘架构的分布式反向代理与边缘
 ### 流量代理与加速 (Traffic & Routing)
 配置核心反向代理路由、TLS 加密与边缘缓存策略：
 - [新建反代配置](./proxy-config.md)：配置上游源站、域名路由绑定、通配符域名匹配、IP HTTPS 回源与访问认证。
-- [TLS 证书与自动续期](./certificates.md)：手动导入已有证书或通过 ACME 协议与 Cloudflare DNS API 实现通配符证书自动申请与续签。
+- [TLS 证书与自动续期](./certificates.md)：手动导入已有证书或通过 ACME 和 DNS 提供商 API 实现通配符证书自动申请与续签。
 - [OpenFlare Edge 性能策略](./performance-policies.md)：配置节点工作线程数、回源连接池、HTTP/2 并发流、TinyUFO 内存缓存与磁盘缓存。
 - [Zone 域名迁移](./zone-domain-migration.md)：了解从旧版域名模型到 Zone 根域模型的自动迁移机制、备份要求与升级验收步骤。
 

@@ -111,11 +111,10 @@ export const openflareDNSNavGroup: OpenFlareNavGroup = {
       url: '/cloudflare',
       childUrls: ['/cloudflare/groups'],
     },
-    { titleKey: 'dnsAccounts', url: '/dns-accounts' },
     {
-      titleKey: 'dnsSettings',
-      url: '/dns/settings',
-      childUrls: ['/cloudflare/settings'],
+      titleKey: 'dnsAccounts',
+      url: '/dns-accounts',
+      childUrls: ['/dns/settings', '/cloudflare/settings'],
     },
     { titleKey: 'smartDns', url: '/dns/smartdns' },
   ],
@@ -191,7 +190,6 @@ export const openflareWebsiteSubNav = [
 export const openflareDNSSubNav = [
   { titleKey: 'dnsResolve', url: '/cloudflare' },
   { titleKey: 'dnsAccounts', url: '/dns-accounts' },
-  { titleKey: 'dnsSettings', url: '/dns/settings' },
   { titleKey: 'smartDns', url: '/dns/smartdns' },
 ] as const;
 

@@ -11,19 +11,18 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/Rain-kl/Wavelet/internal/openflare/dnsprovider"
 	"github.com/go-acme/lego/v4/acme"
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/certificate"
 	"github.com/go-acme/lego/v4/challenge/dns01"
 	"github.com/go-acme/lego/v4/lego"
-	"github.com/go-acme/lego/v4/providers/dns/cloudflare"
 	"github.com/go-acme/lego/v4/registration"
 )
 
@@ -172,25 +171,9 @@ func GetOrCreateLegoClient(acmeEmail, privateKeyPEM, accountURL string, keyAlgor
 
 // SetupDNSProvider configures DNS-01 challenge for the lego client.
 func SetupDNSProvider(client *lego.Client, dnsType, dnsAuth string, dns1, dns2 string, disableCNAME, skipDNS bool) error {
-	var provider challengeProvider
-
-	switch dnsType {
-	case "cloudflare":
-		var creds map[string]string
-		if err := json.Unmarshal([]byte(dnsAuth), &creds); err != nil {
-			return fmt.Errorf("failed to parse cloudflare credentials: %w", err)
-		}
-
-		config := cloudflare.NewDefaultConfig()
-		config.AuthToken = creds["api_token"]
-
-		p, err := cloudflare.NewDNSProviderConfig(config)
-		if err != nil {
-			return err
-		}
-		provider = p
-	default:
-		return fmt.Errorf("unsupported DNS provider: %s", dnsType)
+	provider, err := dnsprovider.Challenge(dnsType, dnsAuth)
+	if err != nil {
+		return err
 	}
 
 	var resolvers []string
@@ -219,11 +202,6 @@ func SetupDNSProvider(client *lego.Client, dnsType, dnsAuth string, dns1, dns2 s
 	}
 
 	return client.Challenge.SetDNS01Provider(provider, opts...)
-}
-
-type challengeProvider interface {
-	Present(domain, token, keyAuth string) error
-	CleanUp(domain, token, keyAuth string) error
 }
 
 // ObtainSSL obtains a certificate via ACME DNS-01 challenge.

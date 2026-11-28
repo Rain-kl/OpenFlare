@@ -86,6 +86,14 @@ curl -fsSL https://raw.githubusercontent.com/Rain-kl/OpenFlare/main/scripts/inst
 
 ---
 
+## 从控制台远程更新
+
+新安装支持远程更新的 Linux systemd 发行包时，安装脚本会注册 `openflare-dns-update.path`。已经部署的主机先运行一次新版 [更新脚本](https://github.com/Rain-kl/OpenFlare/blob/main/scripts/update-openflare-dns.sh)，升级到包含远程更新功能的发行版。机器上已有兼容二进制时，可运行 `sudo bash update-openflare-dns.sh --enable-remote` 配置更新器，再重启 `openflare-dns` 以加载服务环境。
+
+实例上线并报告更新能力后，在 **「SmartDNS → 权威实例」** 的操作菜单选择 **「更新」**，或勾选多个实例后使用 **「批量更新」**。选择正式版或 Canary。主机从安装时配置的 GitHub Release 仓库下载对应架构的包，校验二进制、重启并核对就绪文件。新版本启动失败时恢复上一个可执行文件。服务身份、离线快照与 GeoIP 数据保存在状态目录中，更新期间继续沿用。
+
+Docker 部署通过替换镜像更新，内嵌实例随控制面升级。切换到没有远程更新协议的旧发行版后，该实例需要通过主机更新脚本再次升级。
+
 ## 权限与安全加固
 
 `install-openflare-dns.sh` 生成的 `systemd` 服务以最小权限原则运行：

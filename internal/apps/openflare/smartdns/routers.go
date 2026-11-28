@@ -685,3 +685,59 @@ func AgentWebSocketHandler(c *gin.Context) {
 	}
 	websocket.ServeDNSInstance(c, inst.InstanceID)
 }
+
+// ApplyDelegationHandler applies the saved NS records through their DNS provider.
+// @Summary 一键配置 SmartDNS 委派
+// @Description 在授权的父级 DNS 区域同步已保存的委派 NS 记录
+// @Tags openflare-smartdns
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body smartdns.DelegationApplyInput true "确认应用的委派域名和 NS 主机"
+// @Success 200 {object} response.Any{data=smartdns.DelegationApplyResult} "写入结果"
+// @Failure 400 {object} response.Any "配置或账号无效"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限"
+// @Failure 500 {object} response.Any "服务器错误"
+// @Failure 409 {object} response.Any "委派设置已变更"
+// @Router /api/v1/d/smartdns/settings/apply-delegation [post]
+func ApplyDelegationHandler(c *gin.Context) {
+	var input DelegationApplyInput
+	if !httpx.BindJSON(c, &input) {
+		return
+	}
+	result, err := ApplyDelegation(c.Request.Context(), input)
+	if err != nil {
+		abortSmartDNSError(c, err, errDelegationWriteFailed)
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(result))
+}
+
+// RequestInstanceUpdatesHandler queues release updates for selected SmartDNS instances.
+// @Summary 远程更新 SmartDNS 权威实例
+// @Description 为单个或多个在线独立实例下发正式版或 Canary 更新
+// @Tags openflare-smartdns
+// @Accept json
+// @Produce json
+// @Security SessionCookie
+// @Param body body smartdns.InstanceUpdateInput true "实例 ID 与更新渠道"
+// @Success 200 {object} response.Any{data=smartdns.InstanceUpdateResult} "排队结果"
+// @Failure 400 {object} response.Any "参数错误"
+// @Failure 401 {object} response.Any "未登录"
+// @Failure 404 {object} response.Any "无权限"
+// @Failure 409 {object} response.Any "选择的实例无法更新"
+// @Failure 500 {object} response.Any "服务器错误"
+// @Router /api/v1/d/smartdns/instances/remote-update [post]
+func RequestInstanceUpdatesHandler(c *gin.Context) {
+	var input InstanceUpdateInput
+	if !httpx.BindJSON(c, &input) {
+		return
+	}
+	result, err := RequestInstanceUpdates(c.Request.Context(), input)
+	if err != nil {
+		abortSmartDNSError(c, err, errUpdateRequestFailed)
+		return
+	}
+	c.JSON(http.StatusOK, response.OK(result))
+}

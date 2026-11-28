@@ -51,6 +51,9 @@ pub struct HeartbeatRequest {
     pub memory_usage_percent: f64,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub last_error: String,
+    pub remote_update_supported: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub update_receipt: Option<UpdateReceipt>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -60,6 +63,19 @@ pub struct HeartbeatResponse {
     pub snapshot_version: u64,
     #[serde(default)]
     pub snapshot_etag: String,
+    pub update: Option<UpdateCommand>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateCommand {
+    pub id: String,
+    pub channel: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdateReceipt {
+    pub id: String,
+    pub status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

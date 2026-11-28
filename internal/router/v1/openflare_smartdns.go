@@ -17,6 +17,7 @@ func registerOpenFlareSmartDNSRoutes(apiGroup *gin.RouterGroup) {
 		dnsRoute.GET("/settings", smartdns.GetSettingsHandler)
 		dnsRoute.POST("/settings", smartdns.SaveSettingsHandler)
 		dnsRoute.POST("/settings/verify-delegation", smartdns.VerifyDelegationHandler)
+		dnsRoute.POST("/settings/apply-delegation", smartdns.ApplyDelegationHandler)
 
 		dnsRoute.GET("/discovery-token", smartdns.GetDiscoveryTokenHandler)
 		dnsRoute.POST("/discovery-token/rotate", smartdns.RotateDiscoveryTokenHandler)
@@ -26,6 +27,7 @@ func registerOpenFlareSmartDNSRoutes(apiGroup *gin.RouterGroup) {
 			httpx.RegisterCollection(instancesRoute, "GET", smartdns.ListInstancesHandler)
 			httpx.RegisterCollection(instancesRoute, "POST", smartdns.CreateInstanceHandler)
 			instancesRoute.POST("/:id/update", smartdns.UpdateInstanceHandler)
+			instancesRoute.POST("/remote-update", smartdns.RequestInstanceUpdatesHandler)
 			instancesRoute.POST("/:id/delete", smartdns.DeleteInstanceHandler)
 			instancesRoute.POST("/:id/quarantine", smartdns.QuarantineInstanceHandler)
 			instancesRoute.POST("/:id/unquarantine", smartdns.UnquarantineInstanceHandler)

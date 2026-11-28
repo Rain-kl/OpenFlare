@@ -31,7 +31,6 @@
       "certificates": "TLS证书",
       "dnsAccounts": "DNS 账号",
       "dnsResolve": "DNS 解析",
-      "dnsSettings": "Cloudflare 连接",
       "smartDns": "SmartDNS",
       "cloudflare": "Cloudflare",
       "origins": "源站地址",

@@ -1588,6 +1588,7 @@ export interface CloudflareAvailableDomain {
 }
 
 export interface CloudflareOverview {
+  dns_ready?: boolean;
   connection: CloudflareConnection;
   group_count: number;
   member_count: number;
@@ -1676,10 +1677,15 @@ export interface AcmeAccountItem {
   updated_at: string;
 }
 
+export type DnsProvider = 'cloudflare' | 'alidns' | 'tencentcloud';
+
 export interface DnsAccountItem {
   id: number;
   name: string;
-  type: string;
+  type: DnsProvider;
+  scopes: { id: string; name: string }[] | null;
+  verification_status: '' | 'ready' | 'error';
+  last_checked_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -2708,6 +2714,22 @@ export interface SmartDNSDelegationVerifyResult {
   error?: string;
 }
 
+export interface SmartDNSDelegationApplyResult {
+  provider: DnsProvider;
+  zone: string;
+  created: number;
+  removed: number;
+}
+
+export type SmartDNSUpdateChannel = 'stable' | 'canary';
+export type SmartDNSUpdateStatus =
+  | ''
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'timed_out';
+
 export interface SmartDNSDiscoveryToken {
   discovery_token: string;
 }
@@ -2736,6 +2758,10 @@ export interface SmartDNSInstance {
   cache_hit_ratio: number;
   cpu_usage_percent: number;
   memory_usage_percent: number;
+  remote_update_supported?: boolean;
+  update_channel?: SmartDNSUpdateChannel | '';
+  update_status?: SmartDNSUpdateStatus;
+  update_requested_at?: string | null;
   last_seen_at?: string | null;
   last_error: string;
   quarantined_at?: string | null;

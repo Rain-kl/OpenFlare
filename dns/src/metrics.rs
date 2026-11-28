@@ -139,6 +139,8 @@ impl DnsMetrics {
             cpu_usage_percent: round4(cpu),
             memory_usage_percent: round4(mem_pct),
             last_error: last_error.to_string(),
+            remote_update_supported: false,
+            update_receipt: None,
         }
     }
 }

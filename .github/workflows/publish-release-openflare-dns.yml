@@ -87,7 +87,7 @@ jobs:
             cp dns-source/scripts/{install,update,uninstall}-openflare-dns.sh \
               dns-source/scripts/fetch-netintel-dbs.sh "$staging/scripts/"
             printf '%s\n' "$VERSION" > "$staging/VERSION"
-            (cd "$staging" && sha256sum openflare-dns > SHA256SUMS)
+            (cd "$staging" && sha256sum openflare-dns scripts/update-openflare-dns.sh > SHA256SUMS)
             tar -C dist -czf "dist/${name}.tar.gz" "$name"
           done
 

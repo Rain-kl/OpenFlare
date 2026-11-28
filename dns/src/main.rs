@@ -9,6 +9,7 @@ mod protocol;
 mod quality;
 mod server;
 mod snapshot;
+mod update;
 
 use anyhow::Result;
 use clap::Parser;

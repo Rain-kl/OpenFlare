@@ -42,32 +42,47 @@ type DNSInstanceRegisterResponse struct {
 
 // DNSHeartbeatRequest reports periodic throughput, latency percentiles, and system health from a SmartDNS worker.
 type DNSHeartbeatRequest struct {
-	Version            string     `json:"version,omitempty"`
-	PublicAddr         string     `json:"public_addr,omitempty"`
-	ListenAddr         string     `json:"listen_addr,omitempty"`
-	SnapshotVersion    uint64     `json:"snapshot_version"`
-	SnapshotETag       string     `json:"snapshot_etag,omitempty"`
-	QPS                float64    `json:"qps"`
-	P50Ms              float64    `json:"p50_ms"`
-	P95Ms              float64    `json:"p95_ms"`
-	P99Ms              float64    `json:"p99_ms"`
-	QueriesTotal       uint64     `json:"queries_total"`
-	QueriesSuccess     uint64     `json:"queries_success"`
-	QueriesNXDomain    uint64     `json:"queries_nxdomain"`
-	QueriesServFail    uint64     `json:"queries_servfail"`
-	QueriesRateLimited uint64     `json:"queries_ratelimited"`
-	CacheHitRatio      float64    `json:"cache_hit_ratio"`
-	CPUUsagePercent    float64    `json:"cpu_usage_percent"`
-	MemoryUsagePercent float64    `json:"memory_usage_percent"`
-	LastError          string     `json:"last_error,omitempty"`
-	CapturedAt         *time.Time `json:"captured_at,omitempty"`
+	Version               string            `json:"version,omitempty"`
+	PublicAddr            string            `json:"public_addr,omitempty"`
+	ListenAddr            string            `json:"listen_addr,omitempty"`
+	SnapshotVersion       uint64            `json:"snapshot_version"`
+	SnapshotETag          string            `json:"snapshot_etag,omitempty"`
+	QPS                   float64           `json:"qps"`
+	P50Ms                 float64           `json:"p50_ms"`
+	P95Ms                 float64           `json:"p95_ms"`
+	P99Ms                 float64           `json:"p99_ms"`
+	QueriesTotal          uint64            `json:"queries_total"`
+	QueriesSuccess        uint64            `json:"queries_success"`
+	QueriesNXDomain       uint64            `json:"queries_nxdomain"`
+	QueriesServFail       uint64            `json:"queries_servfail"`
+	QueriesRateLimited    uint64            `json:"queries_ratelimited"`
+	CacheHitRatio         float64           `json:"cache_hit_ratio"`
+	CPUUsagePercent       float64           `json:"cpu_usage_percent"`
+	MemoryUsagePercent    float64           `json:"memory_usage_percent"`
+	LastError             string            `json:"last_error,omitempty"`
+	CapturedAt            *time.Time        `json:"captured_at,omitempty"`
+	RemoteUpdateSupported bool              `json:"remote_update_supported,omitempty"`
+	UpdateReceipt         *DNSUpdateReceipt `json:"update_receipt,omitempty"`
 }
 
 // DNSHeartbeatResponse acknowledges heartbeat ingestion and reports latest control-plane snapshot metadata.
 type DNSHeartbeatResponse struct {
-	OK              bool   `json:"ok"`
-	SnapshotVersion uint64 `json:"snapshot_version"`
-	SnapshotETag    string `json:"snapshot_etag"`
+	OK              bool              `json:"ok"`
+	SnapshotVersion uint64            `json:"snapshot_version"`
+	SnapshotETag    string            `json:"snapshot_etag"`
+	Update          *DNSUpdateCommand `json:"update,omitempty"`
+}
+
+// DNSUpdateCommand identifies a release update a worker should stage.
+type DNSUpdateCommand struct {
+	ID      string `json:"id"`
+	Channel string `json:"channel"`
+}
+
+// DNSUpdateReceipt reports the progress of a staged update.
+type DNSUpdateReceipt struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
 }
 
 // DNSSnapshotEnvelope is the immutable compiled runtime snapshot consumed by Go and Rust SmartDNS data planes.

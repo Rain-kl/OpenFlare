@@ -21,9 +21,6 @@
     "memberDialog": {
       "smartdnsDnsOnlyHint": "This group uses SmartDNS resolution; Cloudflare proxy is disabled for all members."
     },
-    "settings": {
-      "redirecting": "Redirecting to DNS connection settings..."
-    },
     "smartdnsTargetSummary": "SmartDNS policy “{policy}” → CNAME {host}",
     "smartdnsAutoHost": "Auto-assigned host",
     "smartdnsDnsOnlySummary": "{count} members · DNS-only (SmartDNS CNAME)",
@@ -45,7 +42,7 @@
     },
     "batchRemoveDialog": {
       "title": "Confirm batch domain deletion",
-      "desc": "Are you sure you want to remove {count} selected domains from the current group? This will also clean up DNS records on Cloudflare.",
+      "desc": "Remove {count} selected domains from the current group? Their DNS records will also be removed from the configured provider.",
       "confirm": "Confirm delete",
       "removing": "Deleting..."
     },

@@ -405,7 +405,6 @@
       "descCertificates": "Manage and distribute website SSL/TLS certificates",
       "descDnsAccounts": "Configure Cloudflare/Alidns and other DNS provider API credentials",
       "descDnsResolve": "Manage Cloudflare DNS pointing groups for edge nodes and SmartDNS CNAMEs",
-      "descDnsSettings": "Configure Cloudflare credentials and verify connection readiness",
       "descSmartDns": "Manage SmartDNS authoritative instances, JDM routing flows, and simulation",
       "descOrigins": "Centrally maintain backend origin server groups",
       "descWaf": "Configure WAF custom rules and rate limits",

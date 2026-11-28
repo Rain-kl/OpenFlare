@@ -11338,6 +11338,75 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/dns-accounts/{id}/refresh": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-tls"
+                ],
+                "summary": "刷新 DNS 账号作用域",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "DNS 账号 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "验证状态和作用域",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.DNSAccount"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限或不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/dns-accounts/{id}/update": {
             "post": {
                 "security": [
@@ -17648,6 +17717,87 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/d/smartdns/instances/remote-update": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "为单个或多个在线独立实例下发正式版或 Canary 更新",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-smartdns"
+                ],
+                "summary": "远程更新 SmartDNS 权威实例",
+                "parameters": [
+                    {
+                        "description": "实例 ID 与更新渠道",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_smartdns.InstanceUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "排队结果",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_smartdns.InstanceUpdateResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "选择的实例无法更新",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/d/smartdns/instances/{id}/delete": {
             "post": {
                 "security": [
@@ -18703,6 +18853,87 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/d/smartdns/settings/apply-delegation": {
+            "post": {
+                "security": [
+                    {
+                        "SessionCookie": []
+                    }
+                ],
+                "description": "在授权的父级 DNS 区域同步已保存的委派 NS 记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "openflare-smartdns"
+                ],
+                "summary": "一键配置 SmartDNS 委派",
+                "parameters": [
+                    {
+                        "description": "确认应用的委派域名和 NS 主机",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apps_openflare_smartdns.DelegationApplyInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "写入结果",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apps_openflare_smartdns.DelegationApplyResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "配置或账号无效",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "404": {
+                        "description": "无权限",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
+                        }
+                    },
+                    "409": {
+                        "description": "委派设置已变更",
                         "schema": {
                             "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_shared_response.Any"
                         }
@@ -29518,6 +29749,9 @@ const docTemplate = `{
                 "connection": {
                     "$ref": "#/definitions/apps_openflare_cloudflare.ConnectionView"
                 },
+                "dns_ready": {
+                    "type": "boolean"
+                },
                 "error_count": {
                     "type": "integer"
                 },
@@ -33236,6 +33470,37 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_smartdns.DelegationApplyInput": {
+            "type": "object",
+            "properties": {
+                "delegation_domain": {
+                    "type": "string"
+                },
+                "ns_hosts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "apps_openflare_smartdns.DelegationApplyResult": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "removed": {
+                    "type": "integer"
+                },
+                "zone": {
+                    "type": "string"
+                }
+            }
+        },
         "apps_openflare_smartdns.DelegationVerifyResult": {
             "type": "object",
             "properties": {
@@ -33420,6 +33685,32 @@ const docTemplate = `{
                 }
             }
         },
+        "apps_openflare_smartdns.InstanceUpdateInput": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string",
+                    "enum": [
+                        "stable",
+                        "canary"
+                    ]
+                },
+                "instance_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "apps_openflare_smartdns.InstanceUpdateResult": {
+            "type": "object",
+            "properties": {
+                "queued": {
+                    "type": "integer"
+                }
+            }
+        },
         "apps_openflare_smartdns.InstanceView": {
             "type": "object",
             "properties": {
@@ -33498,6 +33789,9 @@ const docTemplate = `{
                 "quarantined_at": {
                     "type": "string"
                 },
+                "remote_update_supported": {
+                    "type": "boolean"
+                },
                 "snapshot_etag": {
                     "type": "string"
                 },
@@ -33509,6 +33803,15 @@ const docTemplate = `{
                 },
                 "success_total": {
                     "type": "integer"
+                },
+                "update_channel": {
+                    "type": "string"
+                },
+                "update_requested_at": {
+                    "type": "string"
+                },
+                "update_status": {
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
@@ -37468,11 +37771,17 @@ const docTemplate = `{
                 "queries_total": {
                     "type": "integer"
                 },
+                "remote_update_supported": {
+                    "type": "boolean"
+                },
                 "snapshot_etag": {
                     "type": "string"
                 },
                 "snapshot_version": {
                     "type": "integer"
+                },
+                "update_receipt": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.DNSUpdateReceipt"
                 },
                 "version": {
                     "type": "string"
@@ -37490,6 +37799,9 @@ const docTemplate = `{
                 },
                 "snapshot_version": {
                     "type": "integer"
+                },
+                "update": {
+                    "$ref": "#/definitions/github_com_Rain-kl_Wavelet_internal_openflare_protocol.DNSUpdateCommand"
                 }
             }
         },
@@ -37786,6 +38098,28 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.DNSUpdateCommand": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Rain-kl_Wavelet_internal_openflare_protocol.DNSUpdateReceipt": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -39414,13 +39748,36 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "last_checked_at": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.DNSAccountScope"
+                    }
                 },
                 "type": {
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "verification_status": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.DNSAccountScope": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }

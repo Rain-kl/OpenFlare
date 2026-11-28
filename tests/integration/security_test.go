@@ -104,7 +104,6 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		proxyRouteID uint
 		certID       uint
 		domainID     uint
-		dnsAccountID uint
 	)
 
 	t.Run("WAF rule group create", func(t *testing.T) {
@@ -334,24 +333,14 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 		assert.InDelta(t, float64(certID), data["cert_id"], 1e-9)
 	})
 
-	t.Run("create DNS account", func(t *testing.T) {
+	t.Run("reject unavailable DNS account", func(t *testing.T) {
 		rec := performJSONRequest(t, engine, http.MethodPost, apiPath("/dns-accounts/"), map[string]any{
 			"name":          "cloudflare-dns",
 			"type":          "cloudflare",
 			"authorization": "test-api-token-value",
 		}, adminAuthHeaders(seed.Token))
-		require.Equal(t, http.StatusOK, rec.Code)
-
-		resp := requireAPIOK(t, rec)
-		data := unmarshalAPIMap(t, resp.Data)
-		dnsAccountID = uint(data["id"].(float64))
-		assert.NotZero(t, dnsAccountID)
-		assert.Equal(t, "cloudflare-dns", data["name"])
-		assert.Equal(t, "cloudflare", data["type"])
-		// API 响应会脱敏 authorization，不应回显明文凭证。
-		if auth, ok := data["authorization"]; ok {
-			assert.NotEqual(t, "test-api-token-value", auth)
-		}
+		require.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.NotEmpty(t, decodeAPIResponse(t, rec).ErrorMsg)
 	})
 
 	t.Run("WAF rule group delete", func(t *testing.T) {
@@ -381,5 +370,4 @@ func TestSecurityWAFTLSMigrationFlow(t *testing.T) {
 
 	_ = ipGroupID
 	_ = domainID
-	_ = dnsAccountID
 }

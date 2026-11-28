@@ -1,11 +1,8 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Loader2 } from 'lucide-react';
-import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -16,148 +13,226 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import {
   Field,
-  FieldError,
+  FieldDescription,
   FieldGroup,
   FieldLabel,
 } from '@/components/ui/field';
-import type { DnsAccountMutationPayload } from '@/lib/services/openflare';
-import { DnsAccountService } from '@/lib/services/openflare';
-
-import { useTranslations } from 'next-intl';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  cloudflareQueryKey,
+  dnsAccountsQueryKey,
+  DnsAccountService,
+  type DnsAccountItem,
+  type DnsAccountMutationPayload,
+  type DnsProvider,
+} from '@/lib/services/openflare';
 
 import { getErrorMessage } from './website-utils';
 
-const dnsAccountsQueryKey = ['openflare', 'dns-accounts'];
-
-type DnsAccountFormValues = {
-  name: string;
-  authorization: string;
-};
+const providers: DnsProvider[] = ['cloudflare', 'alidns', 'tencentcloud'];
 
 interface DnsAccountCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated?: () => void;
+  onCreated?: (account: DnsAccountItem) => void;
+  account?: DnsAccountItem;
 }
 
-export function DnsAccountCreateDialog({
-  open,
-  onOpenChange,
+export function DnsAccountCreateDialog(props: DnsAccountCreateDialogProps) {
+  const t = useTranslations('dnsAccounts');
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      {props.open && (
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t(props.account ? 'editTitle' : 'createTitle')}
+            </DialogTitle>
+            <DialogDescription>{t('createDesc')}</DialogDescription>
+          </DialogHeader>
+          <DnsAccountForm key={props.account?.id ?? 'new'} {...props} />
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
+function DnsAccountForm({
+  account,
   onCreated,
+  onOpenChange,
 }: DnsAccountCreateDialogProps) {
   const t = useTranslations('dnsAccounts');
-  const tc = useTranslations('common');
+  const common = useTranslations('common');
   const queryClient = useQueryClient();
-  const [error, setError] = useState('');
-  const dnsAccountSchema = z.object({
-    name: z.string().trim().min(1, t('nameRequired')).max(255),
-    authorization: z.string().trim().min(1, t('tokenRequired')),
-  });
-  const form = useForm<DnsAccountFormValues>({
-    resolver: zodResolver(dnsAccountSchema),
-    defaultValues: { name: '', authorization: '' },
-  });
+  const [provider, setProvider] = useState<DnsProvider>(
+    account?.type ?? 'cloudflare',
+  );
+  const [name, setName] = useState(account?.name ?? '');
+  const [identifier, setIdentifier] = useState('');
+  const [secret, setSecret] = useState('');
+  const isCloudflare = provider === 'cloudflare';
 
-  const createMutation = useMutation({
+  const mutation = useMutation({
     mutationFn: (payload: DnsAccountMutationPayload) =>
-      DnsAccountService.create(payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: dnsAccountsQueryKey });
-      form.reset();
-      setError('');
-      onCreated?.();
+      account
+        ? DnsAccountService.update(account.id, payload)
+        : DnsAccountService.create(payload),
+    onSuccess: async (saved) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: dnsAccountsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: cloudflareQueryKey }),
+      ]);
+      onCreated?.(saved);
       onOpenChange(false);
     },
-    onError: (err) => setError(getErrorMessage(err, t('requestFailed'))),
   });
-
-  const onSubmit = form.handleSubmit((values) => {
-    setError('');
-    let auth = values.authorization.trim();
-    if (!auth.startsWith('{')) {
-      auth = JSON.stringify({ api_token: values.authorization });
-    }
-    createMutation.mutate({
-      ...values,
-      type: 'cloudflare',
-      authorization: auth,
-    });
-  });
-
-  const handleClose = () => {
-    if (createMutation.isPending) return;
-    form.reset();
-    setError('');
-    onOpenChange(false);
-  };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('createTitle')}</DialogTitle>
-          <DialogDescription>{t('createDesc')}</DialogDescription>
-        </DialogHeader>
-
-        <form className='flex flex-col gap-5' onSubmit={onSubmit}>
-          {error && (
-            <p role='alert' className='text-sm text-destructive'>
-              {error}
-            </p>
+    <form
+      className='flex flex-col gap-5'
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (
+          mutation.isPending ||
+          !name.trim() ||
+          !secret.trim() ||
+          (!isCloudflare && !identifier.trim())
+        )
+          return;
+        const id = identifier.trim();
+        const key = secret.trim();
+        const credentials =
+          provider === 'alidns'
+            ? { access_key_id: id, access_key_secret: key }
+            : provider === 'tencentcloud'
+              ? { secret_id: id, secret_key: key }
+              : { api_token: key };
+        mutation.mutate({
+          name: name.trim(),
+          type: provider,
+          authorization:
+            isCloudflare && key.startsWith('{')
+              ? key
+              : JSON.stringify(credentials),
+        });
+      }}
+    >
+      {mutation.isError && (
+        <p role='alert' className='text-sm text-destructive'>
+          {getErrorMessage(mutation.error, t('requestFailed'))}
+        </p>
+      )}
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor='dns-account-name'>{t('accountName')}</FieldLabel>
+          <Input
+            id='dns-account-name'
+            placeholder={t('accountNamePlaceholder')}
+            required
+            maxLength={255}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            disabled={mutation.isPending}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor='dns-account-provider'>
+            {t('provider')}
+          </FieldLabel>
+          <Select
+            value={provider}
+            disabled={!!account || mutation.isPending}
+            onValueChange={(value) => {
+              const selected = providers.find((item) => item === value);
+              if (!selected) return;
+              setProvider(selected);
+              setIdentifier('');
+              setSecret('');
+            }}
+          >
+            <SelectTrigger id='dns-account-provider' className='w-full'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {providers.map((item) => (
+                <SelectItem key={item} value={item}>
+                  {t(`providers.${item}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!isCloudflare && (
+            <FieldDescription>{t('proxyUnsupported')}</FieldDescription>
           )}
-          <FieldGroup>
-            <Field data-invalid={!!form.formState.errors.name}>
-              <FieldLabel htmlFor='dns-account-name'>
-                {t('accountName')}
-              </FieldLabel>
-              <Input
-                id='dns-account-name'
-                placeholder={t('accountNamePlaceholder')}
-                aria-invalid={!!form.formState.errors.name}
-                {...form.register('name')}
-              />
-              <FieldError errors={[form.formState.errors.name]} />
-            </Field>
-            <Field data-invalid={!!form.formState.errors.authorization}>
-              <FieldLabel htmlFor='dns-account-token'>
-                Cloudflare API Token
-              </FieldLabel>
-              <Input
-                id='dns-account-token'
-                type='password'
-                autoComplete='new-password'
-                aria-invalid={!!form.formState.errors.authorization}
-                {...form.register('authorization')}
-                placeholder={t('tokenPlaceholder')}
-              />
-              <FieldError errors={[form.formState.errors.authorization]} />
-            </Field>
-          </FieldGroup>
-          <DialogFooter>
-            <Button
-              type='button'
-              variant='outline'
-              disabled={createMutation.isPending}
-              onClick={handleClose}
-            >
-              {tc('cancel')}
-            </Button>
-            <Button type='submit' disabled={createMutation.isPending}>
-              {createMutation.isPending ? (
-                <>
-                  <Loader2 className='mr-1 size-3.5 animate-spin' />
-                  {t('submitting')}
-                </>
-              ) : (
-                t('submit')
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </Field>
+        {!isCloudflare && (
+          <Field>
+            <FieldLabel htmlFor='dns-account-key-id'>
+              {t(provider === 'alidns' ? 'accessKeyId' : 'secretId')}
+            </FieldLabel>
+            <Input
+              id='dns-account-key-id'
+              required
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
+              disabled={mutation.isPending}
+            />
+          </Field>
+        )}
+        <Field>
+          <FieldLabel htmlFor='dns-account-token'>
+            {t(
+              isCloudflare
+                ? 'apiToken'
+                : provider === 'alidns'
+                  ? 'accessKeySecret'
+                  : 'secretKey',
+            )}
+          </FieldLabel>
+          <Input
+            id='dns-account-token'
+            required
+            type='password'
+            autoComplete='new-password'
+            value={secret}
+            onChange={(event) => setSecret(event.target.value)}
+            disabled={mutation.isPending}
+          />
+        </Field>
+      </FieldGroup>
+      <DialogFooter>
+        <Button
+          type='button'
+          variant='outline'
+          disabled={mutation.isPending}
+          onClick={() => onOpenChange(false)}
+        >
+          {common('cancel')}
+        </Button>
+        <Button
+          type='submit'
+          disabled={
+            mutation.isPending ||
+            !name.trim() ||
+            !secret.trim() ||
+            (!isCloudflare && !identifier.trim())
+          }
+        >
+          {mutation.isPending && <Spinner />}
+          {t(mutation.isPending ? 'submitting' : 'submit')}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

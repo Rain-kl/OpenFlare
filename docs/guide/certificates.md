@@ -22,9 +22,11 @@
 
 OpenFlare 内置了 ACME 客户端并对接了 **Asynq 异步任务队列**。通过配合云解析服务商的 DNS API，系统能自动完成 DNS-01 挑战（Challenge）校验，并向 CA（默认 Let's Encrypt）申请通配符/单域名证书，并在**到期前 7 天自动触发续签**。
 
-### 第一步：在 Cloudflare 申请 DNS API Token
+### 第一步：准备 DNS 提供商凭据
 
-为了使 OpenFlare 能够自动在你的域名下添加 TXT 记录以完成 DNS 校验，你需要准备一个具有特定权限的 Cloudflare API Token。
+OpenFlare 使用 DNS 提供商 API 创建和删除 DNS-01 挑战的 TXT 记录。可使用 Cloudflare API 令牌、阿里云云解析 DNS AccessKey 或腾讯云 DNSPod SecretId 和 SecretKey。凭据需能列出 DNS 区域，以及读取、创建和删除目标区域的 DNS 记录。
+
+#### Cloudflare API 令牌
 
 > [!IMPORTANT]
 > 安全起见，**强烈建议使用限定权限的 API Token**，而非全局 API Key（Global API Key）。
@@ -44,13 +46,11 @@ OpenFlare 内置了 ACME 客户端并对接了 **Asynq 异步任务队列**。�
 
 ### 第二步：在控制端添加 DNS 账号
 
-1. 登录 OpenFlare 管理端，进入左侧导航 **「网站管理」->「DNS账号」**。
-2. 点击 **「添加账号」**。
-3. 填写配置信息：
-   * **账号名称**：如 `cloudflare-main`。
-   * **DNS 服务商**：选择 `Cloudflare`。
-   * **API Token**：填入刚刚在 Cloudflare 复制的 API 令牌（该值在入库时会自动加密存储）。
-4. 点击 **「保存」**。
+1. 在 OpenFlare 控制台进入 **「DNS → DNS 账号」**，点击 **「添加账号」**，选择提供商并填写对应凭据。
+2. 保存后确认 **「验证状态」** 为 **「API 可用」**，并展开作用域核对目标区域。使用操作菜单中的 **「刷新作用域」** 按需重新验证。系统也会每日刷新。
+
+阿里云和腾讯云账号用于 DNS 记录操作，包括 DNS-01 挑战。指向分组同步到这两家提供商时，系统自动忽略 Cloudflare 橙云代理设置。
+
 
 ### 第三步：提交证书申请任务
 

@@ -21,9 +21,6 @@
     "memberDialog": {
       "smartdnsDnsOnlyHint": "当前分组使用 SmartDNS 调度模式，域名成员将强制关闭 Cloudflare 代理。"
     },
-    "settings": {
-      "redirecting": "正在前往 DNS → 连接设置..."
-    },
     "smartdnsTargetSummary": "SmartDNS 策略「{policy}」→ CNAME {host}",
     "smartdnsAutoHost": "自动生成目标主机",
     "smartdnsDnsOnlySummary": "成员 {count} 个 · 仅 DNS（SmartDNS CNAME 模式）",
@@ -45,7 +42,7 @@
     },
     "batchRemoveDialog": {
       "title": "确认批量删除域名",
-      "desc": "确认从当前分组移出已选中的 {count} 个域名吗？这将同时清理 Cloudflare 上的解析记录。",
+      "desc": "确认从当前分组移出已选中的 {count} 个域名吗？这将同时清理对应 DNS 提供商中的解析记录。",
       "confirm": "确认删除",
       "removing": "删除中..."
     },

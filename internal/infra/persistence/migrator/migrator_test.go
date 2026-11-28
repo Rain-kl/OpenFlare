@@ -372,6 +372,7 @@ func assertScheduleLogDefaults(t *testing.T) {
 		"of_netintel_sync",
 		"of_netquality_rollup",
 		"of_netquality_probe",
+		"of_dns_account_refresh",
 	}, failureOnlyTypes)
 }
 

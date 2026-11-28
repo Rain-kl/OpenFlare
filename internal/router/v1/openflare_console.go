@@ -265,6 +265,7 @@ func registerOpenFlareTLSRoutes(apiGroup *gin.RouterGroup) {
 		httpx.RegisterCollection(dnsAccountRoute, "GET", tls.GetDNSAccounts)
 		httpx.RegisterCollection(dnsAccountRoute, "POST", tls.CreateDNSAccountHandler)
 		dnsAccountRoute.POST("/:id/update", tls.UpdateDNSAccountHandler)
+		dnsAccountRoute.POST("/:id/refresh", tls.RefreshDNSAccountHandler)
 		dnsAccountRoute.POST("/:id/delete", tls.DeleteDNSAccountHandler)
 	}
 }

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -15,6 +16,7 @@ vi.mock('@/lib/services/openflare', async (importOriginal) => {
     SmartDNSService: {
       ...actual.SmartDNSService,
       getSettings: vi.fn(),
+      applyDelegation: vi.fn(),
     },
   };
 });
@@ -65,6 +67,29 @@ describe('SmartDNS delegation settings tab', () => {
     expect(nsTextarea).toHaveAttribute(
       'placeholder',
       'ns1.example.com\nns2.example.com',
+    );
+  });
+
+  it('applies the saved parent delegation only after confirming its NS list', async () => {
+    vi.mocked(SmartDNSService.applyDelegation).mockResolvedValue({
+      provider: 'alidns',
+      zone: 'example.com',
+      created: 2,
+      removed: 0,
+    });
+    renderSettingsTab();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '一键配置' }));
+    expect(SmartDNSService.applyDelegation).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('alertdialog');
+    expect(within(dialog).getByText('ns1.example.com')).toBeVisible();
+    expect(within(dialog).getByText('ns2.example.com')).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: '一键配置' }));
+    await waitFor(() =>
+      expect(SmartDNSService.applyDelegation).toHaveBeenCalledWith(
+        'sdns.example.com',
+        ['ns1.example.com', 'ns2.example.com'],
+      ),
     );
   });
 });

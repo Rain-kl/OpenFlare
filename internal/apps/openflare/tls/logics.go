@@ -15,8 +15,10 @@ import (
 	"github.com/Rain-kl/Wavelet/internal/repository"
 
 	"github.com/Rain-kl/Wavelet/internal/apps/openflare/credential"
+	"github.com/Rain-kl/Wavelet/internal/apps/openflare/dnsaccount"
 	"github.com/Rain-kl/Wavelet/internal/infra/task"
 	"github.com/Rain-kl/Wavelet/internal/model"
+	"github.com/Rain-kl/Wavelet/internal/openflare/dnsprovider"
 	"github.com/Rain-kl/Wavelet/pkg/logger"
 )
 
@@ -362,46 +364,57 @@ func ListDNSAccounts(ctx context.Context) ([]model.DNSAccount, error) {
 	return repository.ListDNSAccounts(ctx)
 }
 
-// CreateDNSAccount 创建 DNS 账号。
+// CreateDNSAccount 创建 DNS 账号并探测提供商。
 func CreateDNSAccount(ctx context.Context, input DNSAccountInput) (*model.DNSAccount, error) {
-	authorization, err := credential.Seal(strings.TrimSpace(input.Authorization))
-	if err != nil {
+	account := &model.DNSAccount{Scopes: []model.DNSAccountScope{}}
+	if err := applyDNSAccountInput(account, input); err != nil {
 		return nil, err
-	}
-	account := &model.DNSAccount{
-		Name:          strings.TrimSpace(input.Name),
-		Type:          strings.TrimSpace(input.Type),
-		Authorization: authorization,
-	}
-	if account.Name == "" || account.Type == "" || authorization == "" {
-		return nil, errors.New("DNS account parameters are incomplete")
 	}
 	if err := repository.CreateDNSAccountRecord(ctx, account); err != nil {
 		return nil, err
 	}
-	return sanitizeDNSAccountForResponse(account), nil
+	return dnsaccount.Refresh(ctx, account.ID)
 }
 
-// UpdateDNSAccount 更新 DNS 账号。
+// UpdateDNSAccount 更新 DNS 账号并探测新的凭据。
 func UpdateDNSAccount(ctx context.Context, id uint, input DNSAccountInput) (*model.DNSAccount, error) {
 	account, err := repository.GetDNSAccountByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	authorization, err := credential.Seal(strings.TrimSpace(input.Authorization))
+	if input.Type != account.Type {
+		return nil, dnsAccountInputError(errDNSAccountTypeChange)
+	}
+	if err = applyDNSAccountInput(account, input); err != nil {
+		return nil, err
+	}
+	account.VerificationStatus = ""
+	account.LastCheckedAt = nil
+	if err = repository.ReplaceDNSAccountCredential(ctx, account); err != nil {
+		return nil, err
+	}
+	return dnsaccount.Refresh(ctx, account.ID)
+}
+
+type dnsAccountInputError string
+
+func (err dnsAccountInputError) Error() string { return string(err) }
+
+func applyDNSAccountInput(account *model.DNSAccount, input DNSAccountInput) error {
+	name, provider := strings.TrimSpace(input.Name), strings.ToLower(strings.TrimSpace(input.Type))
+	authorization := strings.TrimSpace(input.Authorization)
+	if name == "" {
+		return dnsAccountInputError(errDNSAccountNameRequired)
+	}
+	if err := dnsprovider.ValidateCredentials(provider, authorization); err != nil {
+		return dnsAccountInputError(err.Error())
+	}
+	sealed, err := credential.Seal(authorization)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	account.Name = strings.TrimSpace(input.Name)
-	account.Type = strings.TrimSpace(input.Type)
-	account.Authorization = authorization
-	if account.Name == "" || account.Type == "" || authorization == "" {
-		return nil, errors.New("DNS account parameters are incomplete")
-	}
-	if err := repository.SaveDNSAccount(ctx, account); err != nil {
-		return nil, err
-	}
-	return sanitizeDNSAccountForResponse(account), nil
+	account.Name, account.Type, account.Authorization = name, provider, sealed
+	return nil
 }
 
 // DeleteDNSAccount 删除 DNS 账号。
@@ -414,7 +427,14 @@ func DeleteDNSAccount(ctx context.Context, id uint) error {
 		return err
 	}
 	if count > 0 {
-		return errors.New(errDNSAccountInUse)
+		return dnsAccountInputError(errDNSAccountInUse)
+	}
+	used, err := repository.DNSAccountHasPointingRecords(ctx, id)
+	if err != nil {
+		return err
+	}
+	if used {
+		return dnsAccountInputError(errDNSAccountUsedByDNS)
 	}
 	return repository.DeleteDNSAccountRecord(ctx, id)
 }
@@ -503,15 +523,6 @@ func sanitizeCertificateForResponse(certificate *model.TLSCertificate) *model.TL
 	certCopy := *certificate
 	certCopy.CertPEM = ""
 	certCopy.KeyPEM = ""
-	return &certCopy
-}
-
-func sanitizeDNSAccountForResponse(account *model.DNSAccount) *model.DNSAccount {
-	if account == nil {
-		return nil
-	}
-	certCopy := *account
-	certCopy.Authorization = ""
 	return &certCopy
 }
 

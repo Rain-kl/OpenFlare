@@ -326,6 +326,10 @@ WantedBy=multi-user.target
 SERVICE_EOF
   chmod 0644 "${SERVICE_PATH}.tmp"
   mv -Tf -- "${SERVICE_PATH}.tmp" "$SERVICE_PATH"
+  updater="$PACKAGE_DIR/scripts/update-openflare-dns.sh"
+  if [[ -f "$updater" ]] && grep -q -- '--enable-remote)' "$updater"; then
+    bash "$updater" --enable-remote --repo "$REPO" --install-dir "$INSTALL_DIR" --state-dir "$STATE_DIR" 9>&-
+  fi
   systemctl daemon-reload 9>&-
   if ! systemctl is-active --quiet openflare-dns; then
     systemctl enable openflare-dns 9>&-

@@ -14,7 +14,7 @@ export { WafService } from './waf.service';
 export * from './pow';
 export { ZoneDomainService, ZoneService, zoneQueryKey } from './zone.service';
 export { TlsCertificateService } from './tls-certificate.service';
-export { DnsAccountService } from './dns-account.service';
+export { DnsAccountService, dnsAccountsQueryKey } from './dns-account.service';
 export { PagesService } from './pages.service';
 export { OriginService } from './origin.service';
 export { AccessLogService } from './access-log.service';
@@ -146,6 +146,7 @@ export type {
   PagesSourceUpdateResult,
   AcmeAccountItem,
   DnsAccountItem,
+  DnsProvider,
   DnsAccountMutationPayload,
   ZoneDomainCleanupResult,
   ZoneDomainItem,
@@ -261,6 +262,7 @@ export type {
   SmartDNSFlowNodeData,
   SmartDNSFlowSwitchCase,
   SmartDNSInstance,
+  SmartDNSUpdateChannel,
   SmartDNSInstanceInput,
   SmartDNSOverview,
   SmartDNSOverviewSeriesPoint,

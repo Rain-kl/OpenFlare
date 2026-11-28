@@ -17,13 +17,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
 import { Spinner } from '@/components/ui/spinner';
 import { SmartDNSService, smartdnsQueryKey } from '@/lib/services/openflare';
 import { getErrorMessage } from '../../websites/components/website-utils';
@@ -32,13 +25,7 @@ import { SmartDNSDeploymentCommands } from './deployment-commands';
 
 const tokenKey = [...smartdnsQueryKey, 'discovery-token'] as const;
 
-export function SmartDNSEnrollmentSheet({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+export function SmartDNSDiscoveryEnrollment() {
   const t = useTranslations('smartdns.instances');
   const common = useTranslations('common');
   const queryClient = useQueryClient();
@@ -46,7 +33,6 @@ export function SmartDNSEnrollmentSheet({
   const tokenQuery = useQuery({
     queryKey: tokenKey,
     queryFn: () => SmartDNSService.getDiscoveryToken(),
-    enabled: open,
   });
   const rotateMutation = useMutation({
     mutationFn: () => SmartDNSService.rotateDiscoveryToken(),
@@ -60,50 +46,43 @@ export function SmartDNSEnrollmentSheet({
   const token = tokenQuery.data?.discovery_token;
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className='w-full overflow-y-auto sm:max-w-xl'>
-          <SheetHeader>
-            <SheetTitle>{t('discoveryTitle')}</SheetTitle>
-            <SheetDescription>{t('discoveryDesc')}</SheetDescription>
-          </SheetHeader>
-          <div className='flex flex-col gap-6 px-4 pb-6'>
-            {tokenQuery.isPending ? (
-              <p
-                role='status'
-                className='flex items-center gap-2 text-sm text-muted-foreground'
-              >
-                <Spinner />
-                {t('loadingToken')}
-              </p>
-            ) : tokenQuery.isError ? (
-              <ErrorInline
-                message={getErrorMessage(tokenQuery.error)}
-                onRetry={() => void tokenQuery.refetch()}
+      <div className='flex flex-col gap-4'>
+        <p className='text-sm text-muted-foreground'>{t('discoveryDesc')}</p>
+        {tokenQuery.isPending ? (
+          <p
+            role='status'
+            className='flex items-center gap-2 text-sm text-muted-foreground'
+          >
+            <Spinner />
+            {t('loadingToken')}
+          </p>
+        ) : tokenQuery.isError ? (
+          <ErrorInline
+            message={getErrorMessage(tokenQuery.error)}
+            onRetry={() => void tokenQuery.refetch()}
+          />
+        ) : (
+          token && (
+            <>
+              <SmartDNSDeploymentCommands
+                key={token}
+                tokenLabel={t('discoveryTokenLabel')}
+                token={token}
+                tokenType='discovery'
               />
-            ) : (
-              token && (
-                <>
-                  <SmartDNSDeploymentCommands
-                    key={token}
-                    tokenLabel={t('discoveryTokenLabel')}
-                    token={token}
-                    tokenType='discovery'
-                  />
-                  <Button
-                    className='self-start'
-                    variant='ghost'
-                    size='sm'
-                    onClick={() => setConfirmRotate(true)}
-                  >
-                    <KeyRound data-icon='inline-start' />
-                    {t('rotateDiscovery')}
-                  </Button>
-                </>
-              )
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+              <Button
+                className='self-start'
+                variant='ghost'
+                size='sm'
+                onClick={() => setConfirmRotate(true)}
+              >
+                <KeyRound data-icon='inline-start' />
+                {t('rotateDiscovery')}
+              </Button>
+            </>
+          )
+        )}
+      </div>
       <AlertDialog
         open={confirmRotate}
         onOpenChange={(next) =>

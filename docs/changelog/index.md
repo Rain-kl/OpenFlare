@@ -21,8 +21,12 @@ sidebar: false
 
 ### ✨ 新功能
 
+- SmartDNS 权威实例支持单个或批量远程更新，在线的 Linux systemd 实例可选择正式版或 Canary。实例新增入口默认预注册，也可切换到 Discovery 注册。
+- DNS 账号统一管理 Cloudflare、阿里云 DNS 和腾讯云 DNSPod 凭据，保存后验证 API 并发现作用域，支持手动刷新与每日自动刷新。指向分组按记录域名选择提供商，阿里云和腾讯云自动忽略橙云代理设置。
+- SmartDNS 委派设置可调用 Cloudflare 或阿里云 DNS API，在父区同步已保存的 NS 记录。
+
 - 新增 **SmartDNS Phase 2 智能权威解析系统**：
-  - 在控制面重构侧栏「DNS」分组（合并「DNS 解析」「DNS 账号」「连接设置」「SmartDNS」），原 `/cloudflare/settings` 页面自动重定向至 `/dns/settings`。
+  - 在控制面重构侧栏「DNS」分组（包含「DNS 解析」「DNS 账号」与「SmartDNS」），原连接设置页面自动重定向至「DNS 账号」。
   - 在「节点管理」中新增全局路由标签管理（`/api/v1/d/node-tags`）、单节点带宽/并发连接上限、容量基准权重与标签绑定配置。
   - 上线 **SmartDNS 控制台（`/dns/smartdns`）**：提供集群 QPS/P50-P99/L1 缓存命中率监控看板、委派域名配置与公网 NS 委派验证、独立 Rust 实例注册与隔离管理、基于 `@xyflow/react` 的可视化 JDM 调度规则编辑器，以及支持 EDNS0 ECS 模拟的 4 阶段打分决策模拟器。
   - 新增 **Cloudflare `smartdns` 指向模式**：指向分组支持选择 SmartDNS 策略并在委派域名下生成 CNAME 目标，成员记录强制保持仅 DNS 模式以确保访客真实子网直达 SmartDNS 权威节点，策略与路由变更自动通过 WebSocket（`dns:snapshot_changed`）与 ETag HTTP 快照热分发至解析节点。

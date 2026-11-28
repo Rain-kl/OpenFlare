@@ -8,7 +8,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
+
+	"github.com/Rain-kl/Wavelet/internal/openflare/dnsprovider"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPClientVerifyTokenAndManageARecord(t *testing.T) {
@@ -87,4 +91,49 @@ func writeCFTestResponse(t *testing.T, w http.ResponseWriter, result any) {
 	if err := json.NewEncoder(w).Encode(map[string]any{"success": true, "errors": []any{}, "result": result}); err != nil {
 		t.Fatalf("Encode(response) error = %v", err)
 	}
+}
+
+func TestDelegationReconcilesNSRecordsInParentZone(t *testing.T) {
+	records := []DNSRecord{
+		{ID: "keep", Type: "NS", Name: "sdns.example.com", Content: "NS1.EXAMPLE.COM."},
+		{ID: "replace", Type: "NS", Name: "sdns.example.com", Content: "old.example.com"},
+	}
+	var changes []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			require.Equal(t, "sdns.example.com", r.URL.Query().Get("name"))
+			require.Equal(t, "NS", r.URL.Query().Get("type"))
+			writeCFTestResponse(t, w, records)
+		case http.MethodPost:
+			var in RecordInput
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&in))
+			require.Equal(t, "NS", in.Type)
+			require.Equal(t, "ns2.example.com", in.Content)
+			require.False(t, in.Proxied)
+			record := DNSRecord{ID: "add", Type: in.Type, Name: in.Name, Content: in.Content}
+			records = append(records, record)
+			changes = append(changes, "create")
+			writeCFTestResponse(t, w, record)
+		case http.MethodDelete:
+			require.Equal(t, "/zones/parent/dns_records/replace", r.URL.Path)
+			records = slices.DeleteFunc(records, func(record DNSRecord) bool { return record.ID == "replace" })
+			changes = append(changes, "delete")
+			writeCFTestResponse(t, w, struct{}{})
+		default:
+			t.Errorf("unexpected DNS API request: %s %s", r.Method, r.URL)
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	client := NewHTTPClient("test-token", WithBaseURL(srv.URL))
+	hosts := []string{"ns1.example.com", "ns2.example.com"}
+	result, err := dnsprovider.ReconcileDelegation(t.Context(), client, Zone{ID: "parent", Name: "example.com"}, "sdns.example.com", hosts, 600)
+	require.NoError(t, err)
+	require.Equal(t, dnsprovider.DelegationChanges{Created: 1, Removed: 1}, result)
+	require.Equal(t, []string{"create", "delete"}, changes)
+	result, err = dnsprovider.ReconcileDelegation(t.Context(), client, Zone{ID: "parent", Name: "example.com"}, "sdns.example.com", hosts, 600)
+	require.NoError(t, err)
+	require.Equal(t, dnsprovider.DelegationChanges{}, result)
+	require.Len(t, changes, 2)
 }

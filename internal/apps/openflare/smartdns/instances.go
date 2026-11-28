@@ -41,37 +41,41 @@ type QuarantineInput struct {
 
 // InstanceView exposes a registered SmartDNS instance to administrators.
 type InstanceView struct {
-	ID                 uint       `json:"id"`
-	InstanceID         string     `json:"instance_id"`
-	Name               string     `json:"name"`
-	Mode               string     `json:"mode"`
-	PublicAddr         string     `json:"public_addr"`
-	ListenAddr         string     `json:"listen_addr"`
-	GeoName            string     `json:"geo_name"`
-	GeoLatitude        *float64   `json:"geo_latitude"`
-	GeoLongitude       *float64   `json:"geo_longitude"`
-	Version            string     `json:"version"`
-	Status             string     `json:"status"`
-	Connected          bool       `json:"connected"`
-	SnapshotVersion    uint64     `json:"snapshot_version"`
-	SnapshotETag       string     `json:"snapshot_etag"`
-	QPS                float64    `json:"qps"`
-	P50Ms              float64    `json:"p50_ms"`
-	P95Ms              float64    `json:"p95_ms"`
-	P99Ms              float64    `json:"p99_ms"`
-	SuccessTotal       uint64     `json:"success_total"`
-	ErrorTotal         uint64     `json:"error_total"`
-	CacheHitRatio      float64    `json:"cache_hit_ratio"`
-	CPUUsagePercent    float64    `json:"cpu_usage_percent"`
-	MemoryUsagePercent float64    `json:"memory_usage_percent"`
-	LastSeenAt         *time.Time `json:"last_seen_at"`
-	LastError          string     `json:"last_error"`
-	QuarantinedAt      *time.Time `json:"quarantined_at"`
-	QuarantineReason   string     `json:"quarantine_reason"`
-	AccessToken        string     `json:"access_token,omitempty"`
-	InstallCommand     string     `json:"install_command,omitempty"`
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
+	ID                    uint       `json:"id"`
+	InstanceID            string     `json:"instance_id"`
+	Name                  string     `json:"name"`
+	Mode                  string     `json:"mode"`
+	PublicAddr            string     `json:"public_addr"`
+	ListenAddr            string     `json:"listen_addr"`
+	GeoName               string     `json:"geo_name"`
+	GeoLatitude           *float64   `json:"geo_latitude"`
+	GeoLongitude          *float64   `json:"geo_longitude"`
+	Version               string     `json:"version"`
+	Status                string     `json:"status"`
+	Connected             bool       `json:"connected"`
+	SnapshotVersion       uint64     `json:"snapshot_version"`
+	SnapshotETag          string     `json:"snapshot_etag"`
+	QPS                   float64    `json:"qps"`
+	P50Ms                 float64    `json:"p50_ms"`
+	P95Ms                 float64    `json:"p95_ms"`
+	P99Ms                 float64    `json:"p99_ms"`
+	SuccessTotal          uint64     `json:"success_total"`
+	ErrorTotal            uint64     `json:"error_total"`
+	CacheHitRatio         float64    `json:"cache_hit_ratio"`
+	CPUUsagePercent       float64    `json:"cpu_usage_percent"`
+	MemoryUsagePercent    float64    `json:"memory_usage_percent"`
+	RemoteUpdateSupported bool       `json:"remote_update_supported"`
+	UpdateChannel         string     `json:"update_channel"`
+	UpdateStatus          string     `json:"update_status"`
+	UpdateRequestedAt     *time.Time `json:"update_requested_at"`
+	LastSeenAt            *time.Time `json:"last_seen_at"`
+	LastError             string     `json:"last_error"`
+	QuarantinedAt         *time.Time `json:"quarantined_at"`
+	QuarantineReason      string     `json:"quarantine_reason"`
+	AccessToken           string     `json:"access_token,omitempty"`
+	InstallCommand        string     `json:"install_command,omitempty"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
 }
 
 // DiscoveryTokenView returns the SmartDNS standalone instance discovery token.
@@ -84,35 +88,39 @@ func toInstanceView(inst *model.OpenFlareDNSInstance, now time.Time, includeSecr
 		return nil
 	}
 	view := &InstanceView{
-		ID:                 inst.ID,
-		InstanceID:         inst.InstanceID,
-		Name:               inst.Name,
-		Mode:               inst.Mode,
-		PublicAddr:         inst.PublicAddr,
-		ListenAddr:         inst.ListenAddr,
-		GeoName:            inst.GeoName,
-		GeoLatitude:        inst.GeoLatitude,
-		GeoLongitude:       inst.GeoLongitude,
-		Version:            inst.Version,
-		Status:             computeInstanceStatus(inst, now),
-		Connected:          websocket.IsDNSInstanceConnected(inst.InstanceID),
-		SnapshotVersion:    inst.SnapshotVersion,
-		SnapshotETag:       inst.SnapshotETag,
-		QPS:                round4(inst.QPS),
-		P50Ms:              round4(inst.P50Ms),
-		P95Ms:              round4(inst.P95Ms),
-		P99Ms:              round4(inst.P99Ms),
-		SuccessTotal:       inst.SuccessTotal,
-		ErrorTotal:         inst.ErrorTotal,
-		CacheHitRatio:      round4(inst.CacheHitRatio),
-		CPUUsagePercent:    round4(inst.CPUUsagePercent),
-		MemoryUsagePercent: round4(inst.MemoryUsagePercent),
-		LastSeenAt:         inst.LastSeenAt,
-		LastError:          inst.LastError,
-		QuarantinedAt:      inst.QuarantinedAt,
-		QuarantineReason:   inst.QuarantineReason,
-		CreatedAt:          inst.CreatedAt,
-		UpdatedAt:          inst.UpdatedAt,
+		ID:                    inst.ID,
+		InstanceID:            inst.InstanceID,
+		Name:                  inst.Name,
+		Mode:                  inst.Mode,
+		PublicAddr:            inst.PublicAddr,
+		ListenAddr:            inst.ListenAddr,
+		GeoName:               inst.GeoName,
+		GeoLatitude:           inst.GeoLatitude,
+		GeoLongitude:          inst.GeoLongitude,
+		Version:               inst.Version,
+		Status:                computeInstanceStatus(inst, now),
+		Connected:             websocket.IsDNSInstanceConnected(inst.InstanceID),
+		SnapshotVersion:       inst.SnapshotVersion,
+		SnapshotETag:          inst.SnapshotETag,
+		QPS:                   round4(inst.QPS),
+		P50Ms:                 round4(inst.P50Ms),
+		P95Ms:                 round4(inst.P95Ms),
+		P99Ms:                 round4(inst.P99Ms),
+		SuccessTotal:          inst.SuccessTotal,
+		ErrorTotal:            inst.ErrorTotal,
+		CacheHitRatio:         round4(inst.CacheHitRatio),
+		CPUUsagePercent:       round4(inst.CPUUsagePercent),
+		MemoryUsagePercent:    round4(inst.MemoryUsagePercent),
+		RemoteUpdateSupported: inst.RemoteUpdateSupported,
+		UpdateChannel:         inst.UpdateChannel,
+		UpdateStatus:          instanceUpdateStatus(inst, now),
+		UpdateRequestedAt:     inst.UpdateRequestedAt,
+		LastSeenAt:            inst.LastSeenAt,
+		LastError:             inst.LastError,
+		QuarantinedAt:         inst.QuarantinedAt,
+		QuarantineReason:      inst.QuarantineReason,
+		CreatedAt:             inst.CreatedAt,
+		UpdatedAt:             inst.UpdatedAt,
 	}
 	if includeSecret && inst.Mode == model.DNSInstanceModeStandalone {
 		view.AccessToken = inst.AccessToken
@@ -434,20 +442,21 @@ func RecordDNSHeartbeat(ctx context.Context, inst *model.OpenFlareDNSInstance, r
 	}
 
 	updates := map[string]any{
-		colInstanceStatus:      model.DNSInstanceStatusOnline,
-		"snapshot_version":     req.SnapshotVersion,
-		"snapshot_etag":        strings.TrimSpace(req.SnapshotETag),
-		"qps":                  req.QPS,
-		"p50_ms":               req.P50Ms,
-		"p95_ms":               req.P95Ms,
-		"p99_ms":               req.P99Ms,
-		"success_total":        req.QueriesSuccess,
-		"error_total":          req.QueriesNXDomain + req.QueriesServFail + req.QueriesRateLimited,
-		"cache_hit_ratio":      req.CacheHitRatio,
-		"cpu_usage_percent":    req.CPUUsagePercent,
-		"memory_usage_percent": req.MemoryUsagePercent,
-		"last_seen_at":         &now,
-		colInstanceLastError:   strings.TrimSpace(req.LastError),
+		colInstanceStatus:         model.DNSInstanceStatusOnline,
+		"snapshot_version":        req.SnapshotVersion,
+		"snapshot_etag":           strings.TrimSpace(req.SnapshotETag),
+		"qps":                     req.QPS,
+		"p50_ms":                  req.P50Ms,
+		"p95_ms":                  req.P95Ms,
+		"p99_ms":                  req.P99Ms,
+		"success_total":           req.QueriesSuccess,
+		"error_total":             req.QueriesNXDomain + req.QueriesServFail + req.QueriesRateLimited,
+		"cache_hit_ratio":         req.CacheHitRatio,
+		"cpu_usage_percent":       req.CPUUsagePercent,
+		"memory_usage_percent":    req.MemoryUsagePercent,
+		"last_seen_at":            &now,
+		colInstanceLastError:      strings.TrimSpace(req.LastError),
+		"remote_update_supported": req.RemoteUpdateSupported,
 	}
 	if strings.TrimSpace(req.Version) != "" {
 		updates["version"] = strings.TrimSpace(req.Version)
@@ -488,6 +497,9 @@ func RecordDNSHeartbeat(ctx context.Context, inst *model.OpenFlareDNSInstance, r
 	if bundle := DefaultSnapshotManager().Current(); bundle != nil {
 		resp.SnapshotVersion = bundle.Envelope.Version
 		resp.SnapshotETag = bundle.ETag
+	}
+	if err := attachDNSUpdate(ctx, inst, req, resp, now); err != nil {
+		return nil, err
 	}
 	return resp, nil
 }

@@ -77,7 +77,8 @@ type CFPointingMember struct {
 	GroupID      uint       `json:"group_id" gorm:"not null;index:idx_of_cf_pointing_members_group_id"`
 	ZoneDomainID uint       `json:"zone_domain_id" gorm:"not null;uniqueIndex:idx_of_cf_pointing_members_zone_domain_id"`
 	Proxied      bool       `json:"proxied" gorm:"not null;default:false"`
-	CFZoneID     string     `json:"cf_zone_id" gorm:"size:64;not null;default:''"`
+	DNSAccountID *uint      `json:"dns_account_id" gorm:"index:idx_of_cf_pointing_members_dns_account"`
+	CFZoneID     string     `json:"cf_zone_id" gorm:"type:text;not null;default:''"`
 	CFRecordID   string     `json:"cf_record_id" gorm:"size:64;not null;default:''"`
 	DesiredIP    string     `json:"desired_ip" gorm:"size:64;not null;default:''"`
 	SyncStatus   string     `json:"sync_status" gorm:"size:16;not null;default:'pending'"`

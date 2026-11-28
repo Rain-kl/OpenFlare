@@ -43,12 +43,12 @@ func TestApplyCertificateReturnsApplying(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	dnsAccount, err := CreateDNSAccount(ctx, DNSAccountInput{
+	dnsAccount := &model.DNSAccount{
 		Name:          "Test Cloudflare",
 		Type:          "cloudflare",
 		Authorization: `{"api_token": "dummy_token"}`,
-	})
-	require.NoError(t, err)
+	}
+	require.NoError(t, repository.CreateDNSAccountRecord(ctx, dnsAccount))
 
 	obtainDone := make(chan struct{})
 	restore := SetObtainCertificateFuncForTest(func(ctx context.Context, cert *model.TLSCertificate) error {

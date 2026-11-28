@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -252,4 +253,32 @@ func InsertOpenFlareDNSMetricSnapshot(ctx context.Context, record *model.OpenFla
 		return err
 	}
 	return s.Observability.InsertDNSMetricSnapshot(ctx, record)
+}
+
+// ErrDNSUpdateUnavailable reports that at least one selected instance could not accept the request.
+var ErrDNSUpdateUnavailable = errors.New("selected DNS instances cannot accept an update")
+
+// QueueDNSInstanceUpdates atomically queues the channel on every selected eligible instance.
+func QueueDNSInstanceUpdates(ctx context.Context, ids []uint, requestID, channel string, now, onlineSince, expiry time.Time) error {
+	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&model.OpenFlareDNSInstance{}).
+			Where("id IN ? AND mode = ? AND quarantined_at IS NULL", ids, model.DNSInstanceModeStandalone).
+			Where("remote_update_supported = ? AND last_seen_at >= ?", true, onlineSince).
+			Where("(update_status NOT IN ? OR update_requested_at <= ?)", []string{model.DNSUpdateQueued, model.DNSUpdateRunning}, expiry).
+			Updates(map[string]any{"update_request_id": requestID, "update_channel": channel, "update_status": model.DNSUpdateQueued, "update_requested_at": now})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != int64(len(ids)) {
+			return ErrDNSUpdateUnavailable
+		}
+		return nil
+	})
+}
+
+// AcknowledgeDNSInstanceUpdate applies a receipt only to the current, nonterminal request.
+func AcknowledgeDNSInstanceUpdate(ctx context.Context, instanceID, requestID, status string) error {
+	return db.DB(ctx).Model(&model.OpenFlareDNSInstance{}).
+		Where("instance_id = ? AND update_request_id = ? AND update_status IN ?", instanceID, requestID, []string{model.DNSUpdateQueued, model.DNSUpdateRunning}).
+		Update("update_status", status).Error
 }

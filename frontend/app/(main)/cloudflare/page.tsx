@@ -1,10 +1,8 @@
 'use client';
 
-import { Cloud, Settings } from 'lucide-react';
-import Link from 'next/link';
+import { Cloud } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDnsTab } from '../dns/components/use-dns-tab';
 import { SyncTasksPanel } from './components/sync-tasks-panel';
@@ -25,12 +23,6 @@ export default function CloudflarePage() {
             {t('title')}
           </h1>
         </div>
-        <Button variant='outline' size='sm' asChild>
-          <Link href='/dns/settings'>
-            <Settings data-icon='inline-start' />
-            {t('connectionSettings')}
-          </Link>
-        </Button>
       </div>
       <Tabs
         value={activeTab}
