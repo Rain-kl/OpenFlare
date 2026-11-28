@@ -1,6 +1,6 @@
 # Guide Overview
 
-OpenFlare is a distributed reverse proxy and edge security gateway based on OpenFlare Edge architecture. It provides multi-node cluster orchestration, snapshot-based configuration hot-synchronization, edge WAF, proof-of-work (PoW) challenge defense, intranet tunnels, and Pages static hosting. It can operate as a standalone gateway or as an origin shield behind upstream CDNs.
+OpenFlare is a distributed reverse proxy, edge security gateway, and intelligent authoritative DNS platform built on OpenFlare Edge. It provides multi-node cluster orchestration, snapshot-based configuration hot-synchronization, quality-aware SmartDNS traffic steering, multi-provider DNS account management, edge WAF, proof-of-work (PoW) challenge defense, intranet tunnels, and Pages static hosting. It can operate as a standalone private CDN or as an origin shield behind upstream CDNs.
 
 Documentation in this section is organized into five operational areas, guiding users from initial deployment through daily traffic management, security hardening, and troubleshooting.
 
@@ -20,6 +20,7 @@ Configure reverse proxy routing, TLS encryption, and edge caching:
 - [TLS Certificates & Auto-Renewal](./certificates.md): import existing certificates or automate wildcard issuance and renewal using ACME and Cloudflare DNS API.
 - [OpenFlare Edge Performance Policies](./performance-policies.md): configure worker thread counts, upstream connection pools, HTTP/2 concurrency, TinyUFO memory cache, and disk cache limits.
 - [Zone Domain Migration](./zone-domain-migration.md): understand automatic migration to the Zone root domain model, backup procedures, and post-upgrade acceptance checks.
+- [SmartDNS Authoritative Resolution](./smartdns.md): configure standalone `OpenFlare DNS` authoritative instances, NS delegation verification, multi-provider DNS accounts, and visual scheduling policies.
 
 ### Edge Security
 Configure edge firewalls and proof-of-work challenge defenses:
@@ -48,6 +49,7 @@ Maintenance, diagnostic procedures, and open-source references:
 | Start controller and connect first node | [Quick Start](./quick-start.md) |
 | Test basic HTTP proxy routing | [Create Your First Reverse Proxy Rule](./first-site.md) |
 | Configure HTTPS certificates and origin routing | [Create a Reverse Proxy Config](./proxy-config.md) and [TLS Certificates & Auto-Renewal](./certificates.md) |
+| Enable SmartDNS intelligent traffic steering | [SmartDNS Authoritative Resolution](./smartdns.md) and [OpenFlare DNS Deployment](../deployment/openflare-dns.md) |
 | Tune worker threads, connection pools, and cache sizes | [OpenFlare Edge Performance Policies](./performance-policies.md) |
 | Enable WAF blocking and anti-CC challenge rules | [WAF Security Protection](./waf-usage.md) and [Proof-of-Work (PoW) Protection](./pow-usage.md) |
 | Host single-page applications with API proxying | [Pages Static Hosting Usage](./pages-usage.md) |

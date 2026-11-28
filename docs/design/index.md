@@ -2,16 +2,16 @@
 
 你会学到：OpenFlare 是什么、当前稳定能力，以及开发时应遵守的核心产品边界与仓库结构目录分工。
 
-OpenFlare 是一套新一代分布式反向代理与边缘安全网关平台，面向多服务器集群与单团队运维场景。
+OpenFlare 是一套新一代分布式反向代理、边缘安全网关与智能权威 DNS 平台，面向多服务器集群与单团队运维场景。
 
 ---
 
 ## 项目定位
 
-OpenFlare 适合需要统一管理多台 OpenFlare Edge 代理节点、构建自建高可用边缘网络，或为源站搭建坚固防护网关的团队，具备以下定位：
+OpenFlare 适合需要统一管理多台 OpenFlare Edge 代理节点与 OpenFlare DNS 权威节点、构建自建高可用边缘网络，或为源站搭建坚固防护网关的团队，具备以下定位：
 * **控制与落地分离**：Server 控制面不直接 SSH 到代理节点，而是通过 Agent 主动拉取版本并应用。
 * **Zero-Reload 动态配置同步**：基于 Rust OpenFlare Edge 边缘网关运行，通过内存快照原子替换与增量配置同步生效，避免传统网关进程重载（reload）导致的连接抖动。
-* **一体化边缘安全网关**：在同一个控制面内集成反向代理、TLS 证书自动续期、WAF 防护拦截、Turnstile-like 客户端 PoW 防 CC 盾、高可用内网穿透（Tunnel）以及 Pages 静态网站托管。
+* **一体化边缘安全与智能调度**：在同一个控制面内集成反向代理、SmartDNS 智能权威解析、多服务商 DNS 账号管理、TLS 证书自动续期、WAF 防护拦截、客户端 PoW 防 CC 验证、高可用内网穿透（Tunnel）以及 Pages 静态网站托管。
 * **双重部署生态适应性**：既支持作为独立私有边缘 CDN 运行，亦可作为 Cloudflare 背后坚固的源站防护网关（Origin Shield），防止源站真实 IP 泄露并沉淀全量私有审计日志。
 
 **非本产品定位**：多租户公有云平台、Kubernetes Ingress Controller、服务网格或通用日志平台。
@@ -26,7 +26,7 @@ OpenFlare 适合需要统一管理多台 OpenFlare Edge 代理节点、构建自
 | **源站错误页** | 全局可配置：源站/网关匹配状态码时返回 OpenFlare 默认或自定义 HTML，HTTP 状态码保持原值 | [源站错误页设计](./origin-error-page.md) |
 | **边缘缓存** | 边缘节点内存缓存；默认 static 扩展名 + 源站头/Set-Cookie 闸门 + 默认 Edge TTL | [边缘缓存策略设计](./edge-cache-design.md) |
 | **Zone 与域名管理** | 以可注册根域为管理入口，聚合明确域名、域名证书与反向代理路由 | [Zone 与域名资源设计](./zone-design.md) |
-| **Cloudflare DNS 指向** | 以 ZoneDomain 为粒度，将单条 Cloudflare A 记录幂等指向边缘节点 IPv4 | [Cloudflare DNS 指向设计](./cloudflare-pointing.md) |
+| **多服务商 DNS 与 SmartDNS 智能权威解析** | 统一管理 Cloudflare、阿里云 DNS 与腾讯云 DNSPod 账号；提供独立高性能 `OpenFlare DNS` 权威节点、可视化调度策略编辑器、多时间窗口网络质量矩阵与 ECS 感知分流 | [SmartDNS 设计](./smartdns-design.md) / [SmartDNS 使用指南](../guide/smartdns.md) / [OpenFlare DNS 部署](../deployment/openflare-dns.md) |
 | **智能 DNS 接入契约（Phase 2）** | 基于 ECS / 访客 IP 解析与 Phase 1.5 5 级预测器融合的调度输入、离散度惩罚与回退契约 | [SmartDNS Phase 2 ECS 接入契约](./smartdns-phase2-ecs-contract.md) |
 | **边缘配置同步** | 保存后自动同步，节点原子应用并保留最后一份健康快照 | [边缘节点设计](./pingora-edge-design.md) |
 | **WAF 安全防护** | 支持可视化 DAG 编排规则、手动/自动/订阅型 IP 组、GeoIP 匹配与 PoW CC 防护 | [WAF 设计](./waf-design.md) / [WAF 可编排规则设计](./waf-orchestration-design.md) / [WAF 使用指南](../guide/waf-usage.md) |
@@ -78,6 +78,7 @@ OpenFlare 采用单 monorepo（Go 模块 `github.com/Rain-kl/Wavelet`，Rust Edg
 | --- | --- |
 | `cmd/server/` | 控制面 Server 启动入口（`main.go` + Cobra 子命令 `cli/`） |
 | `edge/` | Rust OpenFlare Edge 边缘网关（`openflare-edge`）源码与构建目录 |
+| `dns/` | Rust OpenFlare DNS 权威解析节点（`openflare-dns`）源码与构建目录 |
 | `tunnel/` | Rust 原生内网穿透工作区（`common/`、`relay/`、`flared/`） |
 | `internal/` | 控制面域实现、持久化仓库与跨端共享协议 |
 | `frontend/` | Next.js 管理端，构建产物嵌入 Go Server |

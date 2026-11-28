@@ -61,6 +61,7 @@ Internal Service (192.168.x.x)
 | --- | --- | --- | --- |
 | **Server Control Plane** | 1 core CPU / 2 GB RAM / 20 GB disk | 2 cores CPU / 4 GB RAM / 50 GB+ disk | Scale disk capacity based on log retention policies and metric volume |
 | **Edge Gateway** | 1 core CPU / 512 MB RAM / 2 GB disk | 2 cores CPU / 2 GB RAM / 10 GB+ disk | Scale by OpenFlare Edge concurrent proxy connections, TLS handshakes, and WAF rules |
+| **OpenFlare DNS (SmartDNS)** | 1 core CPU / 256 MB RAM / 1 GB disk | 2 cores CPU / 512 MB RAM / 5 GB disk | Lightweight standalone authoritative DNS server with offline snapshot failover |
 | **Relay Node** | 1 core CPU / 1 GB RAM / 5 GB disk | 2 cores CPU / 2 GB RAM / 20 GB disk | frps throughput is bounded by network bandwidth and TCP socket limits |
 | **OpenFlared Client** | 1 core CPU / 256 MB RAM / 1 GB disk | 1 core CPU / 512 MB RAM / 5 GB disk | Runs on private host; minimal CPU/RAM overhead, depends on local network capacity |
 
@@ -101,7 +102,8 @@ go run ./cmd/server all
 
 The server listens on port `:3000` by default (configurable via `app.addr` in `config.yaml` or `APP_ADDR`).
 
-### Deploying Edge and Tunnel Components
+### Deploying Edge, SmartDNS, and Tunnel Components
 
 - Edge gateway deployment: See [OpenFlare Edge Deployment](./openflare-edge.md) (system specifications, systemd security hardening, atomic updates) or [Edge Node Quick Access](./agent.md) (tokens and quick install flags).
+- Intelligent authoritative DNS deployment: See [OpenFlare DNS Deployment](./openflare-dns.md) (Linux one-step installation, Docker deployment, and remote upgrades).
 - Tunnel infrastructure deployment: See [Relay Deployment](./relay.md) and [OpenFlared Deployment](./openflared.md).

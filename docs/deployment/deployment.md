@@ -61,6 +61,7 @@ OpenFlared 客户端 (frpc 守护进程，部署于内网机器)
 | --- | --- | --- | --- |
 | **Server 控制面** | 1 核 CPU / 2 GB 内存 / 20 GB 磁盘 | 2 核 CPU / 4 GB 内存 / 50 GB+ 磁盘 | 磁盘容量根据访问日志留存策略与指标数据量扩容 |
 | **Edge 边缘网关** | 1 核 CPU / 512 MB 内存 / 2 GB 磁盘 | 2 核 CPU / 2 GB 内存 / 10 GB+ 磁盘 | 根据 OpenFlare Edge 并发代理连接量、TLS 握手压力与 WAF 吞吐扩容 |
+| **OpenFlare DNS (SmartDNS)** | 1 核 CPU / 256 MB 内存 / 1 GB 磁盘 | 2 核 CPU / 512 MB 内存 / 5 GB 磁盘 | 轻量级独立权威解析节点，支持离线快照容灾与多核监听 |
 | **Relay 中继节点** | 1 核 CPU / 1 GB 内存 / 5 GB 磁盘 | 2 核 CPU / 2 GB 内存 / 20 GB 磁盘 | frps 传输中继吞吐受网络带宽与并发 TCP 连接上限影响 |
 | **OpenFlared 客户端** | 1 核 CPU / 256 MB 内存 / 1 GB 磁盘 | 1 核 CPU / 512 MB 内存 / 5 GB 磁盘 | 运行于内网环境，资源占用低，主要依赖内网主机网络吞吐 |
 
@@ -103,7 +104,8 @@ go run ./cmd/server all
 
 服务默认监听 `:3000` 端口（通过 `config.yaml` 中的 `app.addr` 或环境变量 `APP_ADDR` 配置）。
 
-### 部署边缘节点与隧道
+### 部署边缘节点、SmartDNS 与隧道
 
 - 边缘网关部署：参考 [OpenFlare Edge 部署指南](./openflare-edge.md)（技术规格、Linux systemd 权限加固与平滑升级）或 [边缘节点快速接入](./agent.md)（节点令牌与快速安装命令）。
+- 智能权威 DNS 部署：参考 [OpenFlare SmartDNS 部署](./openflare-dns.md)（Linux 一键安装、Docker 部署与控制台远程更新）。
 - 隧道基础设施部署：参考 [Relay 部署](./relay.md) 与 [OpenFlared 部署](./openflared.md)。

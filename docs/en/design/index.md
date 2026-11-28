@@ -2,16 +2,16 @@
 
 You will learn: what OpenFlare is, its current stable capabilities, and the core product boundaries and repository structure layout you must follow when developing.
 
-OpenFlare is a modern distributed reverse proxy and edge security gateway platform designed for multi-server clusters and single-team operations.
+OpenFlare is a modern distributed reverse proxy, edge security gateway, and intelligent authoritative DNS platform designed for multi-server clusters and single-team operations.
 
 ---
 
 ## Project Positioning
 
-OpenFlare suits teams that need to centrally manage multiple OpenFlare Edge proxy nodes, build self-hosted high-availability edge networks, or establish a hardened protective gateway in front of origin servers, with the following positioning:
+OpenFlare suits teams that need to centrally manage multiple OpenFlare Edge proxy nodes and OpenFlare DNS authoritative instances, build self-hosted high-availability edge networks, or establish a hardened protective gateway in front of origin servers, with the following positioning:
 * **Control/Landing Separation**: The Server control plane never SSHs into proxy nodes; edge nodes actively pull versions and apply them via heartbeats and WebSockets.
 * **Zero-Reload Dynamic Configuration Sync**: Built on the Rust OpenFlare Edge gateway, updates take effect via in-memory snapshot atomic swapping and incremental configuration synchronization, eliminating connection jitter caused by traditional gateway reload operations.
-* **Integrated Edge Security Gateway**: Combines reverse proxying, automated TLS certificate renewal, WAF protection, Turnstile-like client PoW anti-CC defense, intranet penetration (Tunnel), and Pages static website hosting in a unified control plane.
+* **Integrated Edge Security and SmartDNS**: Combines reverse proxying, quality-aware SmartDNS authoritative resolution, multi-provider DNS account management, automated TLS certificate renewal, WAF protection, client PoW anti-CC defense, intranet penetration (Tunnel), and Pages static website hosting in a unified control plane.
 * **Dual Deployment Architecture**: Operates either as a standalone private edge CDN or as a hardened Origin Shield behind Cloudflare, shielding origin IP addresses while retaining full private audit logs.
 
 **Not this product's positioning**: Multi-tenant public cloud platforms, Kubernetes Ingress Controllers, service meshes, or general-purpose log aggregation systems.
@@ -26,7 +26,7 @@ OpenFlare suits teams that need to centrally manage multiple OpenFlare Edge prox
 | **Origin error page** | Globally configurable: matching origin/gateway status codes return OpenFlare default or custom HTML with the HTTP status kept | [Origin Error Page Design](./origin-error-page.md) |
 | **Edge cache** | OpenFlare Edge in-memory caching: default static extensions + origin-header/Set-Cookie gates + default Edge TTL (benchmarked against the CF default model) | [Edge Cache Strategy Design](./edge-cache-design.md) |
 | **Zone & domain management** | Registrable root domains as the management entry, aggregating explicit domains, domain certificates, and reverse proxy routes | [Zone & Domain Resource Design](./zone-design.md) |
-| **Cloudflare DNS pointing** | Per ZoneDomain, idempotently point a single Cloudflare A record at an edge node IPv4; connection config, groups, member orange-cloud, and async sync; no auto-failover in phase 1 | [Cloudflare DNS Pointing Design](./cloudflare-pointing.md) |
+| **Multi-Provider DNS & SmartDNS** | Unified Cloudflare, Alibaba Cloud DNS, and Tencent Cloud DNSPod account management; standalone `OpenFlare DNS` authoritative server with visual scheduling rules, multi-window network quality matrices, and ECS-aware steering | [SmartDNS Guide](../guide/smartdns.md) / [OpenFlare DNS Deployment](../deployment/openflare-dns.md) / [Cloudflare DNS Pointing Design](./cloudflare-pointing.md) |
 | **Edge config sync** | Automatic sync on save; nodes apply snapshots atomically while retaining the last healthy snapshot | [OpenFlare Edge node Design](./pingora-edge-design.md) |
 | **WAF protection** | Visual DAG rule orchestration, manual/auto/subscription IP groups, GeoIP matching, and PoW CC protection | [WAF Design](./waf-design.md) / [WAF Orchestration Rule Design](./waf-orchestration-design.md) / [WAF Usage Guide](../guide/waf-usage.md) |
 | **Intranet penetration** | Reverse-penetrate and expose intranet web services via Relay nodes and the OpenFlared client | [Tunnel Design](./tunnel-design.md) / [Tunnel Usage Guide](../guide/tunnel-usage.md) |
@@ -79,6 +79,7 @@ When contributing code, strictly follow this physical layering and directory div
 | --- | --- |
 | `cmd/server`, `cmd/relay`, `cmd/flared` | CLI entrypoints for Server, Relay, and OpenFlared (Server in `cmd/server/main.go` + `cmd/server/cli/`) |
 | `edge/` | Rust OpenFlare Edge gateway (`openflare-edge`) source and build directory |
+| `dns/` | Rust OpenFlare DNS authoritative server (`openflare-dns`) source and build directory |
 | `internal/` | Control-plane and edge runtime implementations |
 | `frontend/` | Next.js admin console; build artifacts embedded into the Go Server |
 | `pkg/` | Generic cross-cutting libraries (GeoIP, cache, mail, push, utilities, etc.) |
