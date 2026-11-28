@@ -169,7 +169,6 @@ export function ZoneOverviewPanel({
             <MetricTrendCard
               icon={Users}
               label={t('uniqueVisitors')}
-              description={t('uniqueVisitorsDesc')}
               value={formatCompactNumber(stats?.unique_visitors ?? 0)}
               data={chartData}
               dataKey='visitors'
@@ -225,7 +224,6 @@ export function ZoneOverviewPanel({
 function MetricTrendCard({
   icon: Icon,
   label,
-  description,
   value,
   data,
   dataKey,
@@ -235,7 +233,6 @@ function MetricTrendCard({
 }: {
   icon: typeof Users;
   label: string;
-  description?: string;
   value: string;
   data: Array<Record<string, string | number>>;
   dataKey: string;
@@ -248,16 +245,9 @@ function MetricTrendCard({
       <CardContent className='p-0'>
         <div className='grid gap-0 md:grid-cols-[minmax(140px,200px)_1fr]'>
           <div className='flex flex-col justify-between gap-3 border-b p-4 md:border-b-0 md:border-r'>
-            <div className='space-y-1'>
-              <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
-                <Icon className='size-3.5 text-primary' />
-                <span>{label}</span>
-              </div>
-              {description ? (
-                <p className='text-[10px] leading-snug text-muted-foreground'>
-                  {description}
-                </p>
-              ) : null}
+            <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+              <Icon className='size-3.5 text-primary' />
+              <span>{label}</span>
             </div>
             <p className='text-3xl font-semibold tracking-tight'>{value}</p>
           </div>

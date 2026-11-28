@@ -50,7 +50,6 @@
     "statsFailed": "加载流量统计失败",
     "analyticsUnavailable": "分析存储暂不可用，图表可能为空。请确认 ClickHouse 已启用。",
     "uniqueVisitors": "查询窗口独立访客",
-    "uniqueVisitorsDesc": "顶部合计为整窗去重；曲线为各时间桶内 UV，桶间不可相加",
     "totalRequests": "请求总数",
     "totalBytes": "已提供的数据总计",
     "zoneInfo": "Zone 信息",

@@ -50,7 +50,6 @@
     "statsFailed": "Failed to load traffic stats",
     "analyticsUnavailable": "Analytics storage is unavailable, so charts may be empty. Confirm that ClickHouse is enabled.",
     "uniqueVisitors": "Unique visitors in query window",
-    "uniqueVisitorsDesc": "The top total is de-duplicated across the whole window; the curve is UV per time bucket and buckets cannot be added together",
     "totalRequests": "Total requests",
     "totalBytes": "Total data served",
     "zoneInfo": "Zone information",
