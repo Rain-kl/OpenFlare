@@ -6,7 +6,6 @@ OpenFlare builds on open-source software and public network datasets. We thank a
 
 | Project | License | Role in OpenFlare |
 | :--- | :--- | :--- |
-| **Wavelet** | Apache-2.0 | Derivative foundation for control-plane architecture and permissions (`Copyright 2025 Arctel.net`, see [NOTICE](https://github.com/Rain-kl/OpenFlare/blob/main/NOTICE)) |
 | **[Pingora](https://github.com/cloudflare/pingora) & [Pingap](https://github.com/vicanso/pingap)** | Apache-2.0 | Edge data-plane proxy framework and multi-tier cache implementation for `openflare-edge` |
 | **[Rathole](https://github.com/rathole-org/rathole)** | Apache-2.0 | Embedded Rust NAT-traversal tunnel engine powering `openflare-relay` and `openflared` |
 | **[ZEN Engine (GoRules Zen)](https://github.com/gorules/zen)** | MIT | Embedded Rust business rules engine evaluating SmartDNS JDM scheduling policies in `openflare-dns` |
@@ -14,7 +13,6 @@ OpenFlare builds on open-source software and public network datasets. We thank a
 | **[komari-monitor-rs](https://github.com/GenshinMinecraft/komari-monitor-rs)** | WTFPL | Upstream codebase from which `openflare-probe` (`shared/probe`) was derived and modernized |
 | **[OWASP Core Rule Set (CRS)](https://github.com/coreruleset/coreruleset) & [zentinel-modsec](https://github.com/zentinelproxy/zentinel-modsec)** | Apache-2.0 | Bundled CRS v4.30.0 attack-protection subset and pure-Rust ModSecurity rule engine for Edge WAF |
 | **[Anubis](https://github.com/TecharoHQ/anubis)** | MIT | Inspiration for client Proof-of-Work (PoW) challenge mitigation |
-| **gin-template** | — | Initial full-stack Go Gin project scaffold |
 
 ## IP, ASN & Network Intelligence Data
 

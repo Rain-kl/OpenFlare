@@ -6,7 +6,6 @@ OpenFlare 基于众多开源项目与公开数据集构建，在此向所有上�
 
 | 项目 | 许可证 | 说明 |
 | :--- | :--- | :--- |
-| **Wavelet** | Apache-2.0 | 控制面基础架构与权限模型衍生来源（`Copyright 2025 Arctel.net`，见 [NOTICE](https://github.com/Rain-kl/OpenFlare/blob/main/NOTICE)） |
 | **[Pingora](https://github.com/cloudflare/pingora) & [Pingap](https://github.com/vicanso/pingap)** | Apache-2.0 | 边缘数据面（`openflare-edge`）异步网络代理框架与内存/磁盘两级缓存实现 |
 | **[Rathole](https://github.com/rathole-org/rathole)** | Apache-2.0 | 内嵌于 `openflare-relay` 与 `openflared` 的 Rust 内网穿透隧道引擎 |
 | **[ZEN Engine (GoRules Zen)](https://github.com/gorules/zen)** | MIT | 内嵌于 `openflare-dns` 的 Rust 业务规则引擎，用于评估 SmartDNS JDM 调度策略 |
@@ -14,7 +13,6 @@ OpenFlare 基于众多开源项目与公开数据集构建，在此向所有上�
 | **[komari-monitor-rs](https://github.com/GenshinMinecraft/komari-monitor-rs)** | WTFPL | 纯 Rust 探针库 `openflare-probe`（`shared/probe`）的衍生基础 |
 | **[OWASP Core Rule Set (CRS)](https://github.com/coreruleset/coreruleset) & [zentinel-modsec](https://github.com/zentinelproxy/zentinel-modsec)** | Apache-2.0 | 边缘 WAF 内置 CRS v4.30.0 规则子集与纯 Rust ModSecurity 规则引擎 |
 | **[Anubis](https://github.com/TecharoHQ/anubis)** | MIT | 网关无感 PoW（Proof of Work）防 CC 人机挑战机制参考 |
-| **gin-template** | — | 控制面全栈工程脚手架雏形 |
 
 ## IP、ASN 与网络情报数据
 
