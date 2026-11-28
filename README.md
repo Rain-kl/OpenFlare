@@ -127,17 +127,15 @@ flowchart TD
 
 ---
 
-## OpenFlare Edge Performance Benchmarks
+## Edge Performance Benchmarks
 
-**November 20, 2026 · OpenFlare Edge `0.1.8` · Load generator: US-A**
+**Load generator: US-A connecting directly to isolated instance IPs. Serving a 923 B Pages file.**
 
-| Measured metric | JP-B | US-C |
+| Measured metric | JP-B (Oracle 3C-18G Arm) | US-C (EPYC-Milan 1C-2G) |
 | --- | ---: | ---: |
 | HTTP/2 throughput, full WAF, 16 connections × 24 streams | **1,158 requests/s** (3 workers) | **718 requests/s** (1 worker) |
 | HTTP/2 throughput, WAF off, 16 connections × 24 streams | **2,990 requests/s** (3 workers) | **2,169 requests/s** (1 worker) |
 | Peak retest, WAF off, 22-second sample | **3,948 requests/s** (6 workers, 32 × 24) | **2,273 requests/s** (2 workers, 16 × 24) |
-
-US-A connected directly to the isolated Edge IPs without Cloudflare. The tests served a 923 B Pages file with rate limiting disabled and stored access logs on the in-memory filesystem `tmpfs`. The new asynchronous log writer has not been benchmarked on these nodes.
 
 [Benchmark report: test configuration, WAF comparison, and thread scaling.](./docs/en/reference/pingora-benchmark.md)
 
