@@ -31,3 +31,5 @@ Client JavaScript hashes `SHA-256(__CHALLENGE__ + nonce)` in a Web Worker or Web
 
 - Visit a protected path in a private browser session: the edge returns an HTTP `403` challenge page, sets the verification cookie upon completion, and redirects back to the requested URL.
 - Legacy PoW nodes inside WAF flows remain supported for existing graphs; use per-route PoW settings for all new configurations.
+
+![Interactive browser verification PoW challenge page](../../assets/images/pow-challenge.png)

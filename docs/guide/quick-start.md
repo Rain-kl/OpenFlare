@@ -71,4 +71,10 @@ sudo bash install-openflare-edge.sh \
 
 ## 4. 确认节点上线
 
-在 **节点管理** > **节点列表** 确认节点状态为在线，即可前往 [配置反向代理](./proxy-config.md) 发布首个站点。
+在 **节点管理** > **节点列表** 确认节点状态为在线后，即可前往 [配置反向代理](./proxy-config.md) 发布首个站点。
+
+![节点列表中的在线 Edge 节点](../assets/images/node-list.png)
+
+站点接入流量后，可在 **数据看板** 查看全集群请求量、独立 IP、状态码分布与来源地域统计：
+
+![OpenFlare 数据看板总览](../assets/images/dashboard-overview.png)

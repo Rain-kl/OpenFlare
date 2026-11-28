@@ -11,10 +11,15 @@ Route `A` and `AAAA` answers based on client geography, network topology, and li
 
 ## 2. Console Setup
 
-1. Open **DNS** > **SmartDNS** > **Instances** and confirm at least one instance is **Online**.
-2. In **Policies**, select a built-in preset (**Smart Allocation** / **Capacity Load Balance**) or create a custom policy.
-3. In **Delegated Zones**, enter a delegation domain (such as `edge.example.com`) and NS hostnames (such as `ns1.dns-infra.example`), adjust default TTL (`60s`), and enable it.
-4. On **Proxy Routes**, set the pointing mode to **SmartDNS**, or attach records centrally under **Global Records**.
+1. Open **DNS** > **SmartDNS** > **Instances** and confirm at least one instance is **Online** (check **Overview** for online instance count, QPS, L1 cache hit ratio, and latency charts).
+2. Under **Routing policies**, select a built-in preset (**Smart Allocation** / **Capacity Load Balance**) or create a custom policy.
+3. Under **Delegation**, enter a delegated subdomain (such as `sdns.example.com`) and NS hostnames (such as `ns1.example.com`), adjust default TTL (`60s`), and enable the service.
+
+![SmartDNS Overview dashboard](../../assets/images/smartdns-overview.png)
+
+4. Under **DNS** > **DNS Resolution** > **Pointing groups**, bind domain pointing groups to a **SmartDNS** policy so records route through the generated delegation `CNAME`:
+
+![DNS Resolution pointing groups with SmartDNS target](../../assets/images/dns-resolution.png)
 
 ## 3. Registrar Delegation & Constraints
 
@@ -38,6 +43,12 @@ Custom **Policies** DAG graphs combine weights (`latency`, `load`, `geo`), tag w
 | `domain` / `qtype` | Queried domain and DNS record type | `"www.example.com"`, `"A"` |
 
 ## 5. Verification & Troubleshooting
+
+Click **Simulator** in the SmartDNS console to test a domain and client/ECS IP and inspect the matched policy, candidate scoring trace, and selected answer IPs:
+
+![SmartDNS Decision Simulator and candidate scoring trace](../../assets/images/smartdns-simulator.png)
+
+You can also verify live answers from the command line:
 
 ```sh
 dig @<SMARTDNS_IP> www.edge.example.com A +short

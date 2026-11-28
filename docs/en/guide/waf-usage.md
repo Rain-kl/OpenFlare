@@ -13,7 +13,7 @@ Build request inspection graphs, tune attack rule sets, configure global allowli
 
 ## 1. Create a WAF Flow
 
-Open **WAF Protection** > **WAF Flows** > **Create Rule**, wire the required nodes, and save:
+Open **Security** > **WAF** > **Create Rule**, wire the required nodes, and save:
 
 | Node Type | Purpose |
 | :--- | :--- |
@@ -21,13 +21,17 @@ Open **WAF Protection** > **WAF Flows** > **Create Rule**, wire the required nod
 | Attack Protection node | Evaluates an assigned Attack Protection rule set against the request |
 | Rate Limit / Action nodes | Apply rate limits, allow traffic, block requests, or serve a custom response page |
 
+![Visual WAF rule flow graph editor](../../assets/images/waf-rule-graph.png)
+
 > WAF-flow PoW nodes are retained for legacy graphs only; configure new protections using route-level [PoW Challenge Protection](./pow-usage.md). For dynamic IP filtering expressions, see [Auto IP Group Rule Syntax](./waf-ip-group-expr.md).
 
 ## 2. Tune Attack Rule Sets
 
-1. Open **WAF Protection** > **Attack Protection** and pick a preset (Strict / Balanced / Basic) or create a custom group.
+1. Open **Security** > **Attack Protection** and pick a preset (Strict / Balanced / Basic) or create a custom group.
 2. Run new sites in `detect` mode first, then switch to `block` after confirming zero false positives.
-3. Disable noisy individual rules (such as `942100`) via rule `overrides` instead of disabling the entire group.
+3. Disable noisy individual rules (such as `942100`) via rule overrides instead of disabling the entire group.
+
+![Attack protection rule group editor](../../assets/images/attack-protection-group.png)
 
 See [WAF Orchestration Rule Design](../design/waf-orchestration-design.md) for rule engine and CRS level details.
 

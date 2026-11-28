@@ -11,10 +11,15 @@
 
 ## 2. 控制台配置
 
-1. 打开 **DNS 管理** > **SmartDNS** > **实例状态**，确认至少一个实例状态为 **在线**。
-2. 在 **解析策略** 选择预设策略（**智能分配策略** / **容量负载均衡策略**）或新建自定义策略。
-3. 在 **权威域管理** 添加全局委派主域名（如 `edge.example.com`）与 NS 主机名（如 `ns1.dns-infra.example`），调整默认 TTL（默认 `60s`）并启用。
-4. 在 **代理路由** 将站点指向切换为 **SmartDNS**，或在 **全局记录** 统一绑定域名解析策略。
+1. 打开 **DNS 管理** > **SmartDNS** > **权威实例**，确认至少一个实例状态为 **在线**（可在 **运行概览** 查看在线实例数、QPS 与缓存命中率）。
+2. 在 **调度策略** 选择预设策略（**智能分配策略** / **容量负载均衡策略**）或新建自定义策略。
+3. 在 **委派设置** 填写全局委派子域（如 `sdns.example.com`）与 NS 主机名（如 `ns1.example.com`），调整默认 TTL（默认 `60s`）并保存启用。
+
+![SmartDNS 运行概览与查询监控](../assets/images/smartdns-overview.png)
+
+4. 在 **DNS 管理** > **DNS 解析** 的 **指向分组** 中，将目标域名分组指向对应的 **SmartDNS** 策略，系统会自动生成委派子域下的 `CNAME` 目标：
+
+![DNS 解析指向分组与 SmartDNS 策略绑定](../assets/images/dns-resolution.png)
 
 ## 3. 注册商委派与硬性约束
 
@@ -38,6 +43,12 @@
 | `domain` / `qtype` | 查询域名与记录类型 | `"www.example.com"`、`"A"` |
 
 ## 5. 验证与排错
+
+可在 SmartDNS 控制台右上角点击 **决策模拟器**，输入查询域名与客户端 / ECS IP 实时查看命中策略、候选节点评分过程及最终应答 IP：
+
+![SmartDNS 决策模拟器与候选节点评分明细](../assets/images/smartdns-simulator.png)
+
+也可使用命令行验证实际权威解析返回：
 
 ```sh
 dig @<SMARTDNS_IP> www.edge.example.com A +short

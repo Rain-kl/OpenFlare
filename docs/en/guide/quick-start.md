@@ -72,3 +72,9 @@ sudo bash install-openflare-edge.sh \
 ## 4. Verify the node is online
 
 Confirm the node shows online under **Nodes** > **Node List**, then proceed to [Configure a reverse proxy](./proxy-config.md).
+
+![Online edge nodes in Node List](../../assets/images/node-list.png)
+
+Once traffic reaches your sites, inspect cluster request totals, unique IPs, status distributions, and source countries from **Dashboard**:
+
+![OpenFlare Dashboard overview](../../assets/images/dashboard-overview.png)

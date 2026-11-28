@@ -11,8 +11,11 @@ Import existing PEM certificates or automate single-domain and wildcard issuance
 
 OpenFlare renews managed certificates automatically 7 days before expiration.
 
-1. **Add a DNS account**: Open **DNS** > **DNS Accounts**, click **Add Account**, select your provider (Cloudflare Token with `Zone:Zone:Read` + `Zone:DNS:Edit`, Alibaba Cloud DNS, or Tencent Cloud DNSPod), and save.
-2. **Verify scopes**: Confirm **Verification Status** shows **API Ready** and inspect visible zones (click **Refresh Scopes** when needed).
+1. **Add a DNS account**: Open **DNS** > **DNS Accounts**, click **Add account**, select your provider (Cloudflare Token with `Zone:Zone:Read` + `Zone:DNS:Edit`, Alibaba Cloud DNS, or Tencent Cloud DNSPod), and save.
+2. **Verify scopes**: Confirm **Verification status** shows **API available** and inspect visible zones (refresh scopes from the actions menu when needed).
+
+![DNS Accounts verification status and zone scope](../../assets/images/dns-accounts.png)
+
 3. **Request certificate**: Open **Websites** > **TLS Certificates**, click **Request Certificate**, enter the name, primary domain (supports `*.example.com`), optional SANs, and the **DNS Account**, then click **Save & Request**.
 
 Monitor issuance progress under **Admin** > **Task Management**.

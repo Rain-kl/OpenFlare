@@ -1,21 +1,30 @@
 # Network Tools
 
-Inspect IP intelligence, dispatch active HTTP and ICMP ping probes from edge nodes, and group ASN/ISP attributes for SmartDNS routing and WAF rules.
+Dispatch multi-location probes, traceroutes, and ASN/BGP intelligence lookups from edge nodes, and inspect the blended network quality matrix used by SmartDNS steering and WAF rules.
 
 ## Console Features
 
 | Page | Purpose |
 | :--- | :--- |
-| **GeoIP Lookup** | Query country, city, ASN, and BGP prefix attribution for public IPs |
-| **HTTP Ping / Ping Probe** | Run ad-hoc edge probes against domains or IPs to compare status codes and latency across PoPs |
-| **Node Latency Matrix** | Inspect scheduled ping histories per node to identify high-latency or packet-loss paths |
-| **Network Groups** | Bundle ASN, ISP, or regional matchers referenced directly by WAF condition nodes |
-| **System Settings > Network Quality** | Configure GeoIP feeds, BGP/CAIDA enrichment toggles, and auto-probe intervals (raw keys in [Configuration Reference](../reference/configuration.md)) |
+| **Multi-Location Ping** | Run concurrent ICMP, TCPing, or HTTP probes from selected edge nodes to compare Min, Avg, P95 latency, loss, and jitter |
+| **Traceroute** | Execute multi-round `trippy-core` traceroutes inside isolated probe workers with per-hop GeoIP, ASN, and `bgp.tools` tags |
+| **ASN Lookup** | Inspect IP, hostname, or ASN intelligence, announced BGP prefixes, AS neighbors, CAIDA upstream topology, and edge node path comparisons |
+| **DNS Diagnostics** | Query resolvers with optional ECS subnets to inspect returned IPs, geo/ASN attribution, and query latency |
+| **Quality Matrix** | Inspect the blended node-to-ASN/country/IP-family RTT matrix, run the 5-level latency predictor, and manage probe targets and intelligence datasets |
 
 ## Typical Workflow
 
-1. Verify GeoIP enrichment is enabled and synced under **System Settings > Network Quality**.
-2. Create recurring targets under **Ping Probe** and monitor node trends in the **Node Latency Matrix**.
-3. Define **Network Groups** for WAF routing branches or feed node quality signals into SmartDNS policies.
+1. Under **Network Tools** > **Quality Matrix** > **Datasets & Sync**, confirm GeoIP, `bgp.tools`, and CAIDA intelligence datasets are synced.
+2. Run **Multi-Location Ping** or **Traceroute** from multiple edge nodes to compare reachability and latency to an origin or target IP:
+
+![Multi-Location Ping and HTTP probe results](../../assets/images/multi-location-ping.png)
+
+3. Use **ASN Lookup** to inspect edge node AS path comparisons, CAIDA upstream routing topology, announced BGP prefixes, and AS neighbors:
+
+![ASN and IP intelligence lookup with upstream routing topology](../../assets/images/asn-lookup-topology.png)
+
+4. Inspect blended passive TCP and active probe RTT metrics in **Quality Matrix**, or evaluate node rankings with the **Quality Predictor**:
+
+![Network Quality Matrix and Datasets view](../../assets/images/network-quality-matrix.png)
 
 See [Network Quality Assessment & Probing Design](../design/network-quality-design.md) for collection internals.

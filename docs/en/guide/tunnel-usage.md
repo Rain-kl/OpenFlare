@@ -19,7 +19,9 @@ Open **Tunnels** > **Relay Pools** to inspect the default pool or create one:
 
 1. Open **Tunnels** > **Tunnels** > **Create Tunnel**, select the **Relay Pool**, transport preference, and tunnel-level **Allowed / Blocked Target CIDRs**.
 2. Copy the `oftok1_` bootstrap token and launch `openflared` on your private host following [Deploy OpenFlared](../deployment/openflared.md).
-3. Verify the connector is **Online** with active relay attachments in the tunnel detail view.
+3. Verify the connector is **Online** with active relay attachments in the tunnel list or detail view.
+
+![Tunnel Architecture overview and logical tunnels list](../../assets/images/tunnel-architecture.png)
 
 ## 4. Expose Services
 

@@ -17,9 +17,11 @@
 
 ## 3. 创建隧道并启动连接器
 
-1. 进入 **隧道管理** > **隧道列表** 点击 **创建隧道**，关联中继池、传输偏好及隧道级 **Allowed / Blocked Target CIDRs**。
+1. 进入 **内网穿透** > **隧道列表** 点击 **创建隧道**，关联中继池、传输偏好及隧道级 **Allowed / Blocked Target CIDRs**。
 2. 保存后复制 `oftok1_` 引导令牌，按 [部署 OpenFlared](../deployment/openflared.md) 在内网主机启动 `openflared`。
-3. 在隧道详情确认连接器状态为 **在线** 且已建立活跃中继附着（Attachments）。
+3. 在隧道列表或详情确认连接器状态为 **在线** 且已建立活跃中继附着（Attachments）。
+
+![内网穿透隧道架构与在线隧道列表](../assets/images/tunnel-architecture.png)
 
 ## 4. 发布服务
 

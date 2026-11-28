@@ -16,7 +16,9 @@ You can switch sources at any time without removing active or historical deploym
 | :--- | :--- |
 | Manual Upload | Upload `zip`, `tar.gz`/`tgz`, `tar.xz`/`txz`, `tar.bz2`/`tbz2`, `tar`, or `7z` archives as immutable candidate versions, then activate from history |
 | Remote URL | Enter an HTTP(S) URL and select a network policy: `public` (blocks private/loopback/DNS rebinding/self-signed TLS) or `trusted_internal` (requires risk confirmation); supports manual **Sync and Publish** only |
-| GitHub Release | Public `github.com` repositories only; specify repo URL, exact asset filename (default `dist.zip`), and mode: **Latest Release** (`5–1440` minute polling, auto-update off by default) or **Fixed Tag** (manual only); replaced tag assets enter **Needs Confirmation** |
+| GitHub Release | Public `github.com` repositories only; specify repo URL, exact asset filename (default `dist.zip`), and mode: **Latest release** (`5–1440` minute polling, auto-update off by default) or **Pinned tag** (manual only); replaced tag assets enter **Needs Confirmation** |
+
+![Pages GitHub Release deployment source configuration modal](../../assets/images/pages-deployment-source.png)
 
 > Package uploads are bounded by `pages_max_package_size_mb` (default `100 MiB`, range `1–2048 MiB`), `4x` extracted size (minimum `100 MiB`), and `1,000` regular files; symlinks, hard links, and path traversal entries are rejected.
 
@@ -30,6 +32,8 @@ Under project creation or **Settings** (click **Save** to apply):
 ## 4. Bind Route & Roll Back
 
 1. Create or edit a route under **Proxy Routes**, set origin mode to **Pages**, select the project, and save.
-2. To roll back, activate any earlier version in **Deployment History**; manual activation automatically disables source auto-update so scheduled checks do not overwrite it.
+2. To roll back, activate any earlier version under **Deployments**; manual activation automatically disables source auto-update so scheduled checks do not overwrite it.
+
+![Pages production and historical deployments list](../../assets/images/pages-deployments.png)
 
 See [Pages Static Hosting Design](../design/pages-design.md) for deployment state transitions and atomic switching internals.

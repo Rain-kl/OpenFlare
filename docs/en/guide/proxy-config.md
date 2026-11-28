@@ -32,6 +32,14 @@ When the upstream is an IP address and **Origin Host Header** is empty, edge nod
 2. On the route's **Access Authentication** tab, select **Identity Authentication** and set credentials and **Session Lifetime** (`1` to `720` hours, default `24`).
 3. Customize the shared login page under **Websites** > **Response Pages** > **Sign-in page** (`256 KiB` limit; keep a same-page POST form without `action` submitting `username`/`password` and rendering `{{login_error}}`).
 
+![Built-in identity authentication sign-in page](../../assets/images/site-auth-login.png)
+
+### Custom error response pages (optional)
+
+To customize upstream or gateway error responses (such as `502` or `504`), edit the global HTML template with `{{status}}` and `{{host}}` placeholders and live preview under **Websites** > **Response Pages** (see [Origin Error Page Design](../design/origin-error-page.md)):
+
+![Response Pages HTML editor and live preview](../../assets/images/response-page-editor.png)
+
 ### Edge caching (optional)
 
 Enable caching on the route's **Cache** tab (node-wide cache switches and caps live in [OpenFlare Edge performance policies](./performance-policies.md)):
@@ -45,10 +53,15 @@ Responses with `Set-Cookie` are never cached; for cache misses, see [Troubleshoo
 
 ## 4. Verify sync and access
 
-1. Open the node under **Nodes** > **Node List** and confirm **Apply Records** succeeded (use **Force Sync** to retry after fixing host-side issues).
-2. Verify HTTP/HTTPS responses (use `-H "Host: ..."` against `EDGE_NODE_IP` before DNS cutover):
+1. Open the node under **Nodes** > **Node List** and confirm **Status & deploy** shows the latest snapshot applied (use **Force sync** to retry after fixing host-side issues).
+
+![Node detail overview and system performance monitoring](../../assets/images/node-detail.png)
+
+2. Verify HTTP/HTTPS responses (use `-H "Host: ..."` against `EDGE_NODE_IP` before DNS cutover), then inspect request volume, device share, and status codes under **Access Logs**:
 
 ```bash
 curl -I https://your-domain.com
 curl -I -H "Host: your-domain.com" http://EDGE_NODE_IP
 ```
+
+![Access Logs overview and status code distribution](../../assets/images/access-logs.png)
