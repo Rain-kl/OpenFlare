@@ -5,6 +5,8 @@ package netintel
 
 import (
 	"bufio"
+	"bytes"
+	"cmp"
 	"compress/gzip"
 	"encoding/binary"
 	"encoding/csv"
@@ -14,6 +16,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,19 +36,39 @@ type tableEntry struct {
 	Hits int    `json:"Hits"`
 }
 
-type prefixPayload struct {
-	ASN  uint32
-	Hits int
-	Len  uint8
+type prefixID uint32
+
+const ipv6PrefixFlag prefixID = 1 << 31
+
+type ipv4PrefixRow struct {
+	address [4]byte
+	asn     uint32
+	hits    int
+}
+
+type ipv6PrefixRow struct {
+	address [16]byte
+	hits    int
+	asn     uint32
+	bits    uint8
+}
+
+type asnPrefixRange struct {
+	start, end int
+	ipv4Count  int
 }
 
 type bgpToolsIndex struct {
 	asns        map[uint32]asnMeta
 	tags        map[uint32][]string
-	v4Buckets   [33]map[[4]byte]prefixPayload
-	v6Buckets   map[int]map[[16]byte]prefixPayload
+	v4Buckets   [33]map[[4]byte]uint32
+	v6Buckets   [129]map[[16]byte]uint32
 	v6LensDesc  []int
-	asnPrefixes map[uint32][]PrefixRecord
+	v4Prefixes  []ipv4PrefixRow
+	v4Bits      []uint8
+	v6Prefixes  []ipv6PrefixRow
+	asnPrefixes map[uint32]asnPrefixRange
+	asnOrder    []prefixID
 }
 
 const (
@@ -69,10 +92,8 @@ const (
 
 func loadBGPToolsIndex(dir string, manifest *Manifest) (*bgpToolsIndex, []DatasetFileStatus) {
 	idx := &bgpToolsIndex{
-		asns:        make(map[uint32]asnMeta),
-		tags:        make(map[uint32][]string),
-		v6Buckets:   make(map[int]map[[16]byte]prefixPayload),
-		asnPrefixes: make(map[uint32][]PrefixRecord),
+		asns: make(map[uint32]asnMeta),
+		tags: make(map[uint32][]string),
 	}
 	statuses := make([]DatasetFileStatus, 0, bgpToolsDatasetCount)
 
@@ -271,78 +292,143 @@ func (idx *bgpToolsIndex) loadRoutingTable(path string) (int, error) {
 
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, bgpTagsInitBufBytes), bgpTableMaxBufBytes)
+	byASN := make(map[uint32][]prefixID, len(idx.asns))
 	count := 0
+	var item tableEntry
+	var loadErr error
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 {
 			continue
 		}
-		var item tableEntry
-		if err := json.Unmarshal([]byte(line), &item); err != nil {
+		item = tableEntry{}
+		if err := json.Unmarshal(line, &item); err != nil {
 			continue
 		}
 		prefix, err := netip.ParsePrefix(strings.TrimSpace(item.CIDR))
 		if err != nil || item.ASN == 0 {
 			continue
 		}
-		prefix = prefix.Masked()
-		addr := prefix.Addr()
-		bits := prefix.Bits()
-		payload := prefixPayload{
-			ASN:  item.ASN,
-			Hits: item.Hits,
-			Len:  uint8(bits), //nolint:gosec // CIDR prefix bits are 0..128
+		id, err := idx.addRoutingPrefix(prefix.Masked(), item.ASN, item.Hits)
+		if err != nil {
+			loadErr = err
+			break
 		}
-		family := idx.storePrefixBucket(addr, bits, payload)
-		idx.asnPrefixes[item.ASN] = append(idx.asnPrefixes[item.ASN], PrefixRecord{
-			CIDR:   prefix.String(),
-			ASN:    item.ASN,
-			Hits:   item.Hits,
-			Family: family,
-		})
+		byASN[item.ASN] = append(byASN[item.ASN], id)
 		count++
 	}
 	if err := scanner.Err(); err != nil {
-		return count, fmt.Errorf("scan routing table: %w", err)
+		loadErr = fmt.Errorf("scan routing table: %w", err)
 	}
-
-	idx.v6LensDesc = make([]int, 0, len(idx.v6Buckets))
-	for l := range idx.v6Buckets {
-		idx.v6LensDesc = append(idx.v6LensDesc, l)
+	idx.buildASNPrefixOrder(byASN, count, loadErr == nil)
+	if loadErr != nil {
+		return count, loadErr
 	}
-	sort.Sort(sort.Reverse(sort.IntSlice(idx.v6LensDesc)))
-
-	for asn, list := range idx.asnPrefixes {
-		sort.Slice(list, func(i, j int) bool {
-			if list[i].Hits != list[j].Hits {
-				return list[i].Hits > list[j].Hits
-			}
-			return list[i].CIDR < list[j].CIDR
-		})
-		idx.asnPrefixes[asn] = list
+	for bits := ipv6BitLen; bits >= 0; bits-- {
+		if len(idx.v6Buckets[bits]) > 0 {
+			idx.v6LensDesc = append(idx.v6LensDesc, bits)
+		}
 	}
 	return count, nil
 }
 
-func (idx *bgpToolsIndex) storePrefixBucket(addr netip.Addr, bits int, payload prefixPayload) string {
+func (idx *bgpToolsIndex) addRoutingPrefix(prefix netip.Prefix, asn uint32, hits int) (prefixID, error) {
+	addr, bits := prefix.Addr(), prefix.Bits()
 	if addr.Is4() {
-		if bits >= 0 && bits <= ipv4BitLen {
-			if idx.v4Buckets[bits] == nil {
-				idx.v4Buckets[bits] = make(map[[4]byte]prefixPayload)
+		if uint64(len(idx.v4Prefixes)) >= uint64(ipv6PrefixFlag) {
+			return 0, fmt.Errorf("too many IPv4 routing prefixes")
+		}
+		id := uint32(len(idx.v4Prefixes)) //nolint:gosec // checked above
+		address := addr.As4()
+		idx.v4Prefixes = append(idx.v4Prefixes, ipv4PrefixRow{address: address, asn: asn, hits: hits})
+		idx.v4Bits = append(idx.v4Bits, uint8(bits)) //nolint:gosec // valid CIDR length is at most 32
+		if idx.v4Buckets[bits] == nil {
+			idx.v4Buckets[bits] = make(map[[4]byte]uint32)
+		}
+		idx.v4Buckets[bits][address] = id
+		return prefixID(id), nil
+	}
+	if uint64(len(idx.v6Prefixes)) >= uint64(ipv6PrefixFlag) {
+		return 0, fmt.Errorf("too many IPv6 routing prefixes")
+	}
+	id := uint32(len(idx.v6Prefixes)) //nolint:gosec // checked above
+	address := addr.As16()
+	idx.v6Prefixes = append(idx.v6Prefixes, ipv6PrefixRow{
+		address: address,
+		asn:     asn,
+		hits:    hits,
+		bits:    uint8(bits), //nolint:gosec // valid CIDR length is at most 128
+	})
+	if idx.v6Buckets[bits] == nil {
+		idx.v6Buckets[bits] = make(map[[16]byte]uint32)
+	}
+	idx.v6Buckets[bits][address] = id
+	return ipv6PrefixFlag | prefixID(id), nil
+}
+
+func (id prefixID) isIPv6() bool {
+	return id&ipv6PrefixFlag != 0
+}
+
+func (idx *bgpToolsIndex) prefixRecord(id prefixID) PrefixRecord {
+	if id.isIPv6() {
+		row := idx.v6Prefixes[id&^ipv6PrefixFlag]
+		return PrefixRecord{
+			CIDR:   netip.PrefixFrom(netip.AddrFrom16(row.address), int(row.bits)).String(),
+			ASN:    row.asn,
+			Hits:   row.hits,
+			Family: IPFamilyIPv6,
+		}
+	}
+	row := idx.v4Prefixes[id]
+	return PrefixRecord{
+		CIDR:   netip.PrefixFrom(netip.AddrFrom4(row.address), int(idx.v4Bits[id])).String(),
+		ASN:    row.asn,
+		Hits:   row.hits,
+		Family: IPFamilyIPv4,
+	}
+}
+
+func (idx *bgpToolsIndex) buildASNPrefixOrder(byASN map[uint32][]prefixID, count int, sorted bool) {
+	type sortKey struct {
+		cidr string
+		hits int
+		id   prefixID
+	}
+	var keys []sortKey
+	idx.asnPrefixes = make(map[uint32]asnPrefixRange, len(byASN))
+	idx.asnOrder = make([]prefixID, 0, count)
+	for asn, ids := range byASN {
+		start := len(idx.asnOrder)
+		ipv4Count := 0
+		if !sorted || len(ids) == 1 {
+			idx.asnOrder = append(idx.asnOrder, ids...)
+			for _, id := range ids {
+				if !id.isIPv6() {
+					ipv4Count++
+				}
 			}
-			idx.v4Buckets[bits][addr.As4()] = payload
+		} else {
+			keys = keys[:0]
+			for _, id := range ids {
+				if !id.isIPv6() {
+					ipv4Count++
+				}
+				record := idx.prefixRecord(id)
+				keys = append(keys, sortKey{cidr: record.CIDR, hits: record.Hits, id: id})
+			}
+			slices.SortFunc(keys, func(a, b sortKey) int {
+				if order := cmp.Compare(b.hits, a.hits); order != 0 {
+					return order
+				}
+				return strings.Compare(a.cidr, b.cidr)
+			})
+			for _, key := range keys {
+				idx.asnOrder = append(idx.asnOrder, key.id)
+			}
 		}
-		return "ipv4"
+		idx.asnPrefixes[asn] = asnPrefixRange{start: start, end: len(idx.asnOrder), ipv4Count: ipv4Count}
 	}
-	if bits >= 0 && bits <= ipv6BitLen {
-		bucket := idx.v6Buckets[bits]
-		if bucket == nil {
-			bucket = make(map[[16]byte]prefixPayload)
-			idx.v6Buckets[bits] = bucket
-		}
-		bucket[addr.As16()] = payload
-	}
-	return "ipv6"
 }
 
 func (idx *bgpToolsIndex) lookupIP(addr netip.Addr) (prefix string, asn uint32, hits int) {
@@ -358,8 +444,9 @@ func (idx *bgpToolsIndex) lookupIP(addr netip.Addr) (prefix string, asn uint32, 
 				continue
 			}
 			masked := mask4(raw, bits)
-			if p, ok := bucket[masked]; ok {
-				return netip.PrefixFrom(netip.AddrFrom4(masked), bits).String(), p.ASN, p.Hits
+			if id, ok := bucket[masked]; ok {
+				row := idx.v4Prefixes[id]
+				return netip.PrefixFrom(netip.AddrFrom4(masked), bits).String(), row.asn, row.hits
 			}
 		}
 		return "", 0, 0
@@ -372,8 +459,9 @@ func (idx *bgpToolsIndex) lookupIP(addr netip.Addr) (prefix string, asn uint32, 
 			continue
 		}
 		masked := mask16(raw, bits)
-		if p, ok := bucket[masked]; ok {
-			return netip.PrefixFrom(netip.AddrFrom16(masked), bits).String(), p.ASN, p.Hits
+		if id, ok := bucket[masked]; ok {
+			row := idx.v6Prefixes[id]
+			return netip.PrefixFrom(netip.AddrFrom16(masked), bits).String(), row.asn, row.hits
 		}
 	}
 	return "", 0, 0

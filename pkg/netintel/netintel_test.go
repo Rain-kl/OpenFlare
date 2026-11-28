@@ -34,6 +34,12 @@ func TestManagerLookupAndPrefixMatching(t *testing.T) {
 	_, _ = gz.Write([]byte("{\"CIDR\":\"1.1.1.0/24\",\"ASN\":13335,\"Hits\":9000}\n"))
 	_, _ = gz.Write([]byte("{\"CIDR\":\"1.0.0.0/8\",\"ASN\":4134,\"Hits\":100}\n"))
 	_, _ = gz.Write([]byte("{\"CIDR\":\"2606:4700:4700::/48\",\"ASN\":13335,\"Hits\":5000}\n"))
+	// IP lookups use the final entry for a prefix. ASN pages retain all entries
+	// and use lexical CIDR order when Hits match.
+	_, _ = gz.Write([]byte("{\"CIDR\":\"10.2.0.0/16\",\"ASN\":174,\"Hits\":10}\n"))
+	_, _ = gz.Write([]byte("{\"CIDR\":\"10.10.0.0/16\",\"ASN\":174,\"Hits\":10}\n"))
+	_, _ = gz.Write([]byte("{\"CIDR\":\"2001:db8:abcd::/48\",\"ASN\":174,\"Hits\":10}\n"))
+	_, _ = gz.Write([]byte("{\"CIDR\":\"10.2.0.1/16\",\"ASN\":4134}\n"))
 	if err := gz.Close(); err != nil {
 		t.Fatalf("close gzip table: %v", err)
 	}
@@ -87,6 +93,18 @@ func TestManagerLookupAndPrefixMatching(t *testing.T) {
 	overflowRecords, overflowTotal := mgr.ListASNPrefixes(13335, "", math.MaxInt, 20)
 	if overflowTotal != 2 || len(overflowRecords) != 0 {
 		t.Fatalf("expected empty page on huge page number, got total=%d len=%d", overflowTotal, len(overflowRecords))
+	}
+	duplicate := mgr.LookupIP("10.2.0.7")
+	if duplicate == nil || duplicate.ASN != 4134 || duplicate.Prefix != "10.2.0.0/16" || duplicate.PrefixHits != 0 {
+		t.Fatalf("expected last duplicate prefix to win with default Hits, got %+v", duplicate)
+	}
+	first, firstTotal := mgr.ListASNPrefixes(174, "all", 1, 1)
+	second, secondTotal := mgr.ListASNPrefixes(174, "ipv4", 2, 1)
+	ipv6, ipv6Total := mgr.ListASNPrefixes(174, "IPv6", 1, 1)
+	if firstTotal != 3 || len(first) != 1 || first[0].CIDR != "10.10.0.0/16" ||
+		secondTotal != 2 || len(second) != 1 || second[0].CIDR != "10.2.0.0/16" ||
+		ipv6Total != 1 || len(ipv6) != 1 || ipv6[0].CIDR != "2001:db8:abcd::/48" {
+		t.Fatalf("unexpected ASN pages: all=%+v (%d) v4=%+v (%d) v6=%+v (%d)", first, firstTotal, second, secondTotal, ipv6, ipv6Total)
 	}
 
 	// Topology path with observed edges (no CAIDA file on disk)
