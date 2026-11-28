@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import { LandingPage } from '@/components/landing-page';
 
 export const metadata: Metadata = {
-  title: 'Distributed edge security gateway',
+  title: 'Open-Source Self-Hosted Distributed Edge Network',
   description:
-    'Manage OpenFlare Edge nodes, publish site configuration, and apply WAF and proof-of-work protection at the edge with OpenFlare.',
+    'Orchestrate your own servers into a unified, high-performance edge cluster. Manage reverse proxies, SmartDNS traffic steering, edge caching, WAF & PoW defense, encrypted tunnels, and Pages hosting from one control plane.',
 };
 
 export default function EnglishHomePage() {

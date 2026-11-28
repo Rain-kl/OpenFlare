@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: '%s | OpenFlare',
   },
   description:
-    'OpenFlare 分布式反向代理与边缘安全网关文档，涵盖部署、配置、WAF、隧道及架构设计。',
+    'OpenFlare 开源自托管分布式边缘网络文档，涵盖部署、反向代理、SmartDNS、边缘缓存、WAF 与 PoW 防护、内网穿透、Pages 及架构设计。',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

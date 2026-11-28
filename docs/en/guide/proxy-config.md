@@ -7,19 +7,14 @@ Set up origins, domains, certificates, and proxy routes, then verify edge synchr
 - OpenFlare Server is running with at least one online `openflare-edge` node under **Nodes** > **Node List**.
 - For HTTPS routes, prepare certificates following [TLS certificates and auto-renewal](./certificates.md).
 
-## 1. Create an origin (optional)
-
-Open **Websites** > **Origins**, click **Add origin**, and save a reusable backend name and URL (such as `http://10.0.0.10:8080`).
-
-## 2. Add domains and bind certificates
+## 1. Add domains and bind certificates
 
 1. Open **Websites** > **Domains**, click **Add Zone**, and register the root domain (`example.com`; wildcards are rejected here).
 2. Add concrete or single-level wildcard hostnames (`api`, `@`, `*`, or `*.s3.example.com`), bind a covering certificate if enabling HTTPS, and save.
-3. Click **Clean Unbound Domains** on the zone's **Domains** tab to remove unused entries.
 
 Second-level wildcards such as `*.s3.example.com` require a certificate SAN explicitly covering `*.s3.example.com`; exact hostnames take precedence over wildcards.
 
-## 3. Create a proxy route
+## 2. Create a proxy route
 
 1. Open **Proxy Routes**, click **Create**, enter a route name, and select or quick-add domains under **Domain Match**.
 2. On the **Reverse Proxy** tab, choose **Direct Upstream**, select a saved origin or enter an `http://` / `https://` URL, and click **Save**.
@@ -51,7 +46,7 @@ Enable caching on the route's **Cache** tab (node-wide cache switches and caps l
 
 Responses with `Set-Cookie` are never cached; for cache misses, see [Troubleshooting](./troubleshooting.md#edge-cache-hit-rate-anomalies).
 
-## 4. Verify sync and access
+## 3. Verify sync and access
 
 1. Open the node under **Nodes** > **Node List** and confirm **Status & deploy** shows the latest snapshot applied (use **Force sync** to retry after fixing host-side issues).
 
