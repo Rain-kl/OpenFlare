@@ -1,72 +1,38 @@
 # 引用与致谢
 
-OpenFlare 在设计与实现过程中借鉴了众多开源项目的优秀理念、架构设计和技术实现。以下是 OpenFlare 在核心底层引擎、安全防护机制、可观测探针、IP/ASN 数据源以及前后端系统框架等方面所引用的关键开源项目与公开数据集，在此对这些项目及其社区表示感谢。
+OpenFlare 基于众多开源项目与公开数据集构建，在此向所有上游作者、维护者与贡献者致谢。
 
----
+## 核心组件与衍生来源
 
-## 核心系统与衍生来源
+| 项目 | 许可证 | 说明 |
+| :--- | :--- | :--- |
+| **Wavelet** | Apache-2.0 | 控制面基础架构与权限模型衍生来源（`Copyright 2025 Arctel.net`，见 [NOTICE](https://github.com/Rain-kl/OpenFlare/blob/main/NOTICE)） |
+| **[Pingora](https://github.com/cloudflare/pingora) & [Pingap](https://github.com/vicanso/pingap)** | Apache-2.0 | 边缘数据面（`openflare-edge`）异步网络代理框架与内存/磁盘两级缓存实现 |
+| **[Rathole](https://github.com/rathole-org/rathole)** | Apache-2.0 | 内嵌于 `openflare-relay` 与 `openflared` 的 Rust 内网穿透隧道引擎 |
+| **[ZEN Engine (GoRules Zen)](https://github.com/gorules/zen)** | MIT | 内嵌于 `openflare-dns` 的 Rust 业务规则引擎，用于评估 SmartDNS JDM 调度策略 |
+| **[Komari](https://github.com/komari-monitor/komari)** | MIT | 节点主机监控指标、延迟探测（`PingTask` / `PingRecord`）与远程任务模型参考 |
+| **[komari-monitor-rs](https://github.com/GenshinMinecraft/komari-monitor-rs)** | WTFPL | 纯 Rust 探针库 `openflare-probe`（`shared/probe`）的衍生基础 |
+| **[OWASP Core Rule Set (CRS)](https://github.com/coreruleset/coreruleset) & [zentinel-modsec](https://github.com/zentinelproxy/zentinel-modsec)** | Apache-2.0 | 边缘 WAF 内置 CRS v4.30.0 规则子集与纯 Rust ModSecurity 规则引擎 |
+| **[Anubis](https://github.com/TecharoHQ/anubis)** | MIT | 网关无感 PoW（Proof of Work）防 CC 人机挑战机制参考 |
+| **gin-template** | — | 控制面全栈工程脚手架雏形 |
 
-### 1. Pingora 与 Pingap
-*   **项目定位**：Cloudflare 开源的 Rust 异步多线程高性能网络代理框架及 Pingap 缓存实现。
-*   **在 OpenFlare 中的作用**：作为全局数据面（Data Plane）的边缘网关核心引擎。边缘节点（`openflare-edge`）基于 Pingora 构建，负责接收全部公网 Web 流量，执行动态 TLS 握手与证书管理、WAF 安全规则比对、PoW 客户端人机验证、两级边缘缓存与反向代理转发。
-*   **项目链接**：[cloudflare/pingora (GitHub)](https://github.com/cloudflare/pingora) 与 [vicanso/pingap (GitHub)](https://github.com/vicanso/pingap)
+## IP、ASN 与网络情报数据
 
----
+| 数据源 | 许可证 / 使用条款 | 说明 |
+| :--- | :--- | :--- |
+| **[MaxMind GeoLite2](https://www.maxmind.com)**（镜像：[FyraLabs/geolite2](https://github.com/FyraLabs/geolite2) · [Loyalsoldier/geoip](https://github.com/Loyalsoldier/geoip)） | CC BY-SA 4.0 / MaxMind GeoLite2 EULA | 提供 `Country`、`City`、`ASN` MMDB 数据库，用于 WAF 地域匹配、SmartDNS 定位、日志与 ASN 查询 |
+| **[sapics/ip-location-db](https://github.com/sapics/ip-location-db)** | PDDL-1.0 | 可选开放 GeoIP 与 ASN MMDB 数据源（`geo-whois-asn-country-mmdb`、`asn-mmdb`） |
+| **[bgp.tools](https://bgp.tools/)** | Attribution Required | 全球 BGP 路由表（`table.jsonl`）、ASN 名录（`asns.csv`）与特性标签（`tags/*.txt`） |
+| **[CAIDA AS Relationships](https://publicdata.caida.org/datasets/as-relationships/serial-2/)** | CAIDA Public AUA（Citation Required） | 可选运行时加载的 `serial-2` AS 互联关系数据集，用于上游拓扑分析（不随发行包或镜像分发） |
 
-### 2. Rathole
-*   **项目定位**：基于 Rust 编写的 NAT 内网穿透反向代理（Apache-2.0）。
-*   **在 OpenFlare 中的作用**：作为内网穿透子系统的底层隧道引擎。中继端 `openflare-relay` 与连接器 `openflared` 以库形式在进程内直接嵌入 `rathole`，支持 Noise、WebSocket 与 TCP 传输及配置热加载，承载 L4 TCP/UDP 转发与 L7 网关代理流量。
-*   **项目链接**：[rathole-org/rathole (GitHub)](https://github.com/rathole-org/rathole)
+## 主要依赖库与工具链
 
----
+- **后端（Go）**：[Gin](https://github.com/gin-gonic/gin) (MIT)、[GORM](https://gorm.io/) (MIT)、[Goose](https://github.com/pressly/goose) (Apache-2.0)、[Asynq](https://github.com/hibiken/asynq) (MIT)、[Lego](https://github.com/go-acme/lego) (MIT)、[OpenTelemetry Go](https://opentelemetry.io/) (Apache-2.0)、[Cobra](https://github.com/spf13/cobra) & [Viper](https://github.com/spf13/viper) (Apache-2.0)、[MaxMind DB Reader](https://github.com/oschwald/maxminddb-golang) (ISC)、[Expr](https://github.com/expr-lang/expr) (MIT)、[Zap](https://github.com/uber-go/zap) (MIT)、[ClickHouse Go](https://github.com/ClickHouse/clickhouse-go) (MIT)、[Swaggo](https://github.com/swaggo/swag) (Apache-2.0)
+- **前端与文档**：[Next.js](https://nextjs.org/) & [React](https://react.dev/) (MIT)、[Tailwind CSS](https://tailwindcss.com/) (MIT)、[shadcn/ui](https://ui.shadcn.com/) & [Radix UI](https://www.radix-ui.com/) (MIT)、[XYFlow](https://reactflow.dev/) (MIT)、[TanStack Query & Table](https://tanstack.com/) (MIT)、[Apache ECharts](https://echarts.apache.org/) (Apache-2.0) & [Recharts](https://recharts.org/) (MIT)、[Lucide](https://lucide.dev/) (ISC)、[next-intl](https://next-intl-docs.vercel.app/) (MIT)、[Fumadocs](https://fumadocs.vercel.app/) (MIT)、[Biome](https://biomejs.dev/) (MIT / Apache-2.0)、[Vitest](https://vitest.dev/) (MIT)
 
-### 3. ZEN Engine（GoRules Zen）
-*   **项目定位**：基于 Rust 编写的开源业务规则引擎，支持 JDM（JSON Decision Model）决策图与表达式求值（MIT）。
-*   **在 OpenFlare 中的作用**：作为 SmartDNS 权威解析子系统的策略评估引擎。独立权威服务端 `openflare-dns` 嵌入 `zen-engine` 执行控制台编排生成的 JDM 调度策略，结合客户端位置、ASN、ECS 子网与节点标签权重完成解析决策。
-*   **项目链接**：[gorules/zen (GitHub)](https://github.com/gorules/zen)
+## 署名与许可声明
 
----
-
-### 4. Komari
-*   **项目定位**：轻量级自托管服务器监控与管理方案（MIT）。
-*   **在 OpenFlare 中的作用**：OpenFlare 借鉴了 Komari 的主机监控指标、延迟探测（`PingTask` / `PingRecord`）与远程命令执行（`Task` / `TaskResult`）模型及日志表结构设计，用于统一节点可观测数据采集与展示。
-*   **项目链接**：[komari-monitor/komari (GitHub)](https://github.com/komari-monitor/komari)
-
----
-
-### 5. komari-monitor-rs
-*   **项目定位**：使用 Rust 编写的 Komari 监控采集端实现（WTFPL）。
-*   **在 OpenFlare 中的作用**：OpenFlare 的纯 Rust 探针库 `openflare-probe`（`shared/probe`）衍生自 `komari-monitor-rs` 并进行了重构，为 `openflare-edge`、`openflare-relay` 等节点运行时提供主机资源采集、延迟探测与受控远程执行能力。
-*   **项目链接**：[GenshinMinecraft/komari-monitor-rs (GitHub)](https://github.com/GenshinMinecraft/komari-monitor-rs)
-
----
-
-### 6. OWASP Core Rule Set（CRS）与 zentinel-modsec
-*   **项目定位**：OWASP 开源 Web 应用防火墙核心规则集（v4.30.0，Apache-2.0）及纯 Rust ModSecurity 规则引擎（Apache-2.0）。
-*   **在 OpenFlare 中的作用**：边缘节点 `openflare-edge` 内置 OWASP CRS v4.30.0 攻击防护规则子集（`edge/vendor/owasp-crs`），并通过 `zentinel-modsec` 在 Rust 数据面中执行请求初始化与各类攻击特征检测。
-*   **项目链接**：[coreruleset/coreruleset (GitHub)](https://github.com/coreruleset/coreruleset) 与 [zentinelproxy/zentinel-modsec (GitHub)](https://github.com/zentinelproxy/zentinel-modsec)
-
----
-
-### 7. Anubis（PoW 方案）
-*   **项目定位**：基于工作量证明（Proof of Work）的轻量级人机验证防护方案。
-*   **在 OpenFlare 中的作用**：为网关 WAF 提供了核心的**无感防 CC 人机挑战**能力。
-
----
-
-### 8. gin-template
-*   **项目定位**：基于 Go Gin 与前端构建的现代化全栈开发脚手架模板。
-*   **在 OpenFlare 中的作用**：为 OpenFlare 控制面（Server）提供了规范、统一的前后端系统架构雏形。
-
----
-
-## IP、ASN 与网络情报数据库
-
-| 数据源 | 许可证 | 在 OpenFlare 中的作用 | 项目 / 数据地址 |
-| :--- | :--- | :--- | :--- |
-| **MaxMind GeoLite2（FyraLabs / Loyalsoldier 镜像）** | CC BY-SA 4.0 / MaxMind GeoLite2 EULA | 提供 `GeoLite2-Country`、`GeoLite2-City` 与 `GeoLite2-ASN` MMDB 数据库（`Loyalsoldier/geoip` 作为默认内置回退国家库），用于 WAF 地域拦截、SmartDNS 位置识别、访问日志解析及 ASN 归属查询 | [FyraLabs/geolite2](https://github.com/FyraLabs/geolite2) · [Loyalsoldier/geoip](https://github.com/Loyalsoldier/geoip) |
-| **sapics / ip-location-db** | PDDL-1.0 | 可选的开放 GeoIP 与 ASN MMDB 数据源（`@ip-location-db/geo-whois-asn-country-mmdb` 与 `@ip-location-db/asn-mmdb`），用于控制面网络情报切换与补充解析 | [sapics/ip-location-db](https://github.com/sapics/ip-location-db) |
-| **bgp.tools** | bgp.tools（Attribution Required） | 提供全球 BGP 路由表（`table.jsonl`）、ASN 组织名录（`asns.csv`）与特性标签（`tags/*.txt`），支撑网络工具中的前缀归属查询与网络情报分析 | [bgp.tools](https://bgp.tools/) |
-| **CAIDA AS Relationships** | CAIDA Public AUA（仅运行时加载，需引用署名） | 可选运行时 AS 互联关系数据集（`serial-2`），用于控制面分析自治系统上游路径与网络拓扑（不随安装包或容器镜像分发） | [CAIDA AS Relationships](https://publicdata.caida.org/datasets/as-relationships/serial-2/) |
-
----
+- OpenFlare 源码采用 [Apache License 2.0](https://github.com/Rain-kl/OpenFlare/blob/main/LICENSE) 开源；衍生代码版权与修改说明保留于根目录 [NOTICE](https://github.com/Rain-kl/OpenFlare/blob/main/NOTICE)。
+- 本产品包含由 MaxMind 创建的 GeoLite2 数据（[https://www.maxmind.com](https://www.maxmind.com)）。
+- 网络情报与路由分析功能使用 [bgp.tools](https://bgp.tools/) 数据，并支持在运行时加载 [CAIDA AS Relationships](https://www.caida.org/catalog/datasets/as-relationships/) 数据集。
+- 所有第三方软件与数据集均保留其原有版权与许可证条款；如发现署名或授权信息遗漏，请通过 [GitHub Issues](https://github.com/Rain-kl/OpenFlare/issues) 联系更正。
